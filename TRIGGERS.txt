@@ -1,0 +1,90 @@
+DELIMITER $$
+
+USE `trebol`$$
+
+DROP TRIGGER /*!50032 IF EXISTS */ `MantenerStock`$$
+
+CREATE
+    /*!50017 DEFINER = 'root'@'localhost' */
+    TRIGGER `MantenerStock` AFTER INSERT ON `compradet` 
+    FOR EACH ROW BEGIN
+   
+    UPDATE articu SET stockact = stockact + IF(NEW.tipocomp="NC",NEW.cantidad*(-1),NEW.cantidad) 
+    WHERE codigo = NEW.codart;
+    END;
+$$
+
+DELIMITER ;
+
+DELIMITER $$
+
+USE `trebol`$$
+
+DROP TRIGGER /*!50032 IF EXISTS */ `MantenerStock2`$$
+
+CREATE
+    /*!50017 DEFINER = 'root'@'localhost' */
+    TRIGGER `MantenerStock2` BEFORE DELETE ON `compradet` 
+    FOR EACH ROW BEGIN
+    
+    UPDATE articu SET stockact = stockact - IF(OLD.tipocomp="NC",OLD.cantidad*(-1),OLD.cantidad)
+    WHERE codigo = OLD.codart;
+    END;
+$$
+
+DELIMITER ;
+
+DELIMITER $$
+
+USE `trebol`$$
+
+DROP TRIGGER /*!50032 IF EXISTS */ `MantenerStock3`$$
+
+CREATE
+    /*!50017 DEFINER = 'root'@'localhost' */
+    TRIGGER `MantenerStock3` AFTER INSERT ON `ventas_det` 
+    FOR EACH ROW BEGIN
+   
+    UPDATE articu SET stockact = stockact - IF(LEFT(NEW.nrofac,2) ="FR",0,
+                                            IF(LEFT(NEW.nrofac,2) ="NC",NEW.cantidad*(-1),NEW.cantidad)) 
+    WHERE codigo = NEW.codart;
+    END;
+$$
+
+DELIMITER ;
+
+DELIMITER $$
+
+USE `trebol`$$
+
+DROP TRIGGER /*!50032 IF EXISTS */ `MantenerStock4`$$
+
+CREATE
+    /*!50017 DEFINER = 'root'@'localhost' */
+    TRIGGER `MantenerStock4` BEFORE DELETE ON `ventas_det` 
+    FOR EACH ROW BEGIN
+    UPDATE articu SET stockact = stockact + IF(LEFT(OLD.nrofac,2)="FR",0,
+                                              IF(LEFT(OLD.nrofac,2)="NC",OLD.cantidad*(-1),OLD.cantidad))
+    WHERE codigo = OLD.codart;
+    END;
+$$
+
+DELIMITER ;
+
+DELIMITER $$
+
+USE `trebol`$$
+
+DROP TRIGGER /*!50032 IF EXISTS */ `MantenerStock5`$$
+
+CREATE
+    /*!50017 DEFINER = 'root'@'localhost' */
+    TRIGGER `MantenerStock5` AFTER INSERT ON `remitos` 
+    FOR EACH ROW BEGIN
+   
+    UPDATE articu SET stockact = stockact - NEW.cantidad
+    WHERE codigo = NEW.codart;
+    END;
+$$
+
+DELIMITER ;

@@ -1,0 +1,3 @@
+#ifdef __FLAT__
+   1 24 "WindowsXP.Manifest"
+#endif

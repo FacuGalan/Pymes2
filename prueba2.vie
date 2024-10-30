@@ -1,0 +1,57 @@
+#include "fivewin.ch"
+MEMVAR oApp
+STATIC oQry, oWnd1, oBrw, oDlg, cVentana, oForm
+PROCEDURE Reporte(cUser,cOpcion)   
+   LOCAL oExpBar
+   LOCAL oPanel1, bBloque
+   LOCAL hHand
+   oQry := oApp:oSerUsu:Query( "SELECT ib.modulo, ib.codigo, ib.etiqueta, ib.detalle, ib.recurso,LEFT(ib.padre,5) as padre, "+;
+                            " iu.permiso_id as permisos, ib.objeto_id AS reporte  FROM su_itemusuario iu "+;
+                            " LEFT JOIN su_itembase ib ON ib.item = iu.item_id "+;
+                            " WHERE iu.usuario = "+ClipValue2SQL(cUser)+" AND ib.sistema = 'in' "+;
+                            " AND ib.padre = " + + ClipValue2Sql(cOpcion) +;
+                            " ORDER BY ib.codigo ")
+   
+   cVentana := PROCNAME()
+   IF ASCAN(oApp:aVentanas,cVentana) > 0
+      hHand := ASCAN(oApp:aVentanas,cVentana)
+      oApp:oWnd:Select(hHand)
+      oApp:oWnd:oWndClient:aWnd[hHand]:Restore()
+      RETURN
+   ENDIF
+   AADD(oApp:aVentanas,cVentana)
+   
+   DEFINE WINDOW oWnd1 TITLE "Generacion de Reportes" MDICHILD OF oApp:oWnd NOZOOM ICON oApp:oIco
+   
+   oWnd1:SetSize( 350, oApp:oWnd:oWndClient:nHeight())
+
+   oExpBar = TExplorerBar():New()
+   *--
+   oPanel1 = oExpBar:AddPanel( " Reportes " , ".\BITMAPS\rbnmenu.bmp"  )
+   oPanel1:lSpecial:=.T.
+   DO WHILE !oQry:Eof()
+      bBloque := "{|| "+ALLTRIM(oQry:modulo)+"('"+oQry:permisos+"')}"
+      bBloque := &bBloque
+      oPanel1:AddLink( oQry:detalle, bBloque, "repor1")
+      oQry:Skip()
+   ENDDO
+   
+   oWnd1:oClient = oExpBar
+   ACTIVATE WINDOW oWnd1 ON INIT oWnd1:move(0,0) VALID(cerrar())
+ 
+RETURN
+
+*************************************
+** Cerrar el archivo abierto
+STATIC FUNCTION cerrar (  )
+LOCAL aNueva := {}, i, j
+oQry:End()
+RELEASE oQry
+j := ASCAN(oApp:aVentanas,cVentana)
+FOR i := 1 TO LEN(oApp:aVentanas)
+    IF i <> j
+       AADD(aNueva,oApp:aVentanas[i])
+    ENDIF
+NEXT i
+oApp:aVentanas := ACLONE(aNueva)
+RETURN .t.
