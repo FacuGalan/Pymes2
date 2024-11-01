@@ -9,7 +9,8 @@
 MEMVAR oApp
 STATIC oQryBrw, oWnd1, oBrw, oDlg, lEdit := .f., cVentana,oError
 PROCEDURE ORDENES()
-LOCAL oGet, cBuscar := SPACE(50), oBar, hHand, oFol,nFiltro:=1,oBot
+LOCAL oGet, cBuscar := SPACE(50), oBar, hHand, oFol,nFiltro:=1,oBot,;
+      lAdmin:= oApp:oServer:Query("SELECT IF(tipo='ADMIN',TRUE,FALSE) AS admin FROM ge_"+oApp:cId+"usuarios WHERE usuario = "+ClipValue2Sql(oApp:usuario)):admin
 cVentana := PROCNAME()
 IF ASCAN(oApp:aVentanas,cVentana) > 0
    hHand := ASCAN(oApp:aVentanas,cVentana)
@@ -18,14 +19,14 @@ IF ASCAN(oApp:aVentanas,cVentana) > 0
    RETURN
 ENDIF
 
-
 oApp:oServer:Execute("";
     + "CREATE TEMPORARY TABLE IF NOT EXISTS ordenes_temp ";
     +"(";
     +"`NUMERO` INT(10),";
     +"`NOMPRO` VARCHAR(50) NOT NULL,";  
     +"`FECHA` DATE NOT NULL,";  
-    +"`TOTAL` DECIMAL(12,2) NOT NULL"; 
+    +"`TOTAL` DECIMAL(12,2) NOT NULL,"; 
+    +"`USUARIO` VARCHAR(15) "; 
     +") ENGINE=INNODB DEFAULT CHARSET=utf8")
 
 oApp:oServer:NextResult()
@@ -33,9 +34,12 @@ oApp:oServer:Execute("TRUNCATE ordenes_temp")
 oApp:oServer:NextResult()
 
 AADD(oApp:aVentanas,cVentana)
-  oApp:oServer:Execute("INSERT INTO ordenes_temp (numero,nompro,fecha,total)"+;
-  								"(SELECT o.numero, p.nombre,o.fecha, o.total  FROM ge_"+oApp:cId+"ordpag o LEFT JOIN ge_"+oApp:cId+"provee p ON p.codigo = o.proveedor "+;
-   	                            "WHERE o.usuario = "+ClipValue2Sql(oApp:usuario)+" AND o.numero IN (SELECT MAX(numero) FROM ge_"+oApp:cId+"ordpag GROUP BY proveedor) AND p.nombre IS NOT NULL)")
+  oApp:oServer:Execute("INSERT INTO ordenes_temp (numero,nompro,fecha,total,usuario)"+;
+				"(SELECT o.numero, p.nombre,o.fecha, o.total,o.usuario  FROM ge_"+oApp:cId+"ordpag o "+;
+        " LEFT JOIN ge_"+oApp:cId+"provee p ON p.codigo = o.proveedor "+;
+        " WHERE "+IF(lAdmin=1,"1=1"," o.usuario = "+ClipValue2Sql(oApp:usuario))+;
+        " AND o.numero IN (SELECT MAX(numero) "+;
+        " FROM ge_"+oApp:cId+"ordpag GROUP BY proveedor) AND p.nombre IS NOT NULL)")
   oQryBrw:= oApp:oServer:Query("SELECT * FROM ordenes_temp ")
    DEFINE WINDOW oWnd1 MDICHILD TITLE "Cancelacion de ordenes de pago" ;
           OF oApp:oWnd NOZOOM ICON oApp:oIco
@@ -61,14 +65,14 @@ AADD(oApp:aVentanas,cVentana)
    oWnd1:bResized := { || Incrusta( oWnd1, oDlg, .t.) }
      DEFINE DIALOG oDlg RESOURCE "ABMS" OF oWnd1
      REDEFINE XBROWSE oBrw DATASOURCE oQryBrw;
-              COLUMNS "numero","nompro","fecha","total";
-              HEADERS "Numero","Proveedor","Fecha","Importe";
-              SIZES 80,200,100,100;
+              COLUMNS "numero","nompro","fecha","usuario","total";
+              HEADERS "Numero","Proveedor","Fecha","Usuario","Importe";
+              SIZES 80,200,100,100,100;
               ID 111 OF oDlg AUTOSORT ON DBLCLICK (Formu(),oBrw:Refresh())
      REDEFINE SAY oBrw:oSeek PROMPT "" ID 113 OF oDlg
      oQryBrw:bOnChangePage := {|| oBrw:Refresh() }
      //oBrw:SetDolphin(oQry,.f.,.t.)
-     PintaBrw(oBrw,4) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
+     PintaBrw(oBrw,5) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
      // Activo el dialogo y al iniciar muevo a 0,0
      ACTIVATE DIALOG oDlg NOWAIT ON INIT oDlg:Move(0,0) VALID(oWnd1:End())
    ACTIVATE WINDOW oWnd1 ON INIT Incrusta( oWnd1, oDlg, .T.) VALID(cerrar(oQryBrw))
