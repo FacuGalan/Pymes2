@@ -1476,7 +1476,50 @@ ENDIF
 CursorWait()
      DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-6.5
      DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
-Procesando(.t.)     
+Procesando(.t.)  
+
+oQry := oApp:oServer:Query(;
+"SELECT "+;
+"    CONCAT(ve.ticomp,ve.letra,ve.numcomp) AS compro, "+;
+"    ve.fecha, "+; 
+"    ve.nombre, "+; 
+"    ve.cuit, "+; 
+"    LEFT(ti.nombre,3) AS tip, "+;
+"    diva.exento * IF(ve.ticomp='NC',-1,1) AS exento, "+;
+"    diva.neto * IF(ve.ticomp='NC',-1,1) AS neto, "+;
+"    diva.neto1 * IF(ve.ticomp='NC',-1,1) AS neto1, "+;
+"    ve.sobretasa * IF(ve.ticomp='NC',-1,1) AS impint, "+;
+"    t.tasa AS tasa, "+;
+"    t1.tasa AS tasa2, "+;
+"    diva.iva1 * IF(ve.ticomp='NC',-1,1) AS iva1, "+;
+"    diva.iva2 * IF(ve.ticomp='NC',-1,1) AS iva2, "+;
+"    ve.percep, "+;
+"    ve.iibb * IF(ve.ticomp='NC',-1,1) AS iibb "+;
+"FROM ge_"+oApp:cId+"ventas_encab ve "+;
+"JOIN ( "+;
+"    SELECT "+; 
+"        tipocomp, "+; 
+"        letra, "+; 
+"        numfac, "+;
+"        MAX(CASE WHEN codiva = 3 THEN neto END) AS exento, "+;
+"        MAX(CASE WHEN codiva = 5 THEN neto END) AS neto, "+;
+"        MAX(CASE WHEN codiva = 4 THEN neto END) AS neto1, "+;
+"        MAX(CASE WHEN codiva = 5 THEN iva END) AS iva1, "+;
+"        MAX(CASE WHEN codiva = 4 THEN iva END) AS iva2 "+;
+"    FROM ge_"+oApp:cId+"ventivadet "+;
+"    GROUP BY tipocomp, letra, numfac "+;
+") diva ON diva.tipocomp = ve.ticomp "+; 
+"         AND diva.letra = ve.letra "+; 
+"         AND diva.numfac = ve.numcomp "+;
+"LEFT JOIN ge_"+oApp:cId+"ivas t ON t.codigo = 5 "+;
+"LEFT JOIN ge_"+oApp:cId+"ivas t1 ON t1.codigo = 4 "+;
+"LEFT JOIN ge_"+oApp:cId+"tipoiva ti ON ti.codigo = ve.coniva "+;
+"WHERE ve.letra <> 'X' "+;
+IF(nPunto = 0," "," AND LEFT(numcomp,4) = " + ClipValue2Sql(STRTRAN(STR(nPunto,4)," ","0")))+;
+"AND ve.fecha BETWEEN " + ClipValue2Sql(mdesde) + " AND "+ ClipValue2Sql(mhasta)+" "+;
+"ORDER BY ve.fecha")
+
+/*   
 oQry := oApp:oServer:Query(;
 "SELECT CONCAT(ve.ticomp,ve.letra,ve.numcomp) AS compro, ve.fecha, ve.nombre, ve.cuit, LEFT(ti.nombre,3) AS tip, "+;
 "   vd.neto * IF(ve.ticomp='NC',-1,1) AS exento , "+;
@@ -1500,21 +1543,7 @@ IF(nPunto = 0," "," AND LEFT(numcomp,4) = " + ClipValue2Sql(STRTRAN(STR(nPunto,4
 " AND ve.fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
 "     ve.fecha <= "+ ClipValue2Sql(mhasta) +;
 " ORDER BY ve.fecha")  
-/*
-"SELECT CONCAT(ve.ticomp,ve.letra,ve.numcomp) AS compro, ve.fecha, ve.nombre, ve.cuit, LEFT(ti.nombre,3) AS tip, "+;
-"(SELECT vd.neto * IF(ve.ticomp='NC',-1,1) FROM ventivadet vd  "+;
-"   WHERE vd.ticomp = ve.ticomp AND vd.letra = ve.letra AND vd.numcomp=ve.numcomp AND vd.codiva =2) AS exento , "+;
-"   ve.neto * IF(ve.ticomp='NC',-1,1) AS neto, "+;
-" (SELECT t.tasa FROM ventivadet vd LEFT JOIN ivas t ON t.codigo = vd.codiva  "+;
-"   WHERE vd.ticomp = ve.ticomp AND vd.letra = ve.letra AND vd.numcomp=ve.numcomp AND vd.codiva <>2) AS tasa, "+;
-"    ve.iva* IF(ve.ticomp='NC',-1,1) AS iva, ve.percep, ve.iibb* IF(ve.ticomp='NC',-1,1) AS iibb, ve.importe * IF(ve.ticomp='NC',-1,1) AS importe "+;
-"    FROM ventas_encab ve "+;
-"    LEFT JOIN tipoiva ti ON ti.codigo = ve.coniva  "+;
-"WHERE ve.cae IS NOT NULL "+;
-" AND ve.fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
-"     ve.fecha <= "+ ClipValue2Sql(mhasta) +;
-"ORDER BY ve.fecha")    
-*/             
+*/        
 Procesando(.f.)           
 REPORT oRep TITLE "SUBDIARIO I.V.A. Ventas " + ;
                   " del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
