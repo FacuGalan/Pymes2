@@ -154,7 +154,7 @@ TRY
       oQryStock:= oApp:oServer:Query("SELECT SUM(d.aremitar)  AS cantidad,"+;
                                      "d.codart AS codart FROM VENTAS_DET_H5 d "+;
                                      "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = d.codart "+;
-                                     "WHERE a.stockotro = TRUE ")
+                                     "WHERE a.stockotro = TRUE GROUP BY d.codart")
       oQryStock:GoTop()
       DO WHILE !oQryStock:EOF()
          oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"reseta r LEFT JOIN ge_"+oApp:cId+"articu m "+;

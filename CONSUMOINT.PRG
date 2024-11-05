@@ -432,7 +432,7 @@ TRY
   oQryStock:= oApp:oServer:Query("SELECT SUM(d.cantidad) AS cantidad,"+;
                                  "d.codart AS codart FROM detalle_consumo d "+;
                                  "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = d.codart "+;
-                                 "WHERE a.stockotro = TRUE ")
+                                 "WHERE a.stockotro = TRUE GROUP BY d.codart")
   oQryStock:GoTop()
   DO WHILE !oQryStock:EOF()
      oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"reseta r LEFT JOIN ge_"+oApp:cId+"articu m "+;

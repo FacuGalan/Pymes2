@@ -1691,7 +1691,7 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
           oQryStock:= oApp:oServer:Query("SELECT SUM(d.cantidad) * ("+IF(cTipoDoc="NC","-1","1")+") AS cantidad,"+;
                                          "d.codart AS codart FROM ventas_det_H d "+;
                                          "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = d.codart "+;
-                                         "WHERE a.stockotro = TRUE ")
+                                         "WHERE a.stockotro = TRUE GROUP BY d.codart ")
           oQryStock:GoTop()
           DO WHILE !oQryStock:EOF()
              oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"reseta r LEFT JOIN ge_"+oApp:cId+"articu m "+;
@@ -1885,7 +1885,7 @@ CASE nTipoDoc = 5
       oQryStock:= oApp:oServer:Query("SELECT SUM(d.cantidad) AS cantidad,"+;
                                      "d.codart AS codart FROM ventas_det_H d "+;
                                      "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = d.codart "+;
-                                     "WHERE a.stockotro = TRUE ")
+                                     "WHERE a.stockotro = TRUE GROUP BY d.codart ")
       oQryStock:GoTop()
       DO WHILE !oQryStock:EOF()
          oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"reseta r LEFT JOIN ge_"+oApp:cId+"articu m "+;

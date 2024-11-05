@@ -939,7 +939,7 @@ cNumComp := STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNumero,8)," ","0")
       oQryStock:= oApp:oServer:Query("SELECT SUM(d.cantidad) AS cantidad,"+;
                                      "d.codart AS codart FROM VENTAS_DET_H1 d "+;
                                      "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = d.codart "+;
-                                     "WHERE a.stockotro = TRUE ")
+                                     "WHERE a.stockotro = TRUE GROUP BY d.codart ")
       oQryStock:GoTop()
       DO WHILE !oQryStock:EOF()
          oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"reseta r LEFT JOIN ge_"+oApp:cId+"articu m "+;

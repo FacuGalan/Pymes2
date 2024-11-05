@@ -95,7 +95,7 @@ STATIC FUNCTION Formu(lAlta)
 LOCAL oGet:=ARRAY(45),oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTipoComp, nBultos:=0,;
       cNomPro,  cCuit, cConIva, cNomCue, nDeuda, nCodArt, cDetArt, nCantidad, oError, i, ;
       nPunit, nPTotal, cNomRet1, cNomRet2, cNomRet3, cNomRet4, cNomRet5, oDlg1, oQryDoc,nRenglon,;
-      nSaldoIni:=0, nImporteIni:=0,oQryCodigos,nMaximo,nOrden, lPuedeCobrar, oQryPedPen, cInPed,;
+      nSaldoIni:=0, nImporteIni:=0,oQryCodigos,nMaximo,nOrden, lPuedeCobrar, oQryPedPen, cInPed, cNumCompAnt,;
       dCierrecompras := oApp:oServer:Query( "SELECT cierrecompra FROM ge_"+oApp:cId+"parametros"):cierrecompra
 lUsoPedido := {} 
 lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHERE (usuario="+;
@@ -193,6 +193,7 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
     nImporteIni:= base:importe
     cNumRe1:=LEFT(base:numfac,4)
     cNumRe2:=RIGHT(base:numfac,8)
+    cNumCompAnt := base:numfac
     DO CASE
        CASE base:tipocomp = "FC"
            nTipoComp = 1
@@ -438,7 +439,7 @@ TRY
                        " codpro = " + ClipValue2Sql(base:codpro)+" "+; 
                        "AND tipocomp = " + ClipValue2Sql(base:tipocomp)+" "+;
                        "AND letra = " + ClipValue2Sql(base:letra)+" "+;
-                       "AND numfac = " + ClipValue2Sql(base:numfac) +;
+                       "AND numfac = " + ClipValue2Sql(cNumCompAnt) +;
                        " GROUP BY codart) c "+;
                        " LEFT JOIN ge_"+oApp:cId+"articu a ON c.codart = a.codigo "+;
                        " SET a.stockact = a.stockact - IF(c.tipocomp='NC',c.cantidad*(-1),c.cantidad)") 
@@ -447,7 +448,7 @@ TRY
   oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"compradet WHERE codpro = " + ClipValue2Sql(base:codpro)+" "+; 
                        "AND tipocomp = " + ClipValue2Sql(base:tipocomp)+" "+;
                        "AND letra = " + ClipValue2Sql(base:letra)+" "+;
-                       "AND numfac = " + ClipValue2Sql(base:numfac))
+                       "AND numfac = " + ClipValue2Sql(cNumCompAnt))
   oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"compradet  (renglon,codpro,tipocomp,letra,numfac,codart,cantidad,punit,neto,iva,codiva,desc1,desc2,desc3,desc4,desc5,siniva) "+;
                        "SELECT renglon,codpro,"+ClipValue2Sql(oQryDoc:prefijo)+","+ClipValue2SQL(base:letra)+","+;
                        ClipValue2SQL(base:numfac)+",codart,cantidad,punit,neto,iva,codiva,desc1,desc2,desc3,desc4,desc5,siniva "+;
@@ -461,7 +462,7 @@ TRY
   oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"compivadet WHERE codpro = " + ClipValue2Sql(base:codpro)+" "+; 
                        "AND tipocomp = " + ClipValue2Sql(base:tipocomp)+" "+;
                        "AND letra = " + ClipValue2Sql(base:letra)+" "+;
-                       "AND numfac = " + ClipValue2Sql(base:numfac))
+                       "AND numfac = " + ClipValue2Sql(cNumCompAnt))
   oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"compivadet (codpro,tipocomp,letra,numfac,codiva,neto,iva) "+;
                        "(SELECT "+ClipValue2SQL(base:codpro)+","+ClipValue2Sql(oQryDoc:prefijo)+","+ClipValue2SQL(base:letra)+","+;
                        ClipValue2SQL(base:numfac)+",codigo,neto,iva "+;
@@ -469,7 +470,7 @@ TRY
   oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"compretdet WHERE codpro = " + ClipValue2Sql(base:codpro)+" "+; 
                        "AND tipocomp = " + ClipValue2Sql(base:tipocomp)+" "+;
                        "AND letra = " + ClipValue2Sql(base:letra)+" "+;
-                       "AND numfac = " + ClipValue2Sql(base:numfac))
+                       "AND numfac = " + ClipValue2Sql(cNumCompAnt))
   oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"compretdet (codpro,tipocomp,letra,numfac,codret,importe,tipo) "+;
                        "(SELECT "+ClipValue2SQL(base:codpro)+","+ClipValue2Sql(oQryDoc:prefijo)+","+ClipValue2SQL(base:letra)+","+;
                        ClipValue2SQL(base:numfac)+",codigo,importe,tipo "+;
@@ -671,7 +672,28 @@ oQryComprasDet:oRow := base1
 oQryAux:oRow := baseArt
 TRY
   oApp:oServer:BeginTransaction()  
-  oQryAux:Save()
+  //oQryAux:Save()
+  oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"articu (siniva,precossiva,desc1,desc2,desc3,desc4,desc5,"+;
+                       "impint,flete,iva,preciocos,porcentaje,porcentajerev,precioven,reventa,ip,fecmod,usuario) "+; 
+                       "VALUES ("+;
+                       ClipValue2Sql(baseArt:siniva)+","+;
+                       ClipValue2Sql(baseArt:precossiva)+","+;
+                       ClipValue2Sql(baseArt:desc1)+","+;
+                       ClipValue2Sql(baseArt:desc2)+","+;
+                       ClipValue2Sql(baseArt:desc3)+","+;
+                       ClipValue2Sql(baseArt:desc4)+","+;
+                       ClipValue2Sql(baseArt:desc5)+","+;
+                       ClipValue2Sql(baseArt:impint)+","+;
+                       ClipValue2Sql(baseArt:flete)+","+;
+                       ClipValue2Sql(baseArt:iva)+","+;
+                       ClipValue2Sql(baseArt:preciocos)+","+;
+                       ClipValue2Sql(baseArt:porcentaje)+","+;
+                       ClipValue2Sql(baseArt:porcentajerev)+","+;
+                       ClipValue2Sql(baseArt:precioven)+","+;
+                       ClipValue2Sql(baseArt:reventa)+","+;
+                       ClipValue2Sql(baseArt:ip)+","+;
+                       ClipValue2Sql(baseArt:fecmod)+","+;
+                       ClipValue2Sql(baseArt:usuario)+" WHERE codigo = "+ClipValue2Sql(baseArt:codigo))
   oQryComprasDet:Save()
   oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"campre (codigo,preciocos,precossiva,precioven,reventa,fecmod,usuario,ip) "+;
                         "VALUES ("+ClipValue2Sql(oQryAux:codigo)+","+ClipValue2Sql(oQryAux:preciocos)+","+;
