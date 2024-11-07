@@ -925,7 +925,7 @@ return .T.
 **********************************************************
 ** Consulta cuit
 FUNCTION ConsultaCuitRapida(nCuit,nCondi)
-LOCAL Contribuyente, lwsPadron, oError, lRta, aRespuesta := hash()  ,;
+LOCAL Contribuyente, lwsPadron, oError, lRta, oFont, aRespuesta := hash()  ,;
       atipoiva  := {;
 "1 IVA Responsable Inscripto",;
 "2 IVA Responsable no Inscripto",;
@@ -961,7 +961,7 @@ CATCH oError
              "la carpeta donde instalo el sistema."+chr(10)+;
              "Hagalo con permisos de administrador";
              ,"Error" ) 
-    RETURN aRespuesta
+    RETURN .t.
 END TRY 
 
 TRY 
@@ -988,16 +988,28 @@ ENDIF
            MsgStop("La condicion frente al IVA no coincide"+CHR(10)+;
                    "Condicion en AFIP:"+atipoiva[Contribuyente:condicionIva]+CHR(10)+;
                    "Condicion en Sistema:"+atipoiva[nCondi]+CHR(10);
-                   ,"Atencion")           
-           RETURN .f.
+                   ,"Atencion")   
+           lRta := MsgNoYes("La CUIT  a la que quiere facturar"+chr(10)+;
+                            "presenta insconsistencias en los padrones de AFIP"+chr(10)+;
+                            "Desea factura igual BAJO SU ABSOLUTA RESPONSABILIDAD???","ATENCION!!!")
+
+           RETURN lRta
         ENDIF   
         IF Contribuyente:estadoClave <> 'ACTIVO'
            MsgStop("Esta CUIT esta "+Contribuyente:estadoClave,"Atencion")
-           RETURN .f.
+           lRta := MsgNoYes("La CUIT  a la que quiere facturar"+chr(10)+;
+                            "presenta insconsistencias en los padrones de AFIP"+chr(10)+;
+                            "Desea factura igual BAJO SU ABSOLUTA RESPONSABILIDAD???","ATENCION!!!")
+
+           RETURN lRta
         ENDIF   
     ELSE
-        MsgStop("No Existe esa CUIT","Atencion")
-        RETURN .f.        
+        MsgStop("No Existe esa CUIT en los padrones de AFIP","Atencion")
+        lRta := MsgNoYes("La CUIT  a la que quiere facturar"+chr(10)+;
+                         "presenta insconsistencias en los padrones de AFIP"+chr(10)+;
+                         "Desea factura igual BAJO SU ABSOLUTA RESPONSABILIDAD???","ATENCION!!!")
+
+        RETURN lRta
     ENDIF
 return .T.
 

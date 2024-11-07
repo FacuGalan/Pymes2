@@ -83,15 +83,15 @@ COLUMN TITLE "Proveedor" DATA oQry:provee    SIZE 25 FONT 1
 COLUMN TITLE "Cuenta"    DATA oQry:nomcue    SIZE 15 FONT 1
 COLUMN TITLE "Tipo Cuenta"  DATA IF(oQry:tipcue='G','Gasto','Compra')   SIZE 7 FONT 1
 COLUMN TITLE "C.U.I.T."  DATA oQry:cuit      SIZE 11 FONT 1
-COLUMN TITLE "Neto "     DATA oQry:neto      PICTURE "999999999.99" ;
+COLUMN TITLE "Neto "     DATA oQry:neto      PICTURE "9,999,999,999.99" ;
                          SIZE 10 FONT 2 TOTAL
-COLUMN TITLE "I.V.A."    DATA oQry:iva       PICTURE "999999999.99" ;
+COLUMN TITLE "I.V.A."    DATA oQry:iva       PICTURE "9,999,999,999.99" ;
                          SIZE 10 FONT 2 TOTAL
-COLUMN TITLE "Otros"     DATA oQry:nograbado  PICTURE "999999999.99" ;
+COLUMN TITLE "Otros"     DATA oQry:nograbado  PICTURE "9,999,999,999.99" ;
                          SIZE 10 FONT 2 TOTAL
-COLUMN TITLE "Importe"   DATA oQry:importe     PICTURE "999999999.99" ;
+COLUMN TITLE "Importe"   DATA oQry:importe     PICTURE "9,999,999,999.99" ;
                          SIZE 10 FONT 2 TOTAL
-COLUMN TITLE "Adeuda"    DATA oQry:saldo     PICTURE "999999999.99" ;
+COLUMN TITLE "Adeuda"    DATA oQry:saldo     PICTURE "9,999,999,999.99" ;
                          SIZE 10 FONT 2 TOTAL 
 COLUMN TITLE "Cargó"     DATA oQry:usuario   SIZE 7 FONT 1
 COLUMN TITLE "PV"        DATA oQry:caja      SIZE 2 FONT 1
@@ -366,13 +366,13 @@ REPORT oRep TITLE "Resumen de compras " + ;
 GROUP oGru ON oQry:codigo HEADER oQry:cuenta FOOTER "Total Cuenta"  FONT 3 
 
 COLUMN TITLE "Descripcion" DATA oQry:nombre    SIZE 25 FONT 1
-COLUMN TITLE "Neto "       DATA oQry:neto      PICTURE "999999999.99" ;
+COLUMN TITLE "Neto "       DATA oQry:neto      PICTURE "9,999,999,999.99" ;
                            SIZE 10 FONT 2 TOTAL
-COLUMN TITLE "I.V.A."      DATA oQry:iva       PICTURE "999999999.99" ;
+COLUMN TITLE "I.V.A."      DATA oQry:iva       PICTURE "9,999,999,999.99" ;
                            SIZE 10 FONT 2 TOTAL
-COLUMN TITLE "Perc/Ret"    DATA oQry:percep    PICTURE "999999999.99" ;
+COLUMN TITLE "Perc/Ret"    DATA oQry:percep    PICTURE "9,999,999,999.99" ;
                            SIZE 10 FONT 2 TOTAL
-COLUMN TITLE "Totales"     DATA oQry:neto+oQry:iva+oQry:percep+oQry:total     PICTURE "999999999.99" ;
+COLUMN TITLE "Totales"     DATA oQry:neto+oQry:iva+oQry:percep+oQry:total     PICTURE "9,999,999,999.99" ;
                            SIZE 10 FONT 2 TOTAL 
 // Digo que el titulo lo escriba con al letra 2
 oRep:oTitle:aFont[1] := {|| 2 }
@@ -457,14 +457,14 @@ COLUMN TITLE "Comprobante" DATA IF(oQry:orden=1,oQry:compro," ")    SIZE 16 FONT
 COLUMN TITLE "Proveedor"   DATA IF(oQry:orden=1,oQry:nombre," ")    SIZE 30 FONT 1
 COLUMN TITLE "C.U.I.T."    DATA IF(oQry:orden=1,oQry:cuit," ")      SIZE 12 FONT 1
 COLUMN TITLE "SI"          DATA IF(oQry:orden=1,oQry:ti," ")        SIZE  2 FONT 1
-COLUMN TITLE "Neto "       DATA IF(oQry:netoi<>0,oQry:netoi," ")    PICTURE "999999999.99" ;
+COLUMN TITLE "Neto "       DATA IF(oQry:netoi<>0,oQry:netoi," ")    PICTURE "9,999,999,999.99" ;
                            SIZE 10 FONT 1  RIGHT
-COLUMN TITLE "I.V.A."      DATA IF(oQry:ivai<>0,oQry:ivai," ")      PICTURE "999999999.99" ;
+COLUMN TITLE "I.V.A."      DATA IF(oQry:ivai<>0,oQry:ivai," ")      PICTURE "9,999,999,999.99" ;
                            SIZE 10 FONT 1  RIGHT
 COLUMN TITLE "Tasa/Concepto"     DATA LEFT(oQry:detalle,14) SIZE 14 FONT 1
-COLUMN TITLE "Perc/Rete/No Gr"  DATA IF(oQry:importe<>0,oQry:importe," ")  PICTURE "999999999.99" ;
+COLUMN TITLE "Perc/Rete/No Gr"  DATA IF(oQry:importe<>0,oQry:importe," ")  PICTURE "9,999,999,999.99" ;
                            SIZE 11 FONT 1  RIGHT
-COLUMN TITLE "Total"       DATA IF(oQry:total<>0,oQry:total," ")     PICTURE "999999999.99" ;
+COLUMN TITLE "Total"       DATA IF(oQry:total<>0,oQry:total," ")     PICTURE "9,999,999,999.99" ;
                            SIZE 10 FONT 1  RIGHT
 
 // Digo que el titulo lo escriba con al letra 2
@@ -644,7 +644,7 @@ oQry:= oApp:oServer:Query("SELECT p.cuit AS cuit,p.nombre as nombre,op.fecha AS 
   COLUMN TITLE "Proveedor"  DATA oQry:nombre      SIZE 30
   COLUMN TITLE "Fecha"      DATA oQry:fecha       SIZE 08
   COLUMN TITLE "Numero"     DATA oQry:numero      SIZE 10
-  COLUMN TITLE "Retencion"  DATA oQry:importe        PICTURE "999999999.99" SIZE 15 TOTAL
+  COLUMN TITLE "Retencion"  DATA oQry:importe        PICTURE "9,999,999,999.99" SIZE 15 TOTAL
 
 
   // Digo que el titulo lo escriba con al letra 2
@@ -710,7 +710,7 @@ oQry:= oApp:oServer:Query("SELECT p.cuit AS cuit,p.nombre as nombre,op.fecha AS 
   COLUMN TITLE "Proveedor"  DATA oQry:nombre      SIZE 30
   COLUMN TITLE "Fecha"      DATA oQry:fecha       SIZE 08
   COLUMN TITLE "Numero"     DATA oQry:numero      SIZE 10
-  COLUMN TITLE "Retencion"  DATA oQry:importe        PICTURE "999999999.99" SIZE 15 TOTAL
+  COLUMN TITLE "Retencion"  DATA oQry:importe        PICTURE "9,999,999,999.99" SIZE 15 TOTAL
 
 
   // Digo que el titulo lo escriba con al letra 2
@@ -780,7 +780,7 @@ oQry:= oApp:oServer:Query("SELECT p.cuit AS cuit,p.nombre as nombre, o.fecha AS 
   COLUMN TITLE "Proveedor"  DATA oQry:nombre      SIZE 30
   COLUMN TITLE "Fecha"      DATA oQry:fecha       SIZE 08
   COLUMN TITLE "Numero"     DATA oQry:numero      SIZE 10
-  COLUMN TITLE "Retencion"  DATA oQry:importe     PICTURE "999999999.99" SIZE 15 TOTAL
+  COLUMN TITLE "Retencion"  DATA oQry:importe     PICTURE "9,999,999,999.99" SIZE 15 TOTAL
 
 
   // Digo que el titulo lo escriba con al letra 2

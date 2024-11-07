@@ -307,6 +307,13 @@ IF "A"$cPermisos
    Reiniciar()
    RETURN .t. 
 ENDIF 
+IF !oApp:usar_clave .and. oQryDet:nRecCount > 0
+   IF !MsgNoYes("Seguro de anular el ticket","Atencion")
+      RETURN .f.
+   ENDIF 
+   Auditar(4," $"+alltrim(STR(nTotal,12,2))+" "+STR(oQryDet:nRecCount,4)+" Items Caja "+STR(oApp:prefijo,4))    
+   Reiniciar()
+ENDIF
 IF oQryDet:nRecCount > 0 .and. PedirClave()   
    Auditar(4," $"+alltrim(STR(nTotal,12,2))+" "+STR(oQryDet:nRecCount,4)+" Items Caja "+STR(oApp:prefijo,4))    
    Reiniciar()
@@ -944,7 +951,7 @@ IF nCodArt >= 0
    ENDIF
    // Si tiene lista de precios especiales
    oQryPrecio:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispredet WHERE codlis = "+ClipValue2Sql(nLisPre)+" AND "+;
-                              "codart = "+ClipValue2Sql(oQryArt:codigo))
+                              "codart = "+ClipValue2Sql(nCodArt))
    IF oQryPrecio:RecCount() = 0
        nPrecioVen:= IF(nLista=1,oQryAux:precioven,oQryAux:reventa)
    ELSE

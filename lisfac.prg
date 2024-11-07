@@ -180,9 +180,9 @@ COLUMN TITLE "Codigo"    DATA oQry:codcli     SIZE 06 FONT 1
 COLUMN TITLE "Cliente"   DATA oQry:nombre     SIZE 25 FONT 1
 COLUMN TITLE "Direccion" DATA oQry:direccion  SIZE 20 FONT 1
 COLUMN TITLE "Telefonos" DATA oQry:telefono   SIZE 15 FONT 1
-COLUMN TITLE "A cuenta"  DATA oQry:acuenta    PICTURE "999999999.99" ;
+COLUMN TITLE "A cuenta"  DATA oQry:acuenta    PICTURE "9,999,999,999.99" ;
                          SIZE 10 FONT 2 TOTAL
-COLUMN TITLE "Deuda"     DATA oQry:importe    PICTURE "999999999.99" ;
+COLUMN TITLE "Deuda"     DATA oQry:importe    PICTURE "9,999,999,999.99" ;
                          SIZE 10 FONT 2 TOTAL
 
 
@@ -230,17 +230,17 @@ GROUP ON oQry:codcli HEADER "Cliente: ("+ STR(oQry:codcli) + ") " + ALLTRIM(oQry
 COLUMN TITLE "Comprobante"  DATA oQry:compro     SIZE 14 FONT 1
 COLUMN TITLE "Fecha"        DATA FechaSql(oQry:fecha)       PICTURE "@D" SIZE 09 FONT 1
 COLUMN TITLE "+60 dias"     DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha>60,oQry:saldo,0)  ;
-             SIZE 10 PICTURE "999999999.99"  FONT 1 TOTAL
+             SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
 COLUMN TITLE "30/60 dias"   DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha>30 .AND. DATE()-oQry:fecha<=60 ,oQry:saldo,0)  ;
-             SIZE 10 PICTURE "999999999.99"  FONT 1 TOTAL
+             SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
 COLUMN TITLE "30 dias"      DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha>00 .AND. DATE()-oQry:fecha<=30 ,oQry:saldo,0)  ;
-             SIZE 10 PICTURE "999999999.99"  FONT 1 TOTAL
+             SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
 COLUMN TITLE "A Vencer"     DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha<=00 ,oQry:saldo,0)  ;
-             SIZE 10 PICTURE "999999999.99"  FONT 1 TOTAL
+             SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
 COLUMN TITLE "Sin aplicar"  DATA IF(oQry:compro = "Anticipo"  ,oQry:saldo,0)  ;
-             SIZE 10 PICTURE "999999999.99"  FONT 1 TOTAL
+             SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
 COLUMN TITLE "Total"        DATA oQry:saldo  ;
-             SIZE 10 PICTURE "999999999.99"  FONT 1 TOTAL
+             SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
 
 // Digo que el titulo lo escriba con al letra 2
 oRep:oTitle:aFont[1] := {|| 2 }
@@ -714,12 +714,12 @@ REPORT oRep TITLE "Ingresos por caja " + ;
 
 COLUMN TITLE "Usuario"   DATA oQry:caja     PICTURE "@!" SIZE 08 FONT 1
 COLUMN TITLE "Fecha"     DATA oQry:fecha    PICTURE "@D" SIZE 08 FONT 1
-COLUMN TITLE "Efectivo"  DATA oQry:efectivo PICTURE "999999999.99" SIZE 12 FONT 1 TOTAL
-COLUMN TITLE "Tarjeta"   DATA oQry:tarjeta  PICTURE "999999999.99" SIZE 12 FONT 1 TOTAL
-COLUMN TITLE "Cta.Cte."  DATA oQry:cuenta   PICTURE "999999999.99" SIZE 12 FONT 1 TOTAL
-COLUMN TITLE "Cheques"   DATA oQry:cheques  PICTURE "999999999.99" SIZE 12 FONT 1 TOTAL
-COLUMN TITLE "Otros"     DATA oQry:vales    PICTURE "999999999.99" SIZE 12 FONT 1 TOTAL
-COLUMN TITLE "Total"     DATA oQry:efectivo+oQry:tarjeta+oQry:cuenta+oQry:cheques+oQry:vales PICTURE "999999999.99" SIZE 12 FONT 1 TOTAL
+COLUMN TITLE "Efectivo"  DATA oQry:efectivo PICTURE "9,999,999,999.99" SIZE 12 FONT 1 TOTAL
+COLUMN TITLE "Tarjeta"   DATA oQry:tarjeta  PICTURE "9,999,999,999.99" SIZE 12 FONT 1 TOTAL
+COLUMN TITLE "Cta.Cte."  DATA oQry:cuenta   PICTURE "9,999,999,999.99" SIZE 12 FONT 1 TOTAL
+COLUMN TITLE "Cheques"   DATA oQry:cheques  PICTURE "9,999,999,999.99" SIZE 12 FONT 1 TOTAL
+COLUMN TITLE "Otros"     DATA oQry:vales    PICTURE "9,999,999,999.99" SIZE 12 FONT 1 TOTAL
+COLUMN TITLE "Total"     DATA oQry:efectivo+oQry:tarjeta+oQry:cuenta+oQry:cheques+oQry:vales PICTURE "9,999,999,999.99" SIZE 12 FONT 1 TOTAL
 // Digo que el titulo lo escriba con al letra 2
 oRep:oTitle:aFont[1] := {|| 2 }
 oRep:oTitle:aFont[1] := {|| 2 }
