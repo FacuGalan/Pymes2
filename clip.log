@@ -1,5 +1,5 @@
 Harbour 3.2.0dev (r1601050904)
 Copyright (c) 1999-2015, http://harbour-project.org/
-Compiling 'LISVEN.prg' and generating preprocessed output to 'LISVEN.ppo'...
-1001002001001001002003004005001002001002001002001002003004005006007008009001000110012001300140015001600170018001900200010020030010020010020030040050060070080090010001100120013001400150016001700Lines 7144, Functions/Procedures 11
-Generating C source output to 'LISVEN.c'... Done.
+Compiling 'modrem.prg' and generating preprocessed output to 'modrem.ppo'...
+10020010010010020030040050010020010020010020010020030040050060070080090010001100120013001400150016001700180019002000100200100200300100100200300400500600700800900Lines 6372, Functions/Procedures 14
+Generating C source output to 'modrem.c'... Done.

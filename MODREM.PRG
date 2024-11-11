@@ -910,6 +910,10 @@ TRY
                        "r.fecmod  = CURDATE(),"+;
                        "r.ip      = "+ClipValue2SQL(oApp:cIp)+" "+;
                        "WHERE r.nrorem = " +ClipValue2SQL(oQry:nrorem)+ " AND rt.cantdevo > 0")
+  oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"remitos   "+;
+                       "WHERE nrorem = " +ClipValue2SQL(oQry:nrorem)+;
+                       " AND id IN ( SELECT id FROM remito_det_temp WHERE cantdevo  = 0)")
+
   // Agrego el remito nuevo creado
   cNumComp:= STRTRAN(STR(oApp:oServer:Query("SELECT caja FROM ge_"+oApp:cId+;
     "punto WHERE ip = "+ ClipValue2Sql(oApp:cip)):caja,4)+;
