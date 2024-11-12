@@ -917,7 +917,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
          *oPrn:CmBox( 1.5, 9.4, 2.7, 10.7 )   // Box cuadrito comprobante
          oPrn:CmSay( 1.5, 9.8, " ",oFont2)
          oPrn:CmSay( 2.5, 11, "Pedido Nro:"+STR(base:id,8),oFont)    
-         oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(DATE()),oFont)
+         oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(base:fecha),oFont)
 
          oPrn:CmSay( 3.5, 11, "CUIT:"+oApp:cuit_emp,oFont)
          oPrn:CmSay( 4.0, 11, "Ingresos brutos:"+oApp:ingb_emp,oFont) 
@@ -1004,7 +1004,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                      *oPrn:CmBox( 1.5, 9.4, 2.7, 10.7 )   // Box cuadrito comprobante
                      oPrn:CmSay( 1.5, 9.8, " ",oFont2)
                      oPrn:CmSay( 2.5, 11, "Pedido Nro:"+STR(base:id,8),oFont)    
-                     oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(DATE()),oFont)
+                     oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(base:fecha),oFont)
 
                      oPrn:CmSay( 3.5, 11, "CUIT:"+oApp:cuit_emp,oFont)
                      oPrn:CmSay( 4.0, 11, "Ingresos brutos:"+oApp:ingb_emp,oFont) 

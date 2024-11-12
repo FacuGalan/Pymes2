@@ -673,27 +673,26 @@ oQryAux:oRow := baseArt
 TRY
   oApp:oServer:BeginTransaction()  
   //oQryAux:Save()
-  oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"articu (siniva,precossiva,desc1,desc2,desc3,desc4,desc5,"+;
-                       "impint,flete,iva,preciocos,porcentaje,porcentajerev,precioven,reventa,ip,fecmod,usuario) "+; 
-                       "VALUES ("+;
-                       ClipValue2Sql(baseArt:siniva)+","+;
-                       ClipValue2Sql(baseArt:precossiva)+","+;
-                       ClipValue2Sql(baseArt:desc1)+","+;
-                       ClipValue2Sql(baseArt:desc2)+","+;
-                       ClipValue2Sql(baseArt:desc3)+","+;
-                       ClipValue2Sql(baseArt:desc4)+","+;
-                       ClipValue2Sql(baseArt:desc5)+","+;
-                       ClipValue2Sql(baseArt:impint)+","+;
-                       ClipValue2Sql(baseArt:flete)+","+;
-                       ClipValue2Sql(baseArt:iva)+","+;
-                       ClipValue2Sql(baseArt:preciocos)+","+;
-                       ClipValue2Sql(baseArt:porcentaje)+","+;
-                       ClipValue2Sql(baseArt:porcentajerev)+","+;
-                       ClipValue2Sql(baseArt:precioven)+","+;
-                       ClipValue2Sql(baseArt:reventa)+","+;
-                       ClipValue2Sql(baseArt:ip)+","+;
-                       ClipValue2Sql(baseArt:fecmod)+","+;
-                       ClipValue2Sql(baseArt:usuario)+" WHERE codigo = "+ClipValue2Sql(baseArt:codigo))
+  oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"articu  "+; 
+                       " SET  "+;
+                       " siniva ="+ClipValue2Sql(baseArt:siniva)+","+;
+                       " precossiva ="+ClipValue2Sql(baseArt:precossiva)+","+;
+                       " desc1 ="+ClipValue2Sql(baseArt:desc1)+","+;
+                       " desc2 ="+ClipValue2Sql(baseArt:desc2)+","+;
+                       " desc3 ="+ClipValue2Sql(baseArt:desc3)+","+;
+                       " desc4 ="+ClipValue2Sql(baseArt:desc4)+","+;
+                       " desc5 ="+ClipValue2Sql(baseArt:desc5)+","+;
+                       " impint ="+ClipValue2Sql(baseArt:impint)+","+;
+                       " flete ="+ClipValue2Sql(baseArt:flete)+","+;
+                       " iva ="+ClipValue2Sql(baseArt:iva)+","+;
+                       " preciocos ="+ClipValue2Sql(baseArt:preciocos)+","+;
+                       " porcentaje ="+ClipValue2Sql(baseArt:porcentaje)+","+;
+                       " porcentajerev ="+ClipValue2Sql(baseArt:porcentajerev)+","+;
+                       " precioven ="+ClipValue2Sql(baseArt:precioven)+","+;
+                       " reventa ="+ClipValue2Sql(baseArt:reventa)+","+;
+                       " ip ="+ClipValue2Sql(baseArt:ip)+","+;
+                       " fecmod ="+ClipValue2Sql(baseArt:fecmod)+","+;
+                       " usuario ="+ClipValue2Sql(baseArt:usuario)+" WHERE codigo = "+ClipValue2Sql(baseArt:codigo))
   oQryComprasDet:Save()
   oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"campre (codigo,preciocos,precossiva,precioven,reventa,fecmod,usuario,ip) "+;
                         "VALUES ("+ClipValue2Sql(oQryAux:codigo)+","+ClipValue2Sql(oQryAux:preciocos)+","+;
