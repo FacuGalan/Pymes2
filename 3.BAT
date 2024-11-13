@@ -1,3 +1,3 @@
 git add .
-git commit -m "Cambio ejectuado desde la consola"
+git commit -m "%1"
 git push
