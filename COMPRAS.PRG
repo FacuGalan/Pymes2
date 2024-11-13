@@ -802,7 +802,7 @@ RETURN .f.
 
 **********************************************************************************************
 STATIC FUNCTION ValidaArtP(oDlg1,oGet,lBuscar)
-LOCAL oQryArt2
+LOCAL oQryArt2, lEncontro, oQryArtP
 
     oQryArt2 := oApp:oServer:Query("SELECT a.codigopro AS codigo,a.nombre AS nombre,a.codigo AS codart, i.nombre AS cNomIva, i.tasa AS tasaiva, a.iva AS codiva, "+;
                                   "a.siniva,a.precossiva FROM ge_"+oApp:cId+"articu a "+;
@@ -810,10 +810,22 @@ LOCAL oQryArt2
                                   "WHERE a.codigopro = " + ClipValue2SQL(oGet[15]:cText))
 
     IF oQryArt2:RecCount() = 0 
+       lEncontro := .f.
        IF lBuscar
           BuscarArt(oQryArt2,oDlg1,oGet[15],oGet[18],"true","(a.codigopro IS NOT NULL)")
-       ENDIF
-       RETURN .t.   
+          lEncontro := .t.
+       ENDIF       
+       ELSE 
+       lEncontro := .t.
+    ENDIF
+    IF !lEncontro
+       oQryArtP := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"codpro WHERE codarp = "+ClipValue2SQL(oGet[15]:cText)+ " AND codpro = "+ ClipValue2SQL(oGet[7]:cText)) 
+       IF oQryArtP:nRecCount > 0
+          oQryArt2 := oApp:oServer:Query("SELECT a.codigopro AS codigo,a.nombre AS nombre,a.codigo AS codart, i.nombre AS cNomIva, i.tasa AS tasaiva, a.iva AS codiva, "+;
+                                  "a.siniva,a.precossiva FROM ge_"+oApp:cId+"articu a "+;
+                                  "LEFT JOIN ge_"+oApp:cId+"ivas i ON a.iva = i.codigo "+;
+                                  "WHERE a.codigo = " + ClipValue2SQL(oQryArtP:codart))
+       ENDIF                                     
     ENDIF
     oGet[17]:cText:= oQryArt2:codart
     oGet[18]:cText:= oQryArt2:nombre
@@ -822,7 +834,7 @@ LOCAL oQryArt2
     oGet[20]:cText:= oQryArt2:precossiva
     oGet[21]:cText:= oQryArt2:precossiva
     basedet:siniva:= oQryArt2:siniva
-   oQryArt2:SetNewFilter(SET_WHERE,"true",.t.)
+    oQryArt2:SetNewFilter(SET_WHERE,"true",.t.)
 RETURN .t.
 
 **********************************************************************************************

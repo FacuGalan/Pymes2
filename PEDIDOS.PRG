@@ -95,22 +95,23 @@ RETURN
 
 ****************************************FILTRADO**********************
 STATIC FUNCTION Filtrar( )
-   LOCAL oFilt,oGet:=ARRAY(6),oBot:=ARRAY(2),acor:=ARRAY(4),vProv:=0,cNomProv:=SPACE(30),;
+   LOCAL oFilt,oGet:=ARRAY(7),oBot:=ARRAY(2),acor:=ARRAY(4),vProv:=0,cNomProv:=SPACE(30),;
    vDesde:=CTOD("01/01/2000"),vHasta:=DATE(),oQryPro,lRta:=.f.,oFont,cWhere,;
-   vPDesde:=DATE(),vPHasta := CTOD("01/01/2100") 
+   vPDesde:=DATE(),vPHasta := CTOD("01/01/2100") , nEstado := 1, aEstado := {"Solo Pendientes","Todos"}
    
 oQryPro:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"clientes")
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 
 DO WHILE .T.                        
     DEFINE DIALOG oFilt TITLE "Filtrado de Pedidos";
-           FROM 05,15 TO 16,70 OF oWnd1 FONT oFont
+           FROM 05,15 TO 18,70 OF oWnd1 FONT oFont
        
        @ 07, 05 SAY "Cliente:"                OF oFilt PIXEL SIZE 50,20 RIGHT
        @ 22, 05 SAY "Desde:"                  OF oFilt PIXEL SIZE 50,20 RIGHT
        @ 22, 75 SAY "Hasta:"                  OF oFilt PIXEL SIZE 50,20 RIGHT
        @ 37, 05 SAY "Para fecha:"             OF oFilt PIXEL SIZE 50,20 RIGHT
        @ 37, 75 SAY "Hasta:"                  OF oFilt PIXEL SIZE 50,20 RIGHT
+       @ 52, 05 SAY "Estado:"                 OF oFilt PIXEL SIZE 50,20 RIGHT
 
 
        @ 05, 60 GET oGet[01] VAR vProv     OF oFilt PIXEL PICTURE "99999999" ;
@@ -120,7 +121,8 @@ DO WHILE .T.
        @ 20, 60 GET oGet[03] VAR vDesde    OF oFilt PIXEL PICTURE "@D" CENTER                      
        @ 20,130 GET oGet[04] VAR vHasta    OF oFilt PIXEL PICTURE "@D" CENTER  
        @ 35, 60 GET oGet[05] VAR vPDesde   OF oFilt PIXEL PICTURE "@D" CENTER                      
-       @ 35,130 GET oGet[06] VAR vPHasta   OF oFilt PIXEL PICTURE "@D" CENTER  
+       @ 35,130 GET oGet[06] VAR vPHasta   OF oFilt PIXEL PICTURE "@D" CENTER 
+       @ 55, 60 COMBOBOX oGet[07] VAR nEstado ITEMS aEstado   OF oFilt PIXEL SIZE 90,12
 
           
        acor := AcepCanc(oFilt)
@@ -134,11 +136,13 @@ DO WHILE .T.
         RETURN nil
     ENDIF    
 
+
     cWhere = " 1=1 " + IF(EMPTY(vProv),""," and codcli = " + ClipValue2SQL(vProv) + "") ;
           + "" + IF(EMPTY(Vdesde),""," and fecha >=" + ClipValue2SQL(Vdesde) + "") ; 
           + "" + IF(EMPTY(Vhasta),""," and fecha <=" + ClipValue2SQL(Vhasta) + "") ;
           + "" + IF(EMPTY(VPdesde),""," and parafecha >=" + ClipValue2SQL(VPdesde) + "") ; 
-          + "" + IF(EMPTY(VPhasta),""," and parafecha <=" + ClipValue2SQL(VPhasta) + "") 
+          + "" + IF(EMPTY(VPhasta),""," and parafecha <=" + ClipValue2SQL(VPhasta) + "") ;
+          + "" + IF(nEstado = 2," and estado <> 'A' "," and estado = 'P' " ) 
    EXIT
 ENDDO
 oQryBrw:SetNewFilter(SET_WHERE,cWhere,.t.)
@@ -239,7 +243,10 @@ IF lAlta
     oApp:oServer:Execute("UPDATE ventas_det_h2 SET ptotal = ptotal * (1-descp/100), stotal = stotal * (1-descp/100) , "+;
                          " iva = iva  * (1-descp/100),  neto = neto * (1-descp/100) WHERE descp > 0")      
     oQryDet :=oApp:oServer:Query("SELECT *,(cantidad-faltantes) AS disponibles FROM ventas_det_h2")
-    
+    IF base:estado <> 'P'
+       MsgInfo('Este pedido ya fue facturador con la factura '+base:facturanro+chr(10)+;
+               'Queda bajo su responsabilidad la modificacion del mismo'  , 'Atencion')
+    ENDIF   
 
 ENDIF
 oApp:oServer:Execute("";
