@@ -128,7 +128,7 @@ DO WHILE .T.
    @ 05,100 GET oGet[02] VAR cCuenta OF oForm PIXEL PICTURE "@!" WHEN(.f.)
    @ 20, 70 GET oGet[03] VAR base:numche  OF oForm PIXEL PICTURE "9999999999" RIGHT WHEN(lAlta);
                 VALID(base:numche>0)
-   @ 35, 70 GET oGet[04] VAR base:importe  OF oForm PIXEL PICTURE "9999999.99" RIGHT;
+   @ 35, 70 GET oGet[04] VAR base:importe  OF oForm PIXEL PICTURE "999999999.99" RIGHT;
                 VALID(base:importe>0)
    @ 50, 70 GET oGet[05] VAR base:codpro  OF oForm PIXEL PICTURE "999999" RIGHT SIZE 30,12;
                 VALID(IF(base:codpro=0,.t.,Buscar(oQry3,oForm,oGet[05],oGet[06])));

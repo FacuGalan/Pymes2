@@ -244,8 +244,11 @@ IF lAlta
                          " iva = iva  * (1-descp/100),  neto = neto * (1-descp/100) WHERE descp > 0")      
     oQryDet :=oApp:oServer:Query("SELECT *,(cantidad-faltantes) AS disponibles FROM ventas_det_h2")
     IF base:estado <> 'P'
-       MsgInfo('Este pedido ya fue facturador con la factura '+base:facturanro+chr(10)+;
-               'Queda bajo su responsabilidad la modificacion del mismo'  , 'Atencion')
+       IF !MsgNoYes('Este pedido ya fue facturador con la factura '+base:facturanro+chr(10)+;
+               'Queda bajo su responsabilidad la modificacion del mismo'+chr(10)+;
+               'Desea continuar?','Atencion')
+          RETURN .f.
+       ENDIF   
     ENDIF   
 
 ENDIF

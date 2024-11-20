@@ -284,7 +284,8 @@ ENDIF
                                        IF(nKey==115,oBot[35]:Click,;
                                        IF(nKey==116,oBot[37]:Click,;
                                        IF(nKey==118,Varios(oGet),;
-                                       IF(nKey==123,oBot[39]:Click,.F.))))))))}
+                                       IF(nKey==119,PreCuenta(oQryDet),;
+                                       IF(nKey==123,oBot[39]:Click,.F.)))))))))}
    oGet[03]:bKeyDown := {| nKey,nFlags | IF(nKey==13,(oGet[3]:assign(),AgregarArticu(nCodArt),oGet[02]:SetFocus()),.t.)}
    oGet[02]:bKeyDown := {| nKey,nFlags | IF(nKey==13,(oGet[2]:assign(),AgregarArticu(nCodArt)),.t.)}
    oGet[01]:bKeyDown := {| nKey,nFlags | IF(nKey==13,(oGet[1]:assign(),oGet[02]:SetFocus()),.t.)}
@@ -1762,4 +1763,95 @@ oApp:oServer:Execute("";
     +"`IMPORTE`  DECIMAL(12,2) NOT NULL,"+;
     +" PRIMARY KEY (RENGLON)) ENGINE=INNODB DEFAULT CHARSET=utf8")  
 
+RETURN nil
+
+
+STATIC FUNCTION Precuenta(oQry)
+LOCAL oPrn, nRow, oFont, oFont1, config, oQryP, nRow1 , i
+   oQryP :=  oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip))
+   IF oQry:nRecCount = 0 .or. !oQryP:imprimeTic
+      RETURN nil
+   ENDIF 
+   return nil // por ahora se va           
+   config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
+   
+ IF !oApp:tick80
+     *********** Impresion de Ticket 48 mm 
+     IF config:fon > 25
+        config:fon := config:fon /3
+     ENDIF   
+     DEFINE FONT oFont   NAME "COURIER NEW"       SIZE config:fon,config:fon*2.5
+     DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
+     PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
+        oPrn:oFont := oFont
+        PAGE                                  
+           nRow := 0
+           
+           @ nRow, .1 PRINT TO oPrn TEXT "PRE CUENTA" ;
+                        SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "C"                                                  
+           
+           nRow1 := nRow + .5
+           @ nRow1, 00 PRINT TO oPrn TEXT "Descripcion";
+                        SIZE 2.9,.5 CM FONT oFont LASTROW nRow ALIGN "L"
+           @ nRow1, 03 PRINT TO oPrn TEXT "Cant";
+                        SIZE .7,.5 CM FONT oFont LASTROW nRow ALIGN "R"
+           @ nRow1, 03.8 PRINT TO oPrn TEXT "Total";
+                        SIZE 1.0,.5 CM FONT oFont LASTROW nRow ALIGN "R"
+           oQry:GoTop()               
+           FOR i = 1 TO oQry:nRecCount           
+               nRow1 := nRow
+               @ nRow1, 00 PRINT TO oPrn TEXT ALLTRIM(oQry:detart);
+                    SIZE 2.9,.5 CM FONT oFont LASTROW nRow ALIGN "L"
+               @ nRow1, 03 PRINT TO oPrn TEXT STR(oQry:cantidad,06,1);
+                    SIZE 0.7,.5 CM FONT oFont  ALIGN "R"                         
+               @ nRow1, 3.8 PRINT TO oPrn TEXT STR(oQry:ptotal,12,2);
+                    SIZE 1,.5 CM FONT oFont LASTROW nRow ALIGN "R"     
+               oQry:Skip()                     
+            NEXT                                                                 
+           @ nRow, .1 PRINT TO oPrn TEXT "Items:" + STR(oQry:nRecCount,4) ;
+                    SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"
+           @ nRow,.1 PRINT TO oPrn TEXT ".";
+                    SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"                     
+        ENDPAGE
+     ENDPRINT
+    ELSE
+     *********** Impresion de Ticket 80 mm 
+     IF config:fon > 25
+        config:fon := config:fon /3
+     ENDIF   
+     DEFINE FONT oFont   NAME "COURIER NEW"       SIZE config:fon,config:fon*2.5
+     DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
+     PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
+        oPrn:oFont := oFont
+        PAGE                                  
+           nRow := 0
+           
+           @ nRow, .1 PRINT TO oPrn TEXT "PRE CUENTA" ;
+                        SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "C"                     
+           nRow1 := nRow + .5
+           @ nRow1, 00.02 PRINT TO oPrn TEXT "Descripcion";
+                        SIZE 3.5,.5 CM FONT oFont LASTROW nRow ALIGN "L"
+           @ nRow1, 03.60 PRINT TO oPrn TEXT "Cant";
+                        SIZE .9,.5 CM FONT oFont LASTROW nRow ALIGN "R"
+           @ nRow1, 05.66 PRINT TO oPrn TEXT "Total";
+                        SIZE 1.4,.5 CM FONT oFont LASTROW nRow ALIGN "R"
+           oQry:GoTop()                
+           nRow := nRow + .2                   
+           FOR i = 1 TO oQry:nRecCount           
+               nRow1 := nRow
+               @ nRow1, 00.00 PRINT TO oPrn TEXT ALLTRIM(oQry:detart);
+                    SIZE 3.5,.5 CM FONT oFont LASTROW nRow ALIGN "L"
+               @ nRow1, 03.60 PRINT TO oPrn TEXT STR(oQry:cantidad,06,2);
+                    SIZE .9,.5 CM FONT oFont  ALIGN "R"
+               @ nRow1, 05.66 PRINT TO oPrn TEXT STR(oQry:ptotal,12,2);
+                    SIZE 1.4,.5   CM FONT oFont ALIGN "R"                         
+               oQry:Skip()                     
+            NEXT                                                                 
+           @ nRow, .1 PRINT TO oPrn TEXT "Items:" + STR(oQry:nRecCount,4) ;
+                    SIZE 5,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"
+           @ nRow,.1 PRINT TO oPrn TEXT ".";
+                    SIZE 5,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"                     
+        ENDPAGE
+     ENDPRINT              
+ ENDIF 
 RETURN nil

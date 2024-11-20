@@ -105,7 +105,7 @@ ENDMENU
                   COLUMNS "Codigo","codigopro","nombre","stockact","Preciocos","Precioven","reventa","fecmod","Observa";
                   HEADERS "Código art.","Cód.Prov.","Nombre","Stock","Precio costo","P. Venta 1","P. Venta 2","Fecha Cambio","Observaciones";
                   SIZES 90,70,230,60,70,75,75,70,200;
-                  ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu( .f.,oQryBrw:codigo),IF(oBrw<>nil,oBrw:Refresh(),.f.)),nil))
+                  ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu( .f.,oQryBrw:codigo),IF(oBrw<>nil .and. oQryBrw<>nil,oBrw:Refresh(),.f.)),nil))
          REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg
          PintaBrw(oBrw,9) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
      ELSE
@@ -113,7 +113,7 @@ ENDMENU
                   COLUMNS "Codigo","codigopro","nombre","Preciocos","Precioven","reventa","fecmod","observa";
                   HEADERS "Código art","Cód.Prov.","Nombre","Precio costo","P. Venta 1","P. Venta 2","Fecha Cambio","Observaciones";
                   SIZES 90,70,350,70,70,70,70,200;
-                  ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu( .f.,oQryBrw:codigo),IF(oBrw<>nil,oBrw:Refresh(),.f.)),nil))
+                  ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu( .f.,oQryBrw:codigo),IF(oBrw<>nil .and. oQryBrw<>nil,oBrw:Refresh(),.f.)),nil))
          REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg
          PintaBrw(oBrw,8) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
      ENDIF
@@ -140,7 +140,9 @@ STATIC FUNCTION Formu (lAlta,nCodArt)
 LOCAL oGet := ARRAY(53), oBot := ARRAY(8), oForm, lRta := .F., aCor, base, cProve:=SPACE(30), nNeto,;
       cIvaNom:=SPACE(30), cMarc:=SPACE(30), cRub:=SPACE(30), cDept:=SPACE(30), cEmp:=SPACE(30), nIva,oError,nPrecioven:=0,nPreciocos:=0,;
       nova1,nova2,oSay:=ARRAY(8),oGru:=ARRAY(2), mstock := 0
-
+IF !lAlta .and. nCodArt = 0
+   RETURN nil 
+ENDIF   
 IF lAlta
    oQry:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu LIMIT 0")
    base := oQry:GetBlankRow()

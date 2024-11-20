@@ -150,7 +150,7 @@ DO WHILE .T.
    @ 50, 60 GET oGet[06] VAR base:orden OF oForm PIXEL PICTURE "99999999" RIGHT
    @ 65, 60 GET oGet[07] VAR base:fecing OF oForm PIXEL CENTER PICTURE "@D"  
    @ 80, 60 GET oGet[08] VAR base:fecvto OF oForm PIXEL CENTER PICTURE "@D"
-   @ 95, 60 GET oGet[09] VAR base:importe  OF oForm PIXEL PICTURE "9999999.99" RIGHT;
+   @ 95, 60 GET oGet[09] VAR base:importe  OF oForm PIXEL PICTURE "999999999.99" RIGHT;
                 VALID(base:importe>0)
    @110, 60 GET oGet[10] VAR base:codcli  OF oForm PIXEL PICTURE "999999" RIGHT SIZE 30,12;
                 VALID(IF(base:codcli=0,.t.,Buscar(oQry4,oForm,oGet[10],oGet[11])));

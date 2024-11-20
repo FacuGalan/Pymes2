@@ -1,5 +1,5 @@
 Harbour 3.2.0dev (r1601050904)
 Copyright (c) 1999-2015, http://harbour-project.org/
-Compiling 'PEDIDOS.prg' and generating preprocessed output to 'PEDIDOS.ppo'...
-100200100100100200300400500100200100200100200100200300400500600700800900100011001200130014001500160017001800190020001002001002003001001002003004005006007008009001000110012001300140015001600170018001900Lines 7372, Functions/Procedures 28
-Generating C source output to 'PEDIDOS.c'... Done.
+Compiling 'fact.prg' and generating preprocessed output to 'fact.ppo'...
+10020010010010020030040050010020010020010020010020030040050060070080090010001100120013001400150016001700180019002000100200100200300100200300400500600700800900100011001200130014001500160017001800Lines 7106, Functions/Procedures 32
+Generating C source output to 'fact.c'... Done.

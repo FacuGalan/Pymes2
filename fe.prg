@@ -492,9 +492,10 @@ IF lRta
           lRta := .f.
        ENDIF
     CATCH oError 
-    MsgInfo( "Error en el Web Service de AFIP";
-             ,"Error" ) 
-    RETURN 0 
+        MsgInfo( "Error en el Web Service de AFIP"+;
+             chr(10)+oError:description;
+             ,"Error al buscar ultimo comprobante" ) 
+        RETURN 0 
    END TRY 
    IF nFacturaNro = 0 .and. !lRta
       RETURN 0
@@ -519,39 +520,47 @@ IF lRta
         wsfev1:AgregaCompAsoc(IF(cLetra = 'A',1,IF(cLetra = "B",6,IF(cLetra = "C",11,53))),nPuntoVta,nComprAsoc,wsfev1:CUIT,DTOS(dFecCompAsoc))
      ENDIF
    CATCH oError 
-    MsgInfo( "Error en el Web Service de AFIP";
-             ,"Error" ) 
-    RETURN 0 
+        MsgInfo( "Error en el Web Service de AFIP"+;
+             chr(10)+oError:description;
+             ,"Error al Agregar factura /Comp.Asociado " ) 
+        RETURN 0 
    END TRY 
    // Agregar IVAS
-   IF cLetra <> "C"
-      FOR i := 1 TO LEN(aTablasIvas)
-          IF lFacturaD
-             wsfev1:AgregaIVA(aTablasIvas[i,1], ROUND(aTablasIvas[i,2]/nCotiza,2), ROUND(aTablasIvas[i,3]/nCotiza,2))
-             ELSE
-             wsfev1:AgregaIVA(aTablasIvas[i,1], ROUND(aTablasIvas[i,2],2), ROUND(aTablasIvas[i,3],2))
-          ENDIF   
-      NEXT i
-   ENDIF
-   IF nImpInt > 0
-      IF lFacturaD
-         nImpInt := ROUND(nImpInt / nCotiza,2) 
-      ENDIF    
-      wsfev1:AgregaTributo(4, 'Impuestos Internos', 0,0, nImpInt)      
-   ENDIF
-   If wsfev1:Autorizar(nPuntoVta, Tipocomp) 
-      *Memoedit(wsfev1:XmlRequest)      
-      If wsfev1:SFresultado(0)<>"A"              
-         lFallo := .t.
-         nNro := 0
-      ENDIF 
-      ELSE
-      MsgInfo( "Error en el Web Service de AFIP"+chr(10)+;
-              wsfev1:ErrorDesc+chr(10);
-             +"FEAFIP AUTORIZAR","Error" ) 
-      lFallo := .t.
-      nNro := 0
-   ENDIF
+   TRY 
+     IF cLetra <> "C"
+        FOR i := 1 TO LEN(aTablasIvas)
+            IF lFacturaD
+               wsfev1:AgregaIVA(aTablasIvas[i,1], ROUND(aTablasIvas[i,2]/nCotiza,2), ROUND(aTablasIvas[i,3]/nCotiza,2))
+               ELSE
+               wsfev1:AgregaIVA(aTablasIvas[i,1], ROUND(aTablasIvas[i,2],2), ROUND(aTablasIvas[i,3],2))
+            ENDIF   
+        NEXT i
+     ENDIF
+     IF nImpInt > 0
+        IF lFacturaD
+           nImpInt := ROUND(nImpInt / nCotiza,2) 
+        ENDIF    
+        wsfev1:AgregaTributo(4, 'Impuestos Internos', 0,0, nImpInt)      
+     ENDIF
+     If wsfev1:Autorizar(nPuntoVta, Tipocomp) 
+        *Memoedit(wsfev1:XmlRequest)      
+        If wsfev1:SFresultado(0)<>"A"              
+           lFallo := .t.
+           nNro := 0
+        ENDIF 
+        ELSE
+        MsgInfo( "Error en el Web Service de AFIP"+chr(10)+;
+                wsfev1:ErrorDesc+chr(10);
+               +"FEAFIP AUTORIZAR","Error" ) 
+        lFallo := .t.
+        nNro := 0
+     ENDIF
+   CATCH oError 
+         MsgInfo( "Error en el Web Service de AFIP"+;
+             chr(10)+oError:description;
+             ,"Error al Agregar Autorizar " ) 
+        RETURN 0 
+   END TRY  
    ELSE
    MsgInfo( "Error en el Web Service de AFIP"+chr(10)+;
               wsfev1:ErrorDesc+chr(10);

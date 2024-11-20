@@ -936,14 +936,14 @@ ENDDO
 DO WHILE .T.
 DEFINE DIALOG oDlg2 RESOURCE "FORMAPAG" OF oDlg
     oDlg2:lHelpIcon := .f.
-    REDEFINE GET oGet1[1] VAR mpagado   ID 110 OF oDlg2 PICTURE "99999999.99" WHEN(.F.)
-    REDEFINE GET oGet1[2] VAR manticipo ID 111 OF oDlg2 PICTURE "99999999.99" WHEN(.f.)
-    REDEFINE GET oGet1[3] VAR nEfecti   ID 112 OF oDlg2 PICTURE "99999999.99"
-    REDEFINE GET oGet1[4] VAR nTarjet   ID 113 OF oDlg2 PICTURE "99999999.99"
-    REDEFINE GET oGet1[5] VAR nTransfe  ID 4001 OF oDlg2 PICTURE "99999999.99"
-    REDEFINE GET oGet1[11] VAR nMPago   ID 4006 OF oDlg2 PICTURE "99999999.99"
-    REDEFINE GET oGet1[7] VAR nCheque   ID 114 OF oDlg2 PICTURE "99999999.99" WHEN(.F.)
-    REDEFINE GET oGet1[6] VAR nCtaCte   ID 115 OF oDlg2 PICTURE "99999999.99";
+    REDEFINE GET oGet1[1] VAR mpagado   ID 110 OF oDlg2 PICTURE "999999999.99" WHEN(.F.)
+    REDEFINE GET oGet1[2] VAR manticipo ID 111 OF oDlg2 PICTURE "999999999.99" WHEN(.f.)
+    REDEFINE GET oGet1[3] VAR nEfecti   ID 112 OF oDlg2 PICTURE "999999999.99"
+    REDEFINE GET oGet1[4] VAR nTarjet   ID 113 OF oDlg2 PICTURE "999999999.99"
+    REDEFINE GET oGet1[5] VAR nTransfe  ID 4001 OF oDlg2 PICTURE "999999999.99"
+    REDEFINE GET oGet1[11] VAR nMPago   ID 4006 OF oDlg2 PICTURE "999999999.99"
+    REDEFINE GET oGet1[7] VAR nCheque   ID 114 OF oDlg2 PICTURE "999999999.99" WHEN(.F.)
+    REDEFINE GET oGet1[6] VAR nCtaCte   ID 115 OF oDlg2 PICTURE "999999999.99";
                     WHEN((oGet1[6]:cText := mpagado - (manticipo+nEfecti +;
                                       nTarjet + nTransfe + nCheque + nMPago)) = "-9999999")
     //cant cuotas
@@ -1515,7 +1515,7 @@ DEFINE DIALOG oDlg3 TITLE "Alta de Cheques de Tercero" FROM 05,15 TO 23,66 OF oW
    @ 50, 50 GET oGet2[6] VAR base:recibo PICTURE "99999999" PIXEL OF oDlg3 RIGHT WHEN(.F.)
    @ 65, 50 GET oGet2[7] VAR base:fecemi   PICTURE "@D" PIXEL OF oDlg3 CENTER
    @ 80, 50 GET oGet2[8] VAR base:fecvto   PICTURE "@D" PIXEL OF oDlg3 VALID(base:fecvto >= base:fecemi) CENTER
-   @ 95, 50 GET oGet2[9] VAR base:importe  PICTURE "99999999.99" PIXEL OF oDlg3 RIGHT VALID(base:importe>0)
+   @ 95, 50 GET oGet2[9] VAR base:importe  PICTURE "999999999.99" PIXEL OF oDlg3 RIGHT VALID(base:importe>0)
    @ acor[1],acor[2] BUTTON oBot2[1] PROMPT "&Grabar" OF oDlg3 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg3:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2[2] PROMPT "&Cancelar" OF oDlg3 SIZE 30,10 ;

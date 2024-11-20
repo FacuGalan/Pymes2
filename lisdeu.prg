@@ -174,7 +174,7 @@ IF !lDetalle
                              "'Anticipo' AS compro "+;
                              " FROM ge_"+oApp:cId+"provee  "+;
                              " WHERE saldo > 0 "+;
-                             ") res WHERE res.saldo <> 0 ORDER BY res.nombre " )
+                             ") res WHERE res.saldo <> 0 ORDER BY res.nombre, res.fecha " )
     REPORT oRep TITLE "Detalle de deudas" + " del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
            FONT  oFont1,oFont2,oFont3  HEADER OemToAnsi(oApp:nomb_emp) , ;
            "Detalle de deudas a Pagar" CENTER ;

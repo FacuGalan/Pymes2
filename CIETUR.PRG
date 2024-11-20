@@ -213,7 +213,8 @@ RETURN .t.
 ** Imprimir la caja
 FUNCTION ImprimirCaja(nId,lPrev)
 LOCAL oParame, oPrn, i, oFont, config, oQry, oFont1, y, nAnt := 0, nTotD := 0,;
-      nTotH := 0, nTotE := 0, nTotEfe := 0, oGru, lComan,oPr,nRenglon,nRow, oQryP,nTotalVentas, oQryFor, nMargen
+      nTotH := 0, nTotE := 0, nTotEfe := 0, oGru, lComan,oPr,nRenglon,nRow, oQryP,nTotalVentas, ;
+      oQryFor, nMargen, nTotalX, nTotalB
 DEFAULT lPrev := .f.
 oQry := oApp:oServer:Query("SELECT cd.*,c.*,c.id AS num FROM ge_"+oApp:cId+"cajadiaria c LEFT JOIN "+;
                              "("+;
@@ -296,12 +297,19 @@ IF lComan == nil
 ENDIF
 oParame := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros")
 config := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
-nTotalVentas := oApp:oServer:Query("SELECT SUM(v.importe*IF(v.ticomp='NC',-1,1)) AS ventas "+;
+/*nTotalVentas := oApp:oServer:Query("SELECT SUM(v.importe*IF(v.ticomp='NC',-1,1)) AS ventas "+;
                              " FROM ge_"+oApp:cId+"pagos p "+;
                              "LEFT JOIN ge_"+oApp:cId+"pagfac pf ON p.numero = pf.numero "+;
                              "LEFT JOIN ge_"+oApp:cId+"ventas_encab v ON pf.ticomp = v.ticomp AND pf.letra = v.letra AND pf.numcomp = v.numcomp "+;
                              "WHERE p.id_cierre = "+ClipValue2Sql(nId)+;
-                             " AND v.fecha = p.fecha "):ventas
+                             " AND v.fecha = p.fecha "):ventas*/
+nTotalVentas := oApp:oServer:Query("SELECT SUM(v.importe*IF(v.ticomp='NC',-1,1)) AS ventas "+;
+                             " FROM ge_"+oApp:cId+"concfact v "+;                             
+                             "WHERE v.id_cierre = "+ClipValue2Sql(nId)):ventas
+nTotalX := oApp:oServer:Query("SELECT SUM(v.importe*IF(v.ticomp='NC',-1,1)) AS ventas "+;
+                             " FROM ge_"+oApp:cId+"concfact v "+;                             
+                             "WHERE v.letra = 'X' AND v.id_cierre = "+ClipValue2Sql(nId)):ventas
+nTotalB := nTotalVentas - nTotalX
 IF lComan
    IF config:fon > 25
       config:fon := config:fon /3
@@ -395,7 +403,11 @@ IF lComan
       @ nRow, .01 PRINT TO oPrn TEXT "Firma operador       Firma encarg.";
                           SIZE nMargen,0.5 CM FONT oFont LASTROW nRow ALIGN "C"
       @ nRow, .01 PRINT TO oPrn TEXT "Venta turno: $"+STR(nTotalVentas,12,2);
-                          SIZE nMargen,0.5 CM FONT oFont LASTROW nRow ALIGN "L"                          
+                          SIZE nMargen,0.5 CM FONT oFont LASTROW nRow ALIGN "L"
+      @ nRow, .01 PRINT TO oPrn TEXT "Facturado: $"+STR(nTotalB,12,2);
+                          SIZE nMargen,0.5 CM FONT oFont LASTROW nRow ALIGN "L"
+      @ nRow, .01 PRINT TO oPrn TEXT "Presup.: $"+STR(nTotalX,12,2);
+                          SIZE nMargen,0.5 CM FONT oFont LASTROW nRow ALIGN "L"                    
       @ nRow, .01 PRINT TO oPrn TEXT "  -  - - - FIN DE CAJA - - - - - - - ";
                           SIZE nMargen,0.5 CM FONT oFont LASTROW nRow ALIGN "C"
       @ nRow, .01 PRINT TO oPrn TEXT "....";
@@ -416,7 +428,7 @@ IF lComan
        REPORT oPrn TITLE "Cierre de turno" + DTOC(oQry:fecha) + " Caja:"+ STR(oQry:caja,4) + " Cierre Nro:"+STR(nId,4) ;       
            HEADER ALLTRIM(OemToAnsi(oApp:nomb_emp)),;       
            IF(oQry:saldo>0,"Faltante:","Sobrante:")+ STR(ABS(oQry:saldo),10,2),;
-           "Ventas Total Turno: $"+STR(nTotalVentas,12,2) CENTER ;       
+           "Ventas Total Turno: $"+STR(nTotalVentas,12,2),"Facturado: $"+STR(nTotalB,12,2),"Presupuestos:$"+STR(nTotalX,12,2) CENTER ;       
            FOOTER "Firma operador:____________________    Firma del Encargado:_____________________";
            TO DEVICE oPr;
            FONT oFont,oFont1;
@@ -425,7 +437,7 @@ IF lComan
        REPORT oPrn TITLE "Cierre de turno" + DTOC(oQry:fecha) + " Caja:"+ STR(oQry:caja,4) + " Cierre Nro:"+STR(nId,4) ;       
            HEADER ALLTRIM(OemToAnsi(oApp:nomb_emp)),;       
            IF(oQry:saldo>0,"Faltante:","Sobrante:")+ STR(ABS(oQry:saldo),10,2) ,;
-           "Ventas Total Turno: $"+STR(nTotalVentas,12,2) CENTER ;       
+           "Ventas Total Turno: $"+STR(nTotalVentas,12,2),"Facturado: $"+STR(nTotalB,12,2),"Presupuestos:$"+STR(nTotalX,12,2) CENTER ;       
            FOOTER "Firma operador:____________________    Firma del Encargado:_____________________";         
            FONT oFont,oFont1;
            CAPTION  "Cierre de turno" PREVIEW

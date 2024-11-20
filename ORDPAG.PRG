@@ -777,7 +777,7 @@ DEFINE DIALOG oDlg3 TITLE "Alta de Cheques propios" FROM 05,15 TO 19,66 OF oWnd 
                 VALID(base:numche > 0) RIGHT
    @ 35, 50 GET oGet2[7] VAR base:fecemi   PICTURE "@D" PIXEL OF oDlg3 CENTER
    @ 50, 50 GET oGet2[8] VAR base:fecvto   PICTURE "@D" PIXEL OF oDlg3 VALID(base:fecvto >= base:fecemi) CENTER
-   @ 65, 50 GET oGet2[9] VAR base:importe  PICTURE "99999999.99" PIXEL OF oDlg3 RIGHT VALID(base:importe>0)
+   @ 65, 50 GET oGet2[9] VAR base:importe  PICTURE "999999999.99" PIXEL OF oDlg3 RIGHT VALID(base:importe>0)
    @ acor[1],acor[2] BUTTON oBot2[1] PROMPT "&Grabar" OF oDlg3 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg3:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2[2] PROMPT "&Cancelar" OF oDlg3 SIZE 30,10 ;
