@@ -7,25 +7,29 @@
 ** Pagos a empleados 
 *************************************************
 MEMVAR oApp
-STATIC oGet, oDlg, oBot, mfecha, mdesde, mhasta, mhabitual, mefectivo, mcodpro, ;
-       oBrw, oQry, oQryDet, mtotal, lEdita, oQryBan, oQryCue, oQryPro, oQryChe, nTipo,lSalir:=.f.
+STATIC oGet, oDlg, oBot, mfecha, mdesde, mhasta, mhabitual, mefectivo, mcodpro, mvalorhora, mmesp, manop,;
+       oBrw, oQry, oQryDet, mtotal, lEdita, oQryBan, oQryCue, oQryPro, oQryChe, nTipo,lSalir:=.f., lMuestra
 PROCEDURE pagemp(cPermisos)
-LOCAL oFont, oFo1,  oSay1, mnompro, mrta := .f., aFormas := {"Efectivo","Transferencia"},oDlg1,oFont1,oBot1:=ARRAY(3),;
+LOCAL oFont, oFo1,  oSay1, mnompro, mrta := .f., aFormas := {"Liquidacion","Efectivo","Transferencia","C.Interno"},oDlg1,oFont1,oBot1:=ARRAY(3),;
        aMeses:={"Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto",;
                "Septiembre","Octubre","Noviembre","Diciembre"}
 IF !"B"$cPermisos
    PagoAdelantoSimpre()
    RETURN  
 ENDIF   
-oGet := ARRAY(13)
+lMuestra := "B"$cPermisos 
+oGet := ARRAY(14)
 oBot := ARRAY(04)
 mhabitual := 0
 mtotal  := 0
 mcodpro := 0
+mvalorhora := 0
 lEdita := .t.
 mfecha  := DATE()
 mdesde  := DATE()-30
 mhasta  := DATE()
+mmesp   := 0
+manop   := YEAR(DATE())
 oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS `transi_pagemp` ("+;
                            "`numero` int(10) DEFAULT 0 NOT NULL,"+;
                            "`ano` int(4) NOT NULL,"+;
@@ -39,7 +43,7 @@ oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS `transi_pagemp` ("+;
 oApp:oServer:NextResult()
 oApp:oServer:Execute("TRUNCATE transi_pagemp")
 oApp:oServer:NextResult()
-oQryPro:= oApp:oServer:Query("SELECT codigo,nombre,sueldo FROM ge_"+oApp:cId+"emp_empleado")
+oQryPro:= oApp:oServer:Query("SELECT codigo,nombre,sueldo,valorhora FROM ge_"+oApp:cId+"emp_empleado")
 
 DEFINE FONT oFont1 NAME "TAHOMA" SIZE 0,-11.5
 
@@ -54,9 +58,12 @@ DO WHILE .T.
              ACTION (oGet[01]:cText:= 0, Buscar(oQryPro,oDlg,oGet[01],oGet[02])) BITMAP "BUSC1" WHEN(lEdita)
     REDEFINE GET oGet[2] VAR mnompro   ID 113 OF oDlg PICTURE "@!" WHEN(.F.)
     REDEFINE GET oGet[3] VAR mhabitual ID 114 OF oDlg PICTURE "99999999.99" WHEN((oGet[3]:cText := oQryPro:sueldo) = 'XXX' )
+    REDEFINE GET oGet[14] VAR mvalorhora ID 4001 OF oDlg PICTURE "999999.99" WHEN((oGet[14]:cText := oQryPro:valorhora) = 'XXX' )
     REDEFINE GET oGet[4] VAR mdesde ID 115 OF oDlg PICTURE "@D" 
     REDEFINE GET oGet[5] VAR mhasta ID 116 OF oDlg PICTURE "@D" 
     REDEFINE GET oGet[6] VAR mfecha ID 117 OF oDlg PICTURE "@D" WHEN(.F.)
+    REDEFINE GET oGet[7] VAR mmesp ID 4002 OF oDlg PICTURE "99"
+    REDEFINE GET oGet[8] VAR manop ID 4003 OF oDlg PICTURE "9999"
     REDEFINE BUTTON oBot[1] ID 118 OF oDlg ACTION Mostrar() WHEN(lEdita)
     REDEFINE XBROWSE oBrw DATASOURCE oQry;
               COLUMNS "ano","mes","numero","fecha","observa","importe","usuario","tipo";
@@ -64,13 +71,13 @@ DO WHILE .T.
               SIZES 40,70,90,80,160,90,80,80 ID 120 OF oDlg       
     oBrw:aCols[6]:nFooterType := AGGR_SUM
     oBrw:aCols[2]:bStrData := {|| IF(oQry:mes=0,"",aMeses[oQry:mes])}
-    oBrw:aCols[8]:bStrData := {|| IF(oQry:tipo=0,"",aFormas[oQry:tipo])}
+    oBrw:aCols[8]:bStrData := {|| aFormas[oQry:tipo+1]}
     PintaBrw(oBrw,0)                   
     REDEFINE GET oGet[10] VAR mtotal  ID 121 OF oDlg COLOR CLR_RED , CLR_YELLOW FONT oFont PICTURE "99999999.99" WHEN(.F.)
     REDEFINE BUTTON oBot[2] ID 102 OF oDlg ACTION graba(oDlg) WHEN(!lEdita) PROMPT "Pagar"
     REDEFINE BUTTON oBot[3] ID 103 OF oDlg ACTION Cancela()
     REDEFINE BUTTON oBot[4] ID 104 OF oDlg ACTION (oDlg:End(),mrta:=.f.) CANCEL
-   ACTIVATE DIALOG oDlg CENTER 
+   ACTIVATE DIALOG oDlg CENTER ON INIT IF(!lMuestra,(oGet[3]:Hide(),oGet[14]:Hide()),nil)
    IF !mrta
       EXIT
    ENDIF
@@ -239,15 +246,21 @@ LOCAL mentre := 0 , lRta := .f., oError, nNro
 oQry:Zap()
 oApp:oServer:Execute("INSERT INTO transi_pagemp (mes,ano,importe,fecha,observa,numero,tipo,usuario) "+;
                      "SELECT res.* FROM ("+;
-                     "SELECT mes,ano,-total , fecha, observa,sub, 1, usuario "+;
+                     "SELECT mes,ano,-total , fecha, observa,sub, 0, usuario "+;
                      "FROM ge_"+oApp:cId+"emp_liqsueldo "+;
                      "WHERE codemp = " + ClipValue2Sql(mcodpro) + " AND " +;
-                     " fecha between "+ClipValue2Sql(mdesde)+" AND  "+ClipValue2Sql(mhasta)+" "+;
+                     if(mmesp = 0,;
+                     " fecha between "+ClipValue2Sql(mdesde)+" AND  "+ClipValue2Sql(mhasta),;
+                     " mes = " + ClipValue2Sql(mmesp) + " AND ano = "+ClipValue2Sql(manop));
+                     +" "+;
                      "UNION "+; 
                      "SELECT mes,ano,importe , fecha, observa,numero, tipo, usuario "+;
                      "FROM ge_"+oApp:cId+"emp_pagsueldo "+;
                      "WHERE codemp = " + ClipValue2Sql(mcodpro) + " AND " +;
-                     " fecha between "+ClipValue2Sql(mdesde)+" AND  "+ClipValue2Sql(mhasta)+") res ")
+                     if(mmesp = 0,;
+                     " fecha between "+ClipValue2Sql(mdesde)+" AND  "+ClipValue2Sql(mhasta),;
+                     " mes = " + ClipValue2Sql(mmesp) + " AND ano = "+ClipValue2Sql(manop));
+                     +") res ")
 oApp:oServer:NextResult()
 oQry:Refresh()
 oQry:GoTop()
@@ -275,7 +288,10 @@ oQryP :=  oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ C
 config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
 DO CASE
       CASE !oQryP:imprimeTic // NO Factura por comandera
-         ** FACTURACION CON FORMATO PARA FACTURA ELECTRONICA         
+         ** FACTURACION CON FORMATO PARA FACTURA ELECTRONICA     
+         IF config:fon < 14
+             config:fon := config:fon *2.8
+         ENDIF     
          DEFINE FONT oFont2  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*3 BOLD         
          DEFINE FONT oFont1  NAME "ARIAL"       SIZE config:fon,config:fon*2.5 BOLD        
          PRINT oPrn NAME "Pago de Sueldo" PREVIEW MODAL 
@@ -331,7 +347,10 @@ DO CASE
            ENDPAGE
          ENDPRINT
      OTHERWISE
-           *********** Impresion de Ticket                      
+           *********** Impresion de Ticket 
+           IF config:fon > 25
+              config:fon := config:fon /3
+           ENDIF                     
            DEFINE FONT oFont1  NAME "COURIER NEW"       SIZE config:fon,config:fon*2.5
            DEFINE FONT oFont2  NAME "CALIBRI"           SIZE config:fon*1.5,config:fon*4 BOLD
            IF !oApp:tick80

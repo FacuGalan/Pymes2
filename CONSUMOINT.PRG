@@ -736,12 +736,14 @@ RETURN NIL
 ** Liquidaciones de consumos Internos
 STATIC FUNCtION Liquidado()
 LOCAL oQry, oDlg1, oFont, acor:= ARRAY(4), nMes:=MONTH(DATE()), nAno := YEAR(DATE()), mrta:=.F., oGet:= ARRAY(6),;
-      oBot1, oBot2, oBot3, oBrwLiq, aLiqu, nSub := 0, dFecha := DATE(), oQryE , cDetalle := SPACE(30), oError
+      oBot1, oBot2, oBot3, oBrwLiq, aLiqu, nSub := 0, dFecha := DATE(), oQryE , cDetalle := SPACE(30), oError,;
+      lAplicar := .f.
 oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS `transi_liqcon` ("+;
                            "`id` INT(10) NOT NULL, "+;
                            "`nombre`  VARCHAR(40) , "+;
                            "`fecha` DATE, "+;                           
-                           "`nomart` VARCHAR(40), "+;                           
+                           "`nomart` VARCHAR(40), "+;
+                           "`codemp` INT(8), "+;                             
                            "`ptotal`  DECIMAL(12,2), "+;
                            "`liquidado`  TINYINT(1) DEFAULT '0' NOT NULL "+;
                            ") ENGINE=INNODB DEFAULT CHARSET=utf8") 
@@ -754,13 +756,13 @@ IF mrta = nil
    RETURN nil 
 ENDIF
 IF mrta
-   oApp:oServer:Execute(" INSERT INTO transi_liqcon (id,nombre,fecha,nomart,ptotal,liquidado) "+;
-                        "(SELECT  c.id,e.nombre, c.fecha,c.nomart,c.ptotal, false FROM ge_"+oApp:cId+"emp_consumoint c "+;
+   oApp:oServer:Execute(" INSERT INTO transi_liqcon (id,nombre,fecha,nomart,ptotal,liquidado,codemp) "+;
+                        "(SELECT  c.id,e.nombre, c.fecha,c.nomart,c.ptotal, false, c.codemp FROM ge_"+oApp:cId+"emp_consumoint c "+;
                         " LEFT JOIN ge_"+oApp:cId+"emp_empleado e ON e.codigo = c.codemp "+;
                         " WHERE c.liquidado IS FALSE)")   
    ELSE 
-   oApp:oServer:Execute(" INSERT INTO transi_liqcon (id,nombre,fecha,nomart,ptotal,liquidado) "+;
-                        "(SELECT  c.id,e.nombre, c.fecha,c.nomart,c.ptotal, false "+;
+   oApp:oServer:Execute(" INSERT INTO transi_liqcon (id,nombre,fecha,nomart,ptotal,liquidado, codemp) "+;
+                        "(SELECT  c.id,e.nombre, c.fecha,c.nomart,c.ptotal, false, c.codemp "+;
                         " FROM ge_"+oApp:cId+"emp_consumoint c "+;
                         " LEFT JOIN ge_"+oApp:cId+"emp_empleado e ON e.codigo = c.codemp "+;
                         " WHERE c.liquidado IS FALSE AND codemp = "+STR(oQryBrw:codemp)+")")   
@@ -771,7 +773,7 @@ IF oQryE:nRecCount = 0
    RETURN nil 
 ENDIF   
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
-DEFINE DIALOG oDlg1 TITLE "Marcar consumos como liquidados" FROM 03,15 TO 30,100
+DEFINE DIALOG oDlg1 TITLE "Marcar consumos como liquidados" FROM 03,15 TO 32,100
    acor := AcepCanc(oDlg1)       
    @ 05,20 BUTTON oBot3 PROMPT "Invertir todo" OF oDlg1 ACTION (InvertirTildes(oBrwLiq,oQryE)) PIXEL SIZE 45,12
    @ 20, 05 XBROWSE oBrwLiq SIZE 315,150 pixel OF oDlg1 DATASOURCE oQryE ;
@@ -792,6 +794,11 @@ DEFINE DIALOG oDlg1 TITLE "Marcar consumos como liquidados" FROM 03,15 TO 30,100
       :CreateFromCode()      
    END  
    PintaBrw(oBrwLiq,0)
+   @ acor[1]-22,05  CHECKBOX oGet[1] VAR lAplicar PROMPT "Aplicar Pago a Liquidacion" SIZE 100,12 OF oDlg1 PIXEL 
+   @ acor[1]-20,112  SAY "Mes:" OF oDlg1 PIXEL RIGHT SIZE 20,10
+   @ acor[1]-20,153  SAY "Año:" OF oDlg1 PIXEL RIGHT SIZE 20,10
+   @ acor[1]-22,135  GET oGet[2] VAR nMes PICTURE "99" OF oDlg1 PIXEL RIGHT WHEN(lAplicar) 
+   @ acor[1]-22,175  GET oGet[3] VAR nAno PICTURE "9999" OF oDlg1 PIXEL RIGHT WHEN(lAplicar)
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Grabar" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
@@ -803,6 +810,16 @@ ENDIF
 TRY
 
   oApp:oServer:BeginTransaction()  
+  IF lAplicar 
+     oQryE :=  oApp:oServer:Query("SELECT SUM(ptotal) as importe, codemp FROM transi_liqcon WHERE liquidado IS TRUE GROUP BY codemp ")
+     DO WHILE !oQryE:Eof()
+        oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"emp_pagsueldo (mes,ano,importe , fecha, observa, tipo, codemp, usuario  ) VALUES ("+;
+                       ClipValue2Sql(nMes)+","+ClipValue2Sql(nAno)+","+ClipValue2Sql(oQryE:importe)+",CURDATE(),"+;
+                       ClipValue2Sql("LIQ. CONSUMO INTERNO")+","+ClipValue2Sql(3)+","+ClipValue2Sql(oQryE:codemp)+","+;
+                       ClipValue2Sql(oApp:usuario)+")")
+        oQryE:Skip()
+     ENDDO   
+  ENDIF  
   oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"emp_consumoint SET liquidado = TRUE WHERE id IN "+;
                        " (SELECT id FROM transi_liqcon WHERE liquidado IS TRUE)")
   oApp:oServer:CommitTransaction()

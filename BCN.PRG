@@ -351,7 +351,7 @@ IF !lExiste
    i := oIni:Get('terminal', 'caja') 
    MsgGet1("Error al ingresar","La terminal no esta registrada para acceder al sistema "+CHR(10)+;
         "Contacte al proveedor"+CHR(10)+"Cliente:"+oApp:cId+" Terminal:"+i+chr(10)+;
-        "Copie y pegue este codigo y envíelo al Soperte Técnico de BCN Soft",@cIp)
+        "Copie y pegue este código y envíelo al Soporte Técnico de BCN Soft",@cIp)
    oApp:oServer:End()
    QUIT
 ENDIF
