@@ -403,7 +403,7 @@ oQryLisPre:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre")
     //cancelar
     REDEFINE BUTTON oBot[2] ID 102 ACTION (LimpiarForm()) 
     //grabar
-    REDEFINE BUTTON oBot[3] ID 103 ACTION (Validaciones(oQry,base,.f.),oDlg2:End(),lResp:=.t.) WHEN(oQryDet:RecCount() > 0)
+    REDEFINE BUTTON oBot[3] ID 103 ACTION (lResp :=Validaciones(oQry,base,.f.,lAlta),IF(lResp,(oDlg2:End(),lResp:=.t.),nil)) WHEN(oQryDet:RecCount() > 0)
     //grabar
     REDEFINE BUTTON oBot[4] ID 104 ACTION ImprimirPedido(base) WHEN(oQryDet:RecCount() > 0)
     //grabar
@@ -816,7 +816,7 @@ RETURN .t.
 
 ************************************************************************************
 ** Validaciones a hacer cuando quiere grabar (Incluye forma de pago y facturacion)
-STATIC FUNCTION Validaciones(oQry,base,lCierra)
+STATIC FUNCTION Validaciones(oQry,base,lCierra,lAlta)
 LOCAL cLetra, oGet1 := ARRAY(20), oBot := ARRAY(4), oForm, lRta := .f., oBrw2, oQryCuo, dFecVto,;
       cDetTar, cDetChe := SPACE(30), aTablaIva := {}, oTabIva, nNro , cCae, cTipoDoc,lFisc:=.f.,;
       oQryVen, oQryPag, oQryPagCon, oQryPagFac,  oErr, nRecibo, nTipFor, nSaldo := 0,nNumero:=0,;
@@ -824,6 +824,9 @@ LOCAL cLetra, oGet1 := ARRAY(20), oBot := ARRAY(4), oForm, lRta := .f., oBrw2, o
 
 TRY 
       oApp:oServer:BeginTransaction()
+      IF lAlta
+         base:id := oApp:oServer:GetAutoIncrement("ge_"+oApp:cId+"pedidos_encab")
+      ENDIF   
       oQry:oRow := base
       oQry:Save()
       oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"pedidos_det WHERE idpedido = "+ClipValue2Sql(oQry:id))
@@ -833,7 +836,8 @@ TRY
                         " FROM ventas_det_h2)")
       oApp:oServer:CommitTransaction()
   CATCH oErr
-      MsgStop("Error al grabar"+CHR(10)+oErr:description,"Error")
+      MsgStop("El pedido no se guardo porque otra terminal estaba actualizando"+CHR(10)+;
+              "Vuelva a poner grabar para grabar este pedido"+CHR(10)+oErr:description,"Error")
       oApp:oServer:RollBack()
       RETURN .F.
  END TRY

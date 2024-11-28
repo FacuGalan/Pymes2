@@ -1006,6 +1006,11 @@ RETURN .t.
 STATIC FUNCTION Baja (  )
 LOCAL mrta := .f., oError
 
+IF oQryBrw:saldo < oQryBrw:importe 
+  MsgStop("No se puede eliminar el comprobante porque ya tiene un pago imputado","Atencion!")
+  RETURN nil
+ENDIF
+
 mrta := MsgNoYes("Seguro de eliminar"+CHR(10)+;
                  "el documento Numero "+oQryBrw:letra+" "+oQryBrw:numfac,"Atencion")
 IF !mrta

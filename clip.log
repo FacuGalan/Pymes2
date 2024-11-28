@@ -1,5 +1,5 @@
 Harbour 3.2.0dev (r1601050904)
 Copyright (c) 1999-2015, http://harbour-project.org/
-Compiling 'pagemple.prg' and generating preprocessed output to 'pagemple.ppo'...
-10020010010010020030040050010020010020010020010020030040050060070080090010001100120013001400150016001700180019002000100200100100200300100200300400Lines 5837, Functions/Procedures 9
-Generating C source output to 'pagemple.c'... Done.
+Compiling 'pedidos.prg' and generating preprocessed output to 'pedidos.ppo'...
+100200100100100200300400500100200100200100200100200300400500600700800900100011001200130014001500160017001800190020001002001002003001001002003004005006007008009001000110012001300140015001600170018001900Lines 7379, Functions/Procedures 28
+Generating C source output to 'pedidos.c'... Done.
