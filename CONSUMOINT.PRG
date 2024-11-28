@@ -12,7 +12,7 @@ STATIC oFont,oForm,oGet,oBrw1,oBrw2,oQryDet1,oQryDet2,oTimer,;
        nCant3,nImporte3,nImporteTot,oQryDatos,;
        oQryBrw,oQry,oWnd1,cVentana,oBrw,oDlg,oQryPag,lCobrados,;
        oBot,fDepto,nTotal,nUltDep,nPriDep,nUltArt,nPriArt,nCantidad,cMozo,;
-       oBrwDet,oQryDet,oDlg1,oQryArt,dFecha,oQryDep,nDescuentoP,nMotivoDesc,nUsaBeeper,oGetP,nTipoFac,nTipoDoc
+       oBrwDet,oQryDet,oDlg1,oQryArt,dFecha,oQryDep,nDescuentoP,nMotivoDesc,nUsaBeeper,oGetP,nTipoFac,nTipoDoc, cPermi
 
 PROCEDURE ConsuInt(cPermisos)
 LOCAL  cBuscar := SPACE(50), oBar, hHand, oFol, oMen, nOpt := 1
@@ -23,6 +23,7 @@ IF ASCAN(oApp:aVentanas,cVentana) > 0
    oApp:oWnd:oWndClient:aWnd[hHand]:Restore()
    RETURN
 ENDIF
+cPermi := cPermisos   
 oBot:=ARRAY(71)
 nTipoFac:=1
 nTipoDoc:=1
@@ -267,7 +268,7 @@ ENDIF
 
 DO WHILE .T.
 lRta := .F.
-DEFINE DIALOG oDlg1 RESOURCE "POS" OF oApp:oWnd TITLE "CONSUMO INTERNO"
+DEFINE DIALOG oDlg1 RESOURCE "POS" OF oWnd1 TITLE "CONSUMO INTERNO"
    oDlg1:lHelpIcon := .f.
   
    REDEFINE BTNBMP oBot[30] ID 301 OF oDlg1 2007 CENTER; //ALTA DE ARTICULO
@@ -279,7 +280,7 @@ DEFINE DIALOG oDlg1 RESOURCE "POS" OF oApp:oWnd TITLE "CONSUMO INTERNO"
    REDEFINE BTNBMP oBot[32] ID 303 OF oDlg1 2007 CENTER; //BORRA ITEM
                    PROMPT "&Borrar item [F2]";
                    ACTION(oQryDet:Delete(),oBrwDet:Refresh(),oBrwDet:MakeTotals(),oGet[6]:Refresh(),oGet[02]:SetFocus());
-                   WHEN(oQryDet:RecCount()>0)
+                   WHEN(oQryDet:RecCount()>0) 
    REDEFINE BTNBMP oBot[33] ID 304 OF oDlg1 2007 CENTER; //SELECCIONA CLIENTE
                    PROMPT "&Elegi cliente [F3]";
                    WHEN(.F.)
@@ -301,7 +302,9 @@ DEFINE DIALOG oDlg1 RESOURCE "POS" OF oApp:oWnd TITLE "CONSUMO INTERNO"
    REDEFINE BTNBMP oBot[39] ID 310 OF oDlg1 2007 CENTER; //GRABA
                    PROMPT "&Grabar [F12]";
                    ACTION(lRta := .t.,oDlg1:End());
-                   WHEN(nTotal > 0) 
+                   WHEN(oBrwDet:aCols[5]:nTotal > 0)
+   REDEFINE BTNBMP oBot[19] ID 4004 OF oDlg1 2007 CENTER; //GRABA
+                   PROMPT "&Vales" WHEN(.f.)
   
    //BOTONES DE NUMEROS (DERECHA)
    REDEFINE BTNBMP oBot[40] ID 400 OF oDlg1 2007 CENTER;
@@ -377,13 +380,16 @@ DEFINE DIALOG oDlg1 RESOURCE "POS" OF oApp:oWnd TITLE "CONSUMO INTERNO"
    oGet[06]:bGotFocus := {|| oDlg1:cargo := oGet[6],nPicture:=11}
 
    oDlg1:bKeyDown = { | nKey, nFlags | IF(nKey==106,oGet[1]:SetFocus(),;
-                                       IF(nKey==113,oBot[32]:Click,;
+                                       IF(nKey==113,(Eval(oGet[02]:bAction),oGet[1]:SetFocus()),;
+                                       IF(nKey==117,oBot[32]:Click,;
                                        IF(nKey==114,oBot[33]:Click,;
                                        IF(nKey==115,oBot[35]:Click,;
                                        IF(nKey==116,oBot[37]:Click,;
-                                       IF(nKey==123,oBot[39]:Click,.F.))))))}
+                                       IF(nKey==118,Varios(oGet),;
+                                       IF(nKey==119,PreCuenta(oQryDet),;
+                                       IF(nKey==123,oBot[39]:Click,.F.)))))))))}
    oGet[03]:bKeyDown := {| nKey,nFlags | IF(nKey==13,(oGet[3]:assign(),AgregarArticu(nCodArt),oGet[02]:SetFocus()),.t.)}
-   oGet[02]:bKeyDown := {| nKey,nFlags | IF(nKey==13,(oGet[2]:assign(),AgregarArticu(nCodArt),oGet[02]:SetFocus()),.t.)}
+   oGet[02]:bKeyDown := {| nKey,nFlags | IF(nKey==13,(oGet[2]:assign(),AgregarArticu(nCodArt)),.t.)}
    oGet[01]:bKeyDown := {| nKey,nFlags | IF(nKey==13,(oGet[1]:assign(),oGet[02]:SetFocus()),.t.)}
 
 
@@ -499,6 +505,18 @@ IF MsgNoYes("¿Seguro de eliminar el detalle del consumo? ","Atencion")
 ENDIF
 RETURN nil
 
+STATIC FUNCTION SiEsDepto(oQ)
+RETURN oQ:codart < 0
+
+STATIC FUNCTION Varios(oGet)
+oGet[02]:cText := -1
+oGet[07]:cText := "VARIOS                 "
+oGet[03]:SetFocus()
+RETURN nil
+
+STATIC FUNCTION Precuenta()
+RETURN nil
+
 
 *****************************************
 ** Cambiar saldo
@@ -538,7 +556,7 @@ LOCAL nRenglon, oQryAux, oQryAux1, oQryAux2, aGuar := {}, aCara := {}, oDlgA, oC
       oBot := ARRAY(2), cGuar := SPACE(30), cCara := SPACE(100), lRta := .f., aCor, i, nTasa,nTotal,;
       nUnit,nIva,nTotalPesado:=0,lPesado:=.f.,;
       oQrySab,nSabor1:=0,cSabor1:=SPACE(40),nSabor2:=0,cSabor2:=SPACE(40),nSabor3:=0,cSabor3:=SPACE(40),;
-      nSabor4:=0,cSabor4:=SPACE(40),nSabor5:=0,cSabor5:=SPACE(40),cSabores:=" ",nLargo
+      nSabor4:=0,cSabor4:=SPACE(40),nSabor5:=0,cSabor5:=SPACE(40),cSabores:=" ",nLargo, nPrecioVen
 IF nCodArt = 0
    RETURN nil 
 ENDIF 
@@ -563,10 +581,11 @@ IF lPesado  //SI ES UN PESADO CALCULO LA CANTIDAD DEPENDIENDO DEL TOTAL
       nCantidad := nCantidad * 1000
    ENDIF
 ENDIF
+nPrecioVen := oQryAux:prec
 IF oQryAux:pesable .and. !lPesado  //SI ES UN ARTICULO PESABLE PIDO QUE INGRESE LA CANTIDAD A FACTURAR
    //oGet[07]:cText:= oQryAux:nombre
-    IF (nCantidad := PedirCantidad()) < 0
-       RETURN .f.
+    IF !PedirCantidad(nPrecioVen)
+        RETURN .f.
     ENDIF
 ENDIF
  
@@ -589,21 +608,32 @@ oBrwDet:MakeTotals()
 nCantidad:=1
 oGet[02]:cText := 0
 oGet[02]:Refresh()
-oGet[06]:cText := oBrwDet:aCols[5]:nTotal
+oBrwDet:GoBottom()
+//oGet[06]:cText := oBrwDet:aCols[5]:nTotal
+nTotal := ROUND(oBrwDet:aCols[5]:nTotal,2)
+oGet[02]:SetFocus()
 RETURN nil
 
 **************************************************************************************************
 ****** PEDIR QUE INGRESE LA CANTIDAD SI ES UN PESABLE 
-STATIC FUNCTION PedirCantidad()
-LOCAL acor:=ARRAY(4),oDlgD,oGet1:=ARRAY(2),oBot1,oBot2,lRta:=.f.,nCantTemp:=0
+**************************************************************************************************
+****** PEDIR QUE INGRESE LA CANTIDAD SI ES UN PESABLE 
+STATIC FUNCTION PedirCantidad(nPre)
+LOCAL acor:=ARRAY(4),oDlgD,oGet1:=ARRAY(2),oBot1,oBot2,lRta:=.f.,nCantTemp:=0, nPrecio := 0
 
-DEFINE DIALOG oDlgD TITLE "Ingresar cantidad del articulo pesable a facturar" OF oDlg1 FROM 05,15 TO 11,55
+DEFINE DIALOG oDlgD TITLE "Ingresar cantidad del articulo pesable a facturar" OF oWnd1 FROM 05,15 TO 14,65
   acor := AcepCanc(oDlgD)
   
 
    @ 12, 05 SAY "Cantidad:" OF oDlgD PIXEL SIZE 40,12 RIGHT
-   @ 10, 50 GET oGet1[1] VAR nCantTemp OF oDlgD PIXEL PICTURE "99999.999" RIGHT
+   @ 10, 50 GET oGet1[1] VAR nCantTemp OF oDlgD PIXEL PICTURE "9999.999" RIGHT;
+                 VALID((oGet1[2]:cText:= ROUND(nCantTemp*nPre,2)) <> 'xxx')
 
+
+   @ 27, 05 SAY "Precio:" OF oDlgD PIXEL SIZE 40,12 RIGHT
+   @ 25, 50 GET oGet1[2] VAR nPrecio OF oDlgD PIXEL PICTURE "99999999.99" RIGHT;
+                 VALID((oGet1[1]:cText:= ROUND(nPrecio /nPre,3)) <> 'xxx');
+                 WHEN ("M"$cPermi)
 
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Aceptar" OF oDlgD SIZE 30,10 ;
            ACTION ((lRta := .t.), oDlgD:End() ) PIXEL
@@ -612,9 +642,14 @@ DEFINE DIALOG oDlgD TITLE "Ingresar cantidad del articulo pesable a facturar" OF
            
 ACTIVATE DIALOG oDlgD CENTER ON INIT oGet1[1]:SetFocus
 IF !lRta
-   RETURN -1
+   RETURN .f.
 ENDIF
-RETURN nCantTemp
+IF nCantTemp = 0
+   RETURN .f.
+ENDIF
+nCantidad:= nCantTemp
+oGet[06]:SetFocus()
+RETURN .t.
 
 
 *****************************************
