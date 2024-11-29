@@ -3,7 +3,7 @@
 #include "Tdolphin.ch"
 
 *************************************************
-** ABM DE BANCOS
+** ABM DE BANCOS RGRFHFG
 *************************************************
 MEMVAR oApp
 STATIC oQry, oWnd1, oBrw, oDlg, cVentana
@@ -142,7 +142,7 @@ IF oQry:codigo = 0
    RETURN nil
 ENDIF
 mrta := MsgNoYes("Seguro de eliminar"+CHR(10)+;
-                 "el registro código N°:"+STR(nNum),"Atencion")
+                 "el registro cï¿½digo Nï¿½:"+STR(nNum),"Atencion")
 IF !mrta
    RETURN nil
 ENDIF

@@ -5,7 +5,7 @@
 
 
 *************************************************
-** ABM DE articulos
+** ABM DE articulos RGHEGFH
 *************************************************
 MEMVAR oApp
 STATIC oQryBrw,oQry, oQry2, oQry3, oQry4, oQry5, oQry6, oQry7 ,;
@@ -103,7 +103,7 @@ ENDMENU
      IF "M"$cPermisos
          REDEFINE XBROWSE oBrw DATASOURCE oQryBrw;
                   COLUMNS "Codigo","codigopro","nombre","stockact","Preciocos","Precioven","reventa","fecmod","Observa";
-                  HEADERS "Código art.","Cód.Prov.","Nombre","Stock","Precio costo","P. Venta 1","P. Venta 2","Fecha Cambio","Observaciones";
+                  HEADERS "Cï¿½digo art.","Cï¿½d.Prov.","Nombre","Stock","Precio costo","P. Venta 1","P. Venta 2","Fecha Cambio","Observaciones";
                   SIZES 90,70,230,60,70,75,75,70,200;
                   ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu( .f.,oQryBrw:codigo),IF(oBrw<>nil .and. oQryBrw<>nil,oBrw:Refresh(),.f.)),nil))
          REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg
@@ -111,7 +111,7 @@ ENDMENU
      ELSE
          REDEFINE XBROWSE oBrw DATASOURCE oQryBrw;
                   COLUMNS "Codigo","codigopro","nombre","Preciocos","Precioven","reventa","fecmod","observa";
-                  HEADERS "Código art","Cód.Prov.","Nombre","Precio costo","P. Venta 1","P. Venta 2","Fecha Cambio","Observaciones";
+                  HEADERS "Cï¿½digo art","Cï¿½d.Prov.","Nombre","Precio costo","P. Venta 1","P. Venta 2","Fecha Cambio","Observaciones";
                   SIZES 90,70,350,70,70,70,70,200;
                   ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu( .f.,oQryBrw:codigo),IF(oBrw<>nil .and. oQryBrw<>nil,oBrw:Refresh(),.f.)),nil))
          REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg
@@ -813,7 +813,7 @@ IF oQryBrw:codigo = 0
    RETURN nil
 ENDIF
 mrta := MsgNoYes("Seguro de eliminar"+CHR(10)+;
-                 "el registro código N°:"+STR(nNum),"Atencion")
+                 "el registro cï¿½digo Nï¿½:"+STR(nNum),"Atencion")
 IF !mrta
    RETURN nil
 ENDIF
@@ -838,12 +838,12 @@ oQryHist:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"campre WHERE codigo 
 DEFINE DIALOG oDlgH TITLE "Historial de precios" FROM 05,15 TO 23,82;
        OF oWnd1 ICON oApp:oIco
    oDlgH:lHelpIcon := .f.
-   @ 07,05 SAY "Artí­culo:" OF oDlgH PIXEL   
+   @ 07,05 SAY "Artï¿½ï¿½culo:" OF oDlgH PIXEL   
    @ 05,30 GET oGet1 VAR oQryBrw:codigo OF oDlgH PIXEL PICTURE "99999999999999" RIGHT WHEN(.F.)
    @ 05,85 GET oGet2 VAR oQryBrw:nombre OF oDlgH PIXEL PICTURE "@!"     WHEN(.F.)
    @ 25,02 XBROWSE oBrwH DATASOURCE oQryHist ;
            COLUMNS "ID","fecmod","precossiva","preciocos","precioven","reventa","usuario","ip";
-           HEADERS "ID","Fecha","Precio S/IVA","Precio Costo","Precio Venta 1","Precio Venta 2","Cambió","Motivo";
+           HEADERS "ID","Fecha","Precio S/IVA","Precio Costo","Precio Venta 1","Precio Venta 2","Cambiï¿½","Motivo";
            SIZES   68,75,80,80,80,80,60,100;
            OF oDlgH SIZE 260, 88 AUTOSORT PIXEL
    oBrwH:CreateFromCode()  
@@ -938,7 +938,7 @@ DEFINE DIALOG oFilt TITLE "Filtrado de Articulo" RESOURCE "ABMART1" OF oWnd1
 
   //FECHAS
   REDEFINE GET oGet[41] VAR vfecultcomd ID 1300 OF oFilt PICTURE "@D"
-  REDEFINE SAY oSay1 PROMPT "Hasta última compra:" ID 802 OF oFilt
+  REDEFINE SAY oSay1 PROMPT "Hasta ï¿½ltima compra:" ID 802 OF oFilt
   REDEFINE GET oGet[29] VAR vfecultcomh ID 130 OF oFilt PICTURE "@D"
   REDEFINE SAY oSay2 PROMPT "Desde cambio precio:" ID 803 OF oFilt
   REDEFINE GET oGet[30] VAR vfecmodd    ID 131 OF oFilt PICTURE "@D"
@@ -1143,7 +1143,7 @@ DEFINE DIALOG oForm TITLE "Alta de Empresas de articulos";
        FROM 05,15 TO 12,60 OF oForm1
    acor := AcepCanc(oForm)
  
-   @ 07, 05 SAY "Código:"   OF oForm PIXEL SIZE 40,12 RIGHT
+   @ 07, 05 SAY "Cï¿½digo:"   OF oForm PIXEL SIZE 40,12 RIGHT
    @ 22, 05 SAY "Nombre:"   OF oForm PIXEL SIZE 40,12 RIGHT
  
    @ 05, 50 GET oGet[1] VAR base:codigo   OF oForm PICTURE "9999" PIXEL RIGHT WHEN(.F.)
@@ -1192,7 +1192,7 @@ DEFINE DIALOG oForm TITLE "Alta de Departametos de articulos";
        FROM 05,15 TO 12,60 OF oForm1
    acor := AcepCanc(oForm)
  
-   @ 07, 05 SAY "Código:"          OF oForm PIXEL SIZE 40,12 RIGHT
+   @ 07, 05 SAY "Cï¿½digo:"          OF oForm PIXEL SIZE 40,12 RIGHT
    @ 22, 05 SAY "Nombre:"          OF oForm PIXEL SIZE 40,12 RIGHT
    @ 37, 05 SAY "Nombre resumido:" OF oForm PIXEL SIZE 40,12 RIGHT
    @ 52, 05 SAY "I.V.A:"           OF oForm PIXEL SIZE 40,12 RIGHT
@@ -1299,7 +1299,7 @@ DEFINE DIALOG oDlg1 TITLE "Importar Articulos" FROM 03,15 TO 35,140
    PintaBrw(oBrwTmp,0)
    @ 02, 02 BUTTON oBot1 PROMPT "&Pegar" OF oDlg1 SIZE 30,10 ;
            ACTION (Procesando(.t.),oBrwTmp:Paste(),Procesando(.f.)) PIXEL
-   @ 02, 100 COMBOBOX oChe VAR nDePro ITEMS {"Asigna Cod. proveedor a articulo","Asignar código proveedor al proveedor","Asignar a Ambos"} OF oDlg1 SIZE 120,10 PIXEL         
+   @ 02, 100 COMBOBOX oChe VAR nDePro ITEMS {"Asigna Cod. proveedor a articulo","Asignar cï¿½digo proveedor al proveedor","Asignar a Ambos"} OF oDlg1 SIZE 120,10 PIXEL         
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Importar" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
@@ -1438,7 +1438,7 @@ LOCAL oDlgH, acor:= ARRAY(4), mrta:=.F., oBot1, oBot2, nCodNue := 0,;
 DEFINE DIALOG oDlgH TITLE "Cambiar Codigo de Articulos" FROM 03,15 TO 14,55
    acor := AcepCanc(oDlgH)    
    @ 07,05 SAY "Codigo a Cambiar:" OF oDlgH SIZE 60,12 PIXEL RIGHT
-   @ 22,05 SAY "Nuevo Código:"     OF oDlgH SIZE 60,12 PIXEL RIGHT
+   @ 22,05 SAY "Nuevo Cï¿½digo:"     OF oDlgH SIZE 60,12 PIXEL RIGHT
    @ 05,70 GET oGet1 VAR oQryBrw:codigo OF oDlgH PIXEL PICTURE "99999999999999" RIGHT WHEN(.F.)
    @ 20,70 GET oGet2 VAR nCodNue        OF oDlgH PIXEL PICTURE "99999999999999" RIGHT VALID(nCodNue>0)
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Cambiar" OF oDlgH SIZE 30,10 ;

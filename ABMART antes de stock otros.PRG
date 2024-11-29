@@ -4,7 +4,7 @@
 
 
 *************************************************
-** ABM DE articulos PROBANDO VISUAL STUDIO 2
+** ABM DE articulos PROBANDO VISUAL STUDIO 23
 *************************************************
 MEMVAR oApp
 STATIC oQryBrw,oQry, oQry2, oQry3, oQry4, oQry5, oQry6, oQry7 ,;
