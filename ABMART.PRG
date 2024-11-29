@@ -5,7 +5,7 @@
 
 
 *************************************************
-** ABM DE articulos RGHEGFH
+** ABM DE articulos
 *************************************************
 MEMVAR oApp
 STATIC oQryBrw,oQry, oQry2, oQry3, oQry4, oQry5, oQry6, oQry7 ,;
