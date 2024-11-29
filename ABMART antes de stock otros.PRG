@@ -4,7 +4,7 @@
 
 
 *************************************************
-** ABM DE articulos
+** ABM DE articulos PROBANDO VISUAL STUDIO
 *************************************************
 MEMVAR oApp
 STATIC oQryBrw,oQry, oQry2, oQry3, oQry4, oQry5, oQry6, oQry7 ,;
@@ -89,7 +89,7 @@ oQry2  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"provee ORDER BY codi
      IF "M"$cPermisos
          REDEFINE XBROWSE oBrw DATASOURCE oQryBrw;
                   COLUMNS "Codigo","codigopro","nombre","stockact","Preciocos","Precioven","reventa","fecmod";
-                  HEADERS "Código articulo","Código provee.","Nombre","Stock","Precio costo","P. Venta 1","P. Venta 2","Cambio de precio";
+                  HEADERS "CÃ³digo articulo","CÃ³digo provee.","Nombre","Stock","Precio costo","P. Venta 1","P. Venta 2","Cambio de precio";
                   SIZES 80,80,230,60,70,75,75,70;
                   ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu( .f.,oQryBrw:codigo),oBrw:Refresh()),nil))
          REDEFINE SAY oBrw:oSeek PROMPT "" ID 113 OF oDlg
@@ -97,7 +97,7 @@ oQry2  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"provee ORDER BY codi
      ELSE
          REDEFINE XBROWSE oBrw DATASOURCE oQryBrw;
                   COLUMNS "Codigo","codigopro","nombre","Preciocos","Precioven","reventa","fecmod";
-                  HEADERS "Código articulo","Código provee.","Nombre","Precio costo","P. Venta 1","P. Venta 2","Cambio de precio";
+                  HEADERS "CÃ³digo articulo","CÃ³digo provee.","Nombre","Precio costo","P. Venta 1","P. Venta 2","Cambio de precio";
                   SIZES 90,90,70,350,70,70,70,70;
                   ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu( .f.,oQryBrw:codigo),oBrw:Refresh()),nil))
          REDEFINE SAY oBrw:oSeek PROMPT "" ID 113 OF oDlg
@@ -727,7 +727,7 @@ IF oQryBrw:codigo = 0
    RETURN nil
 ENDIF
 mrta := MsgNoYes("Seguro de eliminar"+CHR(10)+;
-                 "el registro código N°:"+STR(nNum),"Atencion")
+                 "el registro cÃ³digo NÂ°:"+STR(nNum),"Atencion")
 IF !mrta
    RETURN nil
 ENDIF
@@ -752,7 +752,7 @@ oQryHist:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"campre WHERE codigo 
 DEFINE DIALOG oDlgH TITLE "Historial de precios" FROM 05,15 TO 23,82;
        OF oWnd1 ICON oApp:oIco
    oDlgH:lHelpIcon := .f.
-   @ 07,05 SAY "Artículo:" OF oDlgH PIXEL   
+   @ 07,05 SAY "ArtÃ­culo:" OF oDlgH PIXEL   
    @ 05,30 GET oGet1 VAR oQryBrw:codigo OF oDlgH PIXEL PICTURE "9999999999999" RIGHT WHEN(.F.)
    @ 05,85 GET oGet2 VAR oQryBrw:nombre OF oDlgH PIXEL PICTURE "@!"     WHEN(.F.)
    @ 25,02 XBROWSE oBrwH DATASOURCE oQryHist ;
@@ -852,7 +852,7 @@ DEFINE DIALOG oFilt TITLE "Filtrado de Articulo" RESOURCE "ABMART1" OF oWnd1
 
   //FECHAS
   REDEFINE GET oGet[41] VAR vfecultcomd ID 1300 OF oFilt PICTURE "@D"
-  REDEFINE SAY oSay1 PROMPT "Hasta última compra:" ID 802 OF oFilt
+  REDEFINE SAY oSay1 PROMPT "Hasta Ãºltima compra:" ID 802 OF oFilt
   REDEFINE GET oGet[29] VAR vfecultcomh ID 130 OF oFilt PICTURE "@D"
   REDEFINE SAY oSay2 PROMPT "Desde cambio precio:" ID 803 OF oFilt
   REDEFINE GET oGet[30] VAR vfecmodd    ID 131 OF oFilt PICTURE "@D"
@@ -1038,7 +1038,7 @@ DEFINE DIALOG oForm TITLE "Alta de Empresas de articulos";
        FROM 05,15 TO 12,60 OF oForm1
    acor := AcepCanc(oForm)
  
-   @ 07, 05 SAY "Código:"   OF oForm PIXEL SIZE 40,12 RIGHT
+   @ 07, 05 SAY "CÃ³digo:"   OF oForm PIXEL SIZE 40,12 RIGHT
    @ 22, 05 SAY "Nombre:"   OF oForm PIXEL SIZE 40,12 RIGHT
  
    @ 05, 50 GET oGet[1] VAR base:codigo   OF oForm PICTURE "99" PIXEL RIGHT WHEN(.F.)
@@ -1087,7 +1087,7 @@ DEFINE DIALOG oForm TITLE "Alta de Departametos de articulos";
        FROM 05,15 TO 12,60 OF oForm1
    acor := AcepCanc(oForm)
  
-   @ 07, 05 SAY "Código:"          OF oForm PIXEL SIZE 40,12 RIGHT
+   @ 07, 05 SAY "CÃ³digo:"          OF oForm PIXEL SIZE 40,12 RIGHT
    @ 22, 05 SAY "Nombre:"          OF oForm PIXEL SIZE 40,12 RIGHT
    @ 37, 05 SAY "Nombre resumido:" OF oForm PIXEL SIZE 40,12 RIGHT
    @ 52, 05 SAY "I.V.A:"           OF oForm PIXEL SIZE 40,12 RIGHT
@@ -1303,7 +1303,7 @@ LOCAL oDlgH, acor:= ARRAY(4), mrta:=.F., oBot1, oBot2, nCodNue := 0,;
 DEFINE DIALOG oDlgH TITLE "Cambiar Codigo de Articulos" FROM 03,15 TO 14,55
    acor := AcepCanc(oDlgH)    
    @ 07,05 SAY "Codigo a Cambiar:" OF oDlgH SIZE 60,12 PIXEL RIGHT
-   @ 22,05 SAY "Nuevo Código:"     OF oDlgH SIZE 60,12 PIXEL RIGHT
+   @ 22,05 SAY "Nuevo CÃ³digo:"     OF oDlgH SIZE 60,12 PIXEL RIGHT
    @ 05,70 GET oGet1 VAR oQryBrw:codigo OF oDlgH PIXEL PICTURE "9999999999999" RIGHT WHEN(.F.)
    @ 20,70 GET oGet2 VAR nCodNue        OF oDlgH PIXEL PICTURE "9999999999999" RIGHT VALID(nCodNue>0)
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Cambiar" OF oDlgH SIZE 30,10 ;
