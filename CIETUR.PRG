@@ -303,10 +303,10 @@ config := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
                              "LEFT JOIN ge_"+oApp:cId+"ventas_encab v ON pf.ticomp = v.ticomp AND pf.letra = v.letra AND pf.numcomp = v.numcomp "+;
                              "WHERE p.id_cierre = "+ClipValue2Sql(nId)+;
                              " AND v.fecha = p.fecha "):ventas*/
-nTotalVentas := oApp:oServer:Query("SELECT SUM(v.importe*IF(v.ticomp='NC',-1,1)) AS ventas "+;
+nTotalVentas := oApp:oServer:Query("SELECT SUM(v.importe) AS ventas "+;
                              " FROM ge_"+oApp:cId+"concfact v "+;                             
                              "WHERE v.id_cierre = "+ClipValue2Sql(nId)):ventas
-nTotalX := oApp:oServer:Query("SELECT SUM(v.importe*IF(v.ticomp='NC',-1,1)) AS ventas "+;
+nTotalX := oApp:oServer:Query("SELECT SUM(v.importe) AS ventas "+;
                              " FROM ge_"+oApp:cId+"concfact v "+;                             
                              "WHERE v.letra = 'X' AND v.id_cierre = "+ClipValue2Sql(nId)):ventas
 nTotalB := nTotalVentas - nTotalX

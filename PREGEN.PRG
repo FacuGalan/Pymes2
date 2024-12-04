@@ -9,7 +9,7 @@ STATIC oQry,oQryRub, oQryIva, oQryMar, oQryPro,oQryEmp,oQryDep, oQryTemp,oQryArt
 PROCEDURE PREGEN()
 LOCAL oGet := ARRAY(7), nPorcUn:= 0,nPorcUnR:= 0, oBot := ARRAY(4),;
       lRta := .f., acor, base, nPorc := 0, nImpo := 0, oError,cCostoDesc,cCostoFlete, ;
-      aRedondeo := {"Sin Redondear","Entero","Multiplo de 10","Multiplo de 100"}
+      aRedondeo := {"Sin Redondear","Entero","Multiplo de 10","Multiplo de 50","Multiplo de 100"}
 nRedondeo := 2 
 cWhere:= "1=1"
 oApp:oServer:Execute("";
@@ -213,6 +213,10 @@ DO CASE
         oApp:oServer:Execute("UPDATE articu_temp SET precioven1 = 10 WHERE precioven1 = 0") 
         oApp:oServer:Execute("UPDATE articu_temp SET reventa1 = 10 WHERE reventa1 = 0") 
    CASE nRedondeo = 4
+        oApp:oServer:Execute("UPDATE articu_temp SET precioven1 = ROUND(precioven1 / 50) * 50, reventa1 = ROUND(reventa1/50)*50") 
+        oApp:oServer:Execute("UPDATE articu_temp SET precioven1 = 50 WHERE precioven1 = 0") 
+        oApp:oServer:Execute("UPDATE articu_temp SET reventa1 = 50 WHERE reventa1 = 0")
+   CASE nRedondeo = 5
         oApp:oServer:Execute("UPDATE articu_temp SET precioven1 = ROUND(precioven1,-2), reventa1 = ROUND(reventa1,-2)") 
         oApp:oServer:Execute("UPDATE articu_temp SET precioven1 = 100 WHERE precioven1 = 0") 
         oApp:oServer:Execute("UPDATE articu_temp SET reventa1 = 100 WHERE reventa1 = 0")    
