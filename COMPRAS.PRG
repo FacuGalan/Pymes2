@@ -801,24 +801,41 @@ RETURN .f.
 
 
 **********************************************************************************************
-STATIC FUNCTION ValidaArtP(oDlg1,oGet,lBuscar)
-LOCAL oQryArt2, lEncontro, oQryArtP
+STATIC FUNCTION ValidaArtP(oWnd1,oGet,lBuscar)
+LOCAL oQryArt2, lEncontro, oQryArtP, oDlg1, oBrwC, aCor, oBot1,oBot2
 
     oQryArt2 := oApp:oServer:Query("SELECT a.codigopro AS codigo,a.nombre AS nombre,a.codigo AS codart, i.nombre AS cNomIva, i.tasa AS tasaiva, a.iva AS codiva, "+;
                                   "a.siniva,a.precossiva FROM ge_"+oApp:cId+"articu a "+;
                                   "LEFT JOIN ge_"+oApp:cId+"ivas i ON a.iva = i.codigo "+;
-                                  "WHERE a.codigopro = " + ClipValue2SQL(oGet[15]:cText))
+                                  "WHERE a.codigopro = " + ClipValue2SQL(oGet[15]:cText)+ " OR a.codigo IN "+;
+                                  " (SELECT codart FROM ge_"+oApp:cId+"codpro WHERE codarp = "+ClipValue2SQL(oGet[15]:cText)+ " AND codpro = "+ ClipValue2SQL(oGet[7]:cText)+")")
 
     IF oQryArt2:RecCount() = 0 
        lEncontro := .f.
        IF lBuscar
-          BuscarArt(oQryArt2,oDlg1,oGet[15],oGet[18],"true","(a.codigopro IS NOT NULL)")
+          BuscarArt(oQryArt2,oWnd1,oGet[15],oGet[18],"true","(a.codigopro IS NOT NULL)")
           lEncontro := .t.
        ENDIF       
        ELSE 
+       IF oQryArt2:RecCount > 1
+          DEFINE DIALOG oDlg1 TITLE "Encontro mas de un producto con esta caracteristica" OF oWnd1 FROM 05,15 TO 21,65
+              oDlg1:lHelpIcon:=.f.
+
+          @ 05,05 XBROWSE oBrwC DATASOURCE oQryArt2;
+                           COLUMNS "codigo","nombre","precossiva";    
+                           HEADERS "Codigo","Nombre","Precio";
+                           SIZES 50,190,70;
+                   OF oDlg1 SIZE 190,97 PIXEL           
+          oBrwC:CreateFromcode()
+          PintaBrw(oBrwC,0)
+          acor := AcepCanc(oDlg1)
+          @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Elegir" OF oDlg1 SIZE 30,10 ;
+                     ACTION oDlg1:End() PIXEL DEFAULT           
+          ACTIVATE DIALOG oDlg1 CENTER ON INIT oBrwC:SetFocus()   
+       ENDIF
        lEncontro := .t.
     ENDIF
-    IF !lEncontro
+    /*IF !lEncontro
        oQryArtP := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"codpro WHERE codarp = "+ClipValue2SQL(oGet[15]:cText)+ " AND codpro = "+ ClipValue2SQL(oGet[7]:cText)) 
        IF oQryArtP:nRecCount > 0
           oQryArt2 := oApp:oServer:Query("SELECT a.codigopro AS codigo,a.nombre AS nombre,a.codigo AS codart, i.nombre AS cNomIva, i.tasa AS tasaiva, a.iva AS codiva, "+;
@@ -826,7 +843,7 @@ LOCAL oQryArt2, lEncontro, oQryArtP
                                   "LEFT JOIN ge_"+oApp:cId+"ivas i ON a.iva = i.codigo "+;
                                   "WHERE a.codigo = " + ClipValue2SQL(oQryArtP:codart))
        ENDIF                                     
-    ENDIF
+    ENDIF*/
     oGet[17]:cText:= oQryArt2:codart
     oGet[18]:cText:= oQryArt2:nombre
     nCant:= 1

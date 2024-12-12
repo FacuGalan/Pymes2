@@ -14,8 +14,9 @@ LOCAL aFon1, aFon2, aFon3, nCol1 := 0, nCol2 := 0, nCol3:= 0, lCodBarra :=.f., m
       mopc:=2, aTipo := {"Todos los Articulos", "Solo novedades","Articulos Puntuales"},;
       base, nFila, lOferta := .f., lLogo := .f., lVto := .f.,;
       mrta := .f., aCor, oPrn, i, j, nRow, nCol,;
-      x1, x2, x3, x4, x5, y, MaxFil, MaxCol, aFont, oChe, oChe1, oChe2,;
-      aMod := {"Modelo 1","Modelo 2","Modelo 3"}, mmod := 1, oCom1,  oFont, oError, aUnit
+      x1, x2, x3, x4, x5, y, MaxFil, MaxCol, aFont, oChe, oChe1, oChe2, oChe3,;
+      aMod := {"Modelo 1","Modelo 2","Modelo 3"}, mmod := 1, oCom1,  oFont, oError, aUnit,;
+      lSinDecimales := .f., nDecimales := 2
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 oQryFue  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"fuentes")
 IF oQryFue:FieldName(1) <> 'id'
@@ -87,6 +88,7 @@ DEFINE DIALOG oDlg1 TITLE "Impresion de Etiquetas de precios" FROM 05,15 TO 35,1
    @ 25,160 CHECKBOX oChe1 VAR lLogo   PROMPT "Con Logo" OF oDlg1 PIXEL SIZE 40,10
    @ 37,160 CHECKBOX oChe  VAR lOferta PROMPT "Cartel oferta" OF oDlg1 PIXEL SIZE 40,10
    @ 37,210 CHECKBOX oChe2 VAR lVto    PROMPT "C/Fecha cambio" OF oDlg1 PIXEL SIZE 45,10 WHEN (!lCodBarra)
+   @ 52,160 CHECKBOX oChe3 VAR lSinDecimales    PROMPT "Precios sin decimales" OF oDlg1 PIXEL SIZE 65,10
    @ 70,200 BUTTON oBot07 PROMPT "Agr." OF oDlg1 SIZE 15,10  PIXEL;
         ACTION Alta(oBrw,oDlg1,lCodBarra) WHEN(mopc > 1 )
    @ 85,200 BUTTON oBot08 PROMPT "Mod." OF oDlg1 SIZE 15,10  PIXEL;
@@ -129,7 +131,7 @@ DEFINE DIALOG oDlg1 TITLE "Impresion de Etiquetas de precios" FROM 05,15 TO 35,1
          ON CHANGE  refrefont(mmod,oSay1,oSay2,oSay3,oGet1,oGet2)
 
    @140 ,200 BUTTON oBot1 PROMPT "&Previsualizar" OF oDlg1 SIZE 40,40 ;
-           ACTION Prev(MaxFil,MaxCol, oSay1, oSay2, oSay3, oQryEti, lCodBarra, lLogo, lOferta, lVto) PIXEL WHEN(oQryEti:nRecCount>0)
+           ACTION Prev(MaxFil,MaxCol, oSay1, oSay2, oSay3, oQryEti, lCodBarra, lLogo, lOferta, lVto,IF(lSinDecimales,0,2)) PIXEL WHEN(oQryEti:nRecCount>0)
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir (F9)" OF oDlg1 SIZE 35,12 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL WHEN(oQryEti:nRecCount>0)
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 35,12 ;
@@ -150,6 +152,7 @@ IF !mrta
    RETURN
 ENDIF
 Procesando(.t.)
+nDecimales := IF(lSinDecimales,0,2)
 oQryFue:nMaxFil := MaxFil
 oQryFue:nMaxCol := MaxCol
 oQryFue:Save()
@@ -189,11 +192,11 @@ IF !lCodBarra
                  PRINT TO oPrn TEXT ALLTRIM(oQryEti:nombre) ;
                         SIZE (21/MaxCol)-.5,(29/MaxFil)/2 CM FONT oFon1 ALIGN "C" LASTROW x1 COLOR aSay[1]:nClrText
               @ x1, (j-1)*(21/MaxCol)+.1;
-                 PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,10,2)) ;
+                 PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,10,nDecimales)) ;
                         SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText
          
               @ x1, (j-1)*(21/MaxCol)+.1;
-                 PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,2)+ ;
+                 PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
                         SPACE(10),"")+ "Cod. " +STR(oQryEti:codigo)+;
                         IF(lVto," - "+DTOC(oQryAux:fecmod),"");
                         SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon3 ALIGN "C" COLOR aSay[3]:nClrText
@@ -238,10 +241,10 @@ IF !lCodBarra
                  PRINT TO oPrn TEXT ALLTRIM(oQryEti:nombre) ;
                         SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon1 ALIGN "C" LASTROW x1 COLOR aSay[1]:nClrText
               @ x1, (j-1)*(21/MaxCol)+.1;
-                 PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,12,2)) ;
+                 PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,12,nDecimales)) ;
                         SIZE (21/MaxCol)-.5,(29/MaxFil)/4 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText
               @ x1, (j-1)*(21/MaxCol)+.1;
-                 PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,2)+ ;
+                 PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
                         SPACE(10),"")+ "Cod. " +STR(oQryEti:codigo)+;
                         IF(lVto," - "+DTOC(oQryAux:fecmod),"");
                         SIZE (21/MaxCol)-.5,(29/MaxFil)/4 CM FONT oFon3 ALIGN "C" COLOR aSay[3]:nClrText
@@ -285,7 +288,7 @@ IF !lCodBarra
              PRINT TO oPrn TEXT ALLTRIM(oQryEti:nombre) ;
                     SIZE (21/MaxCol)-.5,(29/MaxFil)/2 CM FONT oFon1 ALIGN "C" LASTROW x1 COLOR aSay[1]:nClrText
           @ x1, (j-1)*(21/MaxCol)+.1;
-             PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,12,2)) ;
+             PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,12,nDecimales)) ;
                     SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText
           /*@ x1, (j-1)*(21/MaxCol)+.1;
              PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:unimed),"Precio x " + oQryAux:unimed + STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,10,2)+ ;
@@ -610,7 +613,7 @@ RETURN "("+cBarr+")"
 
 ********************************
 ** Previsualizacion
-STATIC FUNCTION Prev(MaxFil,MaxCol, oSay1, oSay2, oSay3, oQryEti, lCodBarra, lLogo, lOferta, lVto)
+STATIC FUNCTION Prev(MaxFil,MaxCol, oSay1, oSay2, oSay3, oQryEti, lCodBarra, lLogo, lOferta, lVto,nDecimales)
 LOCAL oFon1, oFon2, oFon3,  nRow, nCol, oPrn , i, j , x1, x2, x3, x4, x5, y , h, oQryAux, oFont5, ;
       mbarra1, aUnit
 oQryEti:GOTOP()
@@ -649,10 +652,10 @@ IF !lCodBarra
                PRINT TO oPrn TEXT ALLTRIM(oQryEti:nombre) ;
                       SIZE (21/MaxCol)-.5,(29/MaxFil)/2 CM FONT oFon1 ALIGN "C" LASTROW x1
             @ x1, (j-1)*(21/MaxCol)+.1;
-               PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,12,2)) ;
+               PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,12,nDecimales)) ;
                       SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon2 ALIGN "C" LASTROW x1
             @ x1, (j-1)*(21/MaxCol)+.1;
-               PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,2)+ ;
+               PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
                       SPACE(10),"")+ "Cod. " +STR(oQryEti:codigo)+;
                       IF(lVto," - "+DTOC(oQryAux:fecmod),"");
                       SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon3 ALIGN "C"
@@ -693,10 +696,10 @@ IF !lCodBarra
                  PRINT TO oPrn TEXT ALLTRIM(oQryEti:nombre) ;
                         SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon1 ALIGN "C" LASTROW x1
               @ x1, (j-1)*(21/MaxCol)+.1;
-                 PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,12,2)) ;
+                 PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,12,nDecimales)) ;
                         SIZE (21/MaxCol)-.5,(29/MaxFil)/4 CM FONT oFon2 ALIGN "C" LASTROW x1
               @ x1, (j-1)*(21/MaxCol)+.1;
-                 PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,2)+ ;
+                 PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
                         SPACE(10),"")+ "Cod. " +STR(oQryEti:codigo)+;
                         IF(lVto," - "+DTOC(oQryAux:fecmod),"");
                         SIZE (21/MaxCol)-.5,(29/MaxFil)/4 CM FONT oFon3 ALIGN "C"
@@ -738,7 +741,7 @@ IF !lCodBarra
                PRINT TO oPrn TEXT ALLTRIM(oQryEti:nombre) ;
                       SIZE (21/MaxCol)-.5,(29/MaxFil)/2 CM FONT oFon1 ALIGN "C" LASTROW x1
             @ x1, (j-1)*(21/MaxCol)+.1;
-               PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,12,2)) ;
+               PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,12,nDecimales)) ;
                       SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon2 ALIGN "C" LASTROW x1
             /*@ x1, (j-1)*(21/MaxCol)+.1;
                PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:unimed),"Precio x " + oQryAux:unimed + STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,2)+ ;
