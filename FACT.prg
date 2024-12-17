@@ -1488,8 +1488,15 @@ ACTIVATE DIALOG oDlgC CENTER ON INIT (PoneFormas(oBot1)) VALID ((nPagadoT:=oBrwP
 IF !lRta
     RETURN nil 
 ENDIF
-nVuelto:= nVueltoT
-nPagado:= nPagadoT
+IF ROUND(oApp:oServer:Query("SELECT SUM(importe) AS monto FROM formapag_temp WHERE tipopag <> 1"):monto,2) > ROUND(nTotal,2) 
+   MsgStop("Las formas de pago son mayores al total de la venta","Imposible continuar")
+   oApp:oServer:Execute("DELETE FROM formapag_temp")
+   nVuelto:= 0
+   nPagado:= 0
+   ELSE 
+   nVuelto:= nVueltoT
+   nPagado:= nPagadoT
+ENDIF
 oGet[04]:Refresh()
 oGet[05]:Refresh()
 RELEASE FONT oFontBot

@@ -813,6 +813,10 @@ LOCAL oQryArt2, lEncontro, oQryArtP, oDlg1, oBrwC, aCor, oBot1,oBot2
     IF oQryArt2:RecCount() = 0 
        lEncontro := .f.
        IF lBuscar
+          oQryArt2 := oApp:oServer:Query("SELECT a.codigopro AS codigo,a.nombre AS nombre,a.codigo AS codart, i.nombre AS cNomIva, i.tasa AS tasaiva, a.iva AS codiva, "+;
+                                  "a.siniva,a.precossiva FROM ge_"+oApp:cId+"articu a "+;
+                                  "LEFT JOIN ge_"+oApp:cId+"ivas i ON a.iva = i.codigo "+;
+                                  "WHERE a.codigopro = " + ClipValue2SQL(oGet[15]:cText))
           BuscarArt(oQryArt2,oWnd1,oGet[15],oGet[18],"true","(a.codigopro IS NOT NULL)")
           lEncontro := .t.
        ENDIF       

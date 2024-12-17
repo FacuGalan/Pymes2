@@ -2512,7 +2512,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                      @ nRow, .1 PRINT TO oPrn TEXT "Inic.Act.:"+DTOC(oApp:inac_emp);
                                   SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "C"
                                   
-                     @ nRow, .1 PRINT TO oPrn TEXT IF(cTipoDoc="FC" .or. cTipoDoc = "FR","TICKET",;
+                     @ nRow, .1 PRINT TO oPrn TEXT IF(cTipoDoc="FC" .or. cTipoDoc = "FR","FACTURA",;
                                   IF(cTipoDoc="NC","NOTA CREDITO","NOTA DEBITO")) +" "+ LEFT(cNumComp,1) ;
                                   SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "C"
                      @ nRow, .1 PRINT TO oPrn TEXT "Cod:" + oQryVen1:tipfor+" Nro:"+RIGHT(cNumcomp,13) ;
@@ -2643,7 +2643,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                      @ nRow, .1 PRINT TO oPrn TEXT "Inic.Act.:"+DTOC(oApp:inac_emp);
                                   SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"
                                   
-                     @ nRow, .1 PRINT TO oPrn TEXT IF(cTipoDoc="FC" .or. cTipoDoc = "FR","TICKET",;
+                     @ nRow, .1 PRINT TO oPrn TEXT IF(cTipoDoc="FC" .or. cTipoDoc = "FR","FACTURA",;
                                   IF(cTipoDoc="NC","NOTA CREDITO","NOTA DEBITO")) +" "+ LEFT(cNumComp,1) ;
                                   SIZE 7.1,.5 CM FONT oFont1 LASTROW nRow ALIGN "C"
                      @ nRow, .1 PRINT TO oPrn TEXT "Cod:" + oQryVen1:tipfor+" Nro:"+RIGHT(cNumcomp,13) ;
