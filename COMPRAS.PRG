@@ -62,6 +62,12 @@ oQryBrw    := oApp:oServer:Query( "SELECT c.tipocomp,c.letra,c.numfac,c.fecfac,c
             TOOLTIP "Filtrar Registros"  ;
             ACTION (Filt(), oBrw:Refresh());
             PROMPT "Filtrar" TOP   
+         IF oApp:usua_es_supervisor
+            DEFINE BUTTON RESOURCE "CONF" OF oBar ;
+            TOOLTIP "Cambiar Fecha de cierre"  ;
+            ACTION (CambiarCierre());
+            PROMPT "Cambiar" TOP 
+         ENDIF   
          // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;
             TOOLTIP "Cerrar Ventana" ;
@@ -1388,4 +1394,40 @@ oQry1:tilde := valor
 oQry1:Save()
 oQry1:Refresh()
 oBrw1:Refresh()
+RETURN nil
+
+***************************************
+** Cambiar fecha de cierre Libro I.V.A
+STATIC FUNCTION CambiarCierre()
+LOCAL oGet := ARRAY(7), oBot := ARRAY(3), oForm, lRta := .f., aCor, base, oError,;
+      dFecCierre:=oApp:oServer:Query( "SELECT cierrecompra FROM ge_"+oApp:cId+"parametros"):cierrecompra;
+
+DO WHILE .T.
+DEFINE DIALOG oForm TITLE "Cambiar fecha de cierre de Libro I.V.A.";
+       FROM 05,15 TO 11,50 OF oWnd1
+   
+   @ 07, 05 SAY "Fecha cierre:"         OF oForm PIXEL SIZE 45,20 RIGHT
+  
+   @ 05, 55 GET oGet[1] VAR dFecCierre PICTURE "@D" OF oForm PIXEL CENTER 
+   
+   acor := AcepCanc(oForm)
+   @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Grabar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .t.), oForm:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL
+ACTIVATE DIALOG oForm CENTER ON INIT oGet[1]:SetFocus()
+IF !lRta
+   RETURN nil
+ENDIF
+
+TRY
+  oApp:oServer:BeginTransaction()
+  oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"parametros SET cierrecompra = "+ClipValue2Sql(dFecCierre))
+  oApp:oServer:CommitTransaction()
+CATCH oError
+    ValidaError(oError)
+  LOOP
+END TRY
+EXIT
+ENDDO
 RETURN nil
