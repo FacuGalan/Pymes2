@@ -15,7 +15,8 @@ static oDlg, oDlg1, nMesa := 1, oFont, oFontBot, oBrwDet, oQryDet, oQryDep, oQry
 
 PROCEDURE POS1(cPermisos)
 LOCAL hHand
-LOCAL i,oFont1,oFont2,oFont3,oFont4,nCodArt:=0,nNumMesa,oMesa,nPicture,nComen:=0,oQryFormas, lGrande := .f.
+LOCAL i,oFont1,oFont2,oFont3,oFont4,nCodArt:=0,nNumMesa,oMesa,nPicture,nComen:=0,oQryFormas, lGrande := .f.,;
+      lAdmin:= oApp:oServer:Query("SELECT IF(tipo='ADMIN',1,0) AS admin FROM ge_"+oApp:cId+"usuarios WHERE usuario = "+ClipValue2Sql(oApp:usuario)):admin = 1
    cVentana := PROCNAME()
    IF ASCAN(oApp:aVentanas,cVentana) > 0 
       hHand := ASCAN(oApp:aVentanas,cVentana)
@@ -232,7 +233,7 @@ ENDIF
    oBrwDet:aCols[11]:nFooterTypE := AGGR_SUM
    oBrwDet:aCols[2]:bEditWhen := {| |SiEsDepto(oQryDet)}
    oBrwDet:aCols[2]:nEditType := EDIT_GET
-   IF oApp:modifica_precios .AND. "M"$cPermisos
+   IF (oApp:modifica_precios .or. lAdmin) .AND. "M"$cPermisos
       oBrwDet:aCols[4]:nEditType := EDIT_GET
    ENDIF
    IF "M"$cPermisos

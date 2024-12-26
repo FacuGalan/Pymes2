@@ -1487,6 +1487,8 @@ TRY
        " WHERE codusa = "+ClipValue2Sql(oQryBrw:codigo))
    oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"ventas_det_p SET codart = "+ClipValue2SQL(nCodNue)+;
        " WHERE codart = "+ClipValue2Sql(oQryBrw:codigo))
+   oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"stoman SET codart = "+ClipValue2SQL(nCodNue)+;
+       " WHERE codart = "+ClipValue2Sql(oQryBrw:codigo))
    oApp:oServer:CommitTransaction()
 CATCH oError
    MsgStop("Error al Cambiar"+CHR(10)+oError:description,"Error")

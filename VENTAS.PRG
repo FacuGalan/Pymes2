@@ -414,7 +414,7 @@ IF oApp:oServer:Query("SELECT id FROM pedidos_temp WHERE tilde"):RecCount() = 0
   RETURN .f.
 ENDIF
 
-IF oQryPun:pidestock < 3 
+IF oQryPun:pidestock < 3 .and. nTipoDoc <> 3
    oQryStock := oApp:oServer:Query("SELECT p.codart,p.detart,p.cantidadreal,a.stockact,a.stockmin "+;
                    "FROM ge_"+oApp:cId+"pedidos_det p LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = p.codart "+;
                    " WHERE p.idpedido IN (SELECT id FROM pedidos_temp WHERE tilde ) AND "+;
@@ -815,7 +815,7 @@ LOCAL oQryIva, nTotalcIva, nIvaPes, nCodIva1, nSubTotal, nDescuento,;
       i,nCantidad,nPrecio1,nPrecio2,lRta:=.f.,nIvaCalc:=0,nDescMar, nPunit
 
 IF nTiArt = 1
-   IF oQryPun:pidestock = 1 .and. oQryArt:stockact-oGet[16]:value < 0
+   IF oQryPun:pidestock = 1 .and. oQryArt:stockact-oGet[16]:value < 0 .and. nTipoDoc <> 3
       lRta:=MsgYesNo("El articulo que esta facturando esta fuera de stock,"+CHR(10)+;
               "verifique su disponibilidad ¿Desea continuar?"+CHR(10)+;
               "Stock actual: "+ALLTRIM(STR(oQryArt:stockact)),"Atencion")
@@ -823,12 +823,12 @@ IF nTiArt = 1
          RETURN .f.
       ENDIF
   ENDIF
-  IF oQryPun:pidestock = 2 .and. oQryArt:stockact-oGet[16]:value < 0
+  IF oQryPun:pidestock = 2 .and. oQryArt:stockact-oGet[16]:value < 0 .and. nTipoDoc <> 3
      MsgStop("No puede facturar el articulo seleccionado porque no esta en stock"+CHR(10)+;
            "Stock actual: "+ALLTRIM(STR(oQryArt:stockact)),"Atencion")
      RETURN .F.
   ENDIF
-  IF oQryPun:pidestock < 3 .and. oQryArt:stockmin > 0 .and. oQryArt:stockact-oGet[16]:value  < oQryArt:stockmin
+  IF oQryPun:pidestock < 3 .and. oQryArt:stockmin > 0 .and. oQryArt:stockact-oGet[16]:value  < oQryArt:stockmin .and. nTipoDoc <> 3
      MsgAlert("Se esta quedando sin stock, llego al stock minimo","Atencion")     
   ENDIF
 
