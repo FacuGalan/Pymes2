@@ -9,7 +9,8 @@ static oDlg, oDlg1, nMesa := 1, oFont, oFontBot, oBrwDet, oQryDet, oQryDep, oQry
        nPagado, nVuelto, cNomArt, nDescu, lConsulta, oQryPag, nAntes,;
        nUltDep, nPriDep, nUltArt, nPriArt, fDepto, nCantidad, dFecha, nCliente, cCliente, nTotal, cVentana, ;
        lMaxi:=.t., nPrecio, lReemplaza, nCondicion, oQryPun, nDescuTot, nRecarTot, oQry2, oQry3, oQry5,;
-       nLista, oQryPar, nLisPre, aFormaNom, aFormaInc, nFormaPago, oGetDep1, oGetDep2, oGetDep3 , cPermi
+       nLista, oQryPar, nLisPre, aFormaNom, aFormaInc, nFormaPago, oGetDep1, oGetDep2, oGetDep3 , cPermi,;
+       mvendedor
 
 //----------------------------------------------------------------//
 
@@ -118,6 +119,7 @@ IF ResolucionMonitor() > 1400
    DEFINE FONT oFont1 NAME "TAHOMA" SIZE 0,-11.5
    DEFINE DIALOG oDlg1 RESOURCE "POS" OF oApp:oWnd TITLE "Facturacion punto de venta"
 ENDIF   
+   mvendedor := ' '
    oDlg1:lHelpIcon := .f.
   /* //BOTONES DE DEPARTAMENTOS CON SUS FLECHAS (ABAJO DEL BROWSE)
    REDEFINE BTNBMP oBot[01] ID 101 OF oDlg1  ACTION(CambiarDeptos(.t.)) 2007 CENTER
@@ -785,7 +787,7 @@ cNumComp := STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNumero,8)," ","0")
          nPuntos :=  INT(nTotal/oApp:pesos_x_punto)
       ENDIF
       oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ventas_encab (ticomp,letra,numcomp,codcli,fecha,neto,iva,importe,tipopag,observa,"+;
-                                                      "nombre,cuit,dni,direccion,localidad,usuario,fecmod,ip,coniva,condven,formapag,cae,fecvto,tipfor,sobretasa,hora,puntos,puntosacu) VALUES "+;
+                                                      "nombre,cuit,dni,direccion,localidad,usuario,fecmod,ip,coniva,condven,formapag,cae,fecvto,tipfor,sobretasa,hora,puntos,puntosacu,vendedor) VALUES "+;
                            "('FC',"+ClipValue2Sql(cLetra)+","+ClipValue2Sql(cNumComp)+","+ClipValue2Sql(nCliente)+","+;
                             ClipValue2Sql(DATE())+","+ClipValue2Sql(oBrwDet:aCols[7]:nTotal)+","+ClipValue2Sql(oBrwDet:aCols[8]:nTotal)+","+;
                             ClipValue2Sql(nTotal)+",1,'PUNTO DE VENTA "+IF(nDescu>0," Dto: %"+ALLTRIM(STR(nDescu,6,2)),"")+"',"+;
@@ -795,7 +797,8 @@ cNumComp := STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNumero,8)," ","0")
                             ",1,"+ClipValue2Sql(nForma)+","+;
                             ClipValue2Sql(cCae)+","+ClipValue2Sql(dFecVtoC)+","+ClipValue2Sql(STRTRAN(STR(nTipFor,2)," ","0"))+;
                             ","+ClipValue2Sql(oBrwDet:aCols[11]:nTotal)+;
-                            ",CURTIME(),"+Clipvalue2sql(nPuntos)+","+ClipValue2Sql(nPuntosAcu) +")")          
+                            ",CURTIME(),"+Clipvalue2sql(nPuntos)+","+ClipValue2Sql(nPuntosAcu)+;
+                            ","+ClipValue2Sql(ALLTRIM(mvendedor)) +")")          
 
       IF oApp:usar_puntos
          oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET puntos = puntos + "+ClipValue2Sql(INT(nTotal/oApp:pesos_x_punto)) +;
@@ -908,6 +911,7 @@ oBrwDet:MakeTotals()
 oGet[06]:Refresh()
 oGet[02]:SetFocus()
 oGet[10]:Set(1)
+mvendedor := " "
 RETURN nil
 
 *************************************************************************************************
@@ -1281,6 +1285,8 @@ nLista:= oQryCli:lispre
 nLisPre:= oQryCli:lispreesp
 nAntes:= oApp:oServer:Query("SELECT SUM(IF(tipo='NC',saldo*(-1),saldo)) AS antes FROM ge_"+oApp:cId+"ventas_cuota "+;
                             "WHERE cliente = "+ClipValue2Sql(nCliente)):antes
+mvendedor := oApp:oServer:Query("SELECT nombre FROM ge_"+oApp:cId+"vendedores "+;
+                            "WHERE codigo = "+ClipValue2Sql(oQryCli:vendedor)):nombre
 nDescu:= oQryCli:descuento
 /*
 oApp:oServer:Execute("UPDATE VENTAS_DET_H1 v LEFT JOIN ge_"+oApp:cId+"ivas i  ON i.codigo = v.codiva "+;

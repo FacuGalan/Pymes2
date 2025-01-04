@@ -403,7 +403,7 @@ IF ((cVendedor <> "TODOS") .and. !lPorFactura) .or. lProv
    oApp:oServer:Execute("TRUNCATE ventas_encab_report")
    oApp:oServer:Execute("INSERT INTO ventas_encab_report (SELECT * FROM ge_"+oApp:cId+"ventas_encab "+;
                      " WHERE fecha >= " + ClipValue2Sql(mdesde) +;
-                     "  AND fecha <= " + ClipValue2Sql(mhasta) + ")" )
+                     "  AND fecha <= " + ClipValue2Sql(mhasta) + ")" )   
 ENDIF   
 oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS ventas_det_report AS (SELECT * FROM ge_"+oApp:cId+"ventas_det LIMIT 0)")
 
@@ -411,6 +411,7 @@ oApp:oServer:Execute("TRUNCATE ventas_det_report")
 oApp:oServer:Execute("INSERT INTO ventas_det_report (SELECT * FROM ge_"+oApp:cId+"ventas_det "+;
                      " WHERE fecha >= " + ClipValue2Sql(mdesde) +;
                      "  AND fecha <= " + ClipValue2Sql(mhasta) + ")")
+
 
 IF !lProv .and. !lPorFactura    
     IF !lResu
