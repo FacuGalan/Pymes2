@@ -170,6 +170,27 @@ RETURN
 ***************************************************************************************************
 STATIC FUNCTION PorReceta()
 LOCAL i := 0
+LOCAL oGet := ARRAY(4), oBot := ARRAY(2), oForm, lRta := .F., aCor, base, oError, oQry,;
+      nRedondeo := 2,;
+      aRedondeo := {"Sin Redondear","Entero","Multiplo de 10","Multiplo de 50","Multiplo de 100"}
+
+
+DEFINE DIALOG oForm TITLE "Actualizar precios por receta";
+       FROM 05,15 TO 12,60 OF oDlg FONT oApp:oFont
+   
+   @ 07, 05 SAY "Redondear?:"   OF oForm PIXEL SIZE 40,12 RIGHT
+   @ 05, 50 COMBOBOX oGet[1] VAR nRedondeo ITEMS aRedondeo OF oDlg PIXEL SIZE 55,12
+  
+   acor := AcepCanc(oForm)
+   @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Procesar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .t.), oForm:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL
+
+ACTIVATE DIALOG oForm CENTER 
+IF !lRta 
+   RETURN nil 
+ENDIF   
 Procesando(.t.)
    oApp:oServer:Execute("TRUNCATE proped_temp")
    oApp:oServer:Execute("INSERT INTO proped_temp (provee,codart,detart,siniva,precossiva,desc1,desc2,desc3,desc4,desc5,"+;
@@ -197,9 +218,27 @@ Procesando(.t.)
 oQryComprasDet:Refresh()
 oQryComprasDet:GoTop()
 DO WHILE !oQryComprasDet:EOF()
-    CambiaValor(4,oQryComprasDet:precossiva)
+    CambiaValor(4,oQryComprasDet:precossiva,nRedondeo)
     oQryComprasDet:Skip()
 ENDDO
+DO CASE 
+   CASE nRedondeo = 1
+   CASE nRedondeo = 2
+        oApp:oServer:Execute("UPDATE proped_temp SET precioven = ROUND(precioven), reventa = ROUND(reventa)") 
+   CASE nRedondeo = 3
+        oApp:oServer:Execute("UPDATE proped_temp SET precioven = ROUND(precioven,-1), reventa = ROUND(reventa,-1)") 
+        oApp:oServer:Execute("UPDATE proped_temp SET precioven = 10 WHERE precioven = 0") 
+        oApp:oServer:Execute("UPDATE proped_temp SET reventa = 10 WHERE reventa = 0") 
+   CASE nRedondeo = 4
+        oApp:oServer:Execute("UPDATE proped_temp SET precioven = ROUND(precioven / 50) * 50, reventa = ROUND(reventa/50)*50") 
+        oApp:oServer:Execute("UPDATE proped_temp SET precioven = 50 WHERE precioven = 0") 
+        oApp:oServer:Execute("UPDATE proped_temp SET reventa = 50 WHERE reventa = 0")
+   CASE nRedondeo = 5
+        oApp:oServer:Execute("UPDATE proped_temp SET precioven = ROUND(precioven,-2), reventa = ROUND(reventa,-2)") 
+        oApp:oServer:Execute("UPDATE proped_temp SET precioven = 100 WHERE precioven = 0") 
+        oApp:oServer:Execute("UPDATE proped_temp SET reventa = 100 WHERE reventa = 0")    
+ENDCASE
+oQryComprasDet:Refresh()
 oBrw:Refresh()
 Procesando(.f.)
 RETURN nil

@@ -16,8 +16,8 @@ LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
       cTodos := "Todos los vendedores            ", mnomven := SPACE(30), mdesde := DATE(), mhasta := DATE(),;
       mvendedor := 0, aTipoForm, oQryTip, nTipo, lIva := .F.
 
-aTipoForm := {"FC","NC","ND","  "}
-nTipo := LEN(aTipoForm)
+aTipoForm := {"FC","NC","ND","  ","RE"}
+nTipo := 4
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 DEFINE DIALOG oDlg1 TITLE "Listado de Ventas por fecha" FROM 03,15 TO 13,70 Of oApp:oWnd
    acor := AcepCanc(oDlg1)    
@@ -37,54 +37,94 @@ IF !mrta
    RETURN
 ENDIF
 nTipo := aTipoForm[nTipo]
-CursorWait()
-     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
-     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
-     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC     
-oQry := oApp:oServer:Query("SELECT CONCAT(v.ticomp,v.letra, v.numcomp) AS compro, v.fecha as fecha, v.hora as hora, "+;
-                          " c.nombre AS cliente,c.cuit, v.neto*IF(v.ticomp='NC',-1,1) AS neto,"+;
-                          " v.iva*IF(v.ticomp='NC',-1,1) AS iva, v.cae AS cae,"+;
-                          "  v.importe*IF(v.ticomp='NC',-1,1) AS importe, v.vendedor AS vendedor, v.usuario as usuario "+;
-                          " FROM ge_"+oApp:cId+"ventas_encab v LEFT JOIN ge_"+oApp:cId+"clientes c ON v.codcli = c.codigo "+;
-                          " WHERE v.fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
-                          " v.fecha <= "+ ClipValue2Sql(mhasta) + " AND "+;
-                          IF(nTipo = "  "," TRUE "," v.ticomp = " + ClipValue2Sql(nTipo)) + IF(nTipo = "FC"," OR v.ticomp = 'FR'", " ")+;
-                          " AND " + IF(lIva,"v.letra <> 'X' "," TRUE ")+;
-                          " ORDER BY v.fecha,v.numcomp" )
+IF nTipo <> "RE"
+    CursorWait()
+         DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
+         DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
+         DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC     
+    oQry := oApp:oServer:Query("SELECT CONCAT(v.ticomp,v.letra, v.numcomp) AS compro, v.fecha as fecha, v.hora as hora, "+;
+                              " c.nombre AS cliente,c.cuit, v.neto*IF(v.ticomp='NC',-1,1) AS neto,"+;
+                              " v.iva*IF(v.ticomp='NC',-1,1) AS iva, v.cae AS cae,"+;
+                              "  v.importe*IF(v.ticomp='NC',-1,1) AS importe, v.vendedor AS vendedor, v.usuario as usuario "+;
+                              " FROM ge_"+oApp:cId+"ventas_encab v LEFT JOIN ge_"+oApp:cId+"clientes c ON v.codcli = c.codigo "+;
+                              " WHERE v.fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
+                              " v.fecha <= "+ ClipValue2Sql(mhasta) + " AND "+;
+                              IF(nTipo = "  "," TRUE "," v.ticomp = " + ClipValue2Sql(nTipo)) + IF(nTipo = "FC"," OR v.ticomp = 'FR'", " ")+;
+                              " AND " + IF(lIva,"v.letra <> 'X' "," TRUE ")+;
+                              " ORDER BY v.fecha,v.numcomp" )
 
-REPORT oRep TITLE IF(lIva,"Reporte I.V.A. Ventas","Reporte de Ventas " )  + ;
-                  " del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
-       FONT  oFont1,oFont2,oFont3 ;
-       HEADER OemToAnsi(oApp:nomb_emp) , ;
-       "Ventas por fecha" CENTER ;
-       FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
-       PREVIEW CAPTION  "Ventas por fecha"
+    REPORT oRep TITLE IF(lIva,"Reporte I.V.A. Ventas","Reporte de Ventas " )  + ;
+                      " del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
+           FONT  oFont1,oFont2,oFont3 ;
+           HEADER OemToAnsi(oApp:nomb_emp) , ;
+           "Ventas por fecha" CENTER ;
+           FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
+           PREVIEW CAPTION  "Ventas por fecha"
 
-COLUMN TITLE "Nro.Fact." DATA oQry:compro    SIZE 15 FONT 1
-COLUMN TITLE "Fecha"     DATA oQry:fecha     PICTURE "@D" SIZE 08 FONT 1
-COLUMN TITLE "Hora"      DATA oQry:hora      SIZE 08 FONT 1
-COLUMN TITLE "Cliente"   DATA oQry:cliente   SIZE 30 FONT 1
-IF lIva
-   COLUMN TITLE "C.U.I.T."   DATA oQry:cuit   SIZE 13 FONT 1
-   COLUMN TITLE "Neto "      DATA oQry:neto PICTURE "9,999,999,999.99" SIZE 10 FONT 1 TOTAL
-   COLUMN TITLE "I.V.A."     DATA oQry:iva  PICTURE "9,999,999,999.99" SIZE 10 FONT 1 TOTAL
-   COLUMN TITLE "CAE"        DATA oQry:cae  SIZE 20 FONT 1
+    COLUMN TITLE "Nro.Fact." DATA oQry:compro    SIZE 15 FONT 1
+    COLUMN TITLE "Fecha"     DATA oQry:fecha     PICTURE "@D" SIZE 08 FONT 1
+    COLUMN TITLE "Hora"      DATA oQry:hora      SIZE 08 FONT 1
+    COLUMN TITLE "Cliente"   DATA oQry:cliente   SIZE 30 FONT 1
+    IF lIva
+       COLUMN TITLE "C.U.I.T."   DATA oQry:cuit   SIZE 13 FONT 1
+       COLUMN TITLE "Neto "      DATA oQry:neto PICTURE "9,999,999,999.99" SIZE 10 FONT 1 TOTAL
+       COLUMN TITLE "I.V.A."     DATA oQry:iva  PICTURE "9,999,999,999.99" SIZE 10 FONT 1 TOTAL
+       COLUMN TITLE "CAE"        DATA oQry:cae  SIZE 20 FONT 1
+    ENDIF
+    COLUMN TITLE "Importe"   DATA oQry:importe PICTURE "9,999,999,999.99" ;
+                             SIZE 10 FONT 2 TOTAL
+    COLUMN TITLE "Facturó"   DATA oQry:usuario    SIZE 10 FONT 1
+    COLUMN TITLE "Vendedor"  DATA oQry:vendedor   SIZE 10 FONT 1
+
+    // Digo que el titulo lo escriba con al letra 2
+    oRep:oTitle:aFont[1] := {|| 2 }
+    oRep:oTitle:aFont[1] := {|| 2 }
+    oRep:bInit := {|| oQry:GoTop() }
+    oRep:bSkip := {|| oQry:Skip() }
+
+    END REPORT
+    ACTIVATE REPORT oRep WHILE !oQry:EOF() ON INIT CursorArrow() ;
+             ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.jpg",1,1)
+    oQry:End()
+    ELSE
+    CursorWait()
+         DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
+         DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
+         DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC     
+    oQry := oApp:oServer:Query("SELECT DISTINCT(v.nrorem) AS compro, v.fecha as fecha,  "+;
+                              " c.nombre AS cliente,c.cuit, IF(v.facturado,'Si','No') AS facturado,"+;
+                              " v.factura AS factura, v.vendedor AS vendedor,  v.usuario as usuario "+;
+                              " FROM ge_"+oApp:cId+"remitos v LEFT JOIN ge_"+oApp:cId+"clientes c ON v.codcli = c.codigo "+;
+                              " WHERE v.fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
+                              " v.fecha <= "+ ClipValue2Sql(mhasta) +;
+                              " ORDER BY v.fecha,v.nrorem" )
+
+    REPORT oRep TITLE "Reporte de Remitos de Ventas del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
+           FONT  oFont1,oFont2,oFont3 ;
+           HEADER OemToAnsi(oApp:nomb_emp) , ;
+           "Remitos por fecha" CENTER ;
+           FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
+           PREVIEW CAPTION  "Remitos por fecha"
+
+    COLUMN TITLE "Nro.Remito" DATA oQry:compro    SIZE 15 FONT 1
+    COLUMN TITLE "Fecha"      DATA oQry:fecha     PICTURE "@D" SIZE 08 FONT 1
+    COLUMN TITLE "Cliente"    DATA oQry:cliente   SIZE 30 FONT 1
+    COLUMN TITLE "Confeccion" DATA oQry:usuario    SIZE 10 FONT 1
+    COLUMN TITLE "Vendedor"   DATA oQry:vendedor   SIZE 10 FONT 1
+    COLUMN TITLE "Facturado?" DATA oQry:facturado   SIZE 10 FONT 1
+    COLUMN TITLE "Factura"    DATA oQry:factura   SIZE 15 FONT 1
+
+    // Digo que el titulo lo escriba con al letra 2
+    oRep:oTitle:aFont[1] := {|| 2 }
+    oRep:oTitle:aFont[1] := {|| 2 }
+    oRep:bInit := {|| oQry:GoTop() }
+    oRep:bSkip := {|| oQry:Skip() }
+
+    END REPORT
+    ACTIVATE REPORT oRep WHILE !oQry:EOF() ON INIT CursorArrow() ;
+             ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.jpg",1,1)
+    oQry:End()
 ENDIF
-COLUMN TITLE "Importe"   DATA oQry:importe PICTURE "9,999,999,999.99" ;
-                         SIZE 10 FONT 2 TOTAL
-COLUMN TITLE "Facturó"   DATA oQry:usuario    SIZE 10 FONT 1
-COLUMN TITLE "Vendedor"  DATA oQry:vendedor   SIZE 10 FONT 1
-
-// Digo que el titulo lo escriba con al letra 2
-oRep:oTitle:aFont[1] := {|| 2 }
-oRep:oTitle:aFont[1] := {|| 2 }
-oRep:bInit := {|| oQry:GoTop() }
-oRep:bSkip := {|| oQry:Skip() }
-
-END REPORT
-ACTIVATE REPORT oRep WHILE !oQry:EOF() ON INIT CursorArrow() ;
-         ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.jpg",1,1)
-oQry:End()
 RETURN 
 
 

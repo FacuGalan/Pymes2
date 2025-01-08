@@ -29,6 +29,8 @@ oApp:oServer:Execute("";
     +"`PUNIT` DECIMAL(12,2) DEFAULT '0.00', ";
     +"`TOTAL` DECIMAL(12,2) DEFAULT '0.00', ";
     +"`DESCUENTO`  DECIMAL(12,2) DEFAULT '0.00', ";
+    +"`CODIGOPROV`  VARCHAR(20) DEFAULT ' ', ";
+    +"`CODIGOPROV1` VARCHAR(20) DEFAULT ' ', ";
     +"PRIMARY KEY (codart) ";
     +") ENGINE=INNODB DEFAULT CHARSET=utf8")
 
@@ -117,8 +119,12 @@ IF lAlta
    ELSE
    oQry:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"pedprov WHERE id = " + ClipValue2Sql(oQryBrw:id))
    base := oQry:GetRowObj()
-   oApp:oServer:Execute("INSERT INTO detalle_temp (codart,detart,cantidad,punit,descuento,total) "+;
-                        "(SELECT codart,detart,cantidad,punit,descuento,total FROM ge_"+oApp:cId+"pedprov_det WHERE numero = "+ClipValue2Sql(oQryBrw:id)+")")
+   oApp:oServer:Execute("INSERT INTO detalle_temp (codart,detart,cantidad,punit,descuento,total,codigoprov,codigoprov1) "+;
+                        "(SELECT p.codart,p.detart,p.cantidad,p.punit,p.descuento,p.total,a.codigopro,ap.codarp "+;
+                        " FROM ge_"+oApp:cId+"pedprov_det p "+;
+                        " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = p.codart "+;
+                        " LEFT JOIN ge_"+oApp:cId+"codpro ap ON ap.codart = p.codart AND ap.codpro = "+ClipValue2Sql(base:codpro)+;
+                        " WHERE numero = "+ClipValue2Sql(oQryBrw:id)+")")
    oQryPro:GoTop()
    IF oQryPro:Seek(base:codpro,1) > 0
       cNomPro := oQryPro:nombre
@@ -142,10 +148,10 @@ DEFINE DIALOG oForm RESOURCE "PEDPROV" OF oWnd1
  REDEFINE GET oGet[06] VAR base:reten     PICTURE "999.99" ID 106 OF oForm WHEN(.F.)
 
  REDEFINE XBROWSE oBrwDet DATASOURCE oQryDet;
-       COLUMNS "CODART","DETART","CANTIDAD","PUNIT","DESCUENTO","TOTAL";
-       HEADERS "Codigo","Detalle Articulo","Cantidad","Precio U","Descu","Total";
+       COLUMNS "CODART","DETART","CANTIDAD","PUNIT","DESCUENTO","TOTAL","CODIGOPROV","CODIGOPROV1";
+       HEADERS "Codigo","Detalle Articulo","Cantidad","Precio U","Descu","Total","Codigo Pr.","Codigo Pr1";
        FOOTERS ;
-       SIZES 60,300,60,60,60,80;
+       SIZES 60,300,60,60,60,80,80,80;
     ID 201 OF oForm AUTOSORT 
     PintaBrw(oBrwDet,0)
 oBrwDet:bKeyDown := { |nKey| IF (nKey == VK_DELETE,(EliminarItem(),;
@@ -207,7 +213,7 @@ RETURN nil
 ***** ELEGIR ARTICULO
 STATIC FUNCTION EligeArt(oDlg,oGet1)
 LOCAL oGet := ARRAY(4), oBot := ARRAY(3), oForm, lRta := .F., aCor, base, oError, oQry,;
-      cNomArt:=SPACE(50),oQryArt,nCantidad:=1,nCodArt:=0,nPrecio:=0
+      cNomArt:=SPACE(50),oQryArt,nCantidad:=1,nCodArt:=0,nPrecio:=0, cCodPro1 := " "
 
 oQryArt:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu")
 
@@ -239,11 +245,17 @@ IF !lRta
    RETURN .F.
 ENDIF
 TRY 
-  oApp:oServer:Execute("INSERT INTO detalle_temp (codart,detart,cantidad,punit,descuento,total) "+;
+  IF oApp:oServer:Query("SELECT codarp FROM ge_"+oApp:cId+"codpro "+;
+     " WHERE codart = "+ClipValue2Sql(nCodArt)+" AND codpro = "+ClipValue2Sql(oGet1[2]:value)):nRecCount > 0
+     cCodPro1 := oApp:oServer:Query("SELECT codarp FROM ge_"+oApp:cId+"codpro "+;
+     " WHERE codart = "+ClipValue2Sql(nCodArt)+" AND codpro = "+ClipValue2Sql(oGet1[2]:value)):codarp
+  ENDIF   
+  oApp:oServer:Execute("INSERT INTO detalle_temp (codart,detart,cantidad,punit,descuento,total,codigoprov,codigoprov1) "+;
                      "VALUES("+ClipValue2Sql(nCodArt)+","+ClipValue2Sql(cNomArt)+","+ClipValue2Sql(nCantidad)+","+;
                                ClipValue2Sql(nPrecio)+","+;
                                ClipValue2Sql((nPrecio*nCantidad)*(oGet1[5]:value/100))+","+;
-                               ClipValue2Sql((nPrecio*nCantidad)-((nPrecio*nCantidad)*(oGet1[5]:value/100)))+")")
+                               ClipValue2Sql((nPrecio*nCantidad)-((nPrecio*nCantidad)*(oGet1[5]:value/100)))+;
+                               ","+ClipValue2Sql(oQryArt:codigopro)+","+ClipValue2Sql(cCodPro1) +")")
 CATCH oError
     ValidaError(oError)
 END TRY
@@ -329,7 +341,7 @@ RETURN nil
 ****************************************
 ** Imprimir Pedido
 STATIC FUNCTION PrintPedidoPro(oQryDet,base,cNomPro)
-LOCAL i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, config, nTotal := 0, nTotRet := 0
+LOCAL i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, config, nTotal := 0, nTotRet := 0, cCodPro
    config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
    ** PEDIDO
    DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon,config:fon*2.5
@@ -397,9 +409,13 @@ LOCAL i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, config, nTotal
        y := 9.2
        oQryDet:GoTop()      
        DO WHILE !oQryDet:Eof()           
+           cCodPro := IF(EMPTY(oQryDet:codigoprov1),ALLTRIM(oQryDet:codigoprov),ALLTRIM(oQryDet:codigoprov1))
+           IF !Empty(cCodPro)
+              cCodPro := "(Cod: "+ALLTRIM(cCodPro)+")"
+           ENDIF
            @ y-0.07, 01 PRINT TO oPrn TEXT STR(oQryDet:codart,13) ;
                         SIZE 2.5,.5 CM FONT oFont3 ALIGN "L"
-           @ y+.07, 03.5 PRINT TO oPrn TEXT ALLTRIM(oQryDet:detart) ;
+           @ y+.07, 03.5 PRINT TO oPrn TEXT ALLTRIM(oQryDet:detart) + " " +cCodPro;
                 SIZE 6.5,1.5 CM FONT oFont3 LASTROW nRow 
            @ y-0.07, 10 PRINT TO oPrn TEXT STR(oQryDet:cantidad,12,2) ;
                 SIZE 2,.5 CM FONT oFont3 ALIGN "R"
@@ -473,8 +489,12 @@ IF lBorra
    oApp:oServer:Execute("TRUNCATE detalle_temp")
 ENDIF
 TRY 
-   oApp:oServer:Execute("INSERT INTO detalle_temp (codart,detart,cantidad,punit,total,descuento) "+;
-                    "(SELECT codigo,nombre,cantidad,costo,cantidad*costo,0 FROM articulos_temp WHERE cantidad >0)")
+   oApp:oServer:Execute("INSERT INTO detalle_temp (codart,detart,cantidad,punit,total,descuento,codigoprov,codigoprov1) "+;
+                    "(SELECT a.codigo,a.nombre,a.cantidad,a.costo,a.cantidad*a.costo,0,a1.codigopro,ap.codarp "+;
+                    " FROM articulos_temp a "+;
+                    " LEFT JOIN ge_"+oApp:cId+"articu a1 ON a1.codigo = a.codigo "+;
+                    " LEFT JOIN ge_"+oApp:cId+"codpro ap ON ap.codart = a.codigo AND ap.codpro = "+ClipValue2Sql(base:codpro)+;
+                    " WHERE cantidad >0)")
 CATCH oError 
    ValidaError(oError) 
 END TRY   

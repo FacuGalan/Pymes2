@@ -95,13 +95,10 @@ AADD(oApp:aVentanas,cVentana)
                              IF(oApp:unifica_cajas," "," AND o.caja = " +ClipValue2Sql(nCaja))+; 
                              " AND (oc.codcon = 3 OR oc.codcon = 4) "+;
                              " UNION "+;
-                             "SELECT '**VENTAS TOTALES TURNO**' AS concepto, SUM(v.importe*IF(v.ticomp='NC',-1,1)) AS debe,0 AS haber, 0 AS efec "+;
-                             " FROM ge_"+oApp:cId+"pagos p "+;
-                             "LEFT JOIN ge_"+oApp:cId+"pagfac pf ON p.numero = pf.numero "+;
-                             "LEFT JOIN ge_"+oApp:cId+"ventas_encab v ON pf.ticomp = v.ticomp AND pf.letra = v.letra AND pf.numcomp = v.numcomp "+;
-                             "WHERE p.checkeado IS FALSE  "+;
-                             IF(oApp:unifica_cajas," "," AND p.caja = " +ClipValue2Sql(nCaja))+;  
-                             " AND v.fecha = p.fecha ") 
+                             "SELECT '**VENTAS TOTALES TURNO**' AS concepto, SUM(v.importe) AS debe,0 AS haber, 0 AS efec "+;
+                             " FROM ge_"+oApp:cId+"concfact v "+;                             
+                             "WHERE v.id_cierre IS NULL "+;
+                             IF(oApp:unifica_cajas," "," AND v.caja = " +ClipValue2Sql(nCaja))) 
 DEFINE DIALOG oForm TITLE "Cierre de turno de caja " + STR(nCaja,2);
        FROM 05,15 TO 28,85 OF oApp:oWnd
    
