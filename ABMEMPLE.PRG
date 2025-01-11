@@ -548,6 +548,9 @@ DEFINE DIALOG oDlg1 TITLE "Resultado del Cálculo" FROM 03,15 TO 25,100
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .f.), oDlg1:End() ) PIXEL
 ACTIVATE DIALOG oDlg1 CENTER 
+IF !mrta
+   RETURN nil 
+ENDIF 
 oQ:GoTop()
 DO WHILE !oQ:Eof()
    oApp:oServer:Execute("UPDATE transi_liqemp SET sueldo = "+ClipValue2Sql(oQ:aguinaldo)+","+;
