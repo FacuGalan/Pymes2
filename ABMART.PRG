@@ -1587,7 +1587,7 @@ REPORT oRep TITLE "Reporte de Recetas ";
        "Reporte detalle de recetas" CENTER ;
        FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
        PREVIEW CAPTION  "Reporte detalle de recetas "  
-GROUP oGru ON oQry:codart HEADER "Para "+STR(oQry:cantprod,14)+" "+ oQry:nombre FOOTER "Totales"  FONT 2   
+GROUP oGru ON oQry:codart HEADER "Para "+STR(oQry:cantprod,14)+" "+ ALLTRIM(oQry:nombre) + " ("+STR(oQry:codart)+")" FOOTER "Totales"  FONT 2   
   COLUMN TITLE "Codigo"         DATA oQry:codusa     PICTURE "99999999999999" SIZE 12 FONT 1
   COLUMN TITLE "Materia Prima"  DATA oQry:materia    SIZE 30 FONT 1
   COLUMN TITLE "Cantidad"       DATA oQry:cantidad   PICTURE "999999.99" SIZE 08 FONT 1 

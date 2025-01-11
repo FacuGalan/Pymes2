@@ -204,6 +204,7 @@ Procesando(.t.)
                         "LEFT JOIN (SELECT r.codart,SUM(r.cantidad*a1.preciocos) AS costo FROM ge_"+oApp:cId+"reseta r LEFT JOIN ge_"+oApp:cId+"articu a1 ON a1.codigo = r.codusa AND a1.mprima = TRUE GROUP BY r.codart) res "+;
                         "ON res.codart = a.codigo "+;
                         "WHERE a.produccion = TRUE AND res.costo IS NOT NULL)") 
+   oApp:oServer:Execute( "CREATE TEMPORARY TABLE IF NOT EXISTS temp (SELECT * FROM proped_temp)")
    oApp:oServer:Execute("INSERT INTO proped_temp (provee,codart,detart,siniva,precossiva,desc1,desc2,desc3,desc4,desc5,"+;
                                                     "impint,flete,pcosto,iva,neto,porcentaje,precioven,codiva,porcentajerev,reventa)  "+;
                         "(SELECT a.prov,a.codigo,a.nombre,a.siniva,(res.costo/1),a.desc1,a.desc2,a.desc3,a.desc4,a.desc5,"+;
@@ -212,15 +213,38 @@ Procesando(.t.)
                                                     "a.precioven,a.iva,a.porcentajerev,a.reventa "+;
                         "FROM ge_"+oApp:cId+"articu a "+;
                         "LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = a.iva "+;
-                        "LEFT JOIN (SELECT r.codart,SUM(r.cantidad*a1.preciocos) AS costo FROM ge_"+oApp:cId+"reseta r LEFT JOIN ge_"+oApp:cId+"articu a1 ON a1.codigo = r.codusa GROUP BY r.codart) res "+;
+                        "LEFT JOIN "+;
+                        " (SELECT r.codart,SUM(r.cantidad*IF(a2.pcosto is null,a1.preciocos,a2.pcosto)) AS costo "+;
+                                " FROM ge_"+oApp:cId+"reseta r "+;
+                                " LEFT JOIN ge_"+oApp:cId+"articu a1 ON a1.codigo = r.codusa "+;
+                                " LEFT JOIN temp a2 ON a2.codart = r.codusa "+;
+                                " GROUP BY r.codart) res "+;
                         "ON res.codart = a.codigo "+;
-                        "WHERE a.stockotro = TRUE AND res.costo IS NOT NULL)") 
-oQryComprasDet:Refresh()
+                        "WHERE a.stockotro = TRUE AND res.costo IS NOT NULL)")
+   oApp:oServer:Execute( "TRUNCATE temp")
+// Actualizo los valores 
+oApp:oServer:Execute("UPDATE proped_temp p LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = p.codiva "+;
+  "SET "+;
+    "    p.pcosto = IF(p.siniva, p.precossiva, p.precossiva / (1 + i.tasa / 100)),"+;
+    "    p.pcosto = p.pcosto - p.pcosto * (p.desc1 / 100),"+;
+    "    p.pcosto = p.pcosto - p.pcosto * (p.desc2 / 100),"+;
+    "    p.pcosto = p.pcosto - p.pcosto * (p.desc3 / 100),"+;
+    "    p.pcosto = p.pcosto - p.pcosto * (p.desc4 / 100),"+;
+    "    p.pcosto = p.pcosto - p.pcosto * (p.desc5 / 100),"+;
+    "    p.pcosto = p.pcosto + p.pcosto * (p.flete / 100),"+;
+    "    p.pcosto = p.pcosto + p.pcosto * i.tasa / 100,"+;
+    "    p.pcosto = p.pcosto + p.ImpInt ,"+;
+    "    p.precioven = FLOOR(pcosto + pcosto * (porcentaje / 100)),"+;
+    "    p.reventa = FLOOR(pcosto + pcosto * (porcentajerev / 100)),"+;
+    "    p.iva = IF(p.siniva, p.precossiva * (i.tasa / 100), p.precossiva - p.precossiva / (i.tasa / 100 + 1)),"+;
+    "    p.neto = IF(p.siniva, p.precossiva, p.precossiva / (1 + i.tasa / 100))")
+
+/*oQryComprasDet:Refresh()
 oQryComprasDet:GoTop()
 DO WHILE !oQryComprasDet:EOF()
     CambiaValor(4,oQryComprasDet:precossiva,nRedondeo)
     oQryComprasDet:Skip()
-ENDDO
+ENDDO*/
 DO CASE 
    CASE nRedondeo = 1
    CASE nRedondeo = 2

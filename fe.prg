@@ -309,7 +309,7 @@ RETURN nFactura
 ************************************************************
 ** Factura electronica para facturas 
 FUNCTION FacturaElec(oGet, nTipoFac, nPuntoVta, nTipoDoc, cLetra, aTablasIvas, oBrw, nNro, ;
-         cCae, dFecVto, nTipfor,lRemito, lFacturaD, nCot)
+         cCae, dFecVto, nTipfor,lRemito, lFacturaD, nCot, cNotaCre)
 LOCAL urlwsaa, urlwsw, wsfev1, i, lFallo := .f., j, TipoComp, fechacmp, nFacturaNro, nNroDoc,;
       nTotal, nIva, nNeto, dFecDes, dFecHas, aXml, hFile, oXmlDoc, oXmlIter, oTagActual, oError,;
       nTip := nTipoDoc, nImpInt, nPerce,;
@@ -380,7 +380,8 @@ IF nTip = 3 .or. nTip = 2
   ACTIVATE DIALOG oDlg2 CENTER ON INIT oGet1[1]:SetFocus()
   IF !lRta
     RETURN 0
-  ENDIF    
+  ENDIF  
+  cNotaCre := "FC"+cLetra+STRTRAN(STR(nPuntoVta,4)+"-"+STR(nComprAsoc,8)," ","0")  
 ENDIF  
 
 IF lFacturaD

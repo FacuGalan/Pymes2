@@ -63,7 +63,8 @@ DO WHILE .T.
     REDEFINE GET oGet[5] VAR mhasta ID 116 OF oDlg PICTURE "@D" 
     REDEFINE GET oGet[6] VAR mfecha ID 117 OF oDlg PICTURE "@D" WHEN(.F.)
     REDEFINE GET oGet[7] VAR mmesp ID 4002 OF oDlg PICTURE "99"
-    REDEFINE GET oGet[8] VAR manop ID 4003 OF oDlg PICTURE "9999"
+    REDEFINE GET oGet[8] VAR manop ID 4003 OF oDlg PICTURE "9999" VALID( oBot[1]:SetFocus() == nil)
+    
     REDEFINE BUTTON oBot[1] ID 118 OF oDlg ACTION Mostrar() WHEN(lEdita)
     REDEFINE XBROWSE oBrw DATASOURCE oQry;
               COLUMNS "ano","mes","numero","fecha","observa","importe","usuario","tipo";
@@ -169,7 +170,7 @@ DEFINE DIALOG oForm TITLE "Registro de pago a Empleado" FROM 05,15 TO 25,70 OF o
    @ 50,165 GET oGet[12] VAR mresto2        PICTURE "999999999.99"    OF oForm PIXEL ;
      WHEN((oGet[12]:cText := mresto1-mpago)="-919191") RIGHT UPDATE
    @ 65, 65 GET oGet[5] VAR mmes            PICTURE "99"              OF oForm PIXEL RIGHT VALID(mmes>0 .and. mmes<13)
-   @ 65, 90 GET oGet[6] VAR mano            PICTURE "9999"            OF oForm PIXEL RIGHT VALID(mano>=YEAR(DATE()))
+   @ 65, 90 GET oGet[6] VAR mano            PICTURE "9999"            OF oForm PIXEL RIGHT VALID(mano>=2020)
    @ 80, 65 COMBOBOX oGet[7] VAR nForma ITEMS aFormas  OF oForm PIXEL SIZE 100,12 ON CHANGE (oGet[8]:Refresh(), oGet[4]:SetFocus(),oGet[7]:SetFocus())
    @ 95, 65 GET oGet[8] VAR mcuenta         PICTURE "9999"            OF oForm PIXEL RIGHT SIZE 30,12;
       WHEN(oGet[7]:nAt==2);

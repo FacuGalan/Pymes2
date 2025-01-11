@@ -45,7 +45,7 @@ IF nTipo <> "RE"
     oQry := oApp:oServer:Query("SELECT CONCAT(v.ticomp,v.letra, v.numcomp) AS compro, v.fecha as fecha, v.hora as hora, "+;
                               " c.nombre AS cliente,c.cuit, v.neto*IF(v.ticomp='NC',-1,1) AS neto,"+;
                               " v.iva*IF(v.ticomp='NC',-1,1) AS iva, v.cae AS cae,"+;
-                              "  v.importe*IF(v.ticomp='NC',-1,1) AS importe, v.vendedor AS vendedor, v.usuario as usuario "+;
+                              "  v.importe*IF(v.ticomp='NC',-1,1) AS importe, v.vendedor AS vendedor, v.usuario as usuario, LEFT(v.observa,35) as observa "+;
                               " FROM ge_"+oApp:cId+"ventas_encab v LEFT JOIN ge_"+oApp:cId+"clientes c ON v.codcli = c.codigo "+;
                               " WHERE v.fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
                               " v.fecha <= "+ ClipValue2Sql(mhasta) + " AND "+;
@@ -75,6 +75,7 @@ IF nTipo <> "RE"
                              SIZE 10 FONT 2 TOTAL
     COLUMN TITLE "Facturó"   DATA oQry:usuario    SIZE 10 FONT 1
     COLUMN TITLE "Vendedor"  DATA oQry:vendedor   SIZE 10 FONT 1
+    COLUMN TITLE "Observaciones"  DATA oQry:observa   SIZE 22 FONT 1
 
     // Digo que el titulo lo escriba con al letra 2
     oRep:oTitle:aFont[1] := {|| 2 }

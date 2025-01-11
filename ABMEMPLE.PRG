@@ -96,10 +96,11 @@ RETURN NIL
 *************************************
 ** Agregar un registro nuevo
 STATIC FUNCTION Formu (lAlta)
-LOCAL oGet := ARRAY(22), oBot := ARRAY(3), oForm, lRta := .F., aCor, base, oError, oQry,;
+LOCAL oGet := ARRAY(30), oBot := ARRAY(3), oForm, lRta := .F., aCor, base, oError, oQry,;
 	    cNomSec:=SPACE(50),oQrySec:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"emp_sector"),;
       cNomCat:=SPACE(50),oQryCat:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"emp_emplcat"),;
-      mfoto := ".\iconos\nofoto.jpg", aConsumo_por := {"Por precio Costo","Por precio Venta"}
+      mfoto := ".\iconos\nofoto.jpg", aConsumo_por := {"Por precio Costo","Por precio Venta"},;
+      manti := SPACE(20)
 
 
 IF lAlta
@@ -127,6 +128,7 @@ IF lAlta
    ENDIF
 
 ENDIF
+
 mfoto := ;
   IF(FILE(".\iconos\"+STRTRAN(STR(base:codigo,8)," ","0")+".jpg"),;
      ".\iconos\"+STRTRAN(STR(base:codigo,8)," ","0")+".jpg",;
@@ -134,7 +136,7 @@ mfoto := ;
 
 DO WHILE .T.
 DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Empleados";
-       FROM 05,15 TO 34,95 OF oWnd1 FONT oApp:oFont
+       FROM 05,15 TO 38,95 OF oWnd1 FONT oApp:oFont
    
    @ 07, 05 SAY "Legajo:"      OF oForm PIXEL SIZE 40,20 RIGHT
    @ 22, 05 SAY "Nombre:"      OF oForm PIXEL SIZE 40,20 RIGHT
@@ -146,7 +148,8 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Empleados";
    @112, 05 SAY "Sueldo:"      OF oForm PIXEL SIZE 40,20 RIGHT
    @127, 05 SAY "Categoria:"   OF oForm PIXEL SIZE 40,20 RIGHT
    @112,105 SAY "C.U.I.L.:"    OF oForm PIXEL SIZE 30,20 RIGHT
-   @142, 50 SAY "HORARIO HABITUAL" OF oForm PIXEL SIZE 50,20 RIGHT
+   @112,200 SAY "Fecha Ing.:"  OF oForm PIXEL SIZE 30,20 RIGHT
+   @142, 50 SAY "HORARIO HABITUAL" OF oForm PIXEL SIZE 50,12 RIGHT
    @157, 05 SAY "Entrada:" OF oForm PIXEL SIZE 40,20 RIGHT
    @157,105 SAY "Salida:" OF oForm PIXEL SIZE 30,20 RIGHT
    @172, 05 SAY "Entrada:" OF oForm PIXEL SIZE 40,20 RIGHT
@@ -155,6 +158,10 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Empleados";
    @187,005 SAY "Consumo interno:" OF oForm PIXEL SIZE 40,20 RIGHT
    @187,175 SAY "Descuento:" OF oForm PIXEL SIZE 30,12 RIGHT
    @187,235 SAY "Limite:" OF oForm PIXEL SIZE 30,12 RIGHT
+   @202, 05 SAY "Talle Pantalon:" OF oForm PIXEL SIZE 50,12 RIGHT
+   @202,105 SAY "Talle Rem./Chomba:" OF oForm PIXEL SIZE 50,12 RIGHT
+   @202,205 SAY "Talle Campera/Buzo:" OF oForm PIXEL SIZE 50,12 RIGHT
+   @217, 05 SAY "Contacto Emerg.:" OF oForm PIXEL SIZE 50,12 RIGHT
 
 
    @ 05, 50 GET oGet[1] VAR base:codigo PICTURE "99999" OF oForm PIXEL RIGHT WHEN(lAlta)
@@ -170,8 +177,11 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Empleados";
    @ 80, 50 GET oGet[7] VAR base:telefono  PICTURE "@!"          OF oForm PIXEL
    @ 95, 50 GET oGet[8] VAR base:mail      PICTURE "@!"          OF oForm PIXEL
    @110, 50 GET oGet[9] VAR base:sueldo    PICTURE "99999999.99" OF oForm PIXEL RIGHT
-   @110,140 GET oGet[17] VAR base:cuil OF oForm PIXEL PICTURE "99-99999999-9" SIZE 60,12;
+   @110,140 GET oGet[17] VAR base:cuil OF oForm PIXEL PICTURE "99-99999999-9" SIZE 55,12;
                 VALID(ValidaCuit(base:cuil))
+   @110,240 GET oGet[23] VAR base:fecing OF oForm PIXEL PICTURE "@D" VALID(Antiguedad(base:fecing,oGet[24]))
+   @125,240 GET oGet[24] VAR manti OF oForm PIXEL WHEN(.F.) COLOR CLR_RED
+
    @125, 50 GET oGet[11] VAR base:catego OF oForm PIXEL RIGHT PICTURE "999" SIZE 30,12;
                 VALID(Buscar(oQryCat,oForm,oGet[11],oGet[12]));
                 ACTION (oGet[11]:cText:= 0, Buscar(oQryCat,oForm,oGet[11],oGet[12])) BITMAP "BUSC1"
@@ -187,6 +197,10 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Empleados";
    @185, 50 COMBOBOX oGet[19] VAR base:consumo_por ITEMS aConsumo_por OF oForm PIXEL SIZE 100,12
    @185,210 GET oGet[20] VAR base:consumo_desc  OF oForm PIXEL RIGHT PICTURE "999.99" WHEN(base:consumo_por = 2)
    @185,265 GET oGet[22] VAR base:consumo_limite  OF oForm PIXEL RIGHT PICTURE "9999999.99"
+   @200, 60 GET oGet[25] VAR base:tallepan  OF oForm PIXEL PICTURE "@S10"
+   @200,160 GET oGet[26] VAR base:tallerem  OF oForm PIXEL PICTURE "@S10"
+   @200,260 GET oGet[27] VAR base:tallebuz  OF oForm PIXEL PICTURE "@S10"
+   @215, 60 GET oGet[28] VAR base:contacto  OF oForm PIXEL 
 
    
    acor := AcepCanc(oForm)
@@ -194,7 +208,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Empleados";
            ACTION ((lRta := .t.), oForm:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oForm SIZE 30,10 ;
            ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL
-ACTIVATE DIALOG oForm CENTER ON INIT oGet[1]:SetFocus()
+ACTIVATE DIALOG oForm CENTER ON INIT Antiguedad(oQry:fecing,oGet[24])
 
 IF !lRta
    RETURN nil
@@ -342,7 +356,7 @@ RETURN "{"+cBarr+"}"
 ** Liquidaciones de sueldos
 STATIC FUNCtION Liquida()
 LOCAL oQry, oDlg1, oFont, acor:= ARRAY(4), nMes:=MONTH(DATE()), nAno := YEAR(DATE()), mrta:=.F., oGet:= ARRAY(6),;
-      oBot1, oBot2, oBrwLiq, aLiqu, nSub := 0, dFecha := DATE(), oQryE , cDetalle := SPACE(30), oError
+      oBot1, oBot2, oBot3, oBrwLiq, aLiqu, nSub := 0, dFecha := DATE(), oQryE , cDetalle := SPACE(30), oError
 
 oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS `transi_liqemp` ("+;
                            "`codemp` INT(6) DEFAULT 0 NOT NULL, "+;
@@ -375,6 +389,8 @@ DEFINE DIALOG oDlg1 TITLE "Carga de Liquidación de Sueldos" FROM 03,15 TO 30,100
    @ 22, 05 SAY "SubLiq.:"                OF oDlg1 PIXEL SIZE 50,20 RIGHT
    @ 22, 75 SAY "Fecha Imputación:"       OF oDlg1 PIXEL SIZE 50,20 RIGHT
    @ 37, 05 SAY "Detalle:"                OF oDlg1 PIXEL SIZE 50,20 RIGHT
+   @ 07,175 BTNBMP oBot3 PROMPT "&Calcular Aguinaldo según liquidaciones" OF oDlg1 SIZE 65,30 ;
+           ACTION (oGet[05]:cText := "Aguinaldo",oGet[03]:cText := -1, CalculaAguinaldo(oQryE),oBrwLiq:Refresh()) PIXEL 2007 CENTER NOBORDER
 
 
    @ 05, 60 GET oGet[01] VAR nMes     OF oDlg1 PIXEL PICTURE "99" VALID(nMes>0 .and. nMes < 13) RIGHT
@@ -456,4 +472,88 @@ oQryE:oRow := base1
 oQryE:Save()
 oBrwLiq:Refresh(.t.)
 oBrwLiq:MakeTotals(oBrwLiq:aCols[4])
+RETURN nil
+
+
+FUNCTION Antiguedad(dFecha,oGet)
+LOCAL oQ
+IF EMPTY(dFecha)
+   oGet:cText := SPACE(20)
+   ELSE
+   oQ := oApp:oServer:Query("SELECT TIMESTAMPDIFF(YEAR, "+ClipValue2Sql(dfecha)+", CURDATE()) AS anios, "+;
+                            "TIMESTAMPDIFF(MONTH, "+ClipValue2Sql(dfecha)+", CURDATE()) % 12 AS meses")
+   oGet:cText := STR(oQ:anios,2) + " Años "+STR(oQ:meses,2) + " Meses"
+ENDIF
+RETURN .t.    
+
+
+STATIC FUNCTION CalculaAguinaldo(oQry)
+LOCAL oDlg1, oFont, acor:= ARRAY(4), dDesde,dHasta, mrta:=.F.,oGet:= ARRAY(2),;
+      oBot1, oBot2, aData, nCod , oQ, oBrw
+IF MONTH(DATE())> 6
+   dDesde := STR(YEAR(DATE()),4)+"/01"
+   dHasta := STR(YEAR(DATE()),4)+"/06"
+   ELSE 
+   dDesde := STR(YEAR(DATE())-1,4)+"/07"
+   dHasta := STR(YEAR(DATE())-1,4)+"/12"
+ENDIF
+
+DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
+DEFINE DIALOG oDlg1 TITLE "Calcular Aguinaldo Segun liquidaciones" FROM 03,15 TO 11,60
+   acor := AcepCanc(oDlg1)       
+   @ 07, 05 SAY "Desde Período:"                OF oDlg1 PIXEL SIZE 50,20 RIGHT 
+   @ 22, 05 SAY "Hasta Período:"                OF oDlg1 PIXEL SIZE 50,20 RIGHT 
+
+   @ 05, 60 GET oGet[01] VAR dDesde   OF oDlg1 PIXEL PICTURE "9999/99"
+   @ 20, 60 GET oGet[02] VAR dHasta   OF oDlg1 PIXEL PICTURE "9999/99"
+   
+   @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Calcular" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .f.), oDlg1:End() ) PIXEL
+ACTIVATE DIALOG oDlg1 CENTER 
+IF !mrta
+   RETURN nil 
+ENDIF
+oQ := oApp:oServer:Query("SELECT res.codemp as codemp, COUNT(res.mes) as meses, MAX(res.sueldo) AS mejor,a.nombre as nombre, "+;
+                         "MAX(res.sueldo)*.5*COUNT(res.mes)/6 AS aguinaldo,COUNT(res.mes)/6 AS proporcional "+;
+                         " FROM ( "+;
+                         "SELECT ano,mes,codemp,MAX(sueldo) AS sueldo FROM ge_"+oApp:cId+"emp_liqsueldo "+;
+                         " WHERE CONCAT(ano,'/',LPAD(mes,2,'0')) >= "+ClipValue2Sql(dDesde)+;
+                         " AND CONCAT(ano,'/',LPAD(mes,2,'0')) <= "+ClipValue2Sql(dHasta)+;
+                         " GROUP BY codemp, ano, mes ) res "+;
+                         " LEFT JOIN ge_"+oApp:cId+"emp_empleado a ON a.codigo = res.codemp "+;
+                         " GROUP BY res.codemp")
+mrta := .f.
+DEFINE DIALOG oDlg1 TITLE "Resultado del Cálculo" FROM 03,15 TO 25,100
+   acor := AcepCanc(oDlg1)       
+   @ 05, 05 XBROWSE oBrw SIZE 315,100 pixel OF oDlg1 DATASOURCE oQ ;
+      HEADERS "Empleado","Mejor Liq.", "Aguinaldo","Meses Trab.","Indice";
+      COLUMNS "nombre", "mejor","aguinaldo" ,"meses", "proporcional";      
+      FOOTERS;
+      CELL LINES NOBORDER UPDATE
+   WITH OBJECT oBrw 
+      
+      :aCols[2]:cEditPicture := "999999999.99"
+      :aCols[3]:cEditPicture := "999999999.99"
+      :aCols[4]:cEditPicture := "99"
+      :aCols[5]:cEditPicture := "9.999"      
+      :MakeTotals()
+      :CreateFromCode()
+   END  
+   PintaBrw(oBrw,0)
+   
+   @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Pasar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .f.), oDlg1:End() ) PIXEL
+ACTIVATE DIALOG oDlg1 CENTER 
+oQ:GoTop()
+DO WHILE !oQ:Eof()
+   oApp:oServer:Execute("UPDATE transi_liqemp SET sueldo = "+ClipValue2Sql(oQ:aguinaldo)+","+;
+                        " total = " +ClipValue2Sql(oQ:aguinaldo)+" + extras "+;
+                        " WHERE codemp = "+ClipValue2Sql(oQ:codemp))
+   oQ:Skip()
+ENDDO
+oQry:Refresh()
 RETURN nil

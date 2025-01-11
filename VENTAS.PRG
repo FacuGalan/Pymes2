@@ -1125,7 +1125,8 @@ LOCAL oGet1 := ARRAY(22), oBot := ARRAY(4), oForm, lRta := .f., oBrw2, oQryCuo, 
       oQryCondVen:=oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"cond_venta"),;
       oQryFormaPag:=oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"forpag"), oQryStock,;
       dFecVen:=DATE(),lGuarda:=.t.,lEnDolares:=.f.,nNumero, nPunLocal , nVuelto := 0, oFontV,;
-      lImpSinIva := .f., cNomban, nSaldoCta, nNewPed, nCotiza, nPuntos := 0, nPuntosAcu := 0
+      lImpSinIva := .f., cNomban, nSaldoCta, nNewPed, nCotiza, nPuntos := 0, nPuntosAcu := 0,;
+      cNotaCre := ""
 cLetra := IF(nTipoDoc=5,"R",IF(oApp:tipo_iva<>6,IF(oGet[13]:nAt = 1 .or. oGet[13]:nAt = 2 .or. oGet[13]:nAt = 6,"A","B"),"C"))
 cLetra := IF(!lFacturaM,cLetra,IF(cLetra="A","M",cLetra))
 // Validar que el DATOS CLIENTE
@@ -1365,7 +1366,7 @@ IF nTipoDoc<=3
           IF cLetra = "A" .and. !ConsultaCuitRapida(val(STRTRAN(oQryCli:cuit,"-","")),oQryCli:coniva)
              RETURN nil 
           ENDIF      
-          FacturaElec(oGet, nTipoFac, nPuntoVta, nTipoDoc, cLetra, aTablaIva, oBrw, @nNro, @cCae, @dFecVtoC,@nTipFor,,lFacturaD,@nCotiza)
+          FacturaElec(oGet, nTipoFac, nPuntoVta, nTipoDoc, cLetra, aTablaIva, oBrw, @nNro, @cCae, @dFecVtoC,@nTipFor,,lFacturaD,@nCotiza,@cNotaCre)
           IF nNro = 0
              MsgStop("Fallo el Comunicacion con WebService AFIP","Error")
              Return nil 
@@ -1645,7 +1646,7 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
                             ClipValue2Sql(nCliente)+","+ClipValue2Sql(nConIva)+","+;
                             ClipValue2Sql(oGet[1]:value)+","+ClipValue2Sql(oBrw:aCols[7]:nTotal)+","+ClipValue2Sql(oBrw:aCols[8]:nTotal)+","+;
                             ClipValue2SQL(oGet[38]:cText)+","+ClipValue2Sql(nTotal)+","+IF(nCtaCte>0,"2","1")+","+;
-                            ClipValue2Sql(ALLTRIM(oGet[23]:cText)+IF(nDescuGen>0," Descuento: %"+ALLTRIM(STR(nDescuGen,5,2)),""))+","+;
+                            ClipValue2Sql(IF(EMPTY(cNotaCre),"",cNotaCre+" - ")+ALLTRIM(oGet[23]:cText)+IF(nDescuGen>0," Descuento: %"+ALLTRIM(STR(nDescuGen,5,2)),""))+","+;
                             ClipValue2Sql(oGet[9]:cText)+","+ClipValue2Sql(oGet[12]:cText)+","+ClipValue2Sql(oGet[22]:cText)+","+;
                             ClipValue2Sql(oGet[10]:cText)+","+ClipValue2Sql(oGet[11]:cText)+","+ClipValue2SQL(oGet[37]:cText)+","+;
                             ClipValue2Sql(cCae)+","+ClipValue2Sql(dFecVtoC)+","+ClipValue2Sql(STRTRAN(STR(nTipFor,2)," ","0"))+","+;
