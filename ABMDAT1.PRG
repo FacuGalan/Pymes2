@@ -7,7 +7,8 @@ MEMVAR oApp
 STATIC oDlg1
 FUNCTION Punto()
 LOCAL oGet1, oGet2, oGet3, oGet4, oGet5, oGet6, oGet7, oGet8, oGet9, oGet10,;
-      oGet11, oGet12, oGet13, oGet14, oGet15, oGet16, oGet17, oGet18, oGet19, oGet20, oGet21, oGet22, oGet23, oGet24,;
+      oGet11, oGet12, oGet13, oGet14, oGet15, oGet16, oGet17, oGet18, oGet19, oGet20, ;
+      oGet21, oGet22, oGet23, oGet24, oGet25,;
       oBot1, oBot2, oBot3, oDlg1, base, hHand, oQry, oError, aCor, mrta := .f.,;
       aCobrar := {"Cobro Salon","Cobro distribucion","Cobro ambos"}, oFont,;
       aTipos :={"Facturacion electronica","Facturacion con control. fiscal"}, aTipoC:={"Codigo interno","Codigo de barras"},;
@@ -71,6 +72,8 @@ DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 32,75 OF oApp
    @110,145 GET oGet12 VAR base:copiare  PICTURE "99" OF oDlg1 PIXEL RIGHT
    @125, 50 GET oGet13 VAR base:copiapr  PICTURE "99" OF oDlg1 PIXEL RIGHT
    @125,105 GET oGet16 VAR base:copianc  PICTURE "99" OF oDlg1 PIXEL RIGHT
+   @125,145 CHECKBOX oGet25 VAR base:sonarpedidos PROMPT "Alerta Pedidos nuevos" OF oDlg1 PIXEL SIZE 90,12
+   oGet25:cToolTip:= "Emitir una alerta sonora cuando haya un pedido nuevo"
 
    //Impresora de ticket para el punto de venta
    nImp := IF(EMPTY(base:impresorat),1,ASCAN(aImp,ALLTRIM(base:impresorat)))
@@ -99,6 +102,7 @@ base:impresorat := IF(nImp=0," ",aImp[nImp])
 base:tick80 := IF(base:imprimeTic,base:tick80,.f.)
 base:preguntaimpr := IF(base:imprimeTic,base:preguntaimpr,.f.)
 oApp:usavales := base:usavales
+oApp:sonarpedidos := base:sonarpedidos
 
 oQry:oRow := base
 TRY

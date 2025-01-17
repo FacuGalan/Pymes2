@@ -8,7 +8,7 @@
 *************************************************
 MEMVAR oApp
 STATIC oQry, oWnd1, oBrw, oDlg, lEdit := .f., cVentana, oQryF, oBrw1,oQryCli
-PROCEDURE ModRem()
+PROCEDURE ModRem(cPermisos)
    LOCAL oGet, cBuscar := SPACE(50), oBar, hHand, oFol
    cVentana := PROCNAME()
    IF ASCAN(oApp:aVentanas,cVentana) > 0
@@ -80,7 +80,11 @@ PROCEDURE ModRem()
       DEFINE BUTTON RESOURCE "GRUPO" OF oBar ;
         TOOLTIP "Dividir Remito"  ;
         ACTION Dividir();
-        PROMPT "Dividir" TOP    
+        PROMPT "Dividir" TOP 
+      DEFINE BUTTON RESOURCE "CONF" OF oBar ;
+        TOOLTIP "Articulos en Service"  ;
+        ACTION (oWnd1:End(),Service(cPermisos));
+        PROMPT "Service" TOP      
       // Este boton cierra la aplicacion
       DEFINE BUTTON RESOURCE "SALE" OF oBar;
         TOOLTIP "Cerrar Ventana" ;

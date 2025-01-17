@@ -510,12 +510,12 @@ LOCAL tipo :=Alert( "Elija la opcion", {"Todos los productos del proveedor","Sol
 
 oApp:oServer:Execute("TRUNCATE articulos_temp")
 oApp:oServer:Execute("INSERT INTO articulos_temp(codigo,nombre,cantidad,bultos,palets,costo,baja) "+;
-                     "(SELECT a.codigo,a.nombre,0,a.stockact,0, "+;
+                     "(SELECT a.codigo,a.nombre,IF(a.stockide > 0 ,a.stockide - a.stockact,0),a.stockact,0, "+;
                      " IF(a.siniva,a.precossiva,a.precossiva/(1+i.tasa/100)) "+;
                      ",false FROM ge_"+oApp:cId+"articu a "+;
                      " LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = a.iva "+;
                      " WHERE a.prov = "+ClipValue2Sql(nCodPro)+;
-                     if(tipo = 1," "," AND a.stockact < a.stockmin AND a.stockmin > 0")+;
+                     if(tipo = 1," "," AND a.stockact < a.stockmin")+;
                      " ORDER BY a.nombre)")
 
 RETURN .t.

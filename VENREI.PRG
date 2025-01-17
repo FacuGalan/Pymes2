@@ -53,7 +53,7 @@ DEFINE DIALOG oDlg1 TITLE "Reimprimir comprobante" FROM 03,20 TO 28,120 OF oApp:
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .f.), oDlg1:End() ) PIXEL
-ACTIVATE DIALOG oDlg1 CENTER ON INIT oGet1:SetFocus()
+ACTIVATE DIALOG oDlg1 CENTER ON INIT (oGet1:SetFocus(),Llenar(oGet1,oGet2,oGet3,oGet4,oQryUlt))
 IF !mrta
    RETURN
 ENDIF

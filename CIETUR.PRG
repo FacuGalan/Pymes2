@@ -213,75 +213,8 @@ LOCAL oParame, oPrn, i, oFont, config, oQry, oFont1, y, nAnt := 0, nTotD := 0,;
       nTotH := 0, nTotE := 0, nTotEfe := 0, oGru, lComan,oPr,nRenglon,nRow, oQryP,nTotalVentas, ;
       oQryFor, nMargen, nTotalX, nTotalB
 DEFAULT lPrev := .f.
-oQry := oApp:oServer:Query("SELECT cd.*,c.*,c.id AS num FROM ge_"+oApp:cId+"cajadiaria c LEFT JOIN "+;
-                             "("+;
-                             "(SELECT 'SALDO INICIAL ' AS concepto, importe AS debe, 0 AS haber, importe AS efec,id_cierre,1 AS orden "+;
-                             " FROM ge_"+oApp:cId+"fondo "+;
-                             " WHERE id_cierre = " + ClipValue2Sql(nId) +" ) "+;
-                             " UNION "+;
-                             "(SELECT CONCAT('INGRESO A CAJA ',TRIM(observa),' ',id) AS concepto, importe as debe, 0 AS haber, importe AS efec,id_cierre,2 AS orden  "+;
-                             " FROM ge_"+oApp:cId+"retiros "+;
-                             " WHERE id_cierre = " + ClipValue2Sql(nId) +" AND tipo = 'I' )  "+;
-                             " UNION "+;
-                             "(SELECT CONCAT('RETIRO DE CAJA ',TRIM(observa), ' ', id) AS concepto, 0 as debe, importe AS haber, importe*(-1) AS efec,id_cierre,3 AS orden  "+;
-                             " FROM ge_"+oApp:cId+"retiros "+;
-                             " WHERE id_cierre = " + ClipValue2Sql(nId) +" AND tipo = 'R' )  "+;
-                             " UNION "+;
-                             "(SELECT 'INGRESOS EN EFECTIVO' AS concepto, SUM(pc.importe) AS debe,0 AS haber, SUM(pc.importe) AS efec,id_cierre,4 AS orden   "+;
-                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
-                             " WHERE  p.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " AND pc.tipocon = 1 "+;
-                             " GROUP BY p.id_cierre )"+;
-                             " UNION "+;
-                             "(SELECT 'PAGOS EN EFECTIVO' AS concepto, 0 AS debe,SUM(oc.importe) AS haber, SUM(-oc.importe) AS efec,id_cierre,5 AS orden   "+;
-                             " FROM ge_"+oApp:cId+"ordpag o LEFT JOIN ge_"+oApp:cId+"ordcon oc ON o.numero = oc.numero "+;
-                             " WHERE  o.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " AND oc.codcon = 1 "+;
-                             "GROUP BY o.id_cierre )"+;
-                             " UNION "+;
-                             "(SELECT 'INGRESOS CON TARJETAS DEB/CRED' AS concepto, SUM(pc.importe) AS debe,0 AS haber, 0 AS efec,id_cierre,6 AS orden  "+;
-                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
-                             " WHERE  p.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " AND pc.tipocon = 4 "+;
-                             " GROUP BY p.id_cierre )"+;
-                             " UNION "+;
-                             "(SELECT 'INGRESOS POR TRANSFERENCIAS' AS concepto, SUM(pc.importe) AS debe,0 AS haber, 0 AS efec,id_cierre,7 AS orden  "+;
-                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
-                             " WHERE  p.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " AND pc.tipocon = 2 "+;
-                             " GROUP BY p.id_cierre )"+;
-                             " UNION "+;
-                             "(SELECT 'EGRESOS POR TRANSFERENCIAS' AS concepto, 0 AS debe,SUM(oc.importe) AS haber, 0 AS efec,id_cierre,8 AS orden   "+;
-                             " FROM ge_"+oApp:cId+"ordpag o LEFT JOIN ge_"+oApp:cId+"ordcon oc ON o.numero = oc.numero "+;
-                             " WHERE  o.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " AND oc.codcon = 2 "+;
-                             " GROUP BY o.id_cierre )"+;
-                             " UNION "+;
-                             "(SELECT 'INGRESOS POR MERCADO PAGO' AS concepto, SUM(pc.importe) AS debe,0 AS haber, 0 AS efec,id_cierre,7 AS orden  "+;
-                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
-                             " WHERE  p.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " AND pc.tipocon = 8 "+;
-                             " GROUP BY p.id_cierre )"+;
-                             " UNION "+;
-                             "(SELECT 'EGRESOS POR MERCADO PAGO' AS concepto, 0 AS debe,SUM(oc.importe) AS haber, 0 AS efec,id_cierre,8 AS orden   "+;
-                             " FROM ge_"+oApp:cId+"ordpag o LEFT JOIN ge_"+oApp:cId+"ordcon oc ON o.numero = oc.numero "+;
-                             " WHERE  o.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " AND oc.codcon = 8 "+;
-                             " GROUP BY o.id_cierre )"+;
-                             " UNION "+;
-                             "(SELECT 'INGRESOS DE CHEQUES ' AS concepto, SUM(importe) AS debe,0 AS haber, 0 AS efec,id_cierre,9 AS orden  "+;
-                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
-                             " WHERE  p.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " AND pc.tipocon = 3 "+;
-                             " GROUP BY p.id_cierre )"+;
-                             " UNION "+;
-                             "(SELECT 'EGRESOS DE CHEQUES' AS concepto, 0 AS debe,SUM(oc.importe) AS haber, 0 AS efec,id_cierre,10 AS orden   "+;
-                             " FROM ge_"+oApp:cId+"ordpag o LEFT JOIN ge_"+oApp:cId+"ordcon oc ON o.numero = oc.numero "+;
-                             " WHERE  o.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " AND (oc.codcon = 3 OR oc.codcon = 4) GROUP BY o.id_cierre) "+;
-                             ") cd ON cd.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " WHERE c.id = " + ClipValue2Sql(nId)+ ;
-                             " ORDER BY  c.id,cd.orden" )
+oQry := TraerQuery(nId)
+
 IF oQry:nRecCount = 0
    MsgInfo("Cierre no existe","Error")
    RETURN NIL 
@@ -414,36 +347,29 @@ IF lComan
    ENDPRINT
    ELSE 
    DEFINE FONT oFont  NAME "ARIAL" SIZE 0,-8
-   DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8 BOLD
-   oQryFor := oApp:oServer:Query("SELECT ANY_VALUE(caja) AS caja, ANY_VALUE(fecha) AS fecha, ANY_VALUE(observa) AS observa, SUM(importe) as importe, "+;
-                           "count(importe) AS casos  FROM ge_"+oApp:cId+"concfact "+;
-                           " WHERE id_cierre = "+ClipValue2Sql(nId) +;
-                           " GROUP BY observa" )
+   DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8 BOLD   
+   oQry := TraerQuery(nId,.t.)
    oQry:GoTop()
    IF !lPrev
        PRINT oPr
        REPORT oPrn TITLE "Cierre de turno" + DTOC(oQry:fecha) + " Caja:"+ STR(oQry:caja,4) + " Cierre Nro:"+STR(nId,4) ;       
-           HEADER ALLTRIM(OemToAnsi(oApp:nomb_emp)),;       
-           IF(oQry:saldo>0,"Faltante:","Sobrante:")+ STR(ABS(oQry:saldo),10,2),;
-           "Ventas Total Turno: $"+STR(nTotalVentas,12,2),"Facturado: $"+STR(nTotalB,12,2),"Presupuestos:$"+STR(nTotalX,12,2) CENTER ;       
+           HEADER ALLTRIM(OemToAnsi(oApp:nomb_emp)) CENTER ;       
            FOOTER "Firma operador:____________________    Firma del Encargado:_____________________";
            TO DEVICE oPr;
            FONT oFont,oFont1;
            CAPTION  "Cierre de turno" PREVIEW
        ELSE 
        REPORT oPrn TITLE "Cierre de turno" + DTOC(oQry:fecha) + " Caja:"+ STR(oQry:caja,4) + " Cierre Nro:"+STR(nId,4) ;       
-           HEADER ALLTRIM(OemToAnsi(oApp:nomb_emp)),;       
-           IF(oQry:saldo>0,"Faltante:","Sobrante:")+ STR(ABS(oQry:saldo),10,2) ,;
-           "Ventas Total Turno: $"+STR(nTotalVentas,12,2),"Facturado: $"+STR(nTotalB,12,2),"Presupuestos:$"+STR(nTotalX,12,2) CENTER ;       
+           HEADER ALLTRIM(OemToAnsi(oApp:nomb_emp)) CENTER;
            FOOTER "Firma operador:____________________    Firma del Encargado:_____________________";         
            FONT oFont,oFont1;
            CAPTION  "Cierre de turno" PREVIEW
     ENDIF
-       GROUP oGru ON oQry:orden HEADER STR(oQry:orden,2) FOOTER "Parciales"  FONT 2
-        COLUMN TITLE "Concepto"  DATA oQry:concepto  SIZE 30
-        COLUMN TITLE "Ingresos"  DATA oQry:debe      PICTURE "999999999.99" SIZE 12 TOTAL
-        COLUMN TITLE "Egresos"   DATA oQry:haber     PICTURE "999999999.99" SIZE 12 TOTAL
-        COLUMN TITLE "Efectivo"  DATA oQry:efec      PICTURE "999999999.99" SIZE 12 TOTAL
+       GROUP oGru ON oQry:orden HEADER STR(oQry:orden,4,1)+" "+oQry:det FOOTER "Parciales"  FONT 2
+        COLUMN TITLE "Concepto"  DATA oQry:concepto  SIZE 35
+        COLUMN TITLE "Ingresos"  DATA oQry:debe      PICTURE "@Z 999999999.99" SIZE 12 
+        COLUMN TITLE "Egresos"   DATA oQry:haber     PICTURE "@Z 999999999.99" SIZE 12 
+        COLUMN TITLE "Efectivo"  DATA oQry:efec      PICTURE "@Z 999999999.99" SIZE 12 TOTAL
 
         // Digo que el titulo lo escriba con al letra 2        
         oPrn:bInit := {|| oQry:GoTop() }
@@ -454,8 +380,7 @@ IF lComan
         ACTIVATE REPORT oPrn WHILE !oQry:EOF() ON INIT CursorArrow() ;
                  ON STARTPAGE oPrn:SayBitmap(.1,.1,"LOGO.JPG",.5,.5);
                  ON STARTGROUP oPrn:NewLine();
-                 ON POSTGROUP oPrn:NewLine();
-                 ON POSTEND Resume(oPrn,oQry:saldo,oQryFor)
+                 ON POSTGROUP oPrn:NewLine()
 
 ENDIF
 RELEASE oFont
@@ -583,76 +508,9 @@ RETURN NIL
 STATIC FUNCTION EnviarCierre(nId)
 LOCAL oParame, oPrn, i, oFont, config, oQry, oFont1, y, nAnt := 0, nTotD := 0, oQryFor,;
       nTotH := 0, nTotE := 0, nTotEfe := 0, oGru, lComan,oPr, nTotalVentas,nRow,nRow1,nTotalComensales,oQryV,;
-      oFontEncab,oFontSubTit,oFontSubTitN,oFontOpc,oFontTot,oFontCombina,cText,oFontDet,oFontDetN,oQryComand
-oQry := oApp:oServer:Query("SELECT cd.*,c.*,c.id AS num FROM ge_"+oApp:cId+"cajadiaria c LEFT JOIN "+;
-                             "("+;
-                             "(SELECT 'SALDO INICIAL ' AS concepto, importe AS debe, 0 AS haber, importe AS efec,id_cierre,1 AS orden "+;
-                             " FROM ge_"+oApp:cId+"fondo "+;
-                             " WHERE id_cierre = " + ClipValue2Sql(nId) +" ) "+;
-                             " UNION "+;
-                             "(SELECT CONCAT('INGRESO A CAJA ',TRIM(observa),' ',id) AS concepto, importe as debe, 0 AS haber, importe AS efec,id_cierre,2 AS orden  "+;
-                             " FROM ge_"+oApp:cId+"retiros "+;
-                             " WHERE id_cierre = " + ClipValue2Sql(nId) +" AND tipo = 'I' )  "+;
-                             " UNION "+;
-                             "(SELECT CONCAT('RETIRO DE CAJA ',TRIM(observa), ' ', id) AS concepto, 0 as debe, importe AS haber, importe*(-1) AS efec,id_cierre,3 AS orden  "+;
-                             " FROM ge_"+oApp:cId+"retiros "+;
-                             " WHERE id_cierre = " + ClipValue2Sql(nId) +" AND tipo = 'R' )  "+;
-                             " UNION "+;
-                             "(SELECT 'VENTAS EN EFECTIVO' AS concepto, SUM(pc.importe) AS debe,0 AS haber, SUM(pc.importe) AS efec,id_cierre,4 AS orden   "+;
-                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
-                             " WHERE  p.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " AND pc.tipocon = 1 "+;
-                             " GROUP BY p.id_cierre )"+;
-                             " UNION "+;
-                             "(SELECT 'PAGOS EN EFECTIVO' AS concepto, 0 AS debe,SUM(oc.importe) AS haber, SUM(-oc.importe) AS efec,id_cierre,5 AS orden   "+;
-                             " FROM ge_"+oApp:cId+"ordpag o LEFT JOIN ge_"+oApp:cId+"ordcon oc ON o.numero = oc.numero "+;
-                             " WHERE  o.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " AND oc.codcon = 1 "+;
-                             "GROUP BY o.id_cierre )"+;
-                             " UNION "+;
-                             "(SELECT 'VENTAS CON TARJETAS DEB/CRED' AS concepto, SUM(pc.importe) AS debe,0 AS haber, 0 AS efec,id_cierre,6 AS orden  "+;
-                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
-                             " WHERE  p.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " AND pc.tipocon = 4 "+;
-                             " GROUP BY p.id_cierre )"+;
-                             " UNION "+;
-                             "(SELECT 'INGRESOS POR TRANSFERENCIAS' AS concepto, SUM(pc.importe) AS debe,0 AS haber, 0 AS efec,id_cierre,7 AS orden  "+;
-                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
-                             " WHERE  p.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " AND pc.tipocon = 2 "+;
-                             " GROUP BY p.id_cierre )"+;
-                             " UNION "+;
-                             "(SELECT 'EGRESOS POR TRANSFERENCIAS' AS concepto, 0 AS debe,SUM(oc.importe) AS haber, 0 AS efec,id_cierre,8 AS orden   "+;
-                             " FROM ge_"+oApp:cId+"ordpag o LEFT JOIN ge_"+oApp:cId+"ordcon oc ON o.numero = oc.numero "+;
-                             " WHERE  o.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " AND oc.codcon = 2 "+;
-                             " GROUP BY o.id_cierre )"+;
-                             " UNION "+;
-                             "(SELECT 'INGRESOS POR MERCADO PAGO' AS concepto, SUM(pc.importe) AS debe,0 AS haber, 0 AS efec,id_cierre,7 AS orden  "+;
-                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
-                             " WHERE  p.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " AND pc.tipocon = 8 "+;
-                             " GROUP BY p.id_cierre )"+;
-                             " UNION "+;
-                             "(SELECT 'EGRESOS POR MERCADO PAGO' AS concepto, 0 AS debe,SUM(oc.importe) AS haber, 0 AS efec,id_cierre,8 AS orden   "+;
-                             " FROM ge_"+oApp:cId+"ordpag o LEFT JOIN ge_"+oApp:cId+"ordcon oc ON o.numero = oc.numero "+;
-                             " WHERE  o.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " AND oc.codcon = 8 "+;
-                             " GROUP BY o.id_cierre )"+;
-                             " UNION "+;
-                             "(SELECT 'INGRESOS DE CHEQUES ' AS concepto, SUM(importe) AS debe,0 AS haber, 0 AS efec,id_cierre,9 AS orden  "+;
-                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
-                             " WHERE  p.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " AND pc.tipocon = 3 "+;
-                             " GROUP BY p.id_cierre )"+;
-                             " UNION "+;
-                             "(SELECT 'EGRESOS DE CHEQUES' AS concepto, 0 AS debe,SUM(oc.importe) AS haber, 0 AS efec,id_cierre,10 AS orden   "+;
-                             " FROM ge_"+oApp:cId+"ordpag o LEFT JOIN ge_"+oApp:cId+"ordcon oc ON o.numero = oc.numero "+;
-                             " WHERE  o.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " AND (oc.codcon = 3 OR oc.codcon = 4) GROUP BY o.id_cierre) "+;
-                             ") cd ON cd.id_cierre =  "+ClipValue2Sql(nId)+;
-                             " WHERE c.id = " + ClipValue2Sql(nId)+ ;
-                             " ORDER BY  c.id,cd.orden" )
+      oFontEncab,oFontSubTit,oFontSubTitN,oFontOpc,oFontTot,oFontCombina,cText,oFontDet,oFontDetN,oQryComand,;
+      nTotalX, nTotalB
+oQry := TraerQuery(nId,.T.)
 IF oQry:nRecCount = 0
    MsgInfo("Cierre no existe","Error")
    RETURN NIL 
@@ -660,36 +518,23 @@ ENDIF
 
 oParame := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros")
 
-nTotalVentas := oApp:oServer:Query("SELECT SUM(v.importe*IF(v.ticomp='NC',-1,1)) AS ventas "+;
-                             " FROM ge_"+oApp:cId+"pagos p "+;
-                             "LEFT JOIN ge_"+oApp:cId+"pagfac pf ON p.numero = pf.numero "+;
-                             "LEFT JOIN ge_"+oApp:cId+"ventas_encab v ON pf.ticomp = v.ticomp AND pf.letra = v.letra AND pf.numcomp = v.numcomp "+;
-                             "WHERE p.id_cierre = "+ClipValue2Sql(nId)+;
-                             " AND v.fecha = p.fecha "):ventas
-
-oQryFor := oApp:oServer:Query("SELECT ANY_VALUE(caja) AS caja, ANY_VALUE(fecha) AS fecha, ANY_VALUE(observa) AS observa, SUM(importe) as importe, "+;
-                           "count(importe) AS casos  FROM ge_"+oApp:cId+"concfact "+;
-                           " WHERE id_cierre = "+ClipValue2Sql(nId) +;
-                           " GROUP BY observa" )
    DEFINE FONT oFont  NAME "ARIAL" SIZE 0,-8
    DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8 BOLD
    oQry:GoTop()
    PRINT oPr FILE "ADJUNTO.PDF"
+
        REPORT oPrn TITLE "Cierre de turno" + DTOC(oQry:fecha) + " Caja:"+ STR(oQry:caja,4) + " Cierre Nro:"+STR(nId,4) ;       
-           HEADER ALLTRIM(OemToAnsi(oApp:nomb_emp)),;       
-           IF(oQry:saldo>0,"Faltante:","Sobrante:")+ STR(ABS(oQry:saldo),10,2),;
-           "Ventas Total Turno: $"+STR(nTotalVentas,12,2) ;
-            CENTER ;       
+           HEADER ALLTRIM(OemToAnsi(oApp:nomb_emp)) CENTER ;       
            FOOTER "Firma operador:____________________    Firma del Encargado:_____________________";
            TO DEVICE oPr;
            FONT oFont,oFont1;
-           CAPTION  "Cierre de turno" PREVIEW
+           CAPTION  "Cierre de turno" PREVIEW    
    
-       GROUP oGru ON oQry:orden HEADER STR(oQry:orden,2) FOOTER "Parciales"  FONT 2
-        COLUMN TITLE "Concepto"  DATA oQry:concepto  SIZE 30
-        COLUMN TITLE "Ingresos"  DATA oQry:debe      PICTURE "999999999.99" SIZE 12 TOTAL
-        COLUMN TITLE "Egresos"   DATA oQry:haber     PICTURE "999999999.99" SIZE 12 TOTAL
-        COLUMN TITLE "Efectivo"  DATA oQry:efec      PICTURE "999999999.99" SIZE 12 TOTAL
+       GROUP oGru ON oQry:orden HEADER STR(oQry:orden,4,1)+" "+oQry:det FOOTER "Parciales"  FONT 2
+        COLUMN TITLE "Concepto"  DATA oQry:concepto  SIZE 35
+        COLUMN TITLE "Ingresos"  DATA oQry:debe      PICTURE "@Z 999999999.99" SIZE 12 
+        COLUMN TITLE "Egresos"   DATA oQry:haber     PICTURE "@Z 999999999.99" SIZE 12 
+        COLUMN TITLE "Efectivo"  DATA oQry:efec      PICTURE "@Z 999999999.99" SIZE 12 TOTAL
 
         // Digo que el titulo lo escriba con al letra 2        
         oPrn:bInit := {|| oQry:GoTop() }
@@ -748,3 +593,136 @@ IF nLimite < SaldoCaja(oApp:prefijo)
    RETURN .f.
 ENDIF      
 RETURN .t.
+
+
+STATIC FUNCTION TraerQuery(nId,lCompleta)
+LOCAL oQry, nTotalVentas, nTotalX, nTotalB, nTotalEf, nSobrante
+DEFAULT lCompleta := .f.
+IF lCompleta
+   nTotalVentas := oApp:oServer:Query("SELECT SUM(v.importe) AS ventas "+;
+                             " FROM ge_"+oApp:cId+"concfact v "+;                             
+                             "WHERE v.id_cierre = "+ClipValue2Sql(nId)):ventas
+   nTotalX := oApp:oServer:Query("SELECT SUM(v.importe) AS ventas "+;
+                             " FROM ge_"+oApp:cId+"concfact v "+;                             
+                             "WHERE v.letra = 'X' AND v.id_cierre = "+ClipValue2Sql(nId)):ventas
+   nTotalEf := oApp:oServer:Query("SELECT SUM(efectivo) AS efec FROM ge_"+oApp:cId+"cajadiaria_det "+;
+                                  " WHERE id_caja = "+str(nId)):efec
+   nSobrante := oApp:oServer:Query("SELECT saldo AS efec FROM ge_"+oApp:cId+"cajadiaria "+;
+                                  " WHERE id = "+str(nId)):efec
+   nTotalB := nTotalVentas - nTotalX 
+ENDIF
+oQry := oApp:oServer:Query("SELECT cd.*,c.*,c.id AS num FROM ge_"+oApp:cId+"cajadiaria c LEFT JOIN "+;
+                             "("+;
+                             "(SELECT 'SALDO INICIAL ' AS concepto, importe AS debe, 0 AS haber, importe AS efec,id_cierre,1 AS orden, ' ' as det "+;
+                             " FROM ge_"+oApp:cId+"fondo "+;
+                             " WHERE id_cierre = " + ClipValue2Sql(nId) +" ) "+;
+                             " UNION "+;
+                             "(SELECT CONCAT('INGRESO A CAJA ',TRIM(observa),' ',id) AS concepto, importe as debe, 0 AS haber, importe AS efec,id_cierre,2 AS orden, ' ' as det  "+;
+                             " FROM ge_"+oApp:cId+"retiros "+;
+                             " WHERE id_cierre = " + ClipValue2Sql(nId) +" AND tipo = 'I' )  "+;
+                             " UNION "+;
+                             "(SELECT CONCAT('RETIRO DE CAJA ',TRIM(observa), ' ', id) AS concepto, 0 as debe, importe AS haber, importe*(-1) AS efec,id_cierre,3 AS orden , ' ' as det "+;
+                             " FROM ge_"+oApp:cId+"retiros "+;
+                             " WHERE id_cierre = " + ClipValue2Sql(nId) +" AND tipo = 'R' )  "+;
+                             " UNION "+;
+                             "(SELECT 'INGRESOS EN EFECTIVO' AS concepto, SUM(pc.importe) AS debe,0 AS haber, SUM(pc.importe) AS efec,id_cierre,4 AS orden, ' ' as det   "+;
+                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
+                             " WHERE p.facturas = 0 AND p.id_cierre =  "+ClipValue2Sql(nId)+;
+                             " AND pc.tipocon = 1 "+;
+                             " GROUP BY p.id_cierre )"+;
+                             " UNION "+;
+                             "(SELECT 'INGRESOS EN EFECTIVO (Cta.Cte.)' AS concepto, SUM(pc.importe) AS debe,0 AS haber, SUM(pc.importe) AS efec,id_cierre,4 AS orden, ' ' as det   "+;
+                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
+                             " WHERE  p.facturas > 0 AND p.id_cierre =  "+ClipValue2Sql(nId)+;
+                             " AND pc.tipocon = 1 "+;
+                             " GROUP BY p.id_cierre )"+;
+                             " UNION "+;
+                             "(SELECT 'PAGOS EN EFECTIVO' AS concepto, 0 AS debe,SUM(oc.importe) AS haber, SUM(-oc.importe) AS efec,id_cierre,5 AS orden , ' ' as det  "+;
+                             " FROM ge_"+oApp:cId+"ordpag o LEFT JOIN ge_"+oApp:cId+"ordcon oc ON o.numero = oc.numero "+;
+                             " WHERE  o.id_cierre =  "+ClipValue2Sql(nId)+;
+                             " AND oc.codcon = 1 "+;
+                             "GROUP BY o.id_cierre )"+;
+                             " UNION "+;
+                             "(SELECT 'INGRESOS CON TARJ. DEB/CRED' AS concepto, SUM(pc.importe) AS debe,0 AS haber, 0 AS efec,id_cierre,6 AS orden , ' ' as det "+;
+                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
+                             " WHERE  p.facturas = 0 AND p.id_cierre =  "+ClipValue2Sql(nId)+;
+                             " AND pc.tipocon = 4 "+;
+                             " GROUP BY p.id_cierre )"+;
+                             " UNION "+;
+                             "(SELECT 'INGRESOS CON TARJ. DEB/CRED (Cta.Cte)' AS concepto, SUM(pc.importe) AS debe,0 AS haber, 0 AS efec,id_cierre,6 AS orden , ' ' as det "+;
+                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
+                             " WHERE p.facturas > 0 AND  p.id_cierre =  "+ClipValue2Sql(nId)+;
+                             " AND pc.tipocon = 4 "+;
+                             " GROUP BY p.id_cierre )"+;
+                             " UNION "+;
+                             "(SELECT 'INGRESOS POR TRANSFERENCIAS' AS concepto, SUM(pc.importe) AS debe,0 AS haber, 0 AS efec,id_cierre,7.1 AS orden, ' ' as det  "+;
+                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
+                             " WHERE p.facturas = 0 AND p.id_cierre =  "+ClipValue2Sql(nId)+;
+                             " AND pc.tipocon = 2 "+;
+                             " GROUP BY p.id_cierre )"+;
+                             " UNION "+;
+                             "(SELECT 'INGRESOS POR TRANSFERENCIAS (Cta.Cte.)' AS concepto, SUM(pc.importe) AS debe,0 AS haber, 0 AS efec,id_cierre,7.1 AS orden, ' ' as det  "+;
+                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
+                             " WHERE p.facturas > 0 AND p.id_cierre =  "+ClipValue2Sql(nId)+;
+                             " AND pc.tipocon = 2 "+;
+                             " GROUP BY p.id_cierre )"+;
+                             " UNION "+;
+                             "(SELECT 'EGRESOS POR TRANSFERENCIAS' AS concepto, 0 AS debe,SUM(oc.importe) AS haber, 0 AS efec,id_cierre,8 AS orden, ' ' as det   "+;
+                             " FROM ge_"+oApp:cId+"ordpag o LEFT JOIN ge_"+oApp:cId+"ordcon oc ON o.numero = oc.numero "+;
+                             " WHERE  o.id_cierre =  "+ClipValue2Sql(nId)+;
+                             " AND oc.codcon = 2 "+;
+                             " GROUP BY o.id_cierre )"+;
+                             " UNION "+;
+                             "(SELECT 'INGRESOS POR MERCADO PAGO' AS concepto, SUM(pc.importe) AS debe,0 AS haber, 0 AS efec,id_cierre,7.2 AS orden, ' ' as det  "+;
+                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
+                             " WHERE p.facturas = 0 AND  p.id_cierre =  "+ClipValue2Sql(nId)+;
+                             " AND pc.tipocon = 8 "+;
+                             " GROUP BY p.id_cierre )"+;
+                             " UNION "+;
+                             "(SELECT 'INGRESOS POR MERCADO PAGO (Cta.Cte)' AS concepto, SUM(pc.importe) AS debe,0 AS haber, 0 AS efec,id_cierre,7.2 AS orden, ' ' as det  "+;
+                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
+                             " WHERE p.facturas > 0 AND  p.id_cierre =  "+ClipValue2Sql(nId)+;
+                             " AND pc.tipocon = 8 "+;
+                             " GROUP BY p.id_cierre )"+;
+                             " UNION "+;
+                             "(SELECT 'EGRESOS POR MERCADO PAGO' AS concepto, 0 AS debe,SUM(oc.importe) AS haber, 0 AS efec,id_cierre,8 AS orden , ' ' as det  "+;
+                             " FROM ge_"+oApp:cId+"ordpag o LEFT JOIN ge_"+oApp:cId+"ordcon oc ON o.numero = oc.numero "+;
+                             " WHERE  o.id_cierre =  "+ClipValue2Sql(nId)+;
+                             " AND oc.codcon = 8 "+;
+                             " GROUP BY o.id_cierre )"+;
+                             " UNION "+;
+                             "(SELECT 'INGRESOS DE CHEQUES ' AS concepto, SUM(importe) AS debe,0 AS haber, 0 AS efec,id_cierre,9 AS orden, ' ' as det  "+;
+                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
+                             " WHERE p.facturas = 0 AND  p.id_cierre =  "+ClipValue2Sql(nId)+;
+                             " AND pc.tipocon = 3 "+;
+                             " GROUP BY p.id_cierre )"+;
+                             " UNION "+;
+                             "(SELECT 'INGRESOS DE CHEQUES (Cta.Cte)' AS concepto, SUM(importe) AS debe,0 AS haber, 0 AS efec,id_cierre,9 AS orden, ' ' as det  "+;
+                             " FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"pagcon pc ON p.numero = pc.numero "+;
+                             " WHERE p.facturas > 0 AND  p.id_cierre =  "+ClipValue2Sql(nId)+;
+                             " AND pc.tipocon = 3 "+;
+                             " GROUP BY p.id_cierre )"+;
+                             " UNION "+;
+                             "(SELECT 'EGRESOS DE CHEQUES' AS concepto, 0 AS debe,SUM(oc.importe) AS haber, 0 AS efec,id_cierre,10 AS orden, ' ' as det   "+;
+                             " FROM ge_"+oApp:cId+"ordpag o LEFT JOIN ge_"+oApp:cId+"ordcon oc ON o.numero = oc.numero "+;
+                             " WHERE  o.id_cierre =  "+ClipValue2Sql(nId)+;
+                             " AND (oc.codcon = 3 OR oc.codcon = 4) GROUP BY o.id_cierre) "+;
+                             " "+;
+                             IF(lCompleta,;
+                             " UNION (SELECT CONCAT(observa,' (',COUNT(ticomp),' Op.)') AS concepto, SUM(importe) AS debe,0 AS haber, 0 AS efec,id_cierre,11 AS orden , 'Formas de pago de ventas' as det  "+;
+                             " FROM ge_"+oApp:cId+"concfact  "+;
+                             " WHERE  id_cierre =  "+ClipValue2Sql(nId)+;
+                             " GROUP BY observa) ","")+;
+                             IF(lCompleta,;
+                             " UNION (SELECT 'Totales Vendidos' AS concepto, "+STR(nTotalVentas)+" AS debe,0 AS haber, 0 AS efec,"+str(nId)+",12 AS orden , 'Detalle de Facturacion' as det) "+;
+                             " UNION (SELECT 'Total Facturas' AS concepto, "+STR(nTotalB)+" AS debe,0 AS haber, 0 AS efec,"+str(nId)+",12 AS orden, 'Detalle de Facturacion' as det) "+;
+                             " UNION (SELECT 'Total Presupuestos' AS concepto, "+STR(nTotalX)+" AS debe,0 AS haber, 0 AS efec,"+str(nId)+",12 AS orden, 'Detalle de Facturacion' as det) "+;
+                             "","")+;
+                             IF(lCompleta,;
+                             " UNION (SELECT 'Efectivo Declarado' AS concepto, "+STR(nTotalEf-nSobrante )+" AS debe,0 AS haber, 0 AS efec,"+str(nId)+",13 AS orden , 'Resultado de caja' as det) "+;
+                             " UNION (SELECT '"+IF(nSobrante<0,"Sobrante","Faltante")+" de caja' AS concepto, "+STR(ABS(nSobrante))+" AS debe,0 AS haber, 0 AS efec,"+str(nId)+",13 AS orden, 'Resultado de caja' as det) "+;
+                             "","")+;
+                             ") cd ON cd.id_cierre =  "+ClipValue2Sql(nId)+;
+                             " WHERE c.id = " + ClipValue2Sql(nId)+ ;
+                             " ORDER BY  c.id,cd.orden,cd.concepto" )
+RETURN oQry

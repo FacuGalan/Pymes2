@@ -154,7 +154,8 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Empleados";
    @157,105 SAY "Salida:" OF oForm PIXEL SIZE 30,20 RIGHT
    @172, 05 SAY "Entrada:" OF oForm PIXEL SIZE 40,20 RIGHT
    @172,105 SAY "Salida:" OF oForm PIXEL SIZE 30,20 RIGHT
-   @157,175 SAY "Tipo Contratación:" OF oForm PIXEL SIZE 40,20 RIGHT
+   @157,175 SAY "Tipo Contratación:" OF oForm PIXEL SIZE 50,20 RIGHT
+   @172,175 SAY "Valor Hora:" OF oForm PIXEL SIZE 50,20 RIGHT
    @187,005 SAY "Consumo interno:" OF oForm PIXEL SIZE 40,20 RIGHT
    @187,175 SAY "Descuento:" OF oForm PIXEL SIZE 30,12 RIGHT
    @187,235 SAY "Limite:" OF oForm PIXEL SIZE 30,12 RIGHT
@@ -193,7 +194,8 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Empleados";
    @155,140 GET oGet[14] VAR base:hor_hab_hasta1 PICTURE "99:99:99" OF oForm PIXEL CENTER
    @170, 50 GET oGet[15] VAR base:hor_hab_desde2 PICTURE "99:99:99" OF oForm PIXEL CENTER
    @170,140 GET oGet[16] VAR base:hor_hab_hasta2 PICTURE "99:99:99" OF oForm PIXEL CENTER
-   @155,220 GET oGet[18] VAR base:tipocontrato OF oForm PIXEL
+   @155,230 GET oGet[18] VAR base:tipocontrato OF oForm PIXEL
+   @170,230 GET oGet[29] VAR base:valorhora OF oForm PIXEL RIGHT PICTURE "9999999.99"
    @185, 50 COMBOBOX oGet[19] VAR base:consumo_por ITEMS aConsumo_por OF oForm PIXEL SIZE 100,12
    @185,210 GET oGet[20] VAR base:consumo_desc  OF oForm PIXEL RIGHT PICTURE "999.99" WHEN(base:consumo_por = 2)
    @185,265 GET oGet[22] VAR base:consumo_limite  OF oForm PIXEL RIGHT PICTURE "9999999.99"

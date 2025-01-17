@@ -150,6 +150,11 @@ LOCAL mrta := .f., oError, nNum := oQry:codigo
 IF oQry:codigo = 0
    RETURN nil
 ENDIF
+IF oApp:oServer:Query("SELECT codigo FROM ge_"+oApp:cId+"articu WHERE rubro = "+str(nNum)):nRecCount > 0
+   MsgStop("No puede borrar este rubro porque tiene"+CHR(10)+;
+                 "articulos asociados","Atencion")
+   RETURN nil 
+ENDIF
 mrta := MsgNoYes("Seguro de eliminar"+CHR(10)+;
                  "el registro código N°:"+STR(nNum),"Atencion")
 IF !mrta

@@ -75,15 +75,20 @@ oQryBrw:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"pedidos_encab WHERE e
    oWnd1:bResized := { || Incrusta( oWnd1, oDlg, .t.) }
      DEFINE DIALOG oDlg RESOURCE cDialog OF oWnd1
      REDEFINE XBROWSE oBrwG DATASOURCE oQryBrw;
-              COLUMNS "id","CODCLI","CLIENTE","FECHA","PARAFECHA","Observa","VENDEDOR","ESTADO";
-              HEADERS "Nro Pedido","Código Cliente","Nombre","Fecha","Para Fecha","Observaciones","Vendedor","Estado";
-              SIZES 70,65,270,90,90,200,100,100;
+              COLUMNS "nuevo","id","CODCLI","CLIENTE","FECHA","PARAFECHA","Observa","VENDEDOR","ESTADO";
+              HEADERS "","Nro Pedido","Código Cliente","Nombre","Fecha","Para Fecha","Observaciones","Vendedor","Estado";
+              SIZES 40,70,65,270,90,90,200,100,100;
               ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu(cPermisos,.f.),oBrwG:Refresh()),.T.))
      REDEFINE SAY oBrwG:oSeek PROMPT "" ID 113 OF oDlg
      oQryBrw:bOnChangePage := {|| oBrwG:Refresh() }
      oQryBrw:SetOrder("cliente")
      //oBrwG:SetDolphin(oQry,.f.,.t.)
-     PintaBrw(oBrwG,8) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
+     PintaBrw(oBrwG,9) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
+     oBrwG:aCols[1]:bStrData := {|| IF(oQryBrw:Reccount()>0,IF(oQryBrw:nuevo,"Nuevo!",""),"")}
+     oBrwG:bClrStd := { || IF(oQryBrw:nuevo,{ CLR_BLACK, RGB(255,50,50) },;
+                          If( oBrwG:KeyNo() % 2 == 0, ;
+                          { CLR_BLACK, RGB(193,221,255) }, ;
+                          { CLR_BLACK, RGB(221,245,255) } )) }
      oBrwG:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar,cPermisos)}
      oBrwG:cSeek := ""
      oBrwG:oSeek:SetText("")
@@ -175,7 +180,7 @@ RETURN NIL
 ***************VENTANA DE PEDIDOS 
 STATIC FUNCTION Formu(cPermiso,lAlta)
 LOCAL oBot := ARRAY(9) , aTipoIva, aTipoDoc, base, cDireccion:=SPACE(30), cLocalidad:=SPACE(30),;
-      cCUIT:=SPACE(13),  nCodArt:=0, nCantidad:=0, nPunit:=0, nPtotal:=0,  nNeto:=0, oQry, ;      
+      cCUIT:=SPACE(13),  nCodArt:=0, nCantidad:=0, nPunit:=0, nPtotal:=0,  nNeto:=0, oQry, lUsoBorrar := .f.,;      
       nIVA:=0,  oFontLetra, oFontTotal,cDescu,oSay2,oDlg2,oWnd2,i,lResp:=.f.,oQryLis,cLisPre:="SIN LISTA ESPECIAL"+SPACE(31),;
       nNumFac:=0, nDNI := 0, nTiArt,oQryIvaT, cNomLis:=SPACE(50),aListas:={"Lista 1","Lista 2"}, cCodArtP := SPACE(30)
       aTipoiva  := {;
@@ -230,6 +235,8 @@ IF lAlta
     oQry    := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"pedidos_encab WHERE id = " + ClipValue2Sql(oQryBrw:id)+" ")
     base:= oQry:GetRowObj() 
     oQry:lAppend:= .f.
+    oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"pedidos_encab SET nuevo = FALSE WHERE id ="+ClipValue2Sql(oQryBrw:id)+" ")
+    oApp:oMsg[5]:SetText(" ")
     
     oApp:oServer:Execute("DELETE FROM ventas_det_h2")           
     oApp:oServer:Execute("INSERT INTO ventas_det_h2 (codart,detart,cantidad,faltantes,punit,ptotal,stotal,iva,codiva,neto,descuento,estado,descp) "+;
@@ -371,7 +378,7 @@ oQryLisPre:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre")
     ID 197 OF oDlg2 AUTOSORT
     PintaBrw(oBrw,0)
     
-    oBrw:bKeyDown := { |nKey| IF (nKey == VK_DELETE,(EliminarItem(),;
+    oBrw:bKeyDown := { |nKey| IF (nKey == VK_DELETE,(EliminarItem(base),lUsoBorrar := .t.,;
                                    nTotal:= oBrw:aCols[12]:nTotal,oGet[21]:Refresh()),)}
     oBrw:aCols[12]:nFooterTypE := AGGR_SUM
     oBrw:aCols[7]:nFooterTypE := AGGR_SUM
@@ -398,14 +405,14 @@ oQryLisPre:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre")
     
     //BOTONES ---------------------------------------------------------------
     //+
-    REDEFINE BUTTON oBot[1] ID 196 ACTION(AgregaItem(nTiArt),IF(nTiArt=1,oGet[14]:Setfocus(),oGet[25]:Setfocus()) ) ;
+    REDEFINE BUTTON oBot[1] ID 196 ACTION(AgregaItem(nTiArt,@lUsoBorrar),IF(nTiArt=1,oGet[14]:Setfocus(),oGet[25]:Setfocus()) ) ;
                    WHEN(((nCodArt>0 .and. nTiArt=1 .and. nPtotal>0) .or. (nTiArt=2 .and. cDetArt<>SPACE(30) .and. nPtotal>0)) .and. nCantidad > 0)
     //cancelar
     REDEFINE BUTTON oBot[2] ID 102 ACTION (LimpiarForm()) 
     //grabar
-    REDEFINE BUTTON oBot[3] ID 103 ACTION (lResp :=Validaciones(oQry,base,.f.,lAlta),IF(lResp,(oDlg2:End(),lResp:=.t.),nil)) WHEN(oQryDet:RecCount() > 0)
+    REDEFINE BUTTON oBot[3] ID 103 ACTION (lResp :=Validaciones(oQry,base,.f.,lAlta,lUsoBorrar),IF(lResp,(oDlg2:End(),lResp:=.t.),nil)) WHEN(oQryDet:RecCount() > 0)
     //grabar
-    REDEFINE BUTTON oBot[4] ID 104 ACTION ImprimirPedido(base) WHEN(oQryDet:RecCount() > 0)
+    REDEFINE BUTTON oBot[4] ID 104 ACTION ImprimirPedido(base) WHEN(oQryDet:RecCount() > 0 .and. !lAlta .and. !lUsoBorrar) 
     //grabar
     REDEFINE BUTTON oBot[7] ID 107 ACTION (oBrw:ToExcel(),oDlg2:End(),lResp:=.f.) CANCEL
     //salir
@@ -418,6 +425,7 @@ oQryLisPre:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre")
     oDlg2:bKeyDown = { | nKey, nFlags | IF(nKey==120,oBot[3]:Click,.f.) }
     //ACTiVACION   ---------------------------------------------------------------
     ACTIVATE DIALOG oDlg2 CENTER ON INIT IF(base:codcli>0,ValidaCli(,base:vendedor),nil)
+
 RETURN lResp
 
 *****************************************
@@ -531,7 +539,7 @@ RETURN nil
 
 ************************************************************************************
 ** Agregar item a la venta
-STATIC FUNCTION AgregaItem(nTiArt)
+STATIC FUNCTION AgregaItem(nTiArt,lUsoBorrar)
 LOCAL oQryIva, nTotalcIva, nIvaPes, nCodIva1, nSubTotal, nDescuento,;
       i,nCantidad,nPrecio1,nPrecio2,lRta:=.f.,nIvaCalc:=0,nPrecioVen,oQryOfe, nPUnit
 
@@ -642,11 +650,12 @@ oGet[21]:cText := oBrw:aCols[12]:nTotal
 oGet[19]:Refresh()
 oGet[20]:Refresh()
 oGet[21]:Refresh()
+lUsoBorrar := .t.
 RETURN .t.
 
 ************************************************************************************
 ** Borrar item de la venta
-STATIC FUNCTION EliminarItem()
+STATIC FUNCTION EliminarItem(base)
 oQryDet:DELETE()
 oBrw:Refresh()
 oQryDet:Refresh()
@@ -657,6 +666,7 @@ oGet[21]:cText := oBrw:aCols[12]:nTotal
 oGet[19]:Refresh()
 oGet[20]:Refresh()
 oGet[21]:Refresh()
+Auditar(1," Item ped. "+alltrim(oQryDet:detart)+" "+ALLTRIM(Str(oQryDet:cantidad)) + " Ped N° "+ALLTRIM(STR(base:id)))
 RETURN .t.
 
 
@@ -816,7 +826,7 @@ RETURN .t.
 
 ************************************************************************************
 ** Validaciones a hacer cuando quiere grabar (Incluye forma de pago y facturacion)
-STATIC FUNCTION Validaciones(oQry,base,lCierra,lAlta)
+STATIC FUNCTION Validaciones(oQry,base,lCierra,lAlta,lUsoBorrar)
 LOCAL cLetra, oGet1 := ARRAY(20), oBot := ARRAY(4), oForm, lRta := .f., oBrw2, oQryCuo, dFecVto,;
       cDetTar, cDetChe := SPACE(30), aTablaIva := {}, oTabIva, nNro , cCae, cTipoDoc,lFisc:=.f.,;
       oQryVen, oQryPag, oQryPagCon, oQryPagFac,  oErr, nRecibo, nTipFor, nSaldo := 0,nNumero:=0,;
@@ -835,6 +845,16 @@ TRY
                         " (SELECT "+ClipValue2Sql(base:id)+",codart,detart,cantidad,cantidad-faltantes,punit,descuento,descp "+;
                         " FROM ventas_det_h2)")
       oApp:oServer:CommitTransaction()
+      IF lAlta 
+         IF MsgYesNo("Imprimir el nuevo pedido","Atencion")
+            ImprimirPedido(base)
+         ENDIF
+      ENDIF 
+      IF !lAlta .and. lUsoBorrar     
+         IF MsgYesNo("Imprimir el nuevo pedido","Atencion")
+            ImprimirPedido(base)
+         ENDIF
+      ENDIF
   CATCH oErr
       MsgStop("El pedido no se guardo porque otra terminal estaba actualizando"+CHR(10)+;
               "Vuelva a poner grabar para grabar este pedido"+CHR(10)+oErr:description,"Error")
@@ -859,6 +879,7 @@ TRY
   oApp:oServer:BeginTransaction()
   oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"pedidos_encab WHERE id = " + ClipValue2Sql(oQryBrw:id))
   oApp:oServer:CommitTransaction()
+  Auditar(1," "+ALLTRIM(oQryBrw:cliente)+ " Ped. N° "+alltrim(STR(oQryBrw:ID,10)))
   oQryBrw:Refresh()
 CATCH oError
     ValidaError(oError)
@@ -884,7 +905,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
       nCodcli := oGet[08]:value       
    ENDIF
    IF oQryP:imprimeTic
-      lRta := MsgNoYes("Desea reporte por comandera?","Atencion")
+      lRta := MsgNoYes("Desea imprimir por comandera?","Atencion")
    ENDIF      
    oQryDet1:= oApp:oServer:Query("SELECT * FROM ventas_det_h2")
    oQryCli := oApp:oServer:Query("SELECT c.*,v.nombre as nomven FROM ge_"+oApp:cId+"clientes c "+;
@@ -1107,6 +1128,8 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                  @ nRow, 00 PRINT TO oPrn TEXT "PEDIDO" ;
                           SIZE 4.8,1 CM FONT oFont LASTROW nRow ALIGN "C"
                  nRow := nRow + .5
+                 @ nRow, 00 PRINT TO oPrn TEXT "Pedido N#: "+ALLTRIM(STR(base:id)) ;
+                      SIZE 4.8,1 CM FONT oFont1 LASTROW nRow
                  @ nRow, 00 PRINT TO oPrn TEXT "Cliente: "+ALLTRIM(oQryCli:nombre) ;
                       SIZE 4.8,1 CM FONT oFont1 LASTROW nRow
                  @ nRow, 00 PRINT TO oPrn TEXT "Direccion: "+ALLTRIM(oQryCli:direccion) + " "+ ALLTRIM(oQryCli:localidad) ;
@@ -1164,6 +1187,8 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                  @ nRow, 00 PRINT TO oPrn TEXT "PEDIDO" ;
                           SIZE 7.5,1 CM FONT oFont1 LASTROW nRow ALIGN "C"
                  nRow := nRow + .5
+                 @ nRow, 00 PRINT TO oPrn TEXT "Pedido N#: "+ALLTRIM(STR(base:id)) ;
+                      SIZE 7.5,1 CM FONT oFont1 LASTROW nRow
                  @ nRow, 00 PRINT TO oPrn TEXT "Cliente: "+ALLTRIM(oQryCli:nombre) ;
                       SIZE 7.5,1 CM FONT oFont1 LASTROW nRow
                  @ nRow, 00 PRINT TO oPrn TEXT "Direccion: "+ALLTRIM(oQryCli:direccion) + " "+ ALLTRIM(oQryCli:localidad) ;
@@ -1673,6 +1698,7 @@ IF !oApp:oServer:TableExist('ge_'+oApp:cId+"pedidos_encab")
   "`facturanro` VARCHAR(16) DEFAULT NULL,"+;
   "`observa` VARCHAR(200) DEFAULT NULL,"+;
   "`orden` INT(10) DEFAULT '0',"+;
+  "`nuevo` TINYINT(1) DEFAULT '0',"+;
   "PRIMARY KEY (`id`),"+;
   "KEY `orden` (`orden`)"+;
 ") ENGINE=INNODB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8")

@@ -19,7 +19,7 @@ STATIC oClock, oDate, oKeyb, lMostrar_novedades
 // Funcion  : Main()
 MEMVAR oApp, nCliente
 FUNCTION Main()
-LOCAL  oBar,oBar2, oQryParmatros, i, oMetro,oFontBarra
+LOCAL  oBar,oBar2, oQryParmatros, i, oMetro,oFontBarra, oTimer1
     IF IsExeRunning("BCN.EXE")
        MsgStop("La Aplicación ya esta en uso en esta PC","Error")
        QUIT
@@ -67,20 +67,26 @@ LOCAL  oBar,oBar2, oQryParmatros, i, oMetro,oFontBarra
     //DEFINE TIMER oApp:oTimer  INTERVAL 10000 ACTION Pinguear(oApp:oServer,oApp:oWnd) OF oApp:oWnd  
   
     oApp:cNombreEquipo := GetHostName()    
-    DEFINE TIMER oApp:oTimer INTERVAL 10000 ACTION Pinguear(oApp:oServer,oApp:oWnd) OF oApp:oWnd       
+    DEFINE TIMER oApp:oTimer  INTERVAL 10000 ACTION Pinguear(oApp:oServer,oApp:oWnd) OF oApp:oWnd  
+    IF oApp:sonarpedidos
+       DEFINE TIMER oTimer1 INTERVAL 60000 ACTION Sonar() OF oApp:oWnd  
+    ENDIF   
     DEFINE MSGITEM  oApp:oMsg[2] OF oApp:oWnd:oMsgBar PROMPT ;
            IF(oApp:prefijo=0,"Terminal administrativa","Punto de Venta: "+ STR(oApp:prefijo)) ;
            SIZE 150 ;
            ACTION MsgInfo("Punto de Venta: "+STR(oApp:prefijo)+ CHR(10) + ;
                            "Nombre del punto: "+ALLTRIM(oApp:nomcaja)+ CHR(10) + ;
                            "IP: "+oApp:cIP+ CHR(10) + ;
+                           IF(oApp:sonarpedidos,"Alertas de pedidos nuevos"+CHR(10),"")+;
                            "Nombre del equipo: "+oApp:cNombreEquipo,"Punto de venta")  
-   DEFINE MSGITEM  oApp:oMsg[3] OF oApp:oWnd:oMsgBar PROMPT "Número de cliente: "+ALLTRIM(STR(VAL(oApp:cId)));
+    DEFINE MSGITEM  oApp:oMsg[3] OF oApp:oWnd:oMsgBar PROMPT "Número de cliente: "+ALLTRIM(STR(VAL(oApp:cId)));
            SIZE 150 
-   DEFINE MSGITEM  oApp:oMsg[4] OF oApp:oWnd:oMsgBar PROMPT ;
+    DEFINE MSGITEM  oApp:oMsg[4] OF oApp:oWnd:oMsgBar PROMPT ;
                              "ATENCIÓN AL CLIENTE" FONT oFontBarra COLOR rgb(253,154,20);
           ACTION(VentanaAtencion());
-           SIZE 300        
+           SIZE 300
+    DEFINE MSGITEM  oApp:oMsg[5] OF oApp:oWnd:oMsgBar PROMPT " " FONT oFontBarra COLOR rgb(253,154,20);
+           SIZE 200        
     // Activo la ventana principal con reloj fecha y teclado
     oApp:oWnd:oMsgBar:nHeight:= 30
     oApp:oWnd:oMsgBar:DateOn()
@@ -89,7 +95,11 @@ LOCAL  oBar,oBar2, oQryParmatros, i, oMetro,oFontBarra
     oApp:oWnd:bResized = { | hDC | BmpTiled( hDC, oApp:oWnd , oApp:oBmp ) }    
     Procesando(.f.)
     //ConsultaVencimiento(,.t.)
-    ACTIVATE WINDOW oApp:oWnd MAXIMIZED   ON INIT (oApp:oTimer:Activate(),Alertas(.t.),IF(lMostrar_novedades,MostrarNovedades(),nil)) 
+    ACTIVATE WINDOW oApp:oWnd MAXIMIZED   ;
+    ON INIT (IF(oApp:sonarpedidos,oTimer1:Activate(),nil), ;
+             oApp:oTimer:Activate(),;
+             Alertas(.t.),;
+             IF(lMostrar_novedades,MostrarNovedades(),nil)) 
     RELEASE oApp:oBmp
     oApp:oServer:End()
 RETURN NIL
@@ -202,6 +212,7 @@ LOCAL oQryParmetros, oSer, aPlacas, i, lExiste := .f., nPV := 1, oQryPun, oIni
     oApp:factura:= oQryPun:tipofac 
     oApp:tick80 := oQryPun:tick80
     oApp:usavales:= oQryPun:usavales
+    oApp:sonarpedidos := oQryPun:sonarpedidos 
 
     // Abro el archivo que contiene el nombre de propietario y la secuencia
     oQryParmetros := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"parametros LIMIT 1")
@@ -262,7 +273,8 @@ LOCAL oQryParmetros, oSer, aPlacas, i, lExiste := .f., nPV := 1, oQryPun, oIni
     //Ventas con bultos
     oApp:usabultosventa     := oQryParmetros:usabultosventa   
     //Repartidores
-    oApp:usareparto         := oQryParmetros:usareparto    
+    oApp:usareparto         := oQryParmetros:usareparto  
+     
 
     oQryParmetros:End()
     oQryParmetros:=nil
@@ -650,6 +662,22 @@ IF lCerrar
 ENDIF
 oApp:lPingueando := .f.
 Alertas()
+RETURN nil  
+
+//Sonar pedidos
+STATIC FUNCTION Sonar()
+LOCAL oError, nPed
+IF oApp:oServer <> nil
+   TRY 
+       nPed := oApp:oServer:Query("SELECT id FROM ge_"+oApp:cId+"pedidos_encab WHERE nuevo IS TRUE"):nRecCount
+       IF nPed > 0
+          SndPlaySound("ringin.wav",1)
+          oApp:oMsg[5]:SetText("NUEVOS PEDIDOS")
+       ENDIF
+    CATCH oError
+      
+    END TRY
+ENDIF
 RETURN nil       
 
 
@@ -742,6 +770,7 @@ RETURN nil
    DATA utilfija         // Mantener la utilidad cuando se cambian manualmento los precios de articulos
    DATA usabultosventa   // Pide bultos al hacer la venta por factura grande
    DATA usareparto       // Usar sistema de reparto con hoja de ruta
+   DATA sonarpedidos     // Determina si en este punto de venta suena alerta cuando hay pedidos nuevos
 
 
 
@@ -767,7 +796,7 @@ METHOD New() CLASS TApplication
    // Inicializacion de valores
    ::lDemo              := .f.
    ::cId                := SPACE(6)
-   ::oMsg               := ARRAY(4)
+   ::oMsg               := ARRAY(5)
    ::usuario            := SPACE(10)
    ::usuanom            := "NADIE"
    ::usua_es_supervisor := .f.
@@ -819,6 +848,7 @@ METHOD New() CLASS TApplication
    ::cDestinoMail       := ""
    ::usabultosventa     := .f.
    ::usareparto         := .f.
+   ::sonarpedidos       := .f.
 
 
    DEFINE FONT ::oFont NAME "TAHOMA" SIZE 0,-11.5   

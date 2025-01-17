@@ -13,7 +13,7 @@ STATIC oWnd1, nTipoEmp, nTipoFac, nTipoDoc, cVentana, oGet, oQryArt, oQryCli, oQ
        nEfecti, nTarjet, nTransfe, nCheque, nCtaCte, nMPago, nCuotas, nPuntoVta, cLetra,nLisPre,cObserva,nPorIva,cNumComp,;
        cDetArt, nDescuGen, nCodIva, nTotal, nForPag, nRubro, nDeuda,oQryChe,mpagado,manticipo,dFecha,cVendedor,nTipoCli,;
        nBorrarPend,lUsoPedido,oQryLisPre,aFormaNom,aFormaInc,nFormaPago, lAcopio, nBorrarPresu,lPedidoUsado,;
-       lFacturaM , lFacturaD
+       lFacturaM , lFacturaD, cOrigenNC
 
 PROCEDURE Ventas() 
 LOCAL oBot := ARRAY(11), hHand , aTipoIva, aTipoDoc, cNomCli:=SPACE(30), cDireccion:=SPACE(30), cLocalidad:=SPACE(30),;
@@ -161,6 +161,7 @@ nBorrarPend:=0
 nBorrarPresu:=0
 lUsoPedido:=.f.
 lPedidoUsado:=.f.
+cOrigenNC := ''
 
 IF oApp:cierre_turno
   IF !ValidarTurno(oApp:oWnd)
@@ -715,6 +716,7 @@ IF nTipoDoc = 3
     oApp:oServer:Execute("INSERT INTO ventas_det_H (codart,detart,cantidad,punit,neto,descuento,descup,stotal,iva,codiva,ptotal,pcosto,impint) "+;
                          "(SELECT codart,detart,cantidad,punit,neton,descu,descup,neto,iva,codiva,importe,pcosto,impint FROM ge_"+oApp:cId+"ventas_det "+;
                          "WHERE nrofac = "+ClipValue2Sql(oQryFac:ticomp+oQryFac:letra+oQryFac:numcomp)+")")
+    cOrigenNC := oQryFac:ticomp+oQryFac:letra+oQryFac:numcomp
 ENDIF
 
 IF nTipoDoc= 1
@@ -805,6 +807,7 @@ lAcopio := IF(FILE('.\ACOPIO.INI'),.T.,.f.)
 lPedidoUsado := .f.
 oGet[44]:Refresh()
 nPuntoVta := oQryPun:caja
+cOrigenNC := ''
 RETURN nil
 
 
@@ -1639,6 +1642,11 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
          nPuntosAcu := nPuntosAcu + INT(nTotal/oApp:pesos_x_punto)
          nPuntos :=  INT(nTotal/oApp:pesos_x_punto)
       ENDIF
+      IF EMPTY(cNotaCre)
+         IF !EMPTY(cOrigenNC) .AND. cTipoDoc = 'NC'
+            cNotaCre := cOrigenNC
+         ENDIF
+      ENDIF      
       oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ventas_encab (ticomp,letra,numcomp,codcli,coniva,fecha,neto,iva,iibb,importe,tipopag,observa,"+;
                                                      "nombre,cuit,dni,direccion,localidad,percep,cae,fecvto,tipfor,usuario,fecmod,ip,vendedor,condven,"+;
                                                      "formapag,sobretasa,acopio,endolares,cotiza,hora,puntos,puntosacu) VALUES "+;

@@ -1,5 +1,5 @@
 Harbour 3.2.0dev (r1601050904)
 Copyright (c) 1999-2015, http://harbour-project.org/
-Compiling 'ABMEMPLE.prg' and generating preprocessed output to 'ABMEMPLE.ppo'...
-10020010010010020030040050010020010020010020010020030040050060070080090010001100120013001400150016001700180019002000100200100200300100100200300400500Lines 5920, Functions/Procedures 13
-Generating C source output to 'ABMEMPLE.c'... Done.
+Compiling 'pedprov.prg' and generating preprocessed output to 'pedprov.ppo'...
+10020010010010020030040050010020010020010020010020030040050060070080090010001100120013001400150016001700180019002000100200100200300100200300400500Lines 5815, Functions/Procedures 13
+Generating C source output to 'pedprov.c'... Done.

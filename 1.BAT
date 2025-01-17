@@ -26,7 +26,7 @@ echo modsto.obj pregen.obj fcaja.obj rcaja.obj chepro.obj cheter.obj depret.obj 
 echo abmpro.obj abmmar.obj abmrub.obj abmven.obj abmban.obj abmctas.obj abmcom.obj abmpcon.obj abmcondven.obj + >> b32.bc
 echo abmiva.obj abmrep.obj abmdat.obj abmdat1.obj abmcli.obj abmcli1.obj abmart.obj abmdes.obj abmrep.obj + >> b32.bc
 echo abmemp.obj abmdep.obj abmret.obj abmfor.obj abmaut.obj bcaja.obj cambiopre.obj combus.obj + >> b32.bc
-echo ordenes.obj canpag.obj pedprov.obj consulta.obj pedidos.obj abmfgs.obj buscapre.obj lispre.obj promos.obj + >> b32.bc
+echo ordenes.obj canpag.obj pedprov.obj consulta.obj pedidos.obj abmfgs.obj buscapre.obj lispre.obj promos.obj service.obj + >> b32.bc
 echo calinfo.obj tcalex.obj agenda.obj + >> b32.bc
 echo liscaja.obj cietur.obj vales.obj audita.obj + >> b32.bc
 echo descu.obj carcre.obj cardeu.obj fe.obj venrei.obj asigna.obj + >> b32.bc

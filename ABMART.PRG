@@ -9,7 +9,7 @@
 *************************************************
 MEMVAR oApp
 STATIC oQryBrw,oQry, oQry2, oQry3, oQry4, oQry5, oQry6, oQry7 ,;
-       oWnd1, oBrw, oDlg, cVentana,oBrw1, oQryArt,oQryPun
+       oWnd1, oBrw, oDlg, cVentana,oBrw1, oQryArt,oQryPun , lTipoArt 
 PROCEDURE Artic(cPermisos)
 LOCAL oBar, hHand, oGetSeek, cSeek := SPACE(50), oPop2
 cVentana := PROCNAME()
@@ -19,15 +19,16 @@ IF ASCAN(oApp:aVentanas,cVentana) > 0
    oApp:oWnd:oWndClient:aWnd[hHand]:Restore()
    RETURN
 ENDIF
+lTipoArt := nil
 AADD(oApp:aVentanas,cVentana)
 
 oQryBrw:= oApp:oServer:Query("SELECT codigo,codigopro,nombre,stockact,Preciocos,Precioven,reventa,fecmod,observa,nosale"+;
                                 " FROM ge_"+oApp:cId+"articu "+;
                                 "ORDER BY nombre")
 MENU oPop2 POPUP
-     MENUITEM "Todos los productos"  ACTION FiltrarVen(nil) 
+     MENUITEM "Todos los productos"  ACTION FiltrarVen(nil)
      MENUITEM "Solo Vendibles"       ACTION FiltrarVen(.t.)
-     MENUITEM "Solo No vendibles"    ACTION FiltrarVen(.f.)     
+     MENUITEM "Solo No vendibles"    ACTION FiltrarVen(.f.)
 ENDMENU
 
    oQry2  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"provee ORDER BY codigo")
@@ -812,6 +813,11 @@ LOCAL mrta := .f., oError, nNum := oQryBrw:codigo
 IF oQryBrw:codigo = 0
    RETURN nil
 ENDIF
+IF oApp:oServer:Query("SELECT COUNT(codart) as casos FROM ge_"+oApp:cId+"ventas_det WHERE codart = "+str(nNum)):casos > 0
+   MsgStop("No puede borrar este articulo porque tiene"+CHR(10)+;
+                 "ventas asociadas","Atencion")
+   RETURN nil 
+ENDIF
 mrta := MsgNoYes("Seguro de eliminar"+CHR(10)+;
                  "el registro código N°:"+STR(nNum),"Atencion")
 IF !mrta
@@ -1018,6 +1024,7 @@ RETURN nil
 
 **** Filrado por tipo de articulos
 STATIC FUNCTION FiltrarVen(lTipo)
+lTipoArt := lTipo
 IF lTipo = nil 
    oQryBrw:SetNewFilter(SET_WHERE,"",.t.)
 ENDIF
@@ -1574,6 +1581,7 @@ oQry := oApp:oServer:Query("SELECT a.nombre, r.codart,r.codusa,m.nombre AS mater
                    " m.preciocos* r.cantidad AS precio FROM ge_"+oApp:cId+"reseta r "+;
                    " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = r.codart "+; 
                    " LEFT JOIN ge_"+oApp:cId+"articu m ON m.codigo = r.codusa "+; 
+                   IF(lTipoArt == nil,""," WHERE a.nosale = "+ClipValue2SQL(lTipoArt))+;
                    " ORDER BY r.codart, r.codusa"  )
 IF oQry:nRecCount = 0
    MsgStop("No hay datos para listar","Error")
