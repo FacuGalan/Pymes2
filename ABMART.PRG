@@ -336,6 +336,7 @@ IF !lAlta
 ENDIF   
 base:usuario:= oApp:usuario
 base:ip     := oApp:cIp
+base:nombre := STRTRAN(base:nombre,"'","´")
 oQry:oRow := base
 TRY
   oApp:oServer:BeginTransaction()

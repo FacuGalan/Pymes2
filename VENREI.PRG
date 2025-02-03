@@ -40,7 +40,7 @@ DEFINE DIALOG oDlg1 TITLE "Reimprimir comprobante" FROM 03,20 TO 28,120 OF oApp:
    @  97, 05 SAY "Tipo Docum.:" OF oDlg1 PIXEL RIGHT SIZE 40,10
    @ 112, 05 SAY "Letra:"       OF oDlg1 PIXEL RIGHT SIZE 40,10
    @ 127, 05 SAY "Prefijo:"     OF oDlg1 PIXEL RIGHT SIZE 40,10
-   @ 142, 05 SAY "Numero:"      OF oDlg1 PIXEL RIGHT SIZE 40,10
+   @ 142, 05 SAY "Numero:"      OF oDlg1 PIXEL RIGHT SIZE 40,10   
    
    @  95, 50 COMBOBOX oGet1 VAR mtipo ITEMS aTipo OF oDlg1 SIZE 79,50 PIXEL
    @ 110, 50 GET      oGet2 VAR mletra PICTURE "@!" OF oDlg1 SIZE 20,10 PIXEL;
@@ -48,12 +48,16 @@ DEFINE DIALOG oDlg1 TITLE "Reimprimir comprobante" FROM 03,20 TO 28,120 OF oApp:
    @ 125, 50 GET      oGet3 VAR mprefijo PICTURE "9999" OF oDlg1 PIXEL RIGHT
    @ 140, 50 GET      oGet4 VAR mnumero  PICTURE "99999999" OF oDlg1 PIXEL RIGHT
    @ 125, 90 CHECKBOX oChe VAR lConsulta PROMPT "Consultar AFIP" OF oDlg1 PIXEL SIZE 70,12 WHEN(mtipo<4)
+
+   oBrw:bGotFocus := {|| Llenar(oGet1,oGet2,oGet3,oGet4,oQryUlt)}
+   oBrw1:bGotFocus := {|| Llenar(oGet1,oGet2,oGet3,oGet4,oQryUlt1,.t.)}
+
    
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .f.), oDlg1:End() ) PIXEL
-ACTIVATE DIALOG oDlg1 CENTER ON INIT (oGet1:SetFocus(),Llenar(oGet1,oGet2,oGet3,oGet4,oQryUlt))
+ACTIVATE DIALOG oDlg1 CENTER //ON INIT (oGet1:SetFocus(),Llenar(oGet1,oGet2,oGet3,oGet4,oQryUlt))
 IF !mrta
    RETURN
 ENDIF

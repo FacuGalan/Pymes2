@@ -545,8 +545,8 @@ oParame := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros")
         ACTIVATE REPORT oPrn WHILE !oQry:EOF() ON INIT CursorArrow() ;
                  ON STARTPAGE oPrn:SayBitmap(.1,.1,"LOGO.JPG",.5,.5);
                  ON STARTGROUP oPrn:NewLine();
-                 ON POSTGROUP oPrn:NewLine();
-                 ON POSTEND Resume(oPrn,oQry:saldo,oQryFor)
+                 ON POSTGROUP oPrn:NewLine()
+                 
 
     ENDPRINT
     EnviarPorMail(ALLTRIM(oParame:email),"Cierre de caja Nro: "+STR(nId,6))

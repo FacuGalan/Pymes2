@@ -396,11 +396,12 @@ IF n = 1
       RETURN nil
    ENDIF   
    oQryDet:cantidad := nVal
+   oQryDet:descuento   := oQryDet:descuento / nCantAnt * nVal
    oQryDet:ptotal    := oQryDet:ptotal / nCantAnt * nVal
    oQryDet:neto     := oQryDet:neto / nCantAnt * nVal
    oQryDet:iva      := oQryDet:iva / nCantAnt * nVal
    oQryDet:impint   := oQryDet:impint / nCantAnt * nVal
-   oQryDet:stotal   := oQryDet:neto
+   oQryDet:stotal   := oQryDet:neto   
    oQryDet:Save()
    oQryDet:Refresh()
    oBrwDet:Refresh()
@@ -412,6 +413,7 @@ IF n = 1
       nII:=oQryDet:impint/oQryDet:cantidad
       //oQryDet:punit := nVal - nII
       oQryDet:punit := nVal 
+      oQryDet:descuento := 0
       oQryDet:ptotal    := nVal * oQryDet:cantidad
       oQryDet:neto     := (oQryDet:ptotal-nII) / IF(oQryDet:codiva = 5,1.21,IF(oQryDet:codiva=4,1.105,1))
       oQryDet:iva      := oQryDet:ptotal - oQryDet:neto - nII

@@ -7,7 +7,7 @@ MEMVAR oApp
 STATIC oQry,oQryRub, oQryIva, oQryMar, oQryPro,oQryEmp,oQryDep, oQryTemp,oQryArt, oBrw, oDlg, cWhere,;
        oQry2,oQry3,oQry4,oQry5,oQry6,oQry7,lVenta, nRedondeo, lSumaUtilidad
 PROCEDURE PREGEN()
-LOCAL oGet := ARRAY(7), nPorcUn:= 0,nPorcUnR:= 0, oBot := ARRAY(4),;
+LOCAL oGet := ARRAY(7), nPorcUn:= 0,nPorcUnR:= 0, oBot := ARRAY(4), aTabla,;
       lRta := .f., acor, base, nPorc := 0, nImpo := 0, oError,cCostoDesc,cCostoFlete, ;
       aRedondeo := {"Sin Redondear","Entero","Multiplo de 10","Multiplo de 50","Multiplo de 100"}
 nRedondeo := 2 
@@ -106,9 +106,23 @@ IF !MsgNoYes("Está a punto de cambiar los precios de todo el grupo"+CHR(10)+;
             "Realmente desea confirmar el proceso?","Atencion")
    LOOP
 ENDIF 
-
+Procesando(.t.)
 TRY
   oApp:oServer:BeginTransaction()
+  //Primero hago el backup de articulos
+  lMkDir( '.\backup' )
+  BackupArt(".\backup\articulos"+DTOS(DATE())+STRTRAN(TIME(),":","")+".sql",;
+    "Porcentaje:"+STR(nPorc)+chr(10)+;
+    "Importe Fijo:"+STR(nImpo)+chr(10)+;
+    "% Utilidad:"+STR(nPorcUn)+chr(10)+;
+    "% Utilidad Rev:"+STR(nPorcUnR)+chr(10)+;
+    IF(lVenta,"Aplicar incremento solo a precios de venta","")+chr(10)+;
+    IF(lSumaUtilidad,"Sumar utilidad a la existente","")+chr(10)+;
+    "Redondeo:"+STR(nRedondeo) )
+  
+  //oApp:oServer:Backup( aTabla, "backup\articulos"+DTOS(DATE())+TIME()+".sql", .t.,.t.,500,"Guardando datos","Fin guardado",.f.,{|| MsgInfo('Haciendo Backup') })
+
+  
   oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"campre (codigo,preciocos,precossiva,precioven,reventa,fecmod,usuario,ip) "+;
                        "(SELECT a.codigo,IF(a1.costofin>0,a1.costofin,a.preciocos),a1.preciocos1,TRUNCATE(a1.precioven1,0),"+;
                        "TRUNCATE(a1.reventa1,0),CURDATE(),"+ClipValue2Sql(oApp:usuario)+",'Cambio General x %' "+;
@@ -126,11 +140,14 @@ TRY
 
   oApp:oServer:Execute("DROP TABLE articu_temp")                   
   oApp:oServer:CommitTransaction()
+  Procesando(.f.)
 CATCH oError
+  Procesando(.f.)
   MsgStop("Error al grabar"+CHR(10)+oError:description,"Error")
   oApp:oServer:RollBack()
   LOOP
 END TRY
+MsgInfo("Proceso Terminado","Atencion")
 EXIT
 ENDDO  
 
@@ -693,4 +710,40 @@ IF nError > 0
    MsgStop("Hay "+STR(nError,5)+" errores","Errores")   
 ENDIF
 oBrwTmp:Refresh()
+RETURN nil
+
+STATIC FUNCTION BackupArt(cFile,cDetalle)
+LOCAL oQry := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu a WHERE "+cWhere), cText := "",;
+      cTable := "ge"+oApp:cId+"articu", nCol
+        
+cText += CRLF
+cText += CRLF
+cText += "/*--" + CRLF
+cText += "-- Dumping data for table " + cTable + CRLF
+cText += cDetalle
+cText += "--*/" + CRLF
+cText += CRLF
+cText += CRLF
+cText += "LOCK TABLES " + cTable + " WRITE;" + CRLF
+cText += "INSERT INTO " + cTable + " ("
+FOR nCol := 1 TO oQry:FCount()
+  cText += oQry:FieldName( nCol ) + ","
+NEXT
+cText = Left( cText, len( cText ) - 1 )
+cText += ") VALUES "
+cText += "(" 
+DO WHILE !oQry:Eof()
+   FOR nCol := 1 TO oQry:FCount()
+      cText += ClipValue2Sql(oQry:FieldGet( nCol )) + ","
+   NEXT
+   cText = Left( cText, len( cText ) - 1 )
+   cText += "),"
+   oQry:Skip()
+ENDDO
+cText = Left( cText, len( cText ) - 1 ) +";"+ CRLF
+cText += "UNLOCK TABLES"
+
+memowrit( cFile, cText )
+oQry:End()
+oQry  := NIL
 RETURN nil

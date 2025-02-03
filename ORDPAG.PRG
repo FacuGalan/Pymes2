@@ -140,7 +140,7 @@ DO WHILE .T.
     oBrw:aCols[9]:nFooterType := AGGR_SUM
     oBrw:aCols[6]:lAutoSave := .t.
     oBrw:aCols[6]:nEditType := EDIT_GET  
-    oBrw:aCols[6]:bEditValid  := {|oGet, oCol| ControlSaldo(oGet:value,EVAL(oBrw:aCols[5]:bEditValue))} 
+    //oBrw:aCols[6]:bEditValid  := {|oGet, oCol| ControlSaldo(oGet:value,EVAL(oBrw:aCols[5]:bEditValue))} 
     oBrw:aCols[6]:bOnPostEdit := {|oCol, xVal, nKey | CambiaSaldo(xval)}  
     oBrw:aCols[6]:bOnChange := {|| oBot[3]:SetFocus(),oBrw:SetFocus(),mentrega:=oApp:oServer:Query("SELECT SUM(pagado) AS suma FROM transi_ordpag"):suma-nAnticipo,oGet[4]:Refresh()}
     PintaBrw(oBrw,0)    
@@ -610,12 +610,30 @@ RETURN .T.
 *****************************************
 ** Cambiar saldo
 STATIC FUNCTION CambiaSaldo(n)
-LOCAL base := oQry:GetRowObj()
-base:pagado := n 
-base:saldonue := ABS(oQry:saldo-n) * IF(base:saldo<0,-1,1)
-oQry:oRow := base
-oQry:Save()
-oQry:Refresh()
+LOCAL base := oQry:GetRowObj(), lRet
+IF base:saldo < 0
+   IF ABS(n) <= ABS(base:saldo) .and. n <= 0
+      lRet := .t.
+      ELSE
+      lRet := .f.
+   ENDIF
+ELSE
+   IF n <= base:saldo
+      lRet := .t.
+      ELSE
+      lRet := .f.
+   ENDIF
+ENDIF
+IF !lRet
+   
+   MsgStop("No puede abonar mas de lo adeudado","Error")
+   ELSE 
+   base:pagado := n 
+   base:saldonue := ABS(oQry:saldo-n) * IF(base:saldo<0,-1,1)
+   oQry:oRow := base
+   oQry:Save()
+   oQry:Refresh()
+ENDIF   
 RETURN nil
 
 

@@ -347,7 +347,7 @@ oQryLisPre:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre")
     REDEFINE GET oGet[15] VAR cDetArt   ID 192  OF oDlg2 PICTURE "@!" WHEN(.F.)
     REDEFINE GET oGet[16] VAR nCantidad ID 193  OF oDlg2 PICTURE "999999.999"  VALID(nCantidad>0) WHEN(nTiArt=1)
     REDEFINE GET oGet[17] VAR nPunit    ID 194  OF oDlg2 PICTURE "99999999.999" WHEN(lAdmin)
-    REDEFINE GET oGet[33] VAR nDescArt  ID 4003 OF oDlg2 PICTURE "999.99" WHEN(lAdmin)
+    REDEFINE GET oGet[33] VAR nDescArt  ID 4003 OF oDlg2 PICTURE "999.99" WHEN(lAdmin) VALID(nDescArt>=0 .and. nDescArt<=100)
     REDEFINE GET oGet[18] VAR nPtotal   ID 195  OF oDlg2 PICTURE "99999999.999" ;
             WHEN((oGet[18]:cText := nCantidad*nPunit-(nCantidad*nPunit)*(nDescArt/100)) = "-9" .and. nTiArt=1) 
     REDEFINE GET oGet[39] VAR cCodArtP   ID 4016  OF oDlg2 WHEN(nTiArt=1 .and. oApp:usar_codpro);
@@ -406,7 +406,8 @@ oQryLisPre:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre")
     //BOTONES ---------------------------------------------------------------
     //+
     REDEFINE BUTTON oBot[1] ID 196 ACTION(AgregaItem(nTiArt,@lUsoBorrar),IF(nTiArt=1,oGet[14]:Setfocus(),oGet[25]:Setfocus()) ) ;
-                   WHEN(((nCodArt>0 .and. nTiArt=1 .and. nPtotal>0) .or. (nTiArt=2 .and. cDetArt<>SPACE(30) .and. nPtotal>0)) .and. nCantidad > 0)
+                   WHEN(((nCodArt>0 .and. nTiArt=1 .and. (nPtotal>0 .or. nDescArt=100)) ;
+                    .or. (nTiArt=2 .and. cDetArt<>SPACE(30) .and. nPtotal>0)) .and. nCantidad > 0)
     //cancelar
     REDEFINE BUTTON oBot[2] ID 102 ACTION (LimpiarForm()) 
     //grabar

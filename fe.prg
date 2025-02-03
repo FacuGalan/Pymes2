@@ -669,7 +669,7 @@ ENDIF
 
 // Valores
 nNeto  := IF(cLetra="C",ROUND(nImpTotal,2),ROUND(nImpNeto,2))
-nNeto  := IF(nImpInt>0, nNeto - nImpInt, nNeto)
+nNeto  := IF(nImpInt>0 .AND. cLetra= 'C', nNeto - nImpInt, nNeto)
 nTotal := ROUND(nImpTotal,2)
 nIva   := IF(cLetra="C",0,ROUND(nImpIva,2))
 IF nNeto + nIva + nImpInt > nTotal .and. nImpInt > 0

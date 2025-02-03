@@ -49,7 +49,7 @@ oQry := oApp:oServer:Query("SELECT fecha, CONCAT('REC ',LPAD(CAST(numero AS CHAR
                             "       fecha <= " + ClipValue2Sql(mhasta) + " AND "+;
                             "       cliente = " + ClipValue2Sql(mcodcli) + " AND total <> 0 "+;
                             " UNION "+;                            
-                           "SELECT fecha, CONCAT(ticomp,numcomp) AS compro,"+;
+                           "SELECT fecha, CONCAT(ticomp,letra,numcomp) AS compro,"+;
                            " importe*IF(ticomp='NC' OR ticomp='DE',-1,1) AS debe, 0 AS haber, 0 as interes"+;                         
                            " FROM ge_"+oApp:cId+"ventas_encab "+;                         
                            " WHERE fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
@@ -103,14 +103,14 @@ RETURN
 ** Resumen de deudas
 PROCEDURE Repcre2()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
-      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(9), oBot1, oBot2, oQryVen,;
+      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(10), oBot1, oBot2, oQryVen,;
       cTodos := "Todos                   ", mnomven := SPACE(30), mdesde := CTOD("01/01/2020"), mhasta := DATE(),;
       lDeta := .f.,mvendedor := 0,lTipo:=.f.,;
-      oQryCli, mcliente := 0, mnomcli := SPACE(30)
+      oQryCli, mcliente := 0, mnomcli := SPACE(30), lDeta1 := .f.
 oQryVen:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"vendedores")   
 oQryCli:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"clientes")           
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
-DEFINE DIALOG oDlg1 TITLE "Resumen de Deudas a cobrar" FROM 03,15 TO 17,70 Of oApp:oWnd
+DEFINE DIALOG oDlg1 TITLE "Resumen de Deudas a cobrar" FROM 03,15 TO 18,70 Of oApp:oWnd
    acor := AcepCanc(oDlg1)    
    @ 07, 01 SAY "Desde Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
    @ 22, 01 SAY "Hasta Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
@@ -129,6 +129,7 @@ DEFINE DIALOG oDlg1 TITLE "Resumen de Deudas a cobrar" FROM 03,15 TO 17,70 Of oA
    @ 50,100 GET oGet[8] VAR mnomcli PICTURE "@!"  OF oDlg1 PIXEL;
                 WHEN((oGet[8]:cText := IF(mcliente=0,cTodos,oQryCli:nombre)) = SPACE(30))
    @ 65, 05 CHECKBOX oGet[6] VAR lDeta PROMPT "Emitir detalle" OF oDlg1 PIXEL SIZE 80,12
+   @ 80, 05 CHECKBOX oGet[10] VAR lDeta1 PROMPT "Solo Origen/Saldo" OF oDlg1 PIXEL SIZE 80,12 WHEN(lDeta)
    @ 65,105 CHECKBOX oGet[9] VAR lTipo PROMPT "Solo Imputables" OF oDlg1 PIXEL SIZE 80,12 
 
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
@@ -197,62 +198,104 @@ ACTIVATE REPORT oRep WHILE !oQry:EOF() ON INIT CursorArrow() ;
          ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.jpg",1,1)
 oQry:End()
 ELSE
-oQry := oApp:oServer:Query("SELECT * FROM ("+;
-	                     "SELECT v.cliente AS codcli, c.nombre AS nombre, c.direccion AS direccion, "+;
-                         " c.telefono AS telefono, CONCAT(v.tipo,v.letra,v.numero,' ',v.cuota) AS compro, "+;
-                         " v.saldo*IF(v.tipo='NC',-1,1) AS saldo,"+;
-                         " v.fecha AS fecha " +;
-                         " FROM ge_"+oApp:cId+"ventas_cuota v LEFT JOIN ge_"+oApp:cId+"clientes c ON v.cliente = c.codigo "+;
-                         " WHERE v.saldo <> 0 "+;
-                         " AND "+IF(mvendedor=0,"TRUE","c.vendedor = "+ClipValue2Sql(mvendedor))+;
-                         " AND " + IF(mcliente=0,"TRUE ","v.cliente = "+ClipValue2Sql(mcliente))+" "+;
-                         " AND " + IF(!lTipo,"TRUE ","v.letra <> 'X' ")+" "+;
-                         " UNION " +;
-                         "SELECT codigo AS codcli, nombre, direccion, "+;
-                         " telefono, 'Anticipo' AS compro, "+;
-                         "saldo*(-1)," +;
-                         " CURDATE()  AS fecha " +;
-                         " FROM ge_"+oApp:cId+"clientes  "+;
-                         " WHERE TRUE "+;
-                         " AND "+IF(mvendedor=0,"TRUE","vendedor = "+ClipValue2Sql(mvendedor))+;
-                         " AND " + IF(mcliente=0,"TRUE ","codigo = "+ClipValue2Sql(mcliente))+" "+;
-                         ") res WHERE res.saldo <>0 ORDER BY res.nombre,res.fecha " )
-REPORT oRep TITLE "Detalle de deudas a cobrar " + ALLTRIM(mnomven) ;
-       FONT  oFont1,oFont2,oFont3 ;
-       HEADER OemToAnsi(oApp:nomb_emp)  , ;
-       "Detalle de deudas a cobrar " CENTER ;
-       FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
-       PREVIEW CAPTION  "Detalle de deudas"       
-GROUP ON oQry:codcli HEADER "Cliente: ("+ STR(oQry:codcli) + ") " + ALLTRIM(oQry:nombre)+;
-       " - " + ALLTRIM(oQry:direccion) + " - " + ALLTRIM(oQry:telefono);
-      FOOTER "Total Cliente" FONT 3
+  IF !lDeta1
+    oQry := oApp:oServer:Query("SELECT * FROM ("+;
+    	                     "SELECT v.cliente AS codcli, c.nombre AS nombre, c.direccion AS direccion, "+;
+                             " c.telefono AS telefono, CONCAT(v.tipo,v.letra,v.numero,' ',v.cuota) AS compro, "+;
+                             " v.saldo*IF(v.tipo='NC',-1,1) AS saldo,"+;
+                             " v.fecha AS fecha " +;
+                             " FROM ge_"+oApp:cId+"ventas_cuota v LEFT JOIN ge_"+oApp:cId+"clientes c ON v.cliente = c.codigo "+;
+                             " WHERE v.saldo <> 0 "+;
+                             " AND "+IF(mvendedor=0,"TRUE","c.vendedor = "+ClipValue2Sql(mvendedor))+;
+                             " AND " + IF(mcliente=0,"TRUE ","v.cliente = "+ClipValue2Sql(mcliente))+" "+;
+                             " AND " + IF(!lTipo,"TRUE ","v.letra <> 'X' ")+" "+;
+                             " UNION " +;
+                             "SELECT codigo AS codcli, nombre, direccion, "+;
+                             " telefono, 'Anticipo' AS compro, "+;
+                             "saldo*(-1)," +;
+                             " CURDATE()  AS fecha " +;
+                             " FROM ge_"+oApp:cId+"clientes  "+;
+                             " WHERE TRUE "+;
+                             " AND "+IF(mvendedor=0,"TRUE","vendedor = "+ClipValue2Sql(mvendedor))+;
+                             " AND " + IF(mcliente=0,"TRUE ","codigo = "+ClipValue2Sql(mcliente))+" "+;
+                             ") res WHERE res.saldo <>0 ORDER BY res.nombre,res.fecha " )
+    REPORT oRep TITLE "Detalle de deudas a cobrar " + ALLTRIM(mnomven) ;
+           FONT  oFont1,oFont2,oFont3 ;
+           HEADER OemToAnsi(oApp:nomb_emp)  , ;
+           "Detalle de deudas a cobrar " CENTER ;
+           FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
+           PREVIEW CAPTION  "Detalle de deudas"       
+    GROUP ON oQry:codcli HEADER "Cliente: ("+ STR(oQry:codcli) + ") " + ALLTRIM(oQry:nombre)+;
+           " - " + ALLTRIM(oQry:direccion) + " - " + ALLTRIM(oQry:telefono);
+          FOOTER "Total Cliente" FONT 3
 
-COLUMN TITLE "Comprobante"  DATA oQry:compro     SIZE 14 FONT 1
-COLUMN TITLE "Fecha"        DATA FechaSql(oQry:fecha)       PICTURE "@D" SIZE 09 FONT 1
-COLUMN TITLE "+60 dias"     DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha>60,oQry:saldo,0)  ;
-             SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
-COLUMN TITLE "30/60 dias"   DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha>30 .AND. DATE()-oQry:fecha<=60 ,oQry:saldo,0)  ;
-             SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
-COLUMN TITLE "30 dias"      DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha>00 .AND. DATE()-oQry:fecha<=30 ,oQry:saldo,0)  ;
-             SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
-COLUMN TITLE "A Vencer"     DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha<=00 ,oQry:saldo,0)  ;
-             SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
-COLUMN TITLE "Sin aplicar"  DATA IF(oQry:compro = "Anticipo"  ,oQry:saldo,0)  ;
-             SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
-COLUMN TITLE "Total"        DATA oQry:saldo  ;
-             SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
+    COLUMN TITLE "Comprobante"  DATA oQry:compro     SIZE 14 FONT 1
+    COLUMN TITLE "Fecha"        DATA FechaSql(oQry:fecha)       PICTURE "@D" SIZE 09 FONT 1
+    COLUMN TITLE "+60 dias"     DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha>60,oQry:saldo,0)  ;
+                 SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
+    COLUMN TITLE "30/60 dias"   DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha>30 .AND. DATE()-oQry:fecha<=60 ,oQry:saldo,0)  ;
+                 SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
+    COLUMN TITLE "30 dias"      DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha>00 .AND. DATE()-oQry:fecha<=30 ,oQry:saldo,0)  ;
+                 SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
+    COLUMN TITLE "A Vencer"     DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha<=00 ,oQry:saldo,0)  ;
+                 SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
+    COLUMN TITLE "Sin aplicar"  DATA IF(oQry:compro = "Anticipo"  ,oQry:saldo,0)  ;
+                 SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
+    COLUMN TITLE "Total"        DATA oQry:saldo  ;
+                 SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
 
-// Digo que el titulo lo escriba con al letra 2
-oRep:oTitle:aFont[1] := {|| 2 }
-oRep:oTitle:aFont[1] := {|| 2 }
-oRep:bInit := {|| oQry:GoTop() }
-oRep:bSkip := {|| oQry:Skip() }
+    // Digo que el titulo lo escriba con al letra 2
+    oRep:oTitle:aFont[1] := {|| 2 }
+    oRep:oTitle:aFont[1] := {|| 2 }
+    oRep:bInit := {|| oQry:GoTop() }
+    oRep:bSkip := {|| oQry:Skip() }
 
-END REPORT
-ACTIVATE REPORT oRep WHILE !oQry:EOF() ON INIT CursorArrow() ;
-         ON STARTGROUP oRep:NewLine() ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.jpg",1,1);
-         ON POSTGROUP oRep:NewLine()
-oQry:End()
+    END REPORT
+    ACTIVATE REPORT oRep WHILE !oQry:EOF() ON INIT CursorArrow() ;
+             ON STARTGROUP oRep:NewLine() ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.jpg",1,1);
+             ON POSTGROUP oRep:NewLine()
+    oQry:End()
+    ELSE
+    //Detalle Simple
+    oQry := oApp:oServer:Query(""+;
+                           "SELECT v.cliente AS codcli, c.nombre AS nombre, c.direccion AS direccion, "+;
+                             " c.telefono AS telefono, CONCAT(v.tipo,v.letra,v.numero,' ',v.cuota) AS compro, "+;
+                             " v.importe*IF(v.tipo='NC',-1,1) AS origen,"+;
+                             " v.saldo*IF(v.tipo='NC',-1,1) AS saldo,"+;
+                             " v.fecha AS fecha " +;
+                             " FROM ge_"+oApp:cId+"ventas_cuota v LEFT JOIN ge_"+oApp:cId+"clientes c ON v.cliente = c.codigo "+;
+                             " WHERE v.saldo <> 0 "+;
+                             " AND "+IF(mvendedor=0,"TRUE","c.vendedor = "+ClipValue2Sql(mvendedor))+;
+                             " AND " + IF(mcliente=0,"TRUE ","v.cliente = "+ClipValue2Sql(mcliente))+" "+;
+                             " AND " + IF(!lTipo,"TRUE ","v.letra <> 'X' ")+" ORDER BY v.nombre, v.fecha")
+    REPORT oRep TITLE "Detalle de deudas a cobrar " + ALLTRIM(mnomven) ;
+           FONT  oFont1,oFont2,oFont3 ;
+           HEADER OemToAnsi(oApp:nomb_emp)  , ;
+           "Detalle de deudas a cobrar " CENTER ;
+           FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
+           PREVIEW CAPTION  "Detalle de deudas"       
+    GROUP ON oQry:codcli HEADER "Cliente: ("+ STR(oQry:codcli) + ") " + ALLTRIM(oQry:nombre)+;
+           " - " + ALLTRIM(oQry:direccion) + " - " + ALLTRIM(oQry:telefono);
+          FOOTER "Total Cliente" FONT 3
+
+    COLUMN TITLE "Comprobante"  DATA oQry:compro     SIZE 14 FONT 1
+    COLUMN TITLE "Fecha"        DATA FechaSql(oQry:fecha)       PICTURE "@D" SIZE 09 FONT 1
+    COLUMN TITLE "Imp.Origen"   DATA oQry:origen SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
+    COLUMN TITLE "Aplicado"     DATA oQry:origen-oQry:saldo SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
+    COLUMN TITLE "Saldo Actual" DATA oQry:saldo  SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
+    
+    // Digo que el titulo lo escriba con al letra 2
+    oRep:oTitle:aFont[1] := {|| 2 }
+    oRep:oTitle:aFont[1] := {|| 2 }
+    oRep:bInit := {|| oQry:GoTop() }
+    oRep:bSkip := {|| oQry:Skip() }
+
+    END REPORT
+    ACTIVATE REPORT oRep WHILE !oQry:EOF() ON INIT CursorArrow() ;
+             ON STARTGROUP oRep:NewLine() ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.jpg",1,1);
+             ON POSTGROUP oRep:NewLine()
+    oQry:End()
+  ENDIF
 ENDIF
 RETURN 
 
