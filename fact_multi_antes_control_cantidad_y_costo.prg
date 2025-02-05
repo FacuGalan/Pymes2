@@ -509,9 +509,6 @@ IF n = 1
       MsgStop("Cantidad no válida","Error")
       RETURN nil
    ENDIF   
-   IF !ValidarCantidad(oQryDet:codart, nVal-oQryDet:cantidad)
-      RETURN nil 
-   ENDIF
    oQryDet:cantidad := nVal
    oQryDet:ptotal    := oQryDet:ptotal / nCantAnt * nVal
    oQryDet:neto     := oQryDet:neto / nCantAnt * nVal
@@ -1112,7 +1109,7 @@ IF nCodArt >= 0
       ENDIF
    ENDIF
 
-   /*IF oQryPun:pidestock = 1 .and. oQryAux:stockact-nCantidad < 0 .and. !oQryAux:stockotro
+   IF oQryPun:pidestock = 1 .and. oQryAux:stockact-nCantidad < 0 .and. !oQryAux:stockotro
       lRta:=MsgYesNo("El articulo que esta facturando esta fuera de stock,"+CHR(10)+;
               "verifique su disponibilidad ¿Desea continuar?"+CHR(10)+;
               "Stock actual: "+ALLTRIM(STR(oQryAux:stockact)),"Atencion")
@@ -1131,9 +1128,6 @@ IF nCodArt >= 0
      MsgAlert("Se esta quedando sin stock, llego al stock minimo","Atencion")    
      oDlg1:SetFocus() 
      oGet[02]:SetFocus()
-  ENDIF*/
-  IF !ValidarCantidad(nCodart,nCantidad)
-     RETURN nil 
   ENDIF
 
    nDescMar:= oApp:oServer:Query("SELECT descuento FROM ge_"+oApp:cId+"desccli WHERE codmar ="+ClipValue2Sql(oQryAux:marca)+" AND "+;
@@ -1151,30 +1145,6 @@ IF nCodArt >= 0
    nIvaPes := nPrecio1 - (nPrecio1 / (1 + oQryIva:tasa/100))
    nSubTotal:= nPrecio1 - nIvaPes   
    nTotalcIva := nPrecio1 + (oQryAux:impint*nCantidad)
-
-   //Valido el costo y aviso   
-   IF oQryPun:validacosto = 1
-      IF oQryAux:preciocos > (nTotalcIva/nCantidad) * IF(oQryAux:endolares,oQryPar:dolar,1)
-          lRta:=MsgYesNo("El precio que está facturando está por debajo,"+CHR(10)+;
-              "del costo del producto ¿Desea continuar?"+CHR(10)+;
-              "Costo: "+ALLTRIM(STR(oQryAux:preciocos)),"Atencion")
-          IF !lRta 
-             RETURN .f.
-          ENDIF      
-          oBrwDet:SetFocus()
-          oGet[02]:SetFocus()
-      ENDIF 
-   ENDIF
-   //Prohibo la venta por costo menor a venta
-   IF oQryPun:validacosto = 2
-      IF oQryAux:preciocos > (nTotalcIva/nCantidad) * IF(oQryAux:endolares,oQryPar:dolar,1)
-          MsgStop("No puede facturar el articulo seleccionado porque el "+CHR(10)+;
-             "precio está por debajo del costo"+CHR(10)+;
-             "Costo: "+ALLTRIM(STR(oQryAux:preciocos)),"Atencion")
-          RETURN .F.
-      ENDIF
-   ENDIF
-
    oApp:oServer:Execute("INSERT INTO VENTAS_DET_H1 (codart,detart,cantidad,punit,ptotal,neto,iva,codiva,descuento,stotal,pcosto,impint) "+;
                          "VALUE ( "+ClipValue2Sql(nCodArt)+","+;
                                  ClipValue2Sql(oQryAux:nombre)+","+;
@@ -1347,17 +1317,16 @@ RETURN nil
 *********************************************************************************************************
 **********APLICA DESCUENTOS A LA MESA
 STATIC FUNCTION CargaDescu()
-LOCAL acor:=ARRAY(4),oDlgD,oGet1:=ARRAY(3),oBot1,oBot2,lRta:=.f.,nDescTemp:=0,nOpcion:=1,;
-      aTipos:={"Descuento","Recargo"}, lSoloPuntual := .f., nDescuPun, oFont
-DEFINE FONT oFont   NAME "ARIAL" SIZE 0,-10
-DEFINE DIALOG oDlgD TITLE "Aplicar descuentos a la venta" OF oDlg1 FROM 05,15 TO 13,55 FONT oFont
+LOCAL acor:=ARRAY(4),oDlgD,oGet1:=ARRAY(2),oBot1,oBot2,lRta:=.f.,nDescTemp:=0,nOpcion:=1,;
+      aTipos:={"Descuento","Recargo"}
+
+DEFINE DIALOG oDlgD TITLE "Aplicar descuentos a la venta" OF oDlg1 FROM 05,15 TO 11,55
   acor := AcepCanc(oDlgD)
   
 
    @ 12, 05 SAY "Porcentaje:" OF oDlgD PIXEL SIZE 40,12 RIGHT
    @ 10, 50 GET oGet1[1] VAR nDescTemp OF oDlgD PIXEL PICTURE "999.99" RIGHT
    @ 10, 80 COMBOBOX oGet1[2] VAR nOpcion ITEMS aTipos OF oDlgD PIXEL SIZE 40,12
-   @ 25, 05 CHECKBOX oGet1[3] VAR lSoloPuntual PROMPT "Aplicar solo a articulo seleccionado" SIZE 90,12 PIXEL
 
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Aceptar" OF oDlgD SIZE 30,10 ;
            ACTION ((lRta := .t.), oDlgD:End() ) PIXEL
@@ -1365,72 +1334,22 @@ DEFINE DIALOG oDlgD TITLE "Aplicar descuentos a la venta" OF oDlg1 FROM 05,15 TO
            ACTION ((lRta := .f.), oDlgD:End() ) PIXEL CANCEL 
            
 ACTIVATE DIALOG oDlgD CENTER ON INIT oGet1[1]:SetFocus
-RELEASE oFont
 IF !lRta
    RETURN .f.
 ENDIF
-IF !lSoloPuntual
-    IF nOpcion = 1
-       nDescu:= nDescTemp
-    ELSE
-       nDescu:= -nDescTemp
-    ENDIF 
-    CrearTemporales()
-    oApp:oServer:BeginTransaction()
-    oApp:oServer:Execute("UPDATE VENTAS_DET_H1 v LEFT JOIN ge_"+oApp:cId+"ivas i  ON i.codigo = v.codiva "+;
-                         "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+;
-                         "SET v.descuento = (v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100),"+;
-                             "v.iva =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))-(((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100)),"+;
-                             "v.stotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100),"+;
-                             "v.ptotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100))),"+;
-                             "v.neto =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100)")
-    IF oApp:oServer:Query("SELECT * FROM VENTAS_DET_H1 WHERE pcosto > (ptotal/cantidad)"):nRecCount > 0
-       IF oQryPun:validacosto = 1
-          lRta:=MsgYesNo("El descuento aplicado deja por debajo,"+CHR(10)+;
-                  "del costo a producto ¿Desea continuar?","Atencion")
-          IF !lRta
-             oApp:oServer:RollBack()
-          ENDIF
-       ENDIF
-       IF oQryPun:validacosto = 2
-          MsgStop("No puede aplicar decuento seleccionado porque el "+CHR(10)+;
-                 "precio deja por debajo del costo a productos","Atencion")
-          oApp:oServer:RollBack()
-       ENDIF
-       oApp:oServer:CommitTransaction()
-    ENDIF 
-    ELSE 
-    IF nOpcion = 1
-       nDescuPun:= nDescTemp
-    ELSE
-       nDescuPun:= -nDescTemp
-    ENDIF 
-    CrearTemporales()
-    oApp:oServer:BeginTransaction()
-    oApp:oServer:Execute("UPDATE VENTAS_DET_H1 v LEFT JOIN ge_"+oApp:cId+"ivas i  ON i.codigo = v.codiva "+;
-                         "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+;
-                         "SET v.descuento = (v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100),"+;
-                             "v.iva =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100)))-(((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100)))/(1+i.tasa/100)),"+;
-                             "v.stotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100)))/(1+i.tasa/100),"+;
-                             "v.ptotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100))),"+;
-                             "v.neto =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100)))/(1+i.tasa/100)"+;
-                             " WHERE v.id = " + STR(oQryDet:id))
-    IF oApp:oServer:Query("SELECT * FROM VENTAS_DET_H1 WHERE pcosto > (ptotal/cantidad)"):nRecCount > 0
-       IF oQryPun:validacosto = 1
-          lRta:=MsgYesNo("El descuento aplicado deja por debajo,"+CHR(10)+;
-                  "del costo a producto ¿Desea continuar?","Atencion")
-          IF !lRta
-             oApp:oServer:RollBack()
-          ENDIF
-       ENDIF
-       IF oQryPun:validacosto = 2
-          MsgStop("No puede aplicar decuento seleccionado porque el "+CHR(10)+;
-                 "precio deja por debajo del costo a productos","Atencion")
-          oApp:oServer:RollBack()
-       ENDIF
-       oApp:oServer:CommitTransaction()
-    ENDIF 
-ENDIF
+IF nOpcion = 1
+   nDescu:= nDescTemp
+ELSE
+   nDescu:= -nDescTemp
+ENDIF 
+CrearTemporales()
+oApp:oServer:Execute("UPDATE VENTAS_DET_H1 v LEFT JOIN ge_"+oApp:cId+"ivas i  ON i.codigo = v.codiva "+;
+                     "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+;
+                     "SET v.descuento = (v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100),"+;
+                         "v.iva =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))-(((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100)),"+;
+                         "v.stotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100),"+;
+                         "v.ptotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100))),"+;
+                         "v.neto =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100)")
 oQryDet:Refresh()
 oBrwDet:Refresh()
 oBrwDet:MakeTotals()
@@ -1687,15 +1606,8 @@ ACTIVATE DIALOG oDlgC CENTER ON INIT (PoneFormas(oBot1)) VALID ((nPagadoT:=oBrwP
 IF !lRta
     RETURN nil 
 ENDIF
-IF ROUND(oApp:oServer:Query("SELECT SUM(importe) AS monto FROM formapag_temp WHERE tipopag <> 1"):monto,2) > ROUND(nTotal,2) 
-   MsgStop("Las formas de pago son mayores al total de la venta","Imposible continuar")
-   oApp:oServer:Execute("DELETE FROM formapag_temp")
-   nVuelto:= 0
-   nPagado:= 0
-   ELSE 
-   nVuelto:= nVueltoT
-   nPagado:= nPagadoT
-ENDIF
+nVuelto:= nVueltoT
+nPagado:= nPagadoT
 oGet[04]:Refresh()
 oGet[05]:Refresh()
 RELEASE FONT oFontBot
@@ -2174,99 +2086,3 @@ oApp:oServer:Execute("";
     +" PRIMARY KEY (RENGLON)) ENGINE=INNODB DEFAULT CHARSET=utf8")  
 
 RETURN nil
-
-//Validar Cantidad si lleva control de stock
-STATIC FUNCTION ValidarCantidad(nCod, nVal)
-LOCAL lRta := .t., nCanti, oQryAux, oQryS
-IF nCod <= 0
-   RETURN .t.
-ENDIF   
-nCanti := oApp:oServer:Query("SELECT SUM(cantidad) as canti FROM VENTAS_DET_H1 WHERE codart ="+str(nCod)):canti
-nCanti := nCanti + nVal
-oQryAux := oApp:oServer:Query("SELECT* FROM ge_"+oApp:cId+"articu WHERE codigo ="+str(nCod))
-  //Valido que tenga stock el producto cuando no es stock de otro
-   IF oQryPun:pidestock = 1 .and. oQryAux:stockact-nCanti < 0 .and. !oQryAux:stockotro
-      lRta:=MsgYesNo("El articulo que esta facturando esta fuera de stock,"+CHR(10)+;
-              "verifique su disponibilidad ¿Desea continuar?"+CHR(10)+;
-              "Stock actual: "+ALLTRIM(STR(oQryAux:stockact)),"Atencion")
-      IF !lRta 
-         RETURN .f.
-      ENDIF      
-      oBrwDet:SetFocus()
-      oGet[02]:SetFocus()
-  ENDIF
-  //Valido que tenga stock el producto que es stock de otro
-  IF oQryPun:pidestock = 1 .and. oQryAux:stockotro 
-      oQryS := oApp:oServer:Query("SELECT r.CODUSA, (a.STOCKACT - (r.CANTIDAD * "+STR(nCanti)+" )) AS STOCK_FINAL "+;
-                                  " FROM ge_"+oApp:cId+"reseta r "+;
-                                  " JOIN ge_"+oApp:cId+"articu a ON r.CODUSA = a.CODIGO "+;
-                                  " JOIN ge_"+oApp:cId+"articu a1 ON r.CODART = a1.CODIGO "+;
-                                  " WHERE r.CODART = "+STR(nCod)+;
-                                  " HAVING STOCK_FINAL < 0")
-      IF oQryS:nRecCount > 0
-          lRta:=MsgYesNo("El articulo que esta facturando tiene receta, y los articulos"+chr(10)+;
-                  "que la componen estan fuera de stock,"+CHR(10)+;
-                  "verifique su disponibilidad ¿Desea continuar?","Atencion")
-          IF !lRta 
-             RETURN .f.
-          ENDIF      
-          oBrwDet:SetFocus()
-          oGet[02]:SetFocus()
-      ENDIF    
-  ENDIF
-
-  //No dejo vender por falta de stock
-  IF oQryPun:pidestock = 2 .and. oQryAux:stockact-nCanti < 0 .and. !oQryAux:stockotro
-     MsgStop("No puede facturar el articulo seleccionado porque no esta en stock"+CHR(10)+;
-           "Stock actual: "+ALLTRIM(STR(oQryAux:stockact)),"Atencion")
-     RETURN .F.
-  ENDIF
-  //No dejo vender por falta de stock de la receta
-  IF oQryPun:pidestock = 2 .and. oQryAux:stockotro 
-      oQryS := oApp:oServer:Query("SELECT r.CODUSA, (a.STOCKACT - (r.CANTIDAD * "+STR(nCanti)+" )) AS STOCK_FINAL "+;
-                                  " FROM ge_"+oApp:cId+"reseta r "+;
-                                  " JOIN ge_"+oApp:cId+"articu a ON r.CODUSA = a.CODIGO "+;
-                                  " JOIN ge_"+oApp:cId+"articu a1 ON r.CODART = a1.CODIGO "+;
-                                  " WHERE r.CODART = "+STR(nCod)+;
-                                  " HAVING STOCK_FINAL < 0")
-      IF oQryS:nRecCount > 0
-          MsgStop("No puede facturar, el articulo seleccionado tiene receta, "+chr(10)+;
-                  "y los articulos que la componen estan fuera de stock."+CHR(10),"Atencion")
-          RETURN .F.
-      ENDIF    
-  ENDIF
-
-
-  IF oQryPun:pidestock < 3 .and. oQryAux:stockmin > 0 .and. oQryAux:stockact-nCanti  < oQryAux:stockmin .and. !oQryAux:stockotro
-     MsgAlert("Se esta quedando sin stock, llego al stock minimo","Atencion")    
-     oDlg1:SetFocus() 
-     oGet[02]:SetFocus()
-  ENDIF
-RETURN lRta
-
-
-//Validar costo si lleva control de costo
-STATIC FUNCTION ValidarCosto(nCos,nVen)
-LOCAL lRta := .t.
-   IF oQryPun:validacosto = 1
-      IF nCos > nVen
-          lRta:=MsgYesNo("El precio que está facturando está por debajo,"+CHR(10)+;
-              "del costo del producto ¿Desea continuar?"+CHR(10)+;
-              "Costo: "+ALLTRIM(STR(nCos)),"Atencion")
-          IF !lRta 
-             RETURN .f.
-          ENDIF      
-          //oBrwDet:SetFocus()
-          //oGet[02]:SetFocus()
-      ENDIF 
-   ENDIF
-   //Prohibo la venta por costo menor a venta
-   IF oQryPun:validacosto = 2
-      IF nCos > nVen
-          MsgStop("No puede facturar el articulo seleccionado porque el "+CHR(10)+;
-             "precio está por debajo del costo"+CHR(10)+;
-             "Costo: "+ALLTRIM(STR(nCos)),"Atencion")
-          RETURN .F.
-      ENDIF
-   ENDIF
-RETURN .t.

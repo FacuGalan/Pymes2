@@ -14,14 +14,16 @@ IF uValor2 <> nil
    ELSE
    cFiltro2 := " TRUE "
 ENDIF
-base:SetOrder("codigo",.T.)
-base:GoTop()
-IF LEN(ALLTRIM(STR(n,13))) >= 11
-   nRows:= base:Locate({n},{"codigo"})
-ELSE
-   nRows:= base:Seek(n,"codigo")
-ENDIF
-IF nRows > 0
+//base:SetOrder("codigo",.T.)
+//base:GoTop()
+//IF LEN(ALLTRIM(STR(n,13))) >= 11
+//   nRows:= base:Locate({n},{"codigo"})
+//ELSE
+//   nRows:= base:Seek(n,"codigo")
+//ENDIF
+//IF nRows > 0
+base:SetNewFilter(SET_WHERE,if('a.'$base:cQuery,'a.codigo','codigo') +"="+ oGet1:cText +  " AND " + cFiltro+" AND "+cFiltro2,.t.)
+IF base:nRecCount > 0
       IF oGet2 <> nil
          oGet2:cText := base:nombre
          oGet2:Refresh()
@@ -38,7 +40,7 @@ IF base:nRecCount > 0
    base:SetNewFilter(SET_WHERE,cFiltro+" AND "+cFiltro2,.t.)
    base:SetOrder("nombre",.T.)
    base:GoTop()
-   oQryPun:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = " + ClipValue2Sql(oApp:cIp))
+   //oQryPun:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = " + ClipValue2Sql(oApp:cIp))
    DEFINE DIALOG oDlg1 RESOURCE "BUSCAR" TITLE "Busqueda" OF oWnd 
      oDlg1:lHelpIcon := .f.
 *     REDEFINE XBROWSE oLbx DATASOURCE base;
@@ -77,19 +79,21 @@ IF uValor2 <> nil
    ELSE
    cFiltro2 := " TRUE "
 ENDIF
-base:SetOrder("codigo",.T.)
-base:GoTop()
-IF LEN(ALLTRIM(STR(n,13))) >= 11
-   nRows:= base:Locate({n},{"codigo"})
-ELSE
-   nRows:= base:Seek(n,"codigo")
-ENDIF
-IF nRows > 0
+//base:SetOrder("codigo",.T.)
+//base:GoTop()
+//IF LEN(ALLTRIM(STR(n,13))) >= 11
+//   nRows:= base:Locate({n},{"codigo"})
+//ELSE
+//   nRows:= base:Seek(n,"codigo")
+//ENDIF
+base:SetNewFilter(SET_WHERE,if('a.'$base:cQuery,'a.codigo','codigo') +"="+ oGet1:cText +  " AND " + cFiltro+" AND "+cFiltro2,.t.)
+//IF nRows > 0
+IF base:nRecCount > 0
       IF oGet2 <> nil
          oGet2:cText := base:nombre
          oGet2:Refresh()
       ENDIF
-   RETURN .t. 
+   RETURN .t.    
 /*base:SetNewFilter(SET_WHERE,"codigo = " + oGet1:cText +  " AND " +cFiltro,.t.)
 IF base:nRecCount > 0
    IF oGet2 <> nil
@@ -105,7 +109,7 @@ IF base:nRecCount > 0
    FOR i:= 1 TO base:FCount()
        AADD(aSizes,base:FieldLen(i))
    NEXT i     
-   oQryPun:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = " + ClipValue2Sql(oApp:cIp))
+   //oQryPun:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = " + ClipValue2Sql(oApp:cIp))
    DEFINE DIALOG oDlg1 RESOURCE "BUSCARART" TITLE "Busqueda" OF oWnd 
      oDlg1:lHelpIcon := .f.
 *     REDEFINE XBROWSE oLbx DATASOURCE base;
@@ -126,7 +130,7 @@ IF base:nRecCount > 0
       oGet2:cText := base:nombre
       oGet2:Refresh()
    ENDIF
-   *base:SetOrder("codigo",.T.)	   
+   //base:SetOrder("codigo",.T.)	   
 ENDIF
 RETURN .t.
 

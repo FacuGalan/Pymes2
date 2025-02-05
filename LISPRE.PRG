@@ -357,7 +357,7 @@ DEFINE DIALOG oDlgA TITLE "Seleccione el articulo" FROM 05,15 TO 15,90 OF oForm
    @ 10, 50 GET oGet1 VAR nArticu OF oDlgA PIXEL PICTURE "99999999999999" SIZE 45,12 RIGHT;
                VALID(BuscarArt(oQryArt,oDlgA,oGet1,oGet2) .and. (oGet3:cText:= oQryArt:preciobase) <> "xxx" .and.;
                     (oGet4:cText:= (oQryArt:preciobase + oQryArt:preciobase * (nPorc/100) )) <> "xxx"  );
-               ACTION (oGet1:cText:= "0", BuscarArt(oQryArt,oDlgA,oGet1,oGet2),oGet3:cText:= oQryArt:preciobase,;
+               ACTION (oGet1:cText:= 0, BuscarArt(oQryArt,oDlgA,oGet1,oGet2),oGet3:cText:= oQryArt:preciobase,;
                        oGet4:cText:= (oQryArt:preciobase + oQryArt:preciobase * (nPorc/100) )) BITMAP "BUSC1"
    @ 10,100 GET oGet2 VAR cNomArt OF oDlgA PIXEL PICTURE "@!" WHEN(.f.)
    @ 25, 50 GET oGet3 VAR nPrecioBase OF oDlgA PIXEL PICTURE "99999999.99" RIGHT WHEN(.F.)

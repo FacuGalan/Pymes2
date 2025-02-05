@@ -13,11 +13,13 @@ LOCAL oGet1, oGet2, oGet3, oGet4, oGet5, oGet6, oGet7, oGet8, oGet9, oGet10,;
       aCobrar := {"Cobro Salon","Cobro distribucion","Cobro ambos"}, oFont,;
       aTipos :={"Facturacion electronica","Facturacion con control. fiscal"}, aTipoC:={"Codigo interno","Codigo de barras"},;
       aStock :={"Avisar falta de stock","Prohibir falta de stock","No controlar stock"},;
+      aCosto :={"No controlar costo","Avisar venta debajo de costo","Prohibir venta debajo de costo"},;
       aMayo  :={"Mayorista","Minorista"},;
-      oGru, oGetC, oGetT, aImp := aGetPrinters(), nImp
+      oGru, oGetC, oGetT, aImp := aGetPrinters(), nImp, nCosto 
 
 oQry:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = " + ClipValue2Sql(oApp:cIp))
-base:=oQry:GetRowObj()      
+base:=oQry:GetRowObj() 
+nCosto := base:validacosto + 1     
 IF oQry:nRecCount = 0
    MsgStop("Esta terminal no es un punto de venta habilitado!!")
    oQry:End()
@@ -64,6 +66,7 @@ DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 32,75 OF oApp
    
 
    @ 50, 10 COMBOBOX oGet9 VAR base:pidestock ITEMS aStock OF oDlg1 PIXEL SIZE 85,12
+   @ 50,150 COMBOBOX oGet14 VAR nCosto ITEMS aCosto OF oDlg1 PIXEL SIZE 85,12
    @ 75,190 GET oGet21 VAR base:punto  PICTURE "9999" OF oDlg1 PIXEL RIGHT WHEN(base:tipofac = 1)
    @ 90,150 GET oGet22 VAR base:direccionf  PICTURE "@S20" OF oDlg1 PIXEL WHEN(base:tipofac = 1 .and. base:punto > 0)
             
@@ -103,6 +106,7 @@ base:tick80 := IF(base:imprimeTic,base:tick80,.f.)
 base:preguntaimpr := IF(base:imprimeTic,base:preguntaimpr,.f.)
 oApp:usavales := base:usavales
 oApp:sonarpedidos := base:sonarpedidos
+base:validacosto := nCosto - 1
 
 oQry:oRow := base
 TRY

@@ -9,86 +9,15 @@ static oDlg, oDlg1, nMesa := 1, oFont, oFontBot, oBrwDet, oQryDet, oQryDep, oQry
        nPagado, nVuelto, cNomArt, nDescu, lConsulta, oQryPag, nAntes,;
        nUltDep, nPriDep, nUltArt, nPriArt, fDepto, nCantidad, dFecha, nCliente, cCliente, nTotal, cVentana, ;
        lMaxi:=.t., nPrecio, lReemplaza, nCondicion, oQryPun, nDescuTot, nRecarTot, oQry2, oQry3, oQry5,;
-       oQryPendi, oBrwPendi, nLista, oQryPar, nLisPre, aFormaNom, aFormaInc, nFormaPago, oGetDep1, oGetDep2,;
-       oGetDep3 , cPermi, lSaleX
+       nLista, oQryPar, nLisPre, aFormaNom, aFormaInc, nFormaPago, oGetDep1, oGetDep2, oGetDep3 , cPermi,;
+       mvendedor
 
 //----------------------------------------------------------------//
 
-PROCEDURE POSMULTI(cPermisos)
-LOCAL oWnd1, oDlg, oBar, oTimer
-CrearTemporales()
-oApp:oServer:Execute("TRUNCATE VENTAS_DET_H1")
-oApp:oServer:Execute("TRUNCATE formapag_temp")
-oQryPendi := oApp:oServer:Query("SELECT id,nombre_equipo,codcli,nombre,importe FROM ge_"+oApp:cId+"ventas_encab_p")
-DEFINE WINDOW oWnd1 MDICHILD TITLE "Ventas Temporales" ;
-          OF oApp:oWnd NOZOOM ICON oApp:oIco
-         DEFINE BUTTONBAR oBar  SIZE 60,60 OF oWnd1 2010
-         DEFINE BUTTON RESOURCE "ALTA" OF oBar ;
-            TOOLTIP "Agregar Venta Temporal"  ;
-            ACTION (POS1MULTI(cPermisos,0),oBrwPendi:Refresh());
-            PROMPT "Alta" TOP
-         DEFINE BUTTON RESOURCE "MODI" OF oBar ;
-            TOOLTIP "Modificar Venta Temporal"  ;
-            ACTION (POS1MULTI(cPermisos,oQryPendi:id),oBrwPendi:Refresh());
-            PROMPT "Modifica" TOP WHEN(oQryPendi:RecCount()>0)
-         DEFINE BUTTON RESOURCE "BAJA" OF oBar ;
-            TOOLTIP "Eliminar Venta Temporal"  ;
-            ACTION (Baja(oQryPendi:id),oBrwPendi:Refresh());
-            PROMPT "Baja" TOP WHEN(oQryPendi:RecCount()>0 .AND. "B"$cPermisos) 
-         DEFINE BUTTON RESOURCE "BACKU" OF oBar ;
-            TOOLTIP "Refrescar la pantalla"  ;
-            ACTION (oQryPendi:Refresh(),oBrwPendi:Refresh());
-            PROMPT "Refresca" TOP
-         // Este boton cierra la aplicacion
-         DEFINE BUTTON RESOURCE "SALE" OF oBar;
-            TOOLTIP "Cerrar Ventana" ;
-            ACTION oWnd1:End();
-            PROMPT "Cerrar" TOP
-    oWnd1:bGotFocus := { || oDlg:SetFocus}
-    oWnd1:bResized := { || Incrusta( oWnd1, oDlg, .t.) }
-     DEFINE DIALOG oDlg RESOURCE "ABMS" OF oWnd1
-     REDEFINE XBROWSE oBrwPendi DATASOURCE oQryPendi;
-              COLUMNS "id","nombre_equipo","nombre","importe";
-              HEADERS "N° Pedido","Terminal","Cliente","Importe";
-              SIZES 90,150,350,100;
-              FOOTERS ;
-              ID 111 OF oDlg AUTOSORT ON DBLCLICK (POS1MULTI( cPermisos,oQryPendi:id),oBrwPendi:Refresh())
-     REDEFINE SAY oBrwPendi:oSeek PROMPT "" ID 113 OF oDlg
-
-     DEFINE TIMER oTimer INTERVAL 20000 ACTION ActualizarPendi() OF oWnd1
-     oQryPendi:bOnChangePage := {|| oBrwPendi:Refresh() }
-     oBrwPendi:aCols[4]:nFooterTypE := AGGR_SUM
-     oBrwPendi:MakeTotals()
-     //oBrw:SetDolphin(oQry,.f.,.t.)
-     PintaBrw(oBrwPendi,4) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE    
-     oBrwPendi:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar, oBrwPendi,cPermisos,3)} 
-     // Activo el dialogo y al iniciar muevo a 0,0
-     ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT oDlg:Move(0,0) VALID(oWnd1:End())
-   ACTIVATE WINDOW oWnd1 ON INIT (Incrusta( oWnd1, oDlg, .T.),oTimer:Activate()) VALID(cerrar())
-RETURN 
-
-STATIC FUNCTION ActualizarPendi()
-LOCAL oQryT := oApp:oServer:Query("SELECT COUNT(id) as cant, SUM(importe) AS tot FROM ge_"+oApp:cId+"ventas_encab_p")
-IF oQryT:cant > oQryPendi:nRecCount .or. oQryT:tot <> oBrwPendi:aCols[4]:nTotal 
-   oQryPendi:Refresh()
-   oBrwPendi:Refresh()
-ENDIF
-RETURN nil   
-
-static function baja(nId)
-LOCAL lRta := .f.
-lRta := MsgNoYes("Seguro de borrar?","Atencion")
-IF lRta 
-   oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"ventas_encab_p WHERE id = "+ClipValue2Sql(nId))
-   oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"ventas_det_p   WHERE numven = "+ClipValue2Sql(nId))
-   oQryPendi:Refresh()
-   oBrwPendi:Refresh()     
-ENDIF
-return nil
-
-PROCEDURE POS1MULTI(cPermisos,nId)
+PROCEDURE POS1(cPermisos)
 LOCAL hHand
-LOCAL i,oFont1,oFont2,oFont3,oFont4,nCodArt:=0,nNumMesa,oMesa,nPicture,nComen:=0,oQryFormas, lGrande := .f.
+LOCAL i,oFont1,oFont2,oFont3,oFont4,nCodArt:=0,nNumMesa,oMesa,nPicture,nComen:=0,oQryFormas, lGrande := .f.,;
+      lAdmin:= oApp:oServer:Query("SELECT IF(tipo='ADMIN',1,0) AS admin FROM ge_"+oApp:cId+"usuarios WHERE usuario = "+ClipValue2Sql(oApp:usuario)):admin = 1
    cVentana := PROCNAME()
    IF ASCAN(oApp:aVentanas,cVentana) > 0 
       hHand := ASCAN(oApp:aVentanas,cVentana)
@@ -97,25 +26,13 @@ LOCAL i,oFont1,oFont2,oFont3,oFont4,nCodArt:=0,nNumMesa,oMesa,nPicture,nComen:=0
       RETURN
    ENDIF
 cPermi := cPermisos   
-lSaleX := .F.
-oApp:oServer:Execute("TRUNCATE VENTAS_DET_H1")
 
-IF nId > 0
-   oApp:oServer:Execute("INSERT INTO VENTAS_DET_H1 (codart,detart,cantidad,punit,neto,descuento,stotal,iva,codiva,ptotal,pcosto,impint) "+;
-                         "(SELECT codart,detart,cantidad,punit,neton,descu,neto,iva,codiva,importe,pcosto,impint FROM ge_"+oApp:cId+"ventas_det_p "+;
-                         "WHERE numven = "+ClipValue2Sql(nId)+")")
-   nCliente:= oQryPendi:codcli
-   cCliente:= oQryPendi:nombre
-   ELSE 
-   nCliente:= 1
-   cCliente:= SPACE(30)
-ENDIF
 oApp:oServer:Execute("";
     + "CREATE TEMPORARY TABLE IF NOT EXISTS VENTAS_DET_H1 ";
     +"( `id` INT(6) NOT NULL AUTO_INCREMENT, ";
     +"`CODART` bigint(14) NOT NULL,";  
     +"`DETART` VARCHAR(60) NOT NULL,";
-    +"`CANTIDAD` DECIMAL(8,3) DEFAULT '0',";
+    +"`CANTIDAD` DECIMAL(10,3) DEFAULT '0',";
     +"`PUNIT` DECIMAL(12,3) DEFAULT '0.00', ";
     +"`NETO`  DECIMAL(12,3) DEFAULT '0.00', ";
     +"`DESCUENTO`  DECIMAL(10,3) DEFAULT '0.00', ";
@@ -126,9 +43,20 @@ oApp:oServer:Execute("";
     +"`PCOSTO`  DECIMAL(12,3) DEFAULT '0.00', ";
     +"`IMPINT`  DECIMAL(12,3) DEFAULT '0.00', ";
     +"PRIMARY KEY (`id`)) ENGINE=INNODB DEFAULT CHARSET=utf8")
+oApp:oServer:Execute("TRUNCATE VENTAS_DET_H1")
 
 oQryDet:= oApp:oServer:Query("SELECT * FROM VENTAS_DET_H1")
 
+oApp:oServer:Execute("";
+    + "CREATE TEMPORARY TABLE IF NOT EXISTS formapag_temp";
+    +"("; 
+    +"`RENGLON`   INT(2) NOT NULL  AUTO_INCREMENT ,";
+    +"`TIPOPAG`   INT(1) NOT NULL ,";
+    +"`FORMAPAG`  VARCHAR(30) NOT NULL,";
+    +"`CODFORMA`  INT(2) NOT NULL,";
+    +"`IMPORTE`  DECIMAL(12,2) NOT NULL,"+;
+    +" PRIMARY KEY (RENGLON)) ENGINE=INNODB DEFAULT CHARSET=utf8")  
+oApp:oServer:NextResult()
 oApp:oServer:Execute("TRUNCATE formapag_temp")
 oApp:oServer:NextResult() 
 
@@ -140,7 +68,8 @@ lReemplaza:=.t.
    oGet:=ARRAY(10)
    fDepto:=0
    dFecha:=DATE()
-   
+   nCliente:=1
+   cCliente:=SPACE(30)
    cNomArt:=SPACE(30)
    nTotal:=0
    nPrecio:=0
@@ -190,6 +119,7 @@ IF ResolucionMonitor() > 1400
    DEFINE FONT oFont1 NAME "TAHOMA" SIZE 0,-11.5
    DEFINE DIALOG oDlg1 RESOURCE "POS" OF oApp:oWnd TITLE "Facturacion punto de venta"
 ENDIF   
+   mvendedor := ' '
    oDlg1:lHelpIcon := .f.
   /* //BOTONES DE DEPARTAMENTOS CON SUS FLECHAS (ABAJO DEL BROWSE)
    REDEFINE BTNBMP oBot[01] ID 101 OF oDlg1  ACTION(CambiarDeptos(.t.)) 2007 CENTER
@@ -209,14 +139,14 @@ ENDIF
    */
    //BOTONES DE OPCIONES (ABAJO)
    REDEFINE BTNBMP oBot[30] ID 301 OF oDlg1 2007 CENTER; //ALTA DE ARTICULO
-                   PROMPT "&Guardar [F8]";
-                   ACTION (GrabaySigue(nId),oDlg1:End()) WHEN(oQryDet:RecCount()>0)
+                   PROMPT "&Alta rapida";
+                   ACTION (AltaArt(),oGet[02]:SetFocus())
    REDEFINE BTNBMP oBot[31] ID 302 OF oDlg1 2007 CENTER; //DESCUENTOS
                    PROMPT "&Descuentos";
                    ACTION(CargaDescu(),oGet[02]:SetFocus()) WHEN("R"$cPermisos)
    REDEFINE BTNBMP oBot[32] ID 303 OF oDlg1 2007 CENTER; //BORRA ITEM
                    PROMPT "&Borrar item [F6]";
-                   ACTION BorraItem(cPermisos, oDlg1) WHEN (oQryDet:RecCount()>0)
+                   ACTION BorraItem(cPermisos, oDlg1) WHEN (oQryDet:RecCount()>0)                   
    REDEFINE BTNBMP oBot[33] ID 304 OF oDlg1 2007 CENTER; //SELECCIONA CLIENTE
                    PROMPT "&Elegi cliente [F3]";
                    ACTION(ElijeCliente(),oGet[02]:SetFocus())
@@ -226,7 +156,7 @@ ENDIF
    REDEFINE BTNBMP oBot[35] ID 306 OF oDlg1 2007 CENTER; //ELIJE FORMAS DE PAGO
                    PROMPT "&Cobrar [F4]";
                    ACTION(ElijeFormPag(),oGet[02]:SetFocus());
-                   WHEN(nTotal>0 .AND. oApp:usua_es_supervisor) 
+                   WHEN(nTotal>0) 
    REDEFINE BTNBMP oBot[36] ID 307 OF oDlg1 2007 CENTER; //CONSULTA
                    PROMPT "&Consulta";
                    ACTION(lConsulta:=.t.,oGet[02]:SetFocus())
@@ -238,7 +168,7 @@ ENDIF
                    ACTION(AunularTicket(cPermisos),oGet[02]:SetFocus()) 
    REDEFINE BTNBMP oBot[39] ID 310 OF oDlg1 2007 CENTER; //GRABA
                    PROMPT "&Grabar [F12]";
-                   ACTION(IF(Grabar(nId),oDlg1:End(),nil));
+                   ACTION(Grabar(),oGet[02]:SetFocus());
                    WHEN((ROUND(nPagado,2) >= ROUND(nTotal,2)) .and. nTotal > 0) 
    REDEFINE BTNBMP oBot[19] ID 4004 OF oDlg1 2007 CENTER; //GRABA
                    PROMPT "&Vales" WHEN(oApp:usavales)
@@ -305,7 +235,7 @@ ENDIF
    oBrwDet:aCols[11]:nFooterTypE := AGGR_SUM
    oBrwDet:aCols[2]:bEditWhen := {| |SiEsDepto(oQryDet)}
    oBrwDet:aCols[2]:nEditType := EDIT_GET
-   IF oApp:modifica_precios .AND. "M"$cPermisos
+   IF (oApp:modifica_precios .or. lAdmin) .AND. "M"$cPermisos
       oBrwDet:aCols[4]:nEditType := EDIT_GET
    ENDIF
    IF "M"$cPermisos
@@ -357,7 +287,7 @@ ENDIF
                                        IF(nKey==115,oBot[35]:Click,;
                                        IF(nKey==116,oBot[37]:Click,;
                                        IF(nKey==118,Varios(oGet),;
-                                       IF(nKey==119,oBot[30]:Click,;
+                                       IF(nKey==119,PreCuenta(oQryDet),;
                                        IF(nKey==123,oBot[39]:Click,.F.)))))))))}
    oGet[03]:bKeyDown := {| nKey,nFlags | IF(nKey==13,(oGet[3]:assign(),AgregarArticu(nCodArt),oGet[02]:SetFocus()),.t.)}
    oGet[02]:bKeyDown := {| nKey,nFlags | IF(nKey==13,(oGet[2]:assign(),AgregarArticu(nCodArt)),.t.)}
@@ -374,73 +304,29 @@ RETURN
 
 STATIC FUNCTION AunularTicket(cPermisos)
 IF "A"$cPermisos
-   IF !MsgNoYes("Seguro de anular los cambios temporales","Atencion")
+   IF !MsgNoYes("Seguro de anular el ticket","Atencion")
       RETURN .f.
-   ENDIF 
-   Auditar(4," $"+alltrim(STR(nTotal,12,2))+" "+STR(oQryDet:nRecCount,4)+" Items Caja "+STR(oApp:prefijo,4))
+   ENDIF
+   Auditar(4," $"+alltrim(STR(nTotal,12,2))+" "+STR(oQryDet:nRecCount,4)+" Items Caja "+STR(oApp:prefijo,4))    
    Reiniciar()
    RETURN .t. 
 ENDIF 
-IF oQryDet:nRecCount > 0 .and. PedirClave()       
-   Auditar(4," $"+alltrim(STR(nTotal,12,2))+" "+STR(oQryDet:nRecCount,4)+" Items Caja "+STR(oApp:prefijo,4))
+IF !oApp:usar_clave .and. oQryDet:nRecCount > 0
+   IF !MsgNoYes("Seguro de anular el ticket","Atencion")
+      RETURN .f.
+   ENDIF 
+   Auditar(4," $"+alltrim(STR(nTotal,12,2))+" "+STR(oQryDet:nRecCount,4)+" Items Caja "+STR(oApp:prefijo,4))    
+   Reiniciar()
+ENDIF
+IF oQryDet:nRecCount > 0 .and. PedirClave()   
+   Auditar(4," $"+alltrim(STR(nTotal,12,2))+" "+STR(oQryDet:nRecCount,4)+" Items Caja "+STR(oApp:prefijo,4))    
    Reiniciar()
    RETURN .t. 
 ENDIF
 RETURN .f.
 
-STATIC FUNCTION GrabaySigue(nId)
-LOCAL nNumero, lRta := .f., oErr
-IF EMPTY(cCliente)
-   MsgGet("Asingar Pendiente","Nombre del cliente:",@cCliente)
-ENDIF 
-  
-TRY
-      IF nId > 0
-          //BORRO FACTURAS PENDIENTES USADAS (SI NO USA NINGUNA ES 0)
-          oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"ventas_encab_p WHERE id = "+ClipValue2Sql(nId))
-          oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"ventas_det_p   WHERE numven = "+ClipValue2Sql(nId))
-
-          oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ventas_encab_p (id,nombre_equipo,codcli,nombre,cuit,dni,direccion,localidad,coniva,importe) "+;
-                               "VALUES("+ClipValue2Sql(nId)+","+ClipValue2Sql(DTOC(DATE())+" "+;
-                                oApp:cNombreEquipo)+","+ClipValue2Sql(nCliente)+","+ClipValue2Sql(cCliente)+","+;
-                                ClipValue2Sql(' ')+","+ClipValue2Sql(0)+","+;
-                                ClipValue2Sql(' ')+","+ClipValue2Sql( ' ')+","+ClipValue2Sql(5)+","+;
-                                ClipValue2Sql(nTotal)+")")
-          nNumero:= nId
-          oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ventas_det_p "+;
-                            " (numven,codart,detart,cantidad,punit,codcli,importe,neto,iva,codiva,neton,descu,pcosto,impint) "+;
-                            " (SELECT "+ClipValue2Sql(nNumero)+",codart,detart,cantidad,punit,"+ClipValue2Sql(nCliente)+","+;
-                            " ptotal, stotal,iva,codiva,neto,descuento,pcosto,impint FROM VENTAS_DET_H1)")
-        ELSE
-          oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ventas_encab_p (nombre_equipo,codcli,nombre,cuit,dni,direccion,localidad,coniva,importe) "+;
-                               "VALUES("+ClipValue2Sql(DTOC(DATE())+" "+oApp:cNombreEquipo)+","+ClipValue2Sql(nCliente)+","+ClipValue2Sql(cCliente)+","+;
-                                ClipValue2Sql(' ')+","+ClipValue2Sql(0)+","+;
-                                ClipValue2Sql(' ')+","+ClipValue2Sql( ' ')+","+ClipValue2Sql(5)+","+;
-                                ClipValue2Sql(nTotal)+")")
-          nNumero:= oApp:oServer:LastInsertID()
-          oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ventas_det_p "+;
-                            " (numven,codart,detart,cantidad,punit,codcli,importe,neto,iva,codiva,neton,descu,pcosto,impint) "+;
-                            " (SELECT "+ClipValue2Sql(nNumero)+",codart,detart,cantidad,punit,"+ClipValue2Sql(nCliente)+","+;
-                            " ptotal, stotal,iva,codiva,neto,descuento,pcosto,impint FROM VENTAS_DET_H1)")
-      ENDIF    
-      
-CATCH oErr 
-      MsgInfo(oErr:description,"Error")
-END TRY
-lRta := MsgNoYes("Desea imprimir el comprobante"+chr(10)+"Antes de dejar en cola?","Atencion")
-IF lRta
-    PrintPendi(nNumero)    
-ENDIF
-oQryPendi:Refresh()
-oBrwPendi:Refresh()
-lSaleX := .T.     
-RETURN .t.
-
 STATIC FUNCTION PuedeSalir(cPermisos,oQryDet)
 LOCAL lRta
-IF lSaleX 
-   RETURN .t.
-ENDIF   
 IF "A"$cPermisos .AND. "B"$cPermisos
    lRta := .t.
    ELSE 
@@ -509,15 +395,13 @@ IF n = 1
       MsgStop("Cantidad no válida","Error")
       RETURN nil
    ENDIF   
-   IF !ValidarCantidad(oQryDet:codart, nVal-oQryDet:cantidad)
-      RETURN nil 
-   ENDIF
    oQryDet:cantidad := nVal
+   oQryDet:descuento   := oQryDet:descuento / nCantAnt * nVal
    oQryDet:ptotal    := oQryDet:ptotal / nCantAnt * nVal
    oQryDet:neto     := oQryDet:neto / nCantAnt * nVal
    oQryDet:iva      := oQryDet:iva / nCantAnt * nVal
    oQryDet:impint   := oQryDet:impint / nCantAnt * nVal
-   oQryDet:stotal   := oQryDet:neto
+   oQryDet:stotal   := oQryDet:neto   
    oQryDet:Save()
    oQryDet:Refresh()
    oBrwDet:Refresh()
@@ -529,6 +413,7 @@ IF n = 1
       nII:=oQryDet:impint/oQryDet:cantidad
       //oQryDet:punit := nVal - nII
       oQryDet:punit := nVal 
+      oQryDet:descuento := 0
       oQryDet:ptotal    := nVal * oQryDet:cantidad
       oQryDet:neto     := (oQryDet:ptotal-nII) / IF(oQryDet:codiva = 5,1.21,IF(oQryDet:codiva=4,1.105,1))
       oQryDet:iva      := oQryDet:ptotal - oQryDet:neto - nII
@@ -697,7 +582,7 @@ RETURN .t.
 
 ************************************************************************************************************************
 ***** GRABA LA VENTA 
-STATIC FUNCTION Grabar(nId)
+STATIC FUNCTION Grabar()
 LOCAL nNumero,cNumComp,cLetra:=IF(oApp:tipo_iva<>6,IF(nCondicion = 1 .or. nCondicion = 2 .or. nCondicion = 6 ,"A","B"),"C"),nPuntoVta,nCtaCte,nEfecti,;
       nCheque,nTarjet,nTransf,nMPago,oQryPag,oQryPagFac,oQryPagCon,oQryVen,nRecibo,base,oerr,lFisc:=.F.,oQryCliAux,;
       aTablaIva := {},oTabIva, cCae := "", dFecVtoc := DATE(),nTipFor:=0,dFecha := DATE(),nForma, oQryStock,;
@@ -723,11 +608,11 @@ IF oApp:usar_limite_cred .and. oQryCliAux:limite <> 0
   IF nCtaCte > 0 .AND. ((nCtaCte - oQryCliAux:saldo + nSaldoCta ) > oQryCliAux:limite) .and. nCliente > 1
     IF oApp:usar_clave
      IF !PedirClave("El cliente que quiere facturar tiene el limite de credito excedido, ingrese la clave de autorizacion para continuar",oDlg)
-        RETURN .f.
+        RETURN nil
      ENDIF
     ELSE 
      IF !MsgNoYes("El cliente que quiere facturar tiene el limite de credito excedido, desea continuar","Atencion")
-        RETURN .f.
+        RETURN nil
      ENDIF
     ENDIF 
   ENDIF
@@ -749,7 +634,7 @@ IF lFisc
          nPuntoVta:= oApp:oServer:Query("SELECT prefijo FROM ge_"+oApp:cId+"parametros LIMIT 1"):prefijo
       ENDIF 
       IF cLetra = "A" .and. !ConsultaCuitRapida(val(STRTRAN(oQryCliAux:cuit,"-","")),oQryCliAux:coniva)
-         RETURN .f.
+         RETURN nil 
       ENDIF           
       FacturaElec1( nPuntoVta, 1, cLetra, aTablaIva, @nNumero, @cCae, @dFecVtoC,@nTipFor,;
                    dFecha,oQryCliAux:cuit,oQryCliAux:dni,oBrwDet:aCols[7]:nTotal,oBrwDet:aCols[8]:nTotal,oBrwDet:aCols[9]:nTotal,oBrwDet:aCols[11]:nTotal)
@@ -759,7 +644,7 @@ IF lFisc
    ENDIF   
    IF nNumero = 0
       MsgStop("Fallo la impresion fiscal","Error")
-      Return .f.       
+      Return nil       
    ENDIF      
   ELSE
   nPuntoVta:=  oApp:oServer:Query("SELECT caja FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip)):caja
@@ -784,7 +669,7 @@ cNumComp := STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNumero,8)," ","0")
   // Grabar la factura
   // Grabo el pago
  TRY 
-      oApp:oServer:BeginTransaction()
+ oApp:oServer:BeginTransaction()
           
 
       // Grabo el pago si no es todo Cuenta Corriente
@@ -904,7 +789,7 @@ cNumComp := STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNumero,8)," ","0")
          nPuntos :=  INT(nTotal/oApp:pesos_x_punto)
       ENDIF
       oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ventas_encab (ticomp,letra,numcomp,codcli,fecha,neto,iva,importe,tipopag,observa,"+;
-                                                      "nombre,cuit,dni,direccion,localidad,usuario,fecmod,ip,coniva,condven,formapag,cae,fecvto,tipfor,sobretasa,hora,puntos,puntosacu) VALUES "+;
+                                                      "nombre,cuit,dni,direccion,localidad,usuario,fecmod,ip,coniva,condven,formapag,cae,fecvto,tipfor,sobretasa,hora,puntos,puntosacu,vendedor) VALUES "+;
                            "('FC',"+ClipValue2Sql(cLetra)+","+ClipValue2Sql(cNumComp)+","+ClipValue2Sql(nCliente)+","+;
                             ClipValue2Sql(DATE())+","+ClipValue2Sql(oBrwDet:aCols[7]:nTotal)+","+ClipValue2Sql(oBrwDet:aCols[8]:nTotal)+","+;
                             ClipValue2Sql(nTotal)+",1,'PUNTO DE VENTA "+IF(nDescu>0," Dto: %"+ALLTRIM(STR(nDescu,6,2)),"")+"',"+;
@@ -913,8 +798,9 @@ cNumComp := STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNumero,8)," ","0")
                             ClipValue2Sql(oApp:usuario)+","+ClipValue2SQL(DATE())+","+ClipValue2SQL(oApp:cIp)+","+ClipValue2SQL(nCondicion)+;
                             ",1,"+ClipValue2Sql(nForma)+","+;
                             ClipValue2Sql(cCae)+","+ClipValue2Sql(dFecVtoC)+","+ClipValue2Sql(STRTRAN(STR(nTipFor,2)," ","0"))+;
-                            ","+ClipValue2Sql(oBrwDet:aCols[11]:nTotal)+",CURTIME()"+;
-                            ","+Clipvalue2sql(nPuntos)+","+ClipValue2Sql(nPuntosAcu) +")")     
+                            ","+ClipValue2Sql(oBrwDet:aCols[11]:nTotal)+;
+                            ",CURTIME(),"+Clipvalue2sql(nPuntos)+","+ClipValue2Sql(nPuntosAcu)+;
+                            ","+ClipValue2Sql(ALLTRIM(mvendedor)) +")")          
 
       IF oApp:usar_puntos
          oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET puntos = puntos + "+ClipValue2Sql(INT(nTotal/oApp:pesos_x_punto)) +;
@@ -923,6 +809,9 @@ cNumComp := STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNumero,8)," ","0")
       IF nDescu > 0
          Auditar(6," FC"+cLetra+cNumcomp+" "+alltrim(STR(nDescu,6,2))+"% Caja "+STR(oApp:prefijo,4))
       ENDIF
+      IF nDescu < 0
+         Auditar(6," (Recargo) FC"+cLetra+cNumcomp+" "+alltrim(STR(nDescu,6,2))+"% Caja "+STR(oApp:prefijo,4))
+      ENDIF   
 /*
       //ACTUALIZO EL STOCK DE LOS ARTICULOS VENDIDOS
       oApp:oServer:Execute("UPDATE VENTAS_DET_H1 v LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+;
@@ -942,7 +831,7 @@ cNumComp := STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNumero,8)," ","0")
       oQryStock:= oApp:oServer:Query("SELECT SUM(d.cantidad) AS cantidad,"+;
                                      "d.codart AS codart FROM VENTAS_DET_H1 d "+;
                                      "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = d.codart "+;
-                                     "WHERE a.stockotro = TRUE GROUP BY d.codart ")
+                                     "WHERE a.stockotro = TRUE GROUP BY d.codart")
       oQryStock:GoTop()
       DO WHILE !oQryStock:EOF()
          oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"reseta r LEFT JOIN ge_"+oApp:cId+"articu m "+;
@@ -962,10 +851,7 @@ cNumComp := STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNumero,8)," ","0")
       ELSE         
          oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"punto SET presupu = presupu+1 WHERE ip = "+ ClipValue2Sql(oApp:cip))
       ENDIF   
-      oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"ventas_encab_p WHERE id = "+ClipValue2Sql(nId))
-      oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"ventas_det_p   WHERE numven = "+ClipValue2Sql(nId))     
-      oApp:oServer:CommitTransaction()
-      lSaleX := .t.
+     oApp:oServer:CommitTransaction()
  CATCH oErr
     MsgStop("Error al grabar"+CHR(10)+oErr:description,"Error")
       oApp:oServer:RollBack()
@@ -984,9 +870,8 @@ IF !lFisc
       PrintFactuElec('FC',cLetra+cNumComp) 
    ENDIF
 ENDIF
-oQryPendi:Refresh()
-oBrwPendi:Refresh()
-RETURN .t.
+Reiniciar()
+RETURN nil
 **********************************************************************************************
 ***** CALCULAR IMPORTE FINAL
 STATIC FUNCTION CalcTot()
@@ -1028,6 +913,7 @@ oBrwDet:MakeTotals()
 oGet[06]:Refresh()
 oGet[02]:SetFocus()
 oGet[10]:Set(1)
+mvendedor := " "
 RETURN nil
 
 *************************************************************************************************
@@ -1035,7 +921,7 @@ RETURN nil
 STATIC FUNCTION AgregarArticu(nCodArt)
 LOCAL oQryAux, nPtotal:=0,nNeto1:=0,nImpIva2:=0,nNeto2:=0,nImpIva1:=0,oQryIva,nDescuento,nPrecioVen,oQryPrecio,;
       nIvaPes,nSubTotal,nCodIva1,nTotalcIva,nPrecio1,nPrecio2,lRta:=.f.,nDescMar,nTotalPesado:=0,lPesado:=.f.,;
-      nImpInt
+      nImpInt, oQryS
 IF lConsulta
    lConsulta:= .f.
    RETURN .f.
@@ -1073,7 +959,7 @@ IF nCodArt >= 0
    ENDIF
    // Si tiene lista de precios especiales
    oQryPrecio:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispredet WHERE codlis = "+ClipValue2Sql(nLisPre)+" AND "+;
-                              "codart = "+ClipValue2Sql(oQryArt:codigo))
+                              "codart = "+ClipValue2Sql(nCodArt))
    IF oQryPrecio:RecCount() = 0
        nPrecioVen:= IF(nLista=1,oQryAux:precioven,oQryAux:reventa)
    ELSE
@@ -1111,8 +997,8 @@ IF nCodArt >= 0
          RETURN .f.
       ENDIF
    ENDIF
-
-   /*IF oQryPun:pidestock = 1 .and. oQryAux:stockact-nCantidad < 0 .and. !oQryAux:stockotro
+   //Valido que tenga stock el producto cuando no es stock de otro
+   IF oQryPun:pidestock = 1 .and. oQryAux:stockact-nCantidad < 0 .and. !oQryAux:stockotro
       lRta:=MsgYesNo("El articulo que esta facturando esta fuera de stock,"+CHR(10)+;
               "verifique su disponibilidad ¿Desea continuar?"+CHR(10)+;
               "Stock actual: "+ALLTRIM(STR(oQryAux:stockact)),"Atencion")
@@ -1122,18 +1008,52 @@ IF nCodArt >= 0
       oBrwDet:SetFocus()
       oGet[02]:SetFocus()
   ENDIF
+  //Valido que tenga stock el producto que es stock de otro
+  IF oQryPun:pidestock = 1 .and. oQryAux:stockotro 
+      oQryS := oApp:oServer:Query("SELECT r.CODUSA, (a.STOCKACT - (r.CANTIDAD * "+STR(nCantidad)+" )) AS STOCK_FINAL "+;
+                                  " FROM ge_"+oApp:cId+"reseta r "+;
+                                  " JOIN ge_"+oApp:cId+"articu a ON r.CODUSA = a.CODIGO "+;
+                                  " JOIN ge_"+oApp:cId+"articu a1 ON r.CODART = a1.CODIGO "+;
+                                  " WHERE r.CODART = "+STR(nCodArt)+;
+                                  " HAVING STOCK_FINAL < 0")
+      IF oQryS:nRecCount > 0
+          lRta:=MsgYesNo("El articulo que esta facturando tiene receta, y los articulos"+chr(10)+;
+                  "que la componen estan fuera de stock,"+CHR(10)+;
+                  "verifique su disponibilidad ¿Desea continuar?","Atencion")
+          IF !lRta 
+             RETURN .f.
+          ENDIF      
+          oBrwDet:SetFocus()
+          oGet[02]:SetFocus()
+      ENDIF    
+  ENDIF
+
+  //No dejo vender por falta de stock
   IF oQryPun:pidestock = 2 .and. oQryAux:stockact-nCantidad < 0 .and. !oQryAux:stockotro
      MsgStop("No puede facturar el articulo seleccionado porque no esta en stock"+CHR(10)+;
            "Stock actual: "+ALLTRIM(STR(oQryAux:stockact)),"Atencion")
      RETURN .F.
   ENDIF
+  //No dejo vender por falta de stock de la receta
+  IF oQryPun:pidestock = 2 .and. oQryAux:stockotro 
+      oQryS := oApp:oServer:Query("SELECT r.CODUSA, (a.STOCKACT - (r.CANTIDAD * "+STR(nCantidad)+" )) AS STOCK_FINAL "+;
+                                  " FROM ge_"+oApp:cId+"reseta r "+;
+                                  " JOIN ge_"+oApp:cId+"articu a ON r.CODUSA = a.CODIGO "+;
+                                  " JOIN ge_"+oApp:cId+"articu a1 ON r.CODART = a1.CODIGO "+;
+                                  " WHERE r.CODART = "+STR(nCodArt)+;
+                                  " HAVING STOCK_FINAL < 0")
+      IF oQryS:nRecCount > 0
+          MsgStop("No puede facturar, el articulo seleccionado tiene receta, "+chr(10)+;
+                  "y los articulos que la componen estan fuera de stock."+CHR(10),"Atencion")
+          RETURN .F.
+      ENDIF    
+  ENDIF
+
+
   IF oQryPun:pidestock < 3 .and. oQryAux:stockmin > 0 .and. oQryAux:stockact-nCantidad  < oQryAux:stockmin .and. !oQryAux:stockotro
      MsgAlert("Se esta quedando sin stock, llego al stock minimo","Atencion")    
      oDlg1:SetFocus() 
      oGet[02]:SetFocus()
-  ENDIF*/
-  IF !ValidarCantidad(nCodart,nCantidad)
-     RETURN nil 
   ENDIF
 
    nDescMar:= oApp:oServer:Query("SELECT descuento FROM ge_"+oApp:cId+"desccli WHERE codmar ="+ClipValue2Sql(oQryAux:marca)+" AND "+;
@@ -1141,6 +1061,7 @@ IF nCodArt >= 0
    IF EMPTY(nDescMar) 
       nDescMar :=0
    ENDIF
+
    CrearTemporales()
    oQryIva := oApp:oServer:Query("SELECT tasa FROM ge_"+oApp:cId+"ivas WHERE codigo = " + ClipValue2Sql(oQryAux:iva))
    nCodIva1 := oQryAux:iva
@@ -1151,8 +1072,7 @@ IF nCodArt >= 0
    nIvaPes := nPrecio1 - (nPrecio1 / (1 + oQryIva:tasa/100))
    nSubTotal:= nPrecio1 - nIvaPes   
    nTotalcIva := nPrecio1 + (oQryAux:impint*nCantidad)
-
-   //Valido el costo y aviso   
+   //Valido el costo y aviso
    IF oQryPun:validacosto = 1
       IF oQryAux:preciocos > (nTotalcIva/nCantidad) * IF(oQryAux:endolares,oQryPar:dolar,1)
           lRta:=MsgYesNo("El precio que está facturando está por debajo,"+CHR(10)+;
@@ -1272,7 +1192,7 @@ DEFINE DIALOG oDlgD TITLE "Ingresar cantidad del articulo pesable a facturar" OF
    @ 27, 05 SAY "Precio:" OF oDlgD PIXEL SIZE 40,12 RIGHT
    @ 25, 50 GET oGet1[2] VAR nPrecio OF oDlgD PIXEL PICTURE "99999999.99" RIGHT;
                  VALID((oGet1[1]:cText:= ROUND(nPrecio /nPre,3)) <> 'xxx');
-                 WHEN ("M"$cPermi) 
+                 WHEN ("M"$cPermi)
 
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Aceptar" OF oDlgD SIZE 30,10 ;
            ACTION ((lRta := .t.), oDlgD:End() ) PIXEL
@@ -1347,17 +1267,16 @@ RETURN nil
 *********************************************************************************************************
 **********APLICA DESCUENTOS A LA MESA
 STATIC FUNCTION CargaDescu()
-LOCAL acor:=ARRAY(4),oDlgD,oGet1:=ARRAY(3),oBot1,oBot2,lRta:=.f.,nDescTemp:=0,nOpcion:=1,;
-      aTipos:={"Descuento","Recargo"}, lSoloPuntual := .f., nDescuPun, oFont
-DEFINE FONT oFont   NAME "ARIAL" SIZE 0,-10
-DEFINE DIALOG oDlgD TITLE "Aplicar descuentos a la venta" OF oDlg1 FROM 05,15 TO 13,55 FONT oFont
+LOCAL acor:=ARRAY(4),oDlgD,oGet1:=ARRAY(2),oBot1,oBot2,lRta:=.f.,nDescTemp:=0,nOpcion:=1,;
+      aTipos:={"Descuento","Recargo"}
+
+DEFINE DIALOG oDlgD TITLE "Aplicar descuentos a la venta" OF oDlg1 FROM 05,15 TO 11,55
   acor := AcepCanc(oDlgD)
   
 
    @ 12, 05 SAY "Porcentaje:" OF oDlgD PIXEL SIZE 40,12 RIGHT
    @ 10, 50 GET oGet1[1] VAR nDescTemp OF oDlgD PIXEL PICTURE "999.99" RIGHT
    @ 10, 80 COMBOBOX oGet1[2] VAR nOpcion ITEMS aTipos OF oDlgD PIXEL SIZE 40,12
-   @ 25, 05 CHECKBOX oGet1[3] VAR lSoloPuntual PROMPT "Aplicar solo a articulo seleccionado" SIZE 90,12 PIXEL
 
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Aceptar" OF oDlgD SIZE 30,10 ;
            ACTION ((lRta := .t.), oDlgD:End() ) PIXEL
@@ -1365,72 +1284,22 @@ DEFINE DIALOG oDlgD TITLE "Aplicar descuentos a la venta" OF oDlg1 FROM 05,15 TO
            ACTION ((lRta := .f.), oDlgD:End() ) PIXEL CANCEL 
            
 ACTIVATE DIALOG oDlgD CENTER ON INIT oGet1[1]:SetFocus
-RELEASE oFont
 IF !lRta
    RETURN .f.
 ENDIF
-IF !lSoloPuntual
-    IF nOpcion = 1
-       nDescu:= nDescTemp
-    ELSE
-       nDescu:= -nDescTemp
-    ENDIF 
-    CrearTemporales()
-    oApp:oServer:BeginTransaction()
-    oApp:oServer:Execute("UPDATE VENTAS_DET_H1 v LEFT JOIN ge_"+oApp:cId+"ivas i  ON i.codigo = v.codiva "+;
-                         "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+;
-                         "SET v.descuento = (v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100),"+;
-                             "v.iva =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))-(((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100)),"+;
-                             "v.stotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100),"+;
-                             "v.ptotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100))),"+;
-                             "v.neto =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100)")
-    IF oApp:oServer:Query("SELECT * FROM VENTAS_DET_H1 WHERE pcosto > (ptotal/cantidad)"):nRecCount > 0
-       IF oQryPun:validacosto = 1
-          lRta:=MsgYesNo("El descuento aplicado deja por debajo,"+CHR(10)+;
-                  "del costo a producto ¿Desea continuar?","Atencion")
-          IF !lRta
-             oApp:oServer:RollBack()
-          ENDIF
-       ENDIF
-       IF oQryPun:validacosto = 2
-          MsgStop("No puede aplicar decuento seleccionado porque el "+CHR(10)+;
-                 "precio deja por debajo del costo a productos","Atencion")
-          oApp:oServer:RollBack()
-       ENDIF
-       oApp:oServer:CommitTransaction()
-    ENDIF 
-    ELSE 
-    IF nOpcion = 1
-       nDescuPun:= nDescTemp
-    ELSE
-       nDescuPun:= -nDescTemp
-    ENDIF 
-    CrearTemporales()
-    oApp:oServer:BeginTransaction()
-    oApp:oServer:Execute("UPDATE VENTAS_DET_H1 v LEFT JOIN ge_"+oApp:cId+"ivas i  ON i.codigo = v.codiva "+;
-                         "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+;
-                         "SET v.descuento = (v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100),"+;
-                             "v.iva =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100)))-(((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100)))/(1+i.tasa/100)),"+;
-                             "v.stotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100)))/(1+i.tasa/100),"+;
-                             "v.ptotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100))),"+;
-                             "v.neto =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100)))/(1+i.tasa/100)"+;
-                             " WHERE v.id = " + STR(oQryDet:id))
-    IF oApp:oServer:Query("SELECT * FROM VENTAS_DET_H1 WHERE pcosto > (ptotal/cantidad)"):nRecCount > 0
-       IF oQryPun:validacosto = 1
-          lRta:=MsgYesNo("El descuento aplicado deja por debajo,"+CHR(10)+;
-                  "del costo a producto ¿Desea continuar?","Atencion")
-          IF !lRta
-             oApp:oServer:RollBack()
-          ENDIF
-       ENDIF
-       IF oQryPun:validacosto = 2
-          MsgStop("No puede aplicar decuento seleccionado porque el "+CHR(10)+;
-                 "precio deja por debajo del costo a productos","Atencion")
-          oApp:oServer:RollBack()
-       ENDIF
-       oApp:oServer:CommitTransaction()
-    ENDIF 
-ENDIF
+IF nOpcion = 1
+   nDescu:= nDescTemp
+ELSE
+   nDescu:= -nDescTemp
+ENDIF 
+CrearTemporales()
+oApp:oServer:Execute("UPDATE VENTAS_DET_H1 v LEFT JOIN ge_"+oApp:cId+"ivas i  ON i.codigo = v.codiva "+;
+                     "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+;
+                     "SET v.descuento = (v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100),"+;
+                         "v.iva =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))-(((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100)),"+;
+                         "v.stotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100),"+;
+                         "v.ptotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100))),"+;
+                         "v.neto =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100)")
 oQryDet:Refresh()
 oBrwDet:Refresh()
 oBrwDet:MakeTotals()
@@ -1479,6 +1348,8 @@ nLista:= oQryCli:lispre
 nLisPre:= oQryCli:lispreesp
 nAntes:= oApp:oServer:Query("SELECT SUM(IF(tipo='NC',saldo*(-1),saldo)) AS antes FROM ge_"+oApp:cId+"ventas_cuota "+;
                             "WHERE cliente = "+ClipValue2Sql(nCliente)):antes
+mvendedor := oApp:oServer:Query("SELECT nombre FROM ge_"+oApp:cId+"vendedores "+;
+                            "WHERE codigo = "+ClipValue2Sql(oQryCli:vendedor)):nombre
 nDescu:= oQryCli:descuento
 /*
 oApp:oServer:Execute("UPDATE VENTAS_DET_H1 v LEFT JOIN ge_"+oApp:cId+"ivas i  ON i.codigo = v.codiva "+;
@@ -1498,8 +1369,8 @@ RETURN nil
 ****************** ALTA DE clientes
 STATIC FUNCTION AltaCli(oDlgC)
 LOCAL oDlgA,oQry,oGet:=ARRAY(27),;
-      oBot1,oBot2,mrta:=.f.,base,acor:=ARRAY(4),oError, nCuit := 0, oGet5,;
-      aListas:={"Lista 1","Lista 2"},cLisPre:="SIN LISTA ESPECIAL"+SPACE(31),lCambiar := .t.,;
+      oBot1,oBot2,mrta:=.f.,base,acor:=ARRAY(4),oError, nCuit := 0, oGet5, lCambiar := .t.,;
+      aListas:={"Lista 1","Lista 2"},cLisPre:="SIN LISTA ESPECIAL"+SPACE(31),;
       oQryLisPre:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre"),;
       atipoiva  := {;
 "1 IVA Responsable Inscripto",;
@@ -1599,7 +1470,7 @@ ENDDO
 RETURN nil
 
 ***************************************************************************************************
-**********COBRO 
+**********COBRO DE LA MESA
 STATIC FUNCTION ElijeFormPag()
 LOCAL oDlgC,oBot1:=ARRAY(26),oGet1:=ARRAY(3),oError,oBrwPag,nMonto:=((nTotal-nPagado)+nVuelto),oFontF,oFontBot,;
       nVueltoT:=nVuelto,nPagadoT:=nPagado,lRta:=.f.
@@ -1853,7 +1724,7 @@ DEFINE DIALOG oDlgA TITLE "DEPARTAMENTOS" FROM 05,10 TO 42,110 OF oWnd FONT oWnd
    y := 05
    i := 1
    DO WHILE !oQryDep:Eof()
-      bAction := "{ |  | PoneDept1("+STR(oQryDep:codigo)+", '"+ALLTRIM(oQryDep:nombre)+"') }"
+      bAction := "{ |  | PoneDept("+STR(oQryDep:codigo)+", '"+ALLTRIM(oQryDep:nombre)+"') }"
       bAction := &bAction
       @ x, y BTNBMP oBot[i] PROMPT ALLTRIM(LEFT(oQryDep:nombre,20)) SIZE 60,30 OF oDlgA PIXEL ;
               CENTER NOBORDER 2007 
@@ -1882,13 +1753,11 @@ oGet[3]:SetFocus()
 
 RETURN nil 
 
-
-FUNCTION PoneDept1(nCod,cNombre)
+FUNCTION PoneDept(nCod,cNombre)
 oGetDep1:SetText(nCod)
 oGetDep2:SetText(cNombre)
 oGetDep3:SetFocus()
-RETURN nil 
-
+RETURN nil  
 
 ***********************************************************************************************************************************
 ***** SI ES UNA TRANSFERENCIA PIDO LOS DATOS DE LA CUENTA 
@@ -1926,210 +1795,8 @@ ENDIF
 
 RETURN .T.
 
-*******************************************
-** Impresion de Pedido
-STATIC FUNCTION PrintPendi(nId)
-LOCAL i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, config, oQryCli, lRta := .F.,;
-      oQryP :=  oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip))   
-   IF oQryP:imprimeTic
-      lRta := .t.
-      ELSE 
-      lRta := .f.
-   ENDIF      
-   
-   config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
-   IF !lRta
-       ** PENDIENTES
-       DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon,config:fon*2.5
-       DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
-       DEFINE FONT oFont2  NAME "CALIBRI"     SIZE config:fon*4,config:fon*7 BOLD   
-       DEFINE FONT oFont3  NAME "ARIAL"       SIZE config:fon,config:fon*2.5 BOLD
-       PRINT oPrn NAME "Pendiente"  PREVIEW MODAL
-       oPrn:SetPortrait()
-       oPrn:SetPage(9)
 
-         PAGE
-         nRow := (oPrn:nHorzRes() / 80) / 47
-         @ 0,0 PRINT TO oPrn IMAGE "fondofac.jpg" SIZE oPrn:nHorzRes(), oPrn:nVertRes() PIXEL GRAY         
-         oPrn:CmBox( .5, .5, 1.5, 20.5 ) // Box arriba
-         @ .8, 01.15 PRINT TO oPrn TEXT "ORIGINAL" ;
-                  SIZE 18,.9 CM FONT oFont1 ALIGN "C"    
-         oPrn:CmBox( 1.5, .5, 5, 20.5 ) // Box datos del comprobante
-         oPrn:CmBox( 5.3, .5, 7.5, 20.5 ) // Box datos del cliente
-         oPrn:CmBox(   8, .5, 9, 20.5 ) // Box titulos 
-         oPrn:CmBox( 22, .5, 25, 20.5 )   // Box datos del iva   
-         
-         IF config:x1 = 2 .or. config:x1 = 3
-            @ 1.6,.6 PRINT TO oPrn IMAGE "logo.jpg" SIZE 8, 3 CM 
-         ENDIF
-         IF config:x1 = 1 .or. config:x1 = 3
-             @ 2, 01 PRINT TO oPrn TEXT ALLTRIM(oApp:nomb_emp) ;
-                      SIZE 9,1 CM FONT oFont1 ALIGN "C" LASTROW nRow
-             @ nRow, 01 PRINT TO oPrn TEXT "Domicilio Comercial:"+oApp:dire_emp ;
-                      SIZE 9,1 CM FONT oFont LASTROW nRow ALIGN "C"                 
-         ENDIF
 
-         oPrn:CmSay( 2  , 11, "PENDIENTES", oFont1 )   
-         *oPrn:CmBox( 1.5, 9.4, 2.7, 10.7 )   // Box cuadrito comprobante
-         oPrn:CmSay( 1.5, 9.8, " ",oFont2)
-         oPrn:CmSay( 2.5, 11, "Pendiente Nro:"+STR(nId,8),oFont)    
-         oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(DATE()),oFont)
-
-         oPrn:CmSay( 3.5, 11, "CUIT:"+oApp:cuit_emp,oFont)
-         oPrn:CmSay( 4.0, 11, "Ingresos brutos:"+oApp:ingb_emp,oFont) 
-         oPrn:CmSay( 4.5, 11, "Inicio de Actividades:"+DTOC(oApp:inac_emp),oFont)
-
-         @ 5.5, 9.5  PRINT TO oPrn TEXT "Razon Social:" ;
-                  SIZE 2.5,1 CM FONT oFont3 ALIGN "R"
-         @ 5.5, 12.5 PRINT TO oPrn TEXT ALLTRIM(cCliente) ;
-                  SIZE 8,1 CM FONT oFont LASTROW nRow ALIGN "L"                  
-         
-         @ 8.2, 01 PRINT TO oPrn TEXT "Codigo" ;
-                          SIZE 2.8,.5 CM FONT oFont ALIGN "R"
-         @ 8.2, 04 PRINT TO oPrn TEXT "Descripcion del producto" ;
-                  SIZE 7,.5 CM FONT oFont ALIGN "L"
-         @ 8.2, 11 PRINT TO oPrn TEXT "Cantidad" ;
-                  SIZE 2,.5 CM FONT oFont ALIGN "R"
-         @ 8.2, 14 PRINT TO oPrn TEXT "Pr.Unitario" ;
-                  SIZE 2,.5 CM FONT oFont ALIGN "R"
-         @ 8.2, 17 PRINT TO oPrn TEXT "Subtotal" ;
-                  SIZE 3,.5 CM FONT oFont ALIGN "R"
-             
-         y := 9.2
-         oQryDet:GoTop()
-         FOR i = 1 TO oQryDet:nRecCount          
-               @ y, 01 PRINT TO oPrn TEXT STR(oQryDet:codart,13) ;
-                  SIZE 2.8,.5 CM FONT oFont ALIGN "R"
-               @ y+0.06, 04 PRINT TO oPrn TEXT ALLTRIM(oQryDet:detart) ;
-                  SIZE 7,1.5 CM FONT oFont LASTROW nRow
-               @ y, 11 PRINT TO oPrn TEXT STR(oQryDet:cantidad,08,2) ;
-                  SIZE 2,.5 CM FONT oFont ALIGN "R"  
-               @ y, 14 PRINT TO oPrn TEXT oQryDet:ptotal/oqrydet:cantidad ;
-                          SIZE 2,.5 CM FONT oFont ALIGN "R"
-               @ y, 17 PRINT TO oPrn TEXT oQryDet:ptotal;
-                    SIZE 3,.5 CM FONT oFont ALIGN "R"             
-               y := nRow + .1               
-               oQryDet:Skip()
-         NEXT             
-         @ 23.5, 12 PRINT TO oPrn TEXT "Total $:" ;
-                          SIZE 4,.5 CM FONT oFont3 ALIGN "R"
-                     @ 23.5, 17 PRINT TO oPrn TEXT STR(nTotal,12,2) ;
-                          SIZE 3,.5 CM FONT oFont ALIGN "R"  
-       ENDPAGE
-
-       ENDPRINT
-       /// Reporte por comandera
-       ELSE 
-       ** PENDIENTES POR COMANDERA
-       IF config:fon > 25
-          config:fon := config:fon /3
-       ENDIF  
-       DEFINE FONT oFont   NAME "COURIER NEW" SIZE config:fon,config:fon*2.5 BOLD
-       DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
-       IF !oApp:tick80
-           PRINT oPrn TO ALLTRIM(oQryP:impresoraT) 
-               PAGE
-                 nRow := 1
-                 IF config:x1 = 2 .or. config:x1 = 3
-                    @ 0,1 PRINT TO oPrn IMAGE "logo.jpg" SIZE 3, 1.5 CM LASTROW nRow
-                 ENDIF
-                 IF config:x1 = 1 .or. config:x1 = 3
-                     @ nRow, .1 PRINT TO oPrn TEXT ALLTRIM(oApp:nomb_emp) ;
-                              SIZE 5,.5 CM FONT oFont1 ALIGN "C" LASTROW nRow
-                     @ nRow, .1 PRINT TO oPrn TEXT ALLTRIM(oApp:dire_emp) ;
-                              SIZE 5,.5 CM FONT oFont LASTROW nRow ALIGN "C"    
-                 ENDIF
-                 @ nRow, .1 PRINT TO oPrn TEXT "CUIT:"+oApp:cuit_emp ;
-                              SIZE 5,.5 CM FONT oFont LASTROW nRow ALIGN "C"
-                 @ nRow, .1 PRINT TO oPrn TEXT "Ing.br:"+ALLTRIM(oApp:ingb_emp);
-                              SIZE 5,.5 CM FONT oFont LASTROW nRow ALIGN "C"
-                 @ nRow, .1 PRINT TO oPrn TEXT "Inic.Act.:"+DTOC(oApp:inac_emp);
-                              SIZE 5,.5 CM FONT oFont LASTROW nRow ALIGN "C"
-                     
-                 @ nRow, 00 PRINT TO oPrn TEXT "PENDIENTE N°"+ALLTRIM(STR(nId,8)) ;
-                          SIZE 4.8,1 CM FONT oFont LASTROW nRow ALIGN "C"
-                 nRow := nRow + .5
-                 @ nRow, 00 PRINT TO oPrn TEXT "Cliente: "+ALLTRIM(cCliente) ;
-                      SIZE 4.8,1 CM FONT oFont1 LASTROW nRow                 
-                 @ nRow, 00 PRINT TO oPrn TEXT "Producto" ;
-                              SIZE 3,.5 CM FONT oFont 
-                 @ nRow, 03.1 PRINT TO oPrn TEXT "Cantidad" ;
-                      SIZE 1.5,.5 CM FONT oFont ALIGN "R"
-                 oQryDet:GoTop()
-                 y := nRow + .5
-                 FOR i = 1 TO oQryDet:nRecCount          
-                       
-                       @ y, 00 PRINT TO oPrn TEXT ALLTRIM(oQryDet:detart) ;
-                          SIZE 3,1 CM FONT oFont LASTROW nRow
-                       @ y, 3.1 PRINT TO oPrn TEXT STR(oQryDet:cantidad,08,2) ;
-                          SIZE 1.5,.5 CM FONT oFont ALIGN "R"  
-                         y := nRow + .1
-                       oQryDet:Skip()
-                 NEXT  
-                 y := y + .5                   
-                 @ y, 00 PRINT TO oPrn TEXT "Total $:" + STR(nTotal,12,2);
-                              SIZE 4,.5 CM FONT oFont1 ALIGN "R"
-                 @ y+.5,.1 PRINT TO oPrn TEXT "...";
-                              SIZE 5,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"
-           ENDPAGE
-           ENDPRINT
-           ELSE
-           // Ticket 80 mm
-           PRINT oPrn TO ALLTRIM(oQryP:impresoraT) 
-               PAGE
-                 nRow := 0
-                 IF config:x1 = 2 .or. config:x1 = 3
-                    @ 0,1.5 PRINT TO oPrn IMAGE "logo.jpg" SIZE 5, 2 CM LASTROW nRow
-                 ENDIF
-                 IF config:x1 = 1 .or. config:x1 = 3
-                     @ nRow, .1 PRINT TO oPrn TEXT ALLTRIM(oApp:nomb_emp) ;
-                              SIZE 8,.5 CM FONT oFont1 ALIGN "C" LASTROW nRow
-                     @ nRow, .1 PRINT TO oPrn TEXT ALLTRIM(oApp:dire_emp) ;
-                              SIZE 8,.5 CM FONT oFont LASTROW nRow ALIGN "C"    
-                 ENDIF
-                 @ nRow, .1 PRINT TO oPrn TEXT "CUIT:"+oApp:cuit_emp ;
-                              SIZE 8,.5 CM FONT oFont LASTROW nRow ALIGN "C"
-                 @ nRow, .1 PRINT TO oPrn TEXT "Ing.br:"+ALLTRIM(oApp:ingb_emp);
-                              SIZE 8,.5 CM FONT oFont LASTROW nRow ALIGN "C"
-                 @ nRow, .1 PRINT TO oPrn TEXT "Inic.Act.:"+DTOC(oApp:inac_emp);
-                              SIZE 8,.5 CM FONT oFont LASTROW nRow ALIGN "C"
-                              
-                 @ nRow, 00 PRINT TO oPrn TEXT "PENDIENTE N°"+ALLTRIM(STR(nId,8)) ;
-                          SIZE 7.5,1 CM FONT oFont1 LASTROW nRow ALIGN "C"
-                 nRow := nRow + .5
-                 @ nRow, 00 PRINT TO oPrn TEXT "Cliente: "+ALLTRIM(cCliente) ;
-                      SIZE 7.5,1 CM FONT oFont1 LASTROW nRow                 
-                 nRow := nRow + 1
-                 @ nRow, 00 PRINT TO oPrn TEXT "Producto" ;
-                              SIZE 4,.5 CM FONT oFont
-                 @ nRow, 04.1 PRINT TO oPrn TEXT "Cantidad" ;
-                      SIZE 1.5,.5 CM FONT oFont ALIGN "R"
-                 @ nRow, 05.6 PRINT TO oPrn TEXT "Total" ;
-                      SIZE 1.7,.5 CM FONT oFont ALIGN "R"
-                 oQryDet:GoTop()
-                 y := nRow + .5
-                 FOR i = 1 TO oQryDet:nRecCount          
-                       
-                       @ y, 00 PRINT TO oPrn TEXT ALLTRIM(oQryDet:detart) ;
-                          SIZE 4,1 CM FONT oFont LASTROW nRow
-                       @ y, 4.1 PRINT TO oPrn TEXT STR(oQryDet:cantidad,08,2) ;
-                          SIZE 1.3,.5 CM FONT oFont ALIGN "R" 
-                       @ y, 5.5 PRINT TO oPrn TEXT STR(oQryDet:ptotal,12,2) ;
-                          SIZE 1.5,.5 CM FONT oFont ALIGN "R"  
-                         y := nRow + .1
-                       oQryDet:Skip()
-                 NEXT  
-                 y := y + .2  
-                 
-                 @ y, 00 PRINT TO oPrn TEXT "Total $:" + STR(nTotal,12,2);
-                              SIZE 7.5,.5 CM FONT oFont1 ALIGN "L" LASTROW nRow   
-                 @ y+.02, 00 PRINT TO oPrn TEXT "...";
-                              SIZE 7.5,.5 CM FONT oFont LASTROW nRow ALIGN "L"
-           ENDPAGE
-           ENDPRINT
-        ENDIF
-    ENDIF
-RETURN nil
 
 
 STATIC Function ResolucionMonitor()
@@ -2175,98 +1842,93 @@ oApp:oServer:Execute("";
 
 RETURN nil
 
-//Validar Cantidad si lleva control de stock
-STATIC FUNCTION ValidarCantidad(nCod, nVal)
-LOCAL lRta := .t., nCanti, oQryAux, oQryS
-IF nCod <= 0
-   RETURN .t.
-ENDIF   
-nCanti := oApp:oServer:Query("SELECT SUM(cantidad) as canti FROM VENTAS_DET_H1 WHERE codart ="+str(nCod)):canti
-nCanti := nCanti + nVal
-oQryAux := oApp:oServer:Query("SELECT* FROM ge_"+oApp:cId+"articu WHERE codigo ="+str(nCod))
-  //Valido que tenga stock el producto cuando no es stock de otro
-   IF oQryPun:pidestock = 1 .and. oQryAux:stockact-nCanti < 0 .and. !oQryAux:stockotro
-      lRta:=MsgYesNo("El articulo que esta facturando esta fuera de stock,"+CHR(10)+;
-              "verifique su disponibilidad ¿Desea continuar?"+CHR(10)+;
-              "Stock actual: "+ALLTRIM(STR(oQryAux:stockact)),"Atencion")
-      IF !lRta 
-         RETURN .f.
-      ENDIF      
-      oBrwDet:SetFocus()
-      oGet[02]:SetFocus()
-  ENDIF
-  //Valido que tenga stock el producto que es stock de otro
-  IF oQryPun:pidestock = 1 .and. oQryAux:stockotro 
-      oQryS := oApp:oServer:Query("SELECT r.CODUSA, (a.STOCKACT - (r.CANTIDAD * "+STR(nCanti)+" )) AS STOCK_FINAL "+;
-                                  " FROM ge_"+oApp:cId+"reseta r "+;
-                                  " JOIN ge_"+oApp:cId+"articu a ON r.CODUSA = a.CODIGO "+;
-                                  " JOIN ge_"+oApp:cId+"articu a1 ON r.CODART = a1.CODIGO "+;
-                                  " WHERE r.CODART = "+STR(nCod)+;
-                                  " HAVING STOCK_FINAL < 0")
-      IF oQryS:nRecCount > 0
-          lRta:=MsgYesNo("El articulo que esta facturando tiene receta, y los articulos"+chr(10)+;
-                  "que la componen estan fuera de stock,"+CHR(10)+;
-                  "verifique su disponibilidad ¿Desea continuar?","Atencion")
-          IF !lRta 
-             RETURN .f.
-          ENDIF      
-          oBrwDet:SetFocus()
-          oGet[02]:SetFocus()
-      ENDIF    
-  ENDIF
 
-  //No dejo vender por falta de stock
-  IF oQryPun:pidestock = 2 .and. oQryAux:stockact-nCanti < 0 .and. !oQryAux:stockotro
-     MsgStop("No puede facturar el articulo seleccionado porque no esta en stock"+CHR(10)+;
-           "Stock actual: "+ALLTRIM(STR(oQryAux:stockact)),"Atencion")
-     RETURN .F.
-  ENDIF
-  //No dejo vender por falta de stock de la receta
-  IF oQryPun:pidestock = 2 .and. oQryAux:stockotro 
-      oQryS := oApp:oServer:Query("SELECT r.CODUSA, (a.STOCKACT - (r.CANTIDAD * "+STR(nCanti)+" )) AS STOCK_FINAL "+;
-                                  " FROM ge_"+oApp:cId+"reseta r "+;
-                                  " JOIN ge_"+oApp:cId+"articu a ON r.CODUSA = a.CODIGO "+;
-                                  " JOIN ge_"+oApp:cId+"articu a1 ON r.CODART = a1.CODIGO "+;
-                                  " WHERE r.CODART = "+STR(nCod)+;
-                                  " HAVING STOCK_FINAL < 0")
-      IF oQryS:nRecCount > 0
-          MsgStop("No puede facturar, el articulo seleccionado tiene receta, "+chr(10)+;
-                  "y los articulos que la componen estan fuera de stock."+CHR(10),"Atencion")
-          RETURN .F.
-      ENDIF    
-  ENDIF
-
-
-  IF oQryPun:pidestock < 3 .and. oQryAux:stockmin > 0 .and. oQryAux:stockact-nCanti  < oQryAux:stockmin .and. !oQryAux:stockotro
-     MsgAlert("Se esta quedando sin stock, llego al stock minimo","Atencion")    
-     oDlg1:SetFocus() 
-     oGet[02]:SetFocus()
-  ENDIF
-RETURN lRta
-
-
-//Validar costo si lleva control de costo
-STATIC FUNCTION ValidarCosto(nCos,nVen)
-LOCAL lRta := .t.
-   IF oQryPun:validacosto = 1
-      IF nCos > nVen
-          lRta:=MsgYesNo("El precio que está facturando está por debajo,"+CHR(10)+;
-              "del costo del producto ¿Desea continuar?"+CHR(10)+;
-              "Costo: "+ALLTRIM(STR(nCos)),"Atencion")
-          IF !lRta 
-             RETURN .f.
-          ENDIF      
-          //oBrwDet:SetFocus()
-          //oGet[02]:SetFocus()
-      ENDIF 
-   ENDIF
-   //Prohibo la venta por costo menor a venta
-   IF oQryPun:validacosto = 2
-      IF nCos > nVen
-          MsgStop("No puede facturar el articulo seleccionado porque el "+CHR(10)+;
-             "precio está por debajo del costo"+CHR(10)+;
-             "Costo: "+ALLTRIM(STR(nCos)),"Atencion")
-          RETURN .F.
-      ENDIF
-   ENDIF
-RETURN .t.
+STATIC FUNCTION Precuenta(oQry)
+LOCAL oPrn, nRow, oFont, oFont1, config, oQryP, nRow1 , i
+   oQryP :=  oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip))
+   IF oQry:nRecCount = 0 .or. !oQryP:imprimeTic
+      RETURN nil
+   ENDIF 
+   return nil // por ahora se va           
+   config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
+   
+ IF !oApp:tick80
+     *********** Impresion de Ticket 48 mm 
+     IF config:fon > 25
+        config:fon := config:fon /3
+     ENDIF   
+     DEFINE FONT oFont   NAME "COURIER NEW"       SIZE config:fon,config:fon*2.5
+     DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
+     PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
+        oPrn:oFont := oFont
+        PAGE                                  
+           nRow := 0
+           
+           @ nRow, .1 PRINT TO oPrn TEXT "PRE CUENTA" ;
+                        SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "C"                                                  
+           
+           nRow1 := nRow + .5
+           @ nRow1, 00 PRINT TO oPrn TEXT "Descripcion";
+                        SIZE 2.9,.5 CM FONT oFont LASTROW nRow ALIGN "L"
+           @ nRow1, 03 PRINT TO oPrn TEXT "Cant";
+                        SIZE .7,.5 CM FONT oFont LASTROW nRow ALIGN "R"
+           @ nRow1, 03.8 PRINT TO oPrn TEXT "Total";
+                        SIZE 1.0,.5 CM FONT oFont LASTROW nRow ALIGN "R"
+           oQry:GoTop()               
+           FOR i = 1 TO oQry:nRecCount           
+               nRow1 := nRow
+               @ nRow1, 00 PRINT TO oPrn TEXT ALLTRIM(oQry:detart);
+                    SIZE 2.9,.5 CM FONT oFont LASTROW nRow ALIGN "L"
+               @ nRow1, 03 PRINT TO oPrn TEXT STR(oQry:cantidad,06,1);
+                    SIZE 0.7,.5 CM FONT oFont  ALIGN "R"                         
+               @ nRow1, 3.8 PRINT TO oPrn TEXT STR(oQry:ptotal,12,2);
+                    SIZE 1,.5 CM FONT oFont LASTROW nRow ALIGN "R"     
+               oQry:Skip()                     
+            NEXT                                                                 
+           @ nRow, .1 PRINT TO oPrn TEXT "Items:" + STR(oQry:nRecCount,4) ;
+                    SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"
+           @ nRow,.1 PRINT TO oPrn TEXT ".";
+                    SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"                     
+        ENDPAGE
+     ENDPRINT
+    ELSE
+     *********** Impresion de Ticket 80 mm 
+     IF config:fon > 25
+        config:fon := config:fon /3
+     ENDIF   
+     DEFINE FONT oFont   NAME "COURIER NEW"       SIZE config:fon,config:fon*2.5
+     DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
+     PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
+        oPrn:oFont := oFont
+        PAGE                                  
+           nRow := 0
+           
+           @ nRow, .1 PRINT TO oPrn TEXT "PRE CUENTA" ;
+                        SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "C"                     
+           nRow1 := nRow + .5
+           @ nRow1, 00.02 PRINT TO oPrn TEXT "Descripcion";
+                        SIZE 3.5,.5 CM FONT oFont LASTROW nRow ALIGN "L"
+           @ nRow1, 03.60 PRINT TO oPrn TEXT "Cant";
+                        SIZE .9,.5 CM FONT oFont LASTROW nRow ALIGN "R"
+           @ nRow1, 05.66 PRINT TO oPrn TEXT "Total";
+                        SIZE 1.4,.5 CM FONT oFont LASTROW nRow ALIGN "R"
+           oQry:GoTop()                
+           nRow := nRow + .2                   
+           FOR i = 1 TO oQry:nRecCount           
+               nRow1 := nRow
+               @ nRow1, 00.00 PRINT TO oPrn TEXT ALLTRIM(oQry:detart);
+                    SIZE 3.5,.5 CM FONT oFont LASTROW nRow ALIGN "L"
+               @ nRow1, 03.60 PRINT TO oPrn TEXT STR(oQry:cantidad,06,2);
+                    SIZE .9,.5 CM FONT oFont  ALIGN "R"
+               @ nRow1, 05.66 PRINT TO oPrn TEXT STR(oQry:ptotal,12,2);
+                    SIZE 1.4,.5   CM FONT oFont ALIGN "R"                         
+               oQry:Skip()                     
+            NEXT                                                                 
+           @ nRow, .1 PRINT TO oPrn TEXT "Items:" + STR(oQry:nRecCount,4) ;
+                    SIZE 5,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"
+           @ nRow,.1 PRINT TO oPrn TEXT ".";
+                    SIZE 5,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"                     
+        ENDPAGE
+     ENDPRINT              
+ ENDIF 
+RETURN nil
