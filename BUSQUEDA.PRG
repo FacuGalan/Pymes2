@@ -2,8 +2,9 @@
 #include "xbrowse.ch"
 #include "tdolphin.ch"
 MEMVAR oApp
-FUNCTION buscar(base, oWnd, oGet1, oGet2, uValor, cCampoFiltro,uValor2, cCampoFiltro2)
+FUNCTION buscar(base, oWnd, oGet1, oGet2, uValor, cCampoFiltro,uValor2, cCampoFiltro2, xnombre_codigo)
 LOCAL oDlg1, oBot1:=ARRAY(1), cFiltro,cFiltro2, oLbx, n := VAL(oGet1:cText), oQr1, oQryPun,nRows
+DEFAULT xnombre_codigo := 'codigo'
 IF uValor <> nil
    cFiltro := cCampoFiltro + " = "+uValor
    ELSE
@@ -22,7 +23,7 @@ ENDIF
 //   nRows:= base:Seek(n,"codigo")
 //ENDIF
 //IF nRows > 0
-base:SetNewFilter(SET_WHERE,if('a.'$base:cQuery,'a.codigo','codigo') +"="+ oGet1:cText +  " AND " + cFiltro+" AND "+cFiltro2,.t.)
+base:SetNewFilter(SET_WHERE,if('a.'$base:cQuery,'a.codigo',xnombre_codigo) +"="+ oGet1:cText +  " AND " + cFiltro+" AND "+cFiltro2,.t.)
 IF base:nRecCount > 0
       IF oGet2 <> nil
          oGet2:cText := base:nombre
@@ -86,7 +87,8 @@ ENDIF
 //ELSE
 //   nRows:= base:Seek(n,"codigo")
 //ENDIF
-base:SetNewFilter(SET_WHERE,if('a.'$base:cQuery,'a.codigo','codigo') +"="+ oGet1:cText +  " AND " + cFiltro+" AND "+cFiltro2,.t.)
+
+base:SetNewFilter(SET_WHERE,if('a.'$base:cQuery,'a.codigo','codigo') +"="+ str(n) +  " AND " + cFiltro+" AND "+cFiltro2,.t.)
 //IF nRows > 0
 IF base:nRecCount > 0
       IF oGet2 <> nil

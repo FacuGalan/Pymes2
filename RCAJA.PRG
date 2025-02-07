@@ -341,8 +341,8 @@ DEFINE DIALOG oForm TITLE "Transferir Saldo a otra caja";
                 VALID(base:importe>0)
    @ 35, 50 GET oGet[3] VAR base:caja    PICTURE "999" OF oForm PIXEL RIGHT WHEN(.f.)
    @ 50, 50 GET oGet[4] VAR nHacia PICTURE "9999" RIGHT SIZE 25,12  PIXEL;
-            VALID(Buscar(oQryPun,oForm,oGet[4],oGet[5]));
-            ACTION ((oGet[4]:cText := 0,Buscar(oQryPun,oForm,oGet[4],oGet[5]))) BITMAP "BUSC1" 
+            VALID(Buscar(oQryPun,oForm,oGet[4],oGet[5],,,,, 'caja'));
+            ACTION ((oGet[4]:cText := 0,Buscar(oQryPun,oForm,oGet[4],oGet[5],,,,, 'caja'))) BITMAP "BUSC1" 
    @ 50, 90 GET oGet[5] VAR cCaja PICTURE "@!"  OF oForm PIXEL SIZE 90,12;
                 WHEN((oGet[5]:cText := oQryPun:nombre) = SPACE(30))
    @ 65, 50 GET oGet[6] VAR mobserva OF oForm PIXEL
