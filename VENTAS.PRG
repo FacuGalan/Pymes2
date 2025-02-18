@@ -2150,12 +2150,12 @@ RETURN nil
 *********************************************
 *** SI ES UNA TRANSFERENCIA PIDO LOS DATOS DE LA CUENTA 
 STATIC FUNCTION PreguntasPresupu(lEnDolares,dFecVen,lGuarda,lImpSinIva,lPreciosFinales)
-LOCAL oGet := ARRAY(4), oBot := ARRAY(3), oForm, lRta := .F., aCor, base, oError, oQry,;
+LOCAL oGet := ARRAY(5), oBot := ARRAY(3), oForm, lRta := .F., aCor, base, oError, oQry,;
       cNomCue:=SPACE(50),oQryCue,oDlg1
 DEFAULT lImpSinIva := .f.
 
 DEFINE DIALOG oForm TITLE "Emision de presupuesto";
-       FROM 05,15 TO 17,70 OF oDlg FONT oApp:oFont
+       FROM 05,15 TO 19,70 OF oDlg FONT oApp:oFont
    
    @ 07, 05 SAY "Vencimiento:"       OF oForm PIXEL SIZE 40,12 RIGHT
 
@@ -2165,7 +2165,8 @@ DEFINE DIALOG oForm TITLE "Emision de presupuesto";
    @ 20, 50 CHECKBOX oGet[2] VAR lEnDolares OF oForm PIXEL SIZE 200,12 PROMPT "Emitir presupuesto en dolares" 
    @ 35, 50 CHECKBOX oGet[3] VAR lGuarda OF oForm PIXEL SIZE 200,12 PROMPT "Guardar presupuesto para futura facturacion"
    IF oApp:presudiscriva
-      @ 50, 50 CHECKBOX oGet[4] VAR lImpSinIva OF oForm PIXEL SIZE 200,12 PROMPT "Imprimir presupuesto sin IVA"
+      @ 50, 50 CHECKBOX oGet[4] VAR lImpSinIva OF oForm PIXEL SIZE 200,12 PROMPT "Imprimir presupuesto sin IVA" WHEN (!lPreciosFinales)
+      @ 65, 50 CHECKBOX oGet[5] VAR lPreciosFinales OF oForm PIXEL SIZE 200,12 PROMPT "Imprimir Precios finales" WHEN (!lImpSinIva)
       ELSE 
       @ 50, 50 CHECKBOX oGet[4] VAR lPreciosFinales OF oForm PIXEL SIZE 200,12 PROMPT "Imprimir Precios finales"
    ENDIF      
@@ -2973,10 +2974,10 @@ DEFAULT dFecVen:= nil, lImpSinIva := .f., lPreciosFinales := .f.
          @ 8.2, 04 PRINT TO oPrn TEXT "Descripcion del producto" ;
                   SIZE 7,.5 CM FONT oFont ALIGN "L"
          @ 8.2, 11 PRINT TO oPrn TEXT "Cantidad" ;
-                  SIZE 2,.5 CM FONT oFont ALIGN "R"
-         @ 8.2, 14 PRINT TO oPrn TEXT "Pr.Unit."+IF(oApp:presudiscriva .and. !lImpSinIva," S/IVA","") ;
+                  SIZE 2,.5 CM FONT oFont ALIGN "R"                  
+         @ 8.2, 14 PRINT TO oPrn TEXT "Pr.Unit."+IF(oApp:presudiscriva .and. !lImpSinIva .and. !lPreciosFinales," S/IVA","") ;
                   SIZE 2.1,.5 CM FONT oFont ALIGN "R"
-         @ 8.2, 17 PRINT TO oPrn TEXT "Subtotal"+IF(oApp:presudiscriva .and. !lImpSinIva," S/IVA","") ;
+         @ 8.2, 17 PRINT TO oPrn TEXT "Subtotal"+IF(oApp:presudiscriva .and. !lImpSinIva .and. !lPreciosFinales," S/IVA","") ;
                   SIZE 3,.5 CM FONT oFont ALIGN "R"
          y := 9.2
          oQryDet:GoTop()

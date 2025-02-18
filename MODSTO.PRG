@@ -450,7 +450,7 @@ cSql := "SELECT * FROM ("+;
 "UNION "+;
 "SELECT p.codart AS codigo,p.detart AS nombre,0 AS stockact,0 AS entradas,SUM(p.cantidad) AS salidas FROM ge_"+oApp:cId+"pedidos_encab pe  "+;
 "LEFT JOIN ge_"+oApp:cId+"pedidos_det p ON p.idpedido = pe.id   "+;
-"WHERE p.estado = 'P' pe.parafecha >= "+ClipValue2Sql(mdesde)+" AND pe.parafecha <=  "+ClipValue2Sql(mhasta)+"  GROUP BY p.codart "+;
+"WHERE pe.estado = 'P' AND pe.parafecha >= "+ClipValue2Sql(mdesde)+" AND pe.parafecha <=  "+ClipValue2Sql(mhasta)+"  GROUP BY p.codart "+;
 ") res GROUP BY res.codigo) res1 WHERE res1.salidas <> 0 ORDER BY res1.nombre" 
 CursorWait()
 oQry = oApp:oServer:Query(cSql)
