@@ -2856,7 +2856,7 @@ FOR j := 1 TO LEN(x)-1 STEP 2
     i := ASCAN(bar1,SUBSTR(x,j,2))
     cBarr := cBarr + bar[i]
 NEXT j
-RETURN cBarr
+RETURN "("+cBarr+")"
 
 STATIC FUNCTION DigitoVer(cText)
 LOCAL nSuma := 0, i, aSecuencia := {1,3,5,7,9,3,5,7,9,3,5,7,9,3,5,7,9,3,5,7,9,3,5,7,9,3,5,7,9,3,5,7,9,3,5,7,9,3,5,7,9,3,5,7,9}

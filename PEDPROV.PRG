@@ -31,6 +31,7 @@ oApp:oServer:Execute("";
     +"`DESCUENTO`  DECIMAL(12,2) DEFAULT '0.00', ";
     +"`CODIGOPROV`  VARCHAR(20) DEFAULT ' ', ";
     +"`CODIGOPROV1` VARCHAR(20) DEFAULT ' ', ";
+    +"`STOCK` DECIMAL (10,2) DEFAULT 0, ";
     +"PRIMARY KEY (codart) ";
     +") ENGINE=INNODB DEFAULT CHARSET=utf8")
 
@@ -148,10 +149,10 @@ DEFINE DIALOG oForm RESOURCE "PEDPROV" OF oWnd1
  REDEFINE GET oGet[06] VAR base:reten     PICTURE "999.99" ID 106 OF oForm WHEN(.F.)
 
  REDEFINE XBROWSE oBrwDet DATASOURCE oQryDet;
-       COLUMNS "CODART","DETART","CANTIDAD","PUNIT","DESCUENTO","TOTAL","CODIGOPROV","CODIGOPROV1";
-       HEADERS "Codigo","Detalle Articulo","Cantidad","Precio U","Descu","Total","Codigo Pr.","Codigo Pr1";
+       COLUMNS "CODART","DETART","CANTIDAD","PUNIT","DESCUENTO","TOTAL","CODIGOPROV","CODIGOPROV1",'STOCK';
+       HEADERS "Codigo","Detalle Articulo","Cantidad","Precio U","Descu","Total","Codigo Pr.","Codigo Pr1",'Stock';
        FOOTERS ;
-       SIZES 60,300,60,60,60,80,80,80;
+       SIZES 60,300,60,60,60,80,80,80,80;
     ID 201 OF oForm AUTOSORT 
     PintaBrw(oBrwDet,0)
 oBrwDet:bKeyDown := { |nKey| IF (nKey == VK_DELETE,(EliminarItem(),;
@@ -489,8 +490,8 @@ IF lBorra
    oApp:oServer:Execute("TRUNCATE detalle_temp")
 ENDIF
 TRY 
-   oApp:oServer:Execute("INSERT INTO detalle_temp (codart,detart,cantidad,punit,total,descuento,codigoprov,codigoprov1) "+;
-                    "(SELECT a.codigo,a.nombre,a.cantidad,a.costo,a.cantidad*a.costo,0,a1.codigopro,ap.codarp "+;
+   oApp:oServer:Execute("INSERT INTO detalle_temp (codart,detart,cantidad,punit,total,descuento,codigoprov,codigoprov1,stock) "+;
+                    "(SELECT a.codigo,a.nombre,a.cantidad,a.costo,a.cantidad*a.costo,0,a1.codigopro,ap.codarp,a.bultos "+;
                     " FROM articulos_temp a "+;
                     " LEFT JOIN ge_"+oApp:cId+"articu a1 ON a1.codigo = a.codigo "+;
                     " LEFT JOIN ge_"+oApp:cId+"codpro ap ON ap.codart = a.codigo AND ap.codpro = "+ClipValue2Sql(base:codpro)+;

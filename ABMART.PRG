@@ -9,7 +9,7 @@
 *************************************************
 MEMVAR oApp
 STATIC oQryBrw,oQry, oQry2, oQry3, oQry4, oQry5, oQry6, oQry7 ,;
-       oWnd1, oBrw, oDlg, cVentana,oBrw1, oQryArt,oQryPun , lTipoArt 
+       oWnd1, oBrw, oDlg, cVentana,oBrw1, oQryArt,oQryPun , lTipoArt
 PROCEDURE Artic(cPermisos)
 LOCAL oBar, hHand, oGetSeek, cSeek := SPACE(50), oPop2
 cVentana := PROCNAME()
@@ -31,6 +31,7 @@ MENU oPop2 POPUP
      MENUITEM "Solo No vendibles"    ACTION FiltrarVen(.f.)
 ENDMENU
 
+
    oQry2  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"provee ORDER BY codigo")
    oQry3  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"ivas ORDER BY codigo")
    oQry4  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"marcas ORDER BY codigo")
@@ -38,7 +39,7 @@ ENDMENU
    oQry6  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"deptos ORDER BY codigo")
    oQry7  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"empresas ORDER BY codigo")
  
-  DEFINE WINDOW oWnd1 MDICHILD TITLE "A/B/M de Articulos" ;
+  DEFINE WINDOW oWnd1 MDICHILD TITLE "A/B/M de Articulos: Solo articulos vendibles";
           OF oApp:oWnd NOZOOM ICON oApp:oIco FROM 05,05 TO 50,50
          DEFINE BUTTONBAR oBar  SIZE 60,60 OF oWnd1 2010
          DEFINE BUTTON RESOURCE "ALTA" OF oBar ;
@@ -129,7 +130,7 @@ ENDMENU
      oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt(oQryBrw, oGetSeek, oBrw, nKey) }
      //oBrw:SetDolphin(oQry,.f.,.t.)
      // Activo el dialogo y al iniciar muevo a 0,0
-     ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT (oGetSeek:SetFocus(),oDlg:Move(0,0)) VALID(oWnd1:End())
+     ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT (oGetSeek:SetFocus(),oDlg:Move(0,0),FiltrarVen(.t.)) VALID(oWnd1:End())
    ACTIVATE WINDOW oWnd1 ON INIT Incrusta( oWnd1, oDlg, .T.) VALID(cerrar())
 RETURN
 
@@ -1028,12 +1029,15 @@ STATIC FUNCTION FiltrarVen(lTipo)
 lTipoArt := lTipo
 IF lTipo = nil 
    oQryBrw:SetNewFilter(SET_WHERE,"",.t.)
+   oWnd1:cTitle("A/B/M de Articulos: TODOS los articulos")
 ENDIF
 IF lTipo = .t. 
    oQryBrw:SetNewFilter(SET_WHERE,"NOSALE IS FALSE",.t.)
+   oWnd1:cTitle("A/B/M de Articulos: Solo articulos vendibles")
 ENDIF
 IF lTipo = .f. 
    oQryBrw:SetNewFilter(SET_WHERE,"NOSALE IS TRUE",.t.)
+   oWnd1:cTitle("A/B/M de Articulos: Solo articulos NO VENDIBLES")
 ENDIF
 oBrw:Refresh()
 RETURN nil

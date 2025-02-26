@@ -90,7 +90,7 @@ aLen      := oQry:Ancho
 aLen := ListToArray(aLen,"N")
 aPic := ListToArray(aPic,"C")
 aTit := ListToArray(aTit,"C")
-Show(oQryRes)
+Show(oQryRes,aPic)
 
 oQryRes:End()
 RETURN nil
@@ -202,9 +202,9 @@ RETURN aArr
 *************************************************
 ** Visualizar consulta
 *************************************************
-STATIC function Show(oQryRes)
+STATIC function Show(oQryRes,aPic)
 
-   local oDlg, oFont, oBrw, aCor
+   local oDlg, oFont, oBrw, aCor, i, t
 
 
    DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-12
@@ -212,12 +212,22 @@ STATIC function Show(oQryRes)
       TITLE "RESULTADO DEL REPORTE PERSONALIZADO"
    oDlg:lHelpIcon := .f.
    @  40,05 XBROWSE oBrw SIZE -20,-20 PIXEL OF oDlg ;
-      DATASOURCE oQryRes AUTOCOLS CELL LINES NOBORDER
+      DATASOURCE oQryRes AUTOCOLS CELL LINES NOBORDER FOOTERS
+   IF LEN(aPic) > 0
+      FOR i:= 1 TO LEN(aPic) 
+          IF aPic[i] = "T"
+             t := i
+             oBrw:aCols[t]:nFooterTypE := AGGR_SUM
+          ENDIF
+      NEXT i    
+   ENDIF   
+
 
    XbrSetupBar( oBrw,oDlg )
 
    WITH OBJECT oBrw
       :CreateFromCode()
+      :MakeTotals()
    END
    PintaBrw(oBrw,0)
    ACTIVATE DIALOG oDlg CENTERED
