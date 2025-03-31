@@ -39,9 +39,9 @@ IF !mrta
 ENDIF
 CursorWait()
 lTipo:= IF(nTipo=1,.f.,.t.)
-     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
-     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
-     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC     
+     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-9
+     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-9 BOLD
+     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC     
 oQry := oApp:oServer:Query("SELECT fecha, CONCAT('REC ',LPAD(CAST(numero AS CHAR),8,'0')) AS compro,"+;
                             " 0 AS debe, total AS haber, interes as interes"+;                          
                             " FROM ge_"+oApp:cId+"pagos "+;                          
@@ -141,9 +141,9 @@ IF !mrta
    RETURN
 ENDIF
 CursorWait()
-     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
-     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
-     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC   
+     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-10
+     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-10 BOLD
+     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC   
 
 IF !lDeta
 oQry := oApp:oServer:Query("SELECT * FROM ("+;
@@ -618,9 +618,9 @@ IF !mrta
    RETURN
 ENDIF
 CursorWait()
-     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
-     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
-     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC     
+     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-10
+     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-10 BOLD
+     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC     
 oQry := oApp:oServer:Query("SELECT v.*, ve.comision AS comi, ve.condfac, ve.condtot, vc.saldo "+;                         
                          " FROM ge_"+oApp:cId+"ventas_encab v  "+;
                          " LEFT JOIN (SELECT tipo, letra, numero, SUM(saldo) as saldo FROM ge_"+oApp:cId+"ventas_cuota GROUP BY tipo,letra,numero) vc ON vc.tipo = v.ticomp AND vc.letra = v.letra AND vc.numero = v.numcomp "+;

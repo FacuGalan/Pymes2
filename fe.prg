@@ -326,11 +326,13 @@ nNro := 0
 
 
 IF oApp:lDemo
-    URLWSAA := "https://wsaahomo.afip.gov.ar/ws/services/LoginCms"
-    URLWSW := "https://wswhomo.afip.gov.ar/wsfev1/service.asmx"
+    //URLWSAA := "https://wsaahomo.afip.gov.ar/ws/services/LoginCms"
+    //URLWSW := "https://wswhomo.afip.gov.ar/wsfev1/service.asmx"
+    wsfev1 := WSAFip():New("20214424666", .t.)
 ELSE 
-    URLWSAA := "https://wsaa.afip.gov.ar/ws/services/LoginCms"
-    URLWSW := "https://servicios1.afip.gov.ar/wsfev1/service.asmx"
+    //URLWSAA := "https://wsaa.afip.gov.ar/ws/services/LoginCms"
+    //URLWSW := "https://servicios1.afip.gov.ar/wsfev1/service.asmx"
+    wsfev1 := WSAFip():New(STRTRAN(oApp:cuit_emp,"-",""), .f.)
 ENDIF
 
 DO CASE 
@@ -452,7 +454,7 @@ IF nTipoFac=2 .or. nTipoFac = 3
    dFecDes := ""
    dFecHas := ""
 ENDIF   
-TRY 
+/*TRY 
     wsfev1 := CreateObject("FEAFIPLib.wsfev1")
     IF oApp:lDemo
         wsfev1:CUIT := 20214424666
@@ -469,10 +471,11 @@ CATCH oError
              "Hagalo con permisos de administrador";
              ,"Error" ) 
     RETURN 0 
-END TRY 
+END TRY*/ 
 TRY 
-  wsfev1:URL  := URLWSW
-  lRta := wsfev1:login("MiCertificado.crt", "MiClavePrivada", URLWSAA)
+  //wsfev1:URL  := URLWSW
+  //lRta := wsfev1:login("MiCertificado.crt", "MiClavePrivada", URLWSAA)
+  lRta := wsfev1:Login(".\DRIVERSFC\MiCertificado.crt", ".\DRIVERSFC\MiClavePrivada", "wsfe")
 CATCH oError
   MsgInfo( "Error en el Web Service de AFIP"+chr(10)+;
               oError:description+chr(10);
@@ -481,13 +484,12 @@ CATCH oError
 END TRY    
 IF lRta 
    TRY
-       If wsfev1:SFRecuperaLastCMP(nPuntoVta, Tipocomp) 
-          nFacturaNro := wsfev1:SFLastCmp &&Devolucion el ultimo comprobante
-          *oGet[06]:cText := nFacturaNro + 1
+       nFacturaNro := wsfev1:SFRecuperaLastCMP(nPuntoVta, Tipocomp) 
+       IF nFacturaNro >= 0 &&Devolucion el ultimo comprobante          
           lRta := .t.
           ELSE
           MsgInfo( "Error en el Web Service de AFIP"+chr(10)+;
-              wsfev1:ErrorDesc+chr(10);
+              wsfev1:cLastError+chr(10);
              +"CONECTANDO CON WEB SERVICE","Error" ) 
           nFacturaNro := 0
           lRta := .f.
@@ -510,15 +512,21 @@ IF lRta
    ENDIF
    TRY
      wsfev1:Reset()  
+     //Formato nuevo
+     //(nTipoFac, nTipoDoc, nNroDoc, nFacturaNro, fechacmp, nTotal, nNoGrav, nNeto, nExento, dFecDes, dFecHas,;
+     // dFchVto, cMoneda, nCotiza, nConcepto, nCondicionIVA)
      IF lFacturaD
-        wsfev1:AgregaFactura(nTipoFac, nTipoDoc, nNroDoc, nFacturaNro, nFacturaNro, fechacmp,;
-                          nTotal, nPerce, nNeto, 0, dFecDes, dFecHas, IF(nTipoFac>=2,fechacmp,""), "DOL", nCotiza) 
+        //wsfev1:AgregaFactura(nTipoFac, nTipoDoc, nNroDoc, nFacturaNro, nFacturaNro, fechacmp,;
+        //                 nTotal, nPerce, nNeto, 0, dFecDes, dFecHas, IF(nTipoFac>=2,fechacmp,""), "DOL", nCotiza) 
+        wsfev1:AgregaFactura(Tipocomp, nTipoDoc, nNroDoc, nFacturaNro, fechacmp,;
+                             nTotal, nPerce, nNeto, 0, dFecDes,;
+                             dFecHas, IF(nTipoFac>=2,fechacmp,""), "DOL", nCotiza, nTipoFac,'N',oGet[13]:nAt)
         ELSE  
-        wsfev1:AgregaFactura(nTipoFac, nTipoDoc, nNroDoc, nFacturaNro, nFacturaNro, fechacmp,;
-                          nTotal, nPerce, nNeto, 0, dFecDes, dFecHas, IF(nTipoFac>=2,fechacmp,""), "PES", 1)   
+        wsfev1:AgregaFactura(Tipocomp, nTipoDoc, nNroDoc, nFacturaNro,  fechacmp,;
+                          nTotal, nPerce, nNeto, 0, dFecDes, dFecHas, IF(nTipoFac>=2,fechacmp,""), "PES", 1, nTipoFac, 'N' ,oGet[13]:nAt)   
      ENDIF   
      IF nTip = 3 .or. nTip = 2
-        wsfev1:AgregaCompAsoc(IF(cLetra = 'A',1,IF(cLetra = "B",6,IF(cLetra = "C",11,53))),nPuntoVta,nComprAsoc,wsfev1:CUIT,DTOS(dFecCompAsoc))
+        wsfev1:AgregaCompAsoc(IF(cLetra = 'A',1,IF(cLetra = "B",6,IF(cLetra = "C",11,53))),nPuntoVta,nComprAsoc,wsfev1:cCuitRepresentada,DTOS(dFecCompAsoc))
      ENDIF
    CATCH oError 
         MsgInfo( "Error en el Web Service de AFIP"+;
@@ -545,13 +553,13 @@ IF lRta
      ENDIF
      If wsfev1:Autorizar(nPuntoVta, Tipocomp) 
         *Memoedit(wsfev1:XmlRequest)      
-        If wsfev1:SFresultado(0)<>"A"              
+        If wsfev1:cResultado<>"A"              
            lFallo := .t.
            nNro := 0
         ENDIF 
         ELSE
         MsgInfo( "Error en el Web Service de AFIP"+chr(10)+;
-                wsfev1:ErrorDesc+chr(10);
+                wsfev1:cLastError+chr(10);
                +"FEAFIP AUTORIZAR","Error" ) 
         lFallo := .t.
         nNro := 0
@@ -564,14 +572,14 @@ IF lRta
    END TRY  
    ELSE
    MsgInfo( "Error en el Web Service de AFIP"+chr(10)+;
-              wsfev1:ErrorDesc+chr(10);
+              wsfev1:cLastError+chr(10);
              +"FEAFIP CERTIFICADOS","Error" ) 
    lFallo := .t.
    nNro := 0
 ENDIF
 IF lFallo
    //MsgStop(wsfev1:ErrorDesc+" "+wsfev1:SFresultado(0), "FEAFIP RESULTADO")
-   MemoWrit("error.xml",wsfev1:xmlresponse)    
+   /*MemoWrit("error.xml",wsfev1:xmlresponse)    
    aXml := {}
    hFile    := FOpen( "error.xml" ) 
    oXmlDoc  := TXmlDocument():New( hFile )
@@ -585,21 +593,23 @@ IF lFallo
          Exit
       Endif
    End
-   FClose( hFile )
+   FClose( hFile )*/   
    Procesando(.f.)
-   xBrowse(aXml,wsfev1:ErrorDesc)
+   IF !EMPTY(wsfev1:aObservaciones)
+      xBrowse(wsfev1:aObservaciones,"Error al enviar al WS de ARCA")
+   ENDIF   
    RETURN nil
 ENDIF
 nNro := nFacturaNro
-cCae := wsfev1:SFCAE(0)
-dFecVto := sFecha(wsfev1:SFVencimiento(0))
+cCae := wsfev1:cCAE
+dFecVto := wsfev1:dCAEVto
 nTipfor := TipoComp
 RETURN nil
 
 ******************************************************************************************
 ** Factura electronica para tickets
 FUNCTION FacturaElec1( nPuntoVta, nTipoDoc, cLetra, aTablasIvas, nNro, cCae, dFecVto, nTipfor,;
-                     dFecComp,cCuit,nDni,nImpNeto,nImpIva,nImpTotal,nImpInt)
+                     dFecComp,cCuit,nDni,nImpNeto,nImpIva,nImpTotal,nImpInt, nConIva)
 LOCAL urlwsaa, urlwsw, wsfev1, i, lFallo := .f., j, TipoComp, fechacmp, nFacturaNro, nNroDoc,;
       nTotal, nIva, nNeto, dFecDes, dFecHas, aXml, hFile, oXmlDoc, oXmlIter, oTagActual, oError, lRta
      
@@ -611,14 +621,6 @@ nNro := 0
 
 && URLs de autenticacion y negocio. Cambiarlas por las de producción al implementarlas en el cliente(abajo)
 
-
-IF oApp:lDemo
-    URLWSAA := "https://wsaahomo.afip.gov.ar/ws/services/LoginCms"
-    URLWSW := "https://wswhomo.afip.gov.ar/wsfev1/service.asmx"
-ELSE 
-    URLWSAA := "https://wsaa.afip.gov.ar/ws/services/LoginCms"
-    URLWSW := "https://servicios1.afip.gov.ar/wsfev1/service.asmx"
-ENDIF
 
 DO CASE 
    //Facturas
@@ -650,6 +652,16 @@ IF EMPTY(STRTRAN(cCuit,"-","")) .AND. cLetra = 'A'
    RETURN nil
 ENDIF
 
+IF oApp:lDemo
+    //URLWSAA := "https://wsaahomo.afip.gov.ar/ws/services/LoginCms"
+    //URLWSW := "https://wswhomo.afip.gov.ar/wsfev1/service.asmx"
+    wsfev1 := WSAFip():New("20214424666", .t.)
+ELSE 
+    //URLWSAA := "https://wsaa.afip.gov.ar/ws/services/LoginCms"
+    //URLWSW := "https://servicios1.afip.gov.ar/wsfev1/service.asmx"
+    wsfev1 := WSAFip():New(STRTRAN(oApp:cuit_emp,"-",""), .F.)
+ENDIF
+
 
 *Tipocomp := 011 &&Factura C( A:001 B:006 NDA: 002 NCA:003 NDB:007 NCB:008 NDC:012 NCC:013)
 fechacmp := DTOS(dFecComp)
@@ -677,7 +689,7 @@ IF nNeto + nIva + nImpInt > nTotal .and. nImpInt > 0
 ENDIF
 dFecDes := ""
 dFecHas := ""
-TRY 
+/*TRY 
     wsfev1 := CreateObject("FEAFIPLib.wsfev1")
     IF oApp:lDemo
         wsfev1:CUIT := 20214424666
@@ -694,42 +706,47 @@ CATCH oError
              "Hagalo con permisos de administrador";
              ,"Error" ) 
     RETURN 0 
-END TRY 
+END TRY */
 lRta := .f.
 TRY 
-  wsfev1:URL  := URLWSW
-  lRta := wsfev1:login("MiCertificado.crt", "MiClavePrivada", URLWSAA)
+  //wsfev1:URL  := URLWSW
+  //lRta := wsfev1:login("MiCertificado.crt", "MiClavePrivada", URLWSAA)
+  lRta := wsfev1:Login(".\DRIVERSFC\MiCertificado.crt", ".\DRIVERSFC\MiClavePrivada", "wsfe")
 CATCH oError
   MsgInfo( "Error en el Web Service de AFIP"+chr(10)+;
               oError:description+chr(10);
              ,"CONECTANDO CON WEB SERVICE" ) 
   RETURN 0 
-END TRY    
+END TRY 
 IF lRta 
-   TRY 
-       If wsfev1:SFRecuperaLastCMP(nPuntoVta, Tipocomp) 
-          nFacturaNro := wsfev1:SFLastCmp &&Devolucion el ultimo comprobante
-          *oGet[06]:cText := nFacturaNro + 1
-          nFacturaNro := nFacturaNro + 1
-          ELSE          
+   TRY
+       nFacturaNro := wsfev1:SFRecuperaLastCMP(nPuntoVta, Tipocomp) 
+       IF nFacturaNro >= 0 &&Devolucion el ultimo comprobante          
+          lRta := .t.
+          ELSE
           MsgInfo( "Error en el Web Service de AFIP"+chr(10)+;
-              wsfev1:ErrorDesc+chr(10);
-             +"FEAFIP RECUPERANDO ULTIMO COMPROBANTE","Error" ) 
-          nFacturaNro := -1
+              wsfev1:cLastError+chr(10);
+             +"CONECTANDO CON WEB SERVICE","Error" ) 
+          nFacturaNro := 0
+          lRta := .f.
        ENDIF
-   CATCH oError 
-    MsgInfo( "Error en el Web Service de AFIP"+chr(10)+;
-              oError:description+chr(10);
-             ,"RECUPERANDO ULTIMO COMPROBANTE" ) 
-    RETURN 0 
-   END TRY
-   IF nFacturaNro = -1
+    CATCH oError 
+        MsgInfo( "Error en el Web Service de AFIP"+;
+             chr(10)+oError:description;
+             ,"Error al buscar ultimo comprobante" ) 
+        RETURN 0 
+   END TRY 
+   IF nFacturaNro = 0 .and. !lRta
       RETURN 0
    ENDIF
    TRY 
-     wsfev1:Reset()   
-     wsfev1:AgregaFactura(1, nTipoDoc, nNroDoc, nFacturaNro, nFacturaNro, fechacmp,;
-                          nTotal, 0, nNeto, 0, dFecDes, dFecHas, "", "PES", 1)   
+     wsfev1:Reset()  
+     nFacturaNro := nFacturaNro + 1 
+     //wsfev1:AgregaFactura(1, nTipoDoc, nNroDoc, nFacturaNro, nFacturaNro, fechacmp,;
+     //                     nTotal, 0, nNeto, 0, dFecDes, dFecHas, "", "PES", 1)   
+     wsfev1:AgregaFactura(Tipocomp, nTipoDoc, nNroDoc, nFacturaNro,  fechacmp,;
+                          nTotal, 0, nNeto, 0, dFecDes, dFecHas, "", "PES",;
+                           1, 1, 'N' ,nConIva)   
      // Agregar IVAS
      IF cLetra <> "C"
         FOR i := 1 TO LEN(aTablasIvas)
@@ -739,18 +756,18 @@ IF lRta
      IF nImpInt > 0
         wsfev1:AgregaTributo(4, 'Impuestos Internos', 0,0, nImpInt) 
      ENDIF
-     If wsfev1:Autorizar(nPuntoVta, Tipocomp) 
-        If wsfev1:SFresultado(0)<>"A"              
+     If wsfev1:Autorizar(nPuntoVta, Tipocomp)      
+        If wsfev1:cResultado<>"A"              
            lFallo := .t.
            nNro := 0
         ENDIF 
         ELSE
         MsgInfo( "Error en el Web Service de AFIP"+chr(10)+;
-              wsfev1:ErrorDesc+chr(10);
-             +"FEAFIP AUTORIZAR","Error" ) 
+                wsfev1:cLastError+chr(10);
+               +"FEAFIP AUTORIZAR","Error" ) 
         lFallo := .t.
         nNro := 0
-     ENDIF
+     ENDIF     
    CATCH oError 
       MsgInfo( "Error en el Web Service de AFIP "+chr(10)+;
               oError:description+chr(10);
@@ -759,35 +776,21 @@ IF lRta
    END TRY  
    ELSE
    MsgInfo( "Error en el Web Service de AFIP"+chr(10)+;
-              wsfev1:ErrorDesc+chr(10);
+              wsfev1:cLastError+chr(10);
              +"FEAFIP CERTIFICADOS","Error" ) 
    lFallo := .t.
    nNro := 0
 ENDIF
 IF lFallo
-   //MsgStop(wsfev1:ErrorDesc+" "+wsfev1:SFresultado(0), "FEAFIP RESULTADO")
-   MemoWrit("error.xml",wsfev1:xmlresponse)    
-   aXml := {}
-   hFile    := FOpen( "error.xml" ) 
-   oXmlDoc  := TXmlDocument():New( hFile )
-   oXmlIter := TXmlIterator():New( oXmlDoc:oRoot )
-   while .T.
-      oTagActual = oXmlIter:Next()
-      If oTagActual != nil
-         AADD(aXml, {oTagActual:cName, oTagActual:cData} )
-         HEval( oTagActual:aAttributes, { | cKey, cValue | AADD(aXml, {cKey, cValue} ) } )
-      Else
-         Exit
-      Endif
-   End
-   FClose( hFile )
    Procesando(.f.)
-   xBrowse(aXml,wsfev1:ErrorDesc)
+   IF !EMPTY(wsfev1:aObservaciones)
+      xBrowse(wsfev1:aObservaciones,"Error al enviar al WS de ARCA")
+   ENDIF   
    RETURN nil
 ENDIF
 nNro := nFacturaNro
-cCae := wsfev1:SFCAE(0)
-dFecVto := sFecha(wsfev1:SFVencimiento(0))
+cCae := wsfev1:cCAE
+dFecVto := wsfev1:dCAEVto
 nTipfor := TipoComp
 RETURN nil
 
@@ -845,7 +848,7 @@ CATCH oError
              "Para poder emitir factura electronica"+chr(10)+;
              "debe tener instalado el driver fiscal."+chr(10)+;
              "Ejecute el programa REGISTRA.EXE que"+chr(10)+;
-             "Esta en la carpeta DRIVERFC dentro de"+chr(10)+;
+             "Esta en la carpeta DRIVERSFC dentro de"+chr(10)+;
              "la carpeta donde instalo el sistema."+chr(10)+;
              "Hagalo con permisos de administrador";
              ,"Error" ) 

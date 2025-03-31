@@ -843,6 +843,9 @@ IF oApp:usar_cuotas
 ENDIF
 IF oQryDeu:nRecCount = 0
    lACuenta:= MsgNoYes("Cliente sin deuda pendiente ¿desea realizar un pago a cuenta?","Atencion!")
+   IF lAcuenta 
+      lEdita := .f.
+   ENDIF   
    ELSE
    lEdita := .f.
    lACuenta:=.f.

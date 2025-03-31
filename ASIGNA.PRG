@@ -191,7 +191,7 @@ oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS `transi_fact_det` ("+
 oApp:oServer:Execute("TRUNCATE transi_fact_det")
 oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS `transi_fact1` ("+;
                            "`codcli` int(10) NOT NULL ,"+;                           
-                           "`cliente` VARCHAR(50) DEFAULT 0 NOT NULL,"+;
+                           "`cliente` VARCHAR(250) DEFAULT 0 NOT NULL,"+;
                            "`facturas` DECIMAL(12,2) DEFAULT 0 NOT NULL,"+;
                            "`presupuestos` DECIMAL(12,2) DEFAULT 0 NOT NULL,"+;
                            "`deuda` DECIMAL(12,2) DEFAULT 0 NOT NULL,"+;
@@ -221,13 +221,13 @@ DO WHILE !oQryFac:Eof()
       IF oQryFac:letra = "X"
          oApp:oServer:Execute("INSERT INTO transi_fact1 (codcli,cliente,facturas,presupuestos,deuda) VALUES ("+;
                ClipValue2Sql(oQryFac:codcli)+","+;
-               ClipValue2Sql(oQryFac:nombre)+","+; 
+               ClipValue2Sql(ALLTRIM(oQryFac:nombre)+" - "+ALLTRIM(oQryFac:direccion)+" - "+ALLTRIM(oQryFac:localidad))+","+; 
                ClipValue2Sql(0)+","+;
                ClipValue2Sql(IF(oQryFac:ticomp = "NC",-oQryFac:importe,oQryFac:importe))+",0)")
          ELSE
          oApp:oServer:Execute("INSERT INTO transi_fact1 (codcli,cliente,facturas,presupuestos,deuda) VALUES ("+;
                ClipValue2Sql(oQryFac:codcli)+","+;
-               ClipValue2Sql(oQryFac:nombre)+","+; 
+               ClipValue2Sql(ALLTRIM(oQryFac:nombre)+" - "+ALLTRIM(oQryFac:direccion)+" - "+ALLTRIM(oQryFac:localidad))+","+; 
                ClipValue2Sql(IF(oQryFac:ticomp = "NC",-oQryFac:importe,oQryFac:importe))+",0,0)")         
       ENDIF         
    ENDIF 
@@ -389,15 +389,17 @@ config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
        oPrn:CmBox(   y, .5, y+1, 20.5 ) // Box titulos
        y := y + .2
        @ y, 01 PRINT TO oPrn TEXT "Codigo" ;
-              SIZE 2.8,.5 CM FONT oFont ALIGN "L"
-       @ y, 04 PRINT TO oPrn TEXT "Cliente" ;
-                SIZE 7,.5 CM FONT oFont ALIGN "L"
+              SIZE 1,.5 CM FONT oFont ALIGN "L"
+       @ y, 02.1 PRINT TO oPrn TEXT "Cliente" ;
+                SIZE 8.9,.5 CM FONT oFont ALIGN "L"                
        @ y, 11 PRINT TO oPrn TEXT "Facturas" ;
                 SIZE 2,.5 CM FONT oFont ALIGN "R"
-       @ y, 14 PRINT TO oPrn TEXT "Presupuestos" ;
+       @ y, 13.5 PRINT TO oPrn TEXT "Presupuestos" ;
                 SIZE 2.1,.5 CM FONT oFont ALIGN "R"
-       @ y, 17 PRINT TO oPrn TEXT "Saldo Actual" ;
-                SIZE 3,.5 CM FONT oFont ALIGN "R"     
+       @ y, 15.3 PRINT TO oPrn TEXT "Entrega" ;
+                SIZE 2.1,.5 CM FONT oFont ALIGN "R"         
+       @ y, 17.5 PRINT TO oPrn TEXT "Saldo Actual" ;
+                SIZE 2.5,.5 CM FONT oFont ALIGN "R"     
        y := y + 1.2
       FOR i = 1 TO oQryFac:nRecCount                               
          @ y-0.07, 01 PRINT TO oPrn TEXT STR(oQryFac:codcli,06) ;
@@ -467,6 +469,132 @@ config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
       NEXT   
       
      ENDPAGE
+  ENDPRINT
+// Nuevo para cliente nuevo
+  DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.7,config:fon*2.5
+  PRINT oPrn NAME "Hoja de Ruta "+STR(nCartaPorte) + " Entregas" PREVIEW MODAL
+     oPrn:SetLandscape()
+     oPrn:SetPage(9)
+     PAGE
+     nHoja := 1     
+     nRow := (oPrn:nHorzRes() / 80) / 47     
+
+     //oPrn:CmBox( 5.3, .5, 7.5, 20.5 ) // Box datos del cliente
+     //oPrn:CmBox(   8, .5, 9, 20.5 ) // Box titulos     
+     
+     oPrn:CmSay( 1.7  , 11, "HOJA DE RUTA", oFont1 )   
+     oPrn:CmSay( 1.5, 9.8, "X",oFont2)
+     oPrn:CmSay( 2.0, 16, "N°: "+STR(nCartaPorte),oFont)         
+     oPrn:CmSay( 2.5, 11, "Fecha de emision:"+DTOC(DATE()),oFont)          
+     @ 3.0, 1   PRINT TO oPrn TEXT "Reparto:" ;
+              SIZE 3,.5 CM FONT oFont3 ALIGN "R"
+     @ 3.0, 4.1 PRINT TO oPrn TEXT STR(oQryRepa:codigo);
+              SIZE 6,.5 CM FONT oFont ALIGN "L"
+     @ 3.0, 9.5  PRINT TO oPrn TEXT "Nombre:" ;
+              SIZE 2.5,.5 CM FONT oFont3 ALIGN "R"
+     @ 3.0, 12.5 PRINT TO oPrn TEXT ALLTRIM(oQryRepa:nombre) ;
+              SIZE 8,1 CM FONT oFont LASTROW nRow      
+          
+       y := 3.5
+       oQryFac := oApp:oServer:Query("SELECT *  FROM ge_"+oApp:cId+"ventas_encab WHERE cartaporte = "+ClipValue2Sql(nCartaPorte))
+       oQryFac:GoTop()
+              
+       @ y, .5 PRINT TO oPrn TEXT "Fecha" ;
+              SIZE 1,.5 CM FONT oFont ALIGN "L"
+       @ y, 01.6 PRINT TO oPrn TEXT "Cliente" ;
+                SIZE 8.0,.5 CM FONT oFont ALIGN "L"                
+       @ y, 10.0 PRINT TO oPrn TEXT "Comprobante" ;
+                SIZE 2,.5 CM FONT oFont ALIGN "R"
+       @ y, 11.5 PRINT TO oPrn TEXT "Importe" ;
+                SIZE 1.4,.5 CM FONT oFont ALIGN "R"
+       @ y, 13.0 PRINT TO oPrn TEXT "Devolucion" ;
+                SIZE 1.4,.5 CM FONT oFont ALIGN "R"         
+       @ y, 14.5 PRINT TO oPrn TEXT "Entrega" ;
+                SIZE 1.4,.5 CM FONT oFont ALIGN "R"
+       @ y, 16.0 PRINT TO oPrn TEXT "A Cobrar" ;
+                SIZE 1.4,.5 CM FONT oFont ALIGN "R"  
+       @ y, 17.5 PRINT TO oPrn TEXT "Cza.Anter." ;
+                SIZE 1.4,.5 CM FONT oFont ALIGN "R"   
+       @ y, 19.0 PRINT TO oPrn TEXT "N.Cobrado" ;
+                SIZE 1.4,.5 CM FONT oFont ALIGN "R"
+       @ y, 20.5 PRINT TO oPrn TEXT "Efectivo" ;
+                SIZE 1.4,.5 CM FONT oFont ALIGN "R"
+       @ y, 22.0 PRINT TO oPrn TEXT "M.Pago" ;
+                SIZE 1.4,.5 CM FONT oFont ALIGN "R"
+       @ y, 23.5 PRINT TO oPrn TEXT "Tras/Cheque" ;
+                SIZE 1.4,.5 CM FONT oFont ALIGN "R"  
+       @ y, 25.0 PRINT TO oPrn TEXT "Com.Entrega" ;
+                SIZE 1.4,.5 CM FONT oFont ALIGN "R"   
+       @ y, 26.5 PRINT TO oPrn TEXT "Com.Venta" ;
+                SIZE 1.4,.5 CM FONT oFont ALIGN "R"    
+       y := y + .7
+      FOR i = 1 TO oQryFac:nRecCount                               
+         @ y-0.07, .5 PRINT TO oPrn TEXT DTOC(oQryFac:fecha) ;
+                      SIZE 1.1,.5 CM FONT oFont ALIGN "TL"
+         @ y-0.07, 01.7 PRINT TO oPrn TEXT ALLTRIM(oQryFac:nombre)+" - "+ALLTRIM(oQryFac:direccion) ;
+              SIZE 8,1.5 CM FONT oFont LASTROW nRow ALIGN "TL"
+         @ y-0.07, 10 PRINT TO oPrn TEXT oQryFac:numcomp ;
+              SIZE 2,.5 CM FONT oFont ALIGN "TR"
+         @ y-0.07, 11.5 PRINT TO oPrn TEXT STR(oQryFac:importe,12,2) ;
+                  SIZE 1.4,.5 CM FONT oFont ALIGN "TR"
+         
+         y := nRow + .1
+         IF y > 26
+             @ 26.5, 05 PRINT TO oPrn TEXT "CONTINUA EN OTRA HOJA";
+                      SIZE 9,2 CM FONT oFont
+                    ENDPAGE 
+                    nHoja ++
+                    PAGE     
+                       oPrn:CmSay( 1.7  , 11, "HOJA DE RUTA", oFont1 )   
+                       oPrn:CmSay( 1.5, 9.8, "X",oFont2)
+                       oPrn:CmSay( 2.0, 16, "N°: "+STR(nCartaPorte),oFont)         
+                       oPrn:CmSay( 2.5, 11, "Fecha de emision:"+DTOC(DATE()),oFont)          
+                       @ 3.0, 1   PRINT TO oPrn TEXT "Reparto:" ;
+                                SIZE 3,.5 CM FONT oFont3 ALIGN "R"
+                       @ 3.0, 4.1 PRINT TO oPrn TEXT STR(oQryRepa:codigo);
+                                SIZE 6,.5 CM FONT oFont ALIGN "L"
+                       @ 3.0, 9.5  PRINT TO oPrn TEXT "Nombre:" ;
+                                SIZE 2.5,.5 CM FONT oFont3 ALIGN "R"
+                       @ 3.0, 12.5 PRINT TO oPrn TEXT ALLTRIM(oQryRepa:nombre) ;
+                                SIZE 8,1 CM FONT oFont LASTROW nRow      
+                            
+                         y := 3.5
+                    @ y, .5 PRINT TO oPrn TEXT "Fecha" ;
+                          SIZE 1,.5 CM FONT oFont ALIGN "L"
+                   @ y, 01.6 PRINT TO oPrn TEXT "Cliente" ;
+                            SIZE 8.0,.5 CM FONT oFont ALIGN "L"                
+                   @ y, 10.0 PRINT TO oPrn TEXT "Comprobante" ;
+                            SIZE 2,.5 CM FONT oFont ALIGN "R"
+                   @ y, 11.5 PRINT TO oPrn TEXT "Importe" ;
+                            SIZE 1.4,.5 CM FONT oFont ALIGN "R"
+                   @ y, 13.0 PRINT TO oPrn TEXT "Devolucion" ;
+                            SIZE 1.4,.5 CM FONT oFont ALIGN "R"         
+                   @ y, 14.5 PRINT TO oPrn TEXT "Entrega" ;
+                            SIZE 1.4,.5 CM FONT oFont ALIGN "R"
+                   @ y, 16.0 PRINT TO oPrn TEXT "A Cobrar" ;
+                            SIZE 1.4,.5 CM FONT oFont ALIGN "R"  
+                   @ y, 17.5 PRINT TO oPrn TEXT "Cza.Anter." ;
+                            SIZE 1.4,.5 CM FONT oFont ALIGN "R"   
+                   @ y, 19.0 PRINT TO oPrn TEXT "N.Cobrado" ;
+                            SIZE 1.4,.5 CM FONT oFont ALIGN "R"
+                   @ y, 20.5 PRINT TO oPrn TEXT "Efectivo" ;
+                            SIZE 1.4,.5 CM FONT oFont ALIGN "R"
+                   @ y, 22.0 PRINT TO oPrn TEXT "M.Pago" ;
+                            SIZE 1.4,.5 CM FONT oFont ALIGN "R"
+                   @ y, 23.5 PRINT TO oPrn TEXT "Tras/Cheque" ;
+                            SIZE 1.4,.5 CM FONT oFont ALIGN "R"  
+                   @ y, 25.0 PRINT TO oPrn TEXT "Com.Entrega" ;
+                            SIZE 1.4,.5 CM FONT oFont ALIGN "R"   
+                   @ y, 26.5 PRINT TO oPrn TEXT "Com.Venta" ;
+                            SIZE 1.4,.5 CM FONT oFont ALIGN "R"
+             y := y + 1.2
+         ENDIF
+         oQryFac:Skip()
+      NEXT   
+      
+     ENDPAGE
+
+
    ENDPRINT
 RETURN nil
 

@@ -15,7 +15,7 @@ compras.obj lische.obj ventas.obj rendi.obj gastos.obj citicomp.obj remitar.obj 
 etique.obj ordpag.obj cobran.obj facrem.obj FACT.obj transf.obj + 
 ABMEMPLE.OBJ ABMCATEMP.OBJ ABMHORAS.OBJ ABMINAS.OBJ ABMSECTOR.OBJ LISHORAS.OBJ NOVINDIV.OBJ PAGEMPLE.OBJ CONSUMOINT.OBJ + 
 xbrowse.obj busqueda.obj utiles.obj usua.obj demo.obj enviomail.obj rpreview.obj prv2pdf.obj + 
-conectar.obj descarga.obj, + 
+conectar.obj descarga.obj arca2.obj, + 
 BCN.exe, + 
 BCN.map, + 
 H71532BC.LIB C:\FWH11\lib\dolphin.lib + 

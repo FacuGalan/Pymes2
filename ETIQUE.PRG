@@ -9,7 +9,7 @@ PROCEDURE planil
 LOCAL aFon1, aFon2, aFon3, nCol1 := 0, nCol2 := 0, nCol3:= 0, lCodBarra :=.f., mbarra1,;
       oSay1, oSay2, oSay3, oBot1, oBot2, oDlg1, oDlg2, oDlg3, oFld, oBot10,;
       oBot01,oBot02,oBot03,oBot04,oBot05,oBot06, oBot07, oBot08, oBot09, oLbx,;
-      oFon1 , oFon2, oFon3, oFont5, oCom, oGet, oGet1, oGet2, oGet3, oGet4, oGet5, oGet6,mfecha := DATE(), ;
+      oFon1 , oFon2, oFon3, oFon4, oFont5, oCom, oGet, oGet1, oGet2, oGet3, oGet4, oGet5, oGet6,mfecha := DATE(), ;
       mfechah := DATE(), mhorad := "00:00:00", mhorah := "23:59:59", hHand, oQryAux, aText := {}, aSay := ARRAY(3),;
       mopc:=2, aTipo := {"Todos los Articulos", "Solo novedades","Articulos Puntuales"},;
       base, nFila, lOferta := .f., lLogo := .f., lVto := .f.,;
@@ -34,6 +34,7 @@ oApp:oServer:Execute("";
     + "`CODIGO` bigint(14) NOT NULL,";
     + "`NOMBRE` varchar(50) DEFAULT NULL,";
     + "`PRECIOVEN` decimal(12,3) DEFAULT '0.00',";
+    + "`NETO` decimal(12,3) DEFAULT '0.00',";
     + "`CANT` INT(3) DEFAULT '1',";
     + "`HORAMOD` TIME DEFAULT NULL,";
     + "`FECMOD` DATE DEFAULT NULL,";
@@ -169,6 +170,10 @@ oFon3 := TFont():New(oSay3:oFont:cFaceName,oSay3:oFont:nWidth,oSay3:oFont:nHeigh
                    oSay3:oFont:nEscapement,oSay3:oFont:norientation,oSay3:oFont:nWeight,oSay3:oFont:lItalic,;
                    oSay3:oFont:lUnderline,oSay3:oFont:lStrikeout,oSay3:oFont:nCharset,oSay3:oFont:nOutPrecision,;
                    oSay3:oFont:nClipprecision,oSay3:oFont:nQuality)
+oFon4 := TFont():New(oSay2:oFont:cFaceName,oSay2:oFont:nWidth*.2,oSay2:oFont:nHeight*.2,.f.,oSay2:oFont:lBold,;
+                   oSay2:oFont:nEscapement,oSay2:oFont:norientation,oSay2:oFont:nWeight,oSay2:oFont:lItalic,;
+                   oSay2:oFont:lUnderline,oSay2:oFont:lStrikeout,oSay2:oFont:nCharset,oSay2:oFont:nOutPrecision,;
+                   oSay2:oFont:nClipprecision,oSay2:oFont:nQuality)
 ACTIVATE FONT oFon1
 ACTIVATE FONT oFon2
 ACTIVATE FONT oFon3
@@ -190,16 +195,20 @@ IF !lCodBarra
               ENDIF
               @ (i-1)*(29/MaxFil)+.1, (j-1)*(21/MaxCol)+.1;
                  PRINT TO oPrn TEXT ALLTRIM(oQryEti:nombre) ;
-                        SIZE (21/MaxCol)-.5,(29/MaxFil)/2 CM FONT oFon1 ALIGN "C" LASTROW x1 COLOR aSay[1]:nClrText
+                        SIZE (21/MaxCol)-.5,(29/MaxFil)/2 CM FONT oFon1 ALIGN "TC" LASTROW x1 COLOR aSay[1]:nClrText
               @ x1, (j-1)*(21/MaxCol)+.1;
                  PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,10,nDecimales)) ;
-                        SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText
+                        SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon2 ALIGN "TC" LASTROW x1 COLOR aSay[2]:nClrText
+              @ x1, (j-1)*(21/MaxCol)+.1;
+                 PRINT TO oPrn TEXT "Precio sin impuestos Nacionales $" + ALLTRIM(STR(oQryEti:neto,10,nDecimales)) ;
+                        SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon4 ALIGN "TC" LASTROW x1 COLOR aSay[2]:nClrText
          
               @ x1, (j-1)*(21/MaxCol)+.1;
-                 PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
-                        SPACE(10),"")+ "Cod. " +STR(oQryEti:codigo)+;
+                 PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + ALLTRIM(oQryAux:unimed) + " "+;
+                        ALLTRIM(STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
+                        SPACE(10)),"")+ " Cod. " +ALLTRIM(STR(oQryEti:codigo))+;
                         IF(lVto," - "+DTOC(oQryAux:fecmod),"");
-                        SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon3 ALIGN "C" COLOR aSay[3]:nClrText
+                        SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon3 ALIGN "TC" COLOR aSay[3]:nClrText
 
               oQryEti:Skip()
               j++
@@ -236,18 +245,22 @@ IF !lCodBarra
               ENDIF
               @ (i-1)*(29/MaxFil)+.1, (j-1)*(21/MaxCol)+.1;
                  PRINT TO oPrn TEXT "O F E R T A" ;
-                        SIZE (21/MaxCol)-.5,(29/MaxFil)/4 CM FONT oFon2 ALIGN "C" LASTROW x1
+                        SIZE (21/MaxCol)-.5,(29/MaxFil)/4 CM FONT oFon2 ALIGN "TC" LASTROW x1
               @ x1, (j-1)*(21/MaxCol)+.1;
                  PRINT TO oPrn TEXT ALLTRIM(oQryEti:nombre) ;
-                        SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon1 ALIGN "C" LASTROW x1 COLOR aSay[1]:nClrText
+                        SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon1 ALIGN "TC" LASTROW x1 COLOR aSay[1]:nClrText
               @ x1, (j-1)*(21/MaxCol)+.1;
                  PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,12,nDecimales)) ;
-                        SIZE (21/MaxCol)-.5,(29/MaxFil)/4 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText
+                        SIZE (21/MaxCol)-.5,(29/MaxFil)/4 CM FONT oFon2 ALIGN "TC" LASTROW x1 COLOR aSay[2]:nClrText
               @ x1, (j-1)*(21/MaxCol)+.1;
-                 PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
-                        SPACE(10),"")+ "Cod. " +STR(oQryEti:codigo)+;
+                 PRINT TO oPrn TEXT "Precio sin impuestos Nacionales $" + ALLTRIM(STR(oQryEti:neto,10,nDecimales)) ;
+                        SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon4 ALIGN "TC" LASTROW x1 COLOR aSay[2]:nClrText
+              @ x1, (j-1)*(21/MaxCol)+.1;
+                 PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + ALLTRIM(oQryAux:unimed) + " " +;
+                        ALLTRIM(STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
+                        SPACE(10)),"")+ " Cod. " +ALLTRIM(STR(oQryEti:codigo))+;
                         IF(lVto," - "+DTOC(oQryAux:fecmod),"");
-                        SIZE (21/MaxCol)-.5,(29/MaxFil)/4 CM FONT oFon3 ALIGN "C" COLOR aSay[3]:nClrText
+                        SIZE (21/MaxCol)-.5,(29/MaxFil)/4 CM FONT oFon3 ALIGN "TC" COLOR aSay[3]:nClrText
               oQryEti:Skip()
               j++
               IF j > MaxCol
@@ -371,9 +384,11 @@ cerrar()
 DEACTIVATE FONT oFon1
 DEACTIVATE FONT oFon2
 DEACTIVATE FONT oFon3
+DEACTIVATE FONT oFon4
 RELEASE FONT oFon1
 RELEASE FONT oFon2
 RELEASE FONT oFon3
+RELEASE FONT oFon4
 RETURN
 
 ** Cerrar el archivo abierto
@@ -424,7 +439,7 @@ RETURN nil
 STATIC FUNCTION Alta(oLbx,oDlg,lCodBarra)
 LOCAL mcodigo := 0, oDlg1,oGet1, oGet2, oGet3, oGet4,oGet5, oGet6, oGet7, oGet8, oGet9, oGet10, acor, oBot1, oBot2,;
       mnombre := SPACE(45), mrta := .t., mprecio := 0, mincru := 0, mincrp := 0, muxb1 := 0, muxb2 := 0,;
-      mbarra1 := 0, mbarra2 := 0, mbarra3 := 0, mcant := 1
+      mbarra1 := 0, mbarra2 := 0, mbarra3 := 0, mcant := 1, mneto
 DO WHILE mrta
 DEFINE DIALOG oDlg1 TITLE "Agregar articulos" FROM 05,15 TO 15,70 OF oDlg
    acor := AcepCanc(oDlg1)
@@ -434,8 +449,8 @@ DEFINE DIALOG oDlg1 TITLE "Agregar articulos" FROM 05,15 TO 15,70 OF oDlg
 
 
    @ 05, 45 GET oGet1 VAR mcodigo PICTURE "999999999999999" OF oDlg1 PIXEL;
-                VALID(ExisteCod(@mcodigo,oGet1,oGet2,oGet3,oDlg1)) RIGHT;
-                ACTION(oGet1:cText:=0,ExisteCod(@mcodigo,oGet1,oGet2,oGet3,oDlg1)) BITMAP "BUSC1"  
+                VALID(ExisteCod(@mcodigo,oGet1,oGet2,oGet3,oDlg1,@mneto)) RIGHT;
+                ACTION(oGet1:cText:=0,ExisteCod(@mcodigo,oGet1,oGet2,oGet3,oDlg1,@mneto)) BITMAP "BUSC1"  
    @ 20, 45 GET oGet2 VAR mnombre PICTURE "@!"  OF oDlg1 PIXEL WHEN(.F.)
    @ 35, 45 GET oGet3 VAR mprecio PICTURE "999999999.999" OF oDlg1 PIXEL WHEN(.F.) RIGHT
    IF lCodBarra
@@ -444,7 +459,7 @@ DEFINE DIALOG oDlg1 TITLE "Agregar articulos" FROM 05,15 TO 15,70 OF oDlg
    ENDIF
 
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Continuar" OF oDlg1 SIZE 30,10 ;
-           ACTION (Alta1(@mcodigo,oGet1,oGet2,oGet3,mcant),mrta := .t., oDlg1:End()) PIXEL
+           ACTION (Alta1(@mcodigo,oGet1,oGet2,oGet3,mcant,mneto),mrta := .t., oDlg1:End()) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Finalizar" OF oDlg1 SIZE 30,10 ;
            ACTION (mrta := .f., oDlg1:End())  PIXEL CANCEL
 ACTIVATE DIALOG oDlg1 CENTER ON INIT oGet1:SetFocus()
@@ -453,12 +468,13 @@ oQryEti:Refresh()
 oLbx:Refresh()
 RETURN nil
 
-STATIC FUNCTION Alta1(mcodigo,oGet1,oGet2,oGet3,mcant)
+STATIC FUNCTION Alta1(mcodigo,oGet1,oGet2,oGet3,mcant,mneto)
 LOCAL oError 
 TRY 
     oApp:oServer:BeginTransaction()
-    oApp:oServer:Execute("INSERT INTO etiqueT (codigo,nombre,precioven,cant)"+;
-                        " VALUES ("+oGet1:cText+","+ClipValue2Sql(oGet2:cText)+","+oGet3:cText+","+STR(mcant)+")")
+    oApp:oServer:Execute("INSERT INTO etiqueT (codigo,nombre,precioven,cant,neto)"+;
+                        " VALUES ("+oGet1:cText+","+ClipValue2Sql(oGet2:cText)+","+oGet3:cText+","+;
+                        STR(mcant)+","+STR(mneto,12,2)+")")
     oApp:oServer:CommitTransaction()
 CATCH oError
    ValidaError(oError)
@@ -470,15 +486,18 @@ oGet2:cText := SPACE(45)
 oGet3:cText := 0
 RETURN nil
 
-STATIC FUNCTION ExisteCod(mcodigo,oGet1,oGet2,oGet3,oDlg)
-LOCAL oQryArt := oApp:oServer:Query("SELECT codigo,nombre,precioven FROM ge_"+oApp:cId+"articu WHERE codigo = " +oGet1:cText)
+STATIC FUNCTION ExisteCod(mcodigo,oGet1,oGet2,oGet3,oDlg,mneto)
+LOCAL oQryArt := oApp:oServer:Query("SELECT codigo,nombre,precioven,iva,impint FROM ge_"+oApp:cId+"articu WHERE codigo = " +oGet1:cText)
 IF oQryArt:nRecCount > 0
    oGet2:cText := oQryArt:nombre
    oGet3:cText := oQryArt:precioven
+   mneto := oQryArt:precioven - oQryArt:impint 
+   mneto := mneto - IF(oQryArt:iva = 5, mneto * 21 / 121,IF(oQryArt:iva = 4, mneto * 10.5 / 110.5,mneto ))
    RETURN .t.
    ELSE
    Buscar(oQryArt,oDlg,oGet1,oGet2)
    oGet3:cText := oQryArt:precioven
+   mneto := mneto - IF(oQryArt:iva = 5, mneto * 21 / 121,IF(oQryArt:iva = 4, mneto * 10.5 / 110.5,mneto ))
 ENDIF
 RETURN .t.
 
@@ -514,14 +533,14 @@ STATIC FUNCTION Reto(mopc,mfecha,mfechah,mhorad,mhorah)
 DO CASE 
    CASE mopc = 1 
         oQryEti:ZAP()
-        oApp:oServer:Execute("INSERT INTO etiqueT (codigo,nombre,precioven) " + ;
-                             "(SELECT codigo,nombre,precioven "+;
+        oApp:oServer:Execute("INSERT INTO etiqueT (codigo,nombre,precioven,neto) " + ;
+                             "(SELECT codigo,nombre,precioven,precioven / IF(iva=5,1.21,IF(iva=4,1.105,1)) "+;
                              "FROM ge_"+oApp:cId+"articu)")
         oQryEti:Refresh()
    CASE mopc = 2
    		oQryEti:ZAP()
-        oApp:oServer:Execute("INSERT INTO etiqueT (codigo,nombre,precioven,fecmod,horamod) " + ;
-                             "(SELECT codigo,nombre,precioven,fecmod,horamod "+;
+        oApp:oServer:Execute("INSERT INTO etiqueT (codigo,nombre,precioven,fecmod,horamod,neto) " + ;
+                             "(SELECT codigo,nombre,precioven,fecmod,horamod,precioven / IF(iva=5,1.21,IF(iva=4,1.105,1)) "+;
                              "FROM ge_"+oApp:cId+"articu "+;
                              " WHERE fecmod >= "+ClipValue2Sql(mfecha)+;
                              " AND fecmod <= "+ClipValue2Sql(mfechah)+;
@@ -614,7 +633,7 @@ RETURN "("+cBarr+")"
 ********************************
 ** Previsualizacion
 STATIC FUNCTION Prev(MaxFil,MaxCol, oSay1, oSay2, oSay3, oQryEti, lCodBarra, lLogo, lOferta, lVto,nDecimales)
-LOCAL oFon1, oFon2, oFon3,  nRow, nCol, oPrn , i, j , x1, x2, x3, x4, x5, y , h, oQryAux, oFont5, ;
+LOCAL oFon1, oFon2, oFon3, oFon4,  nRow, nCol, oPrn , i, j , x1, x2, x3, x4, x5, y , h, oQryAux, oFont5, ;
       mbarra1, aUnit
 oQryEti:GOTOP()
 oFon1 := TFont():New(oSay1:oFont:cFaceName,oSay1:oFont:nWidth,oSay1:oFont:nHeight,.f.,oSay1:oFont:lBold,;
@@ -629,6 +648,10 @@ oFon3 := TFont():New(oSay3:oFont:cFaceName,oSay3:oFont:nWidth,oSay3:oFont:nHeigh
                    oSay3:oFont:nEscapement,oSay3:oFont:norientation,oSay3:oFont:nWeight,oSay3:oFont:lItalic,;
                    oSay3:oFont:lUnderline,oSay3:oFont:lStrikeout,oSay3:oFont:nCharset,oSay3:oFont:nOutPrecision,;
                    oSay3:oFont:nClipprecision,oSay3:oFont:nQuality)
+oFon4 := TFont():New(oSay2:oFont:cFaceName,oSay2:oFont:nWidth*.2,oSay2:oFont:nHeight*.2,.f.,oSay2:oFont:lBold,;
+                   oSay2:oFont:nEscapement,oSay2:oFont:norientation,oSay2:oFont:nWeight,oSay2:oFont:lItalic,;
+                   oSay2:oFont:lUnderline,oSay2:oFont:lStrikeout,oSay2:oFont:nCharset,oSay2:oFont:nOutPrecision,;
+                   oSay2:oFont:nClipprecision,oSay2:oFont:nQuality)
 ACTIVATE FONT oFon1
 ACTIVATE FONT oFon2
 ACTIVATE FONT oFon3
@@ -650,15 +673,18 @@ IF !lCodBarra
             ENDIF
             @ (i-1)*(29/MaxFil)+.1, (j-1)*(21/MaxCol)+.1;
                PRINT TO oPrn TEXT ALLTRIM(oQryEti:nombre) ;
-                      SIZE (21/MaxCol)-.5,(29/MaxFil)/2 CM FONT oFon1 ALIGN "C" LASTROW x1
+                      SIZE (21/MaxCol)-.5,(29/MaxFil)/2 CM FONT oFon1 ALIGN "TC" LASTROW x1
             @ x1, (j-1)*(21/MaxCol)+.1;
                PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,12,nDecimales)) ;
-                      SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon2 ALIGN "C" LASTROW x1
+                      SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon2 ALIGN "TC" LASTROW x1
+            @ x1, (j-1)*(21/MaxCol)+.1;
+                 PRINT TO oPrn TEXT "Precio sin impuestos Nacionales $" + ALLTRIM(STR(oQryEti:neto,10,nDecimales)) ;
+                        SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon4 ALIGN "TC" LASTROW x1
             @ x1, (j-1)*(21/MaxCol)+.1;
                PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
                       SPACE(10),"")+ "Cod. " +STR(oQryEti:codigo)+;
                       IF(lVto," - "+DTOC(oQryAux:fecmod),"");
-                      SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon3 ALIGN "C"
+                      SIZE (21/MaxCol)-.5,(29/MaxFil)/3 CM FONT oFon3 ALIGN "TC"
             oQryEti:Skip()
             j++
             IF j > MaxCol

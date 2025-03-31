@@ -2273,9 +2273,11 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
              @ 0,0 PRINT TO oPrn IMAGE "fondofac.jpg" SIZE oPrn:nHorzRes(), oPrn:nVertRes() PIXEL STRETCH GRAY
              *oPrn:SayImage(0,0, "fondofac.jpg",;
              *                   oPrn:nHorzRes(), oPrn:nVertRes() ,   nil, .t. )
-             aCor := oPrn:Cmtr2Pix(25.5,1)
-             oPrn:SayImage(aCor[1],aCor[2], "afip.jpg",;
-                                oPrn:nHorzRes()*.19, oPrn:nVertRes()*.04 ,   nil, .t. )
+             @ 25,01 PRINT TO oPrn IMAGE "https://app.bcnsoft.com.ar/img/arca.jpg" /*"afip.jpg"*/ SIZE 2.5, 2.2 CM 
+             
+             //aCor := oPrn:Cmtr2Pix(25.5,1)
+             //oPrn:SayImage(aCor[1],aCor[2], "afip.jpg",;
+             //                   oPrn:nHorzRes()*.19, oPrn:nVertRes()*.04 ,   nil, .t. )
              oPrn:CmBox( .5, .5, 1.5, 20.5 ) // Box arriba
              oPrn:CmBox( 1.5, .5, 5, 20.5 ) // Box datos del comprobante
              oPrn:CmBox( 5.3, .5, 7.5, 20.5 ) // Box datos del cliente
@@ -2399,9 +2401,10 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                        @ 0,0 PRINT TO oPrn IMAGE "fondofac.jpg" SIZE oPrn:nHorzRes(), oPrn:nVertRes() PIXEL GRAY
                        *oPrn:SayImage(0,0, "fondofac.jpg",;
                        *                   oPrn:nHorzRes(), oPrn:nVertRes() ,   nil, .t. )
-                       aCor := oPrn:Cmtr2Pix(25.5,1)
+                       @ 25,01 PRINT TO oPrn IMAGE "https://app.bcnsoft.com.ar/img/arca.jpg" /*"afip.jpg"*/ SIZE 2.5, 2.2 CM 
+                       /*aCor := oPrn:Cmtr2Pix(25.5,1)
                        oPrn:SayImage(aCor[1],aCor[2], "afip.jpg",;
-                                          oPrn:nHorzRes()*.19, oPrn:nVertRes()*.04 ,   nil, .t. )
+                                          oPrn:nHorzRes()*.19, oPrn:nVertRes()*.04 ,   nil, .t. )*/
                        oPrn:CmBox( .5, .5, 1.5, 20.5 ) // Box arriba
                        oPrn:CmBox( 1.5, .5, 5, 20.5 ) // Box datos del comprobante
                        oPrn:CmBox( 5.3, .5, 7.5, 20.5 ) // Box datos del cliente
@@ -2497,7 +2500,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
             IF !LEFT(cNumComp,1)$"AM"    
                  @ 22.5, 12 PRINT TO oPrn TEXT "Subtotal "+cSigno+":" ;
                       SIZE 4,.5 CM FONT oFont3 ALIGN "R"
-               @ 22.5, 17 PRINT TO oPrn TEXT STR((oQryVen1:importe-oQryVen1:sobretasa)/nIndiceDolar,12,2) ;
+                 @ 22.5, 17 PRINT TO oPrn TEXT STR((oQryVen1:importe-oQryVen1:sobretasa)/nIndiceDolar,12,2) ;
                       SIZE 3,.5 CM FONT oFont ALIGN "R"
                  @ 23, 12 PRINT TO oPrn TEXT "Otros Tributos "+cSigno+":" ;
                       SIZE 4,.5 CM FONT oFont3 ALIGN "R"
@@ -2506,9 +2509,14 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                  @ 23.5, 12 PRINT TO oPrn TEXT "Total "+cSigno+":" ;
                       SIZE 4,.5 CM FONT oFont3 ALIGN "R"
                  @ 23.5, 17 PRINT TO oPrn TEXT STR(oQryVen1:importe/nIndiceDolar,12,2) ;
-                      SIZE 3,.5 CM FONT oFont ALIGN "R"        
+                      SIZE 3,.5 CM FONT oFont ALIGN "R"   
+                 //Nuevo... Transparencia Fiscal
+                 @ 23.7, 01 PRINT TO oPrn TEXT "Regimen de transparencia fiscal al Consumidor (Ley 27.743)" ;
+                      SIZE 7,.5 CM FONT oFont5 ALIGN "R" LASTROW y 
+                 @ y   , 01 PRINT TO oPrn TEXT "IVA Contenido: $"+STR(oQryVen1:iva/nIndiceDolar,14,2) + " " ;
+                      SIZE 7,.5 CM FONT oFont5 ALIGN "R" LASTROW y    
                ELSE 
-               @ 22.5, 12 PRINT TO oPrn TEXT "Subtotal "+cSigno+":" ;
+                 @ 22.5, 12 PRINT TO oPrn TEXT "Subtotal "+cSigno+":" ;
                       SIZE 4,.5 CM FONT oFont3 ALIGN "R"
                  @ 22.5, 17 PRINT TO oPrn TEXT STR(oQryVen1:neto/nIndiceDolar,12,2) ;
                       SIZE 3,.5 CM FONT oFont ALIGN "R"
@@ -2650,7 +2658,16 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                       ENDIF
                       IF LEFT(cNumComp,1)<>"A"       
                          @ nRow, .1 PRINT TO oPrn TEXT "Total $ " + STR(oQryVen1:importe,12,2);
-                                  SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"                     
+                                  SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"      
+                         //Nuevo... Transparencia Fiscal
+                         @ nRow, .1 PRINT TO oPrn TEXT "Regimen Transparencia Fiscal";
+                                  SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"
+                         @ nRow, .1 PRINT TO oPrn TEXT    "IVA Contenido: $"+STR(oQryVen1:iva,12,2);
+                                  SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "L" 
+                         IF oQryVen1:sobretasa > 0
+                            @ nRow, .1 PRINT TO oPrn TEXT "Imp. Internos: $"+STR(oQryVen1:sobretasa,12,2) ;
+                              SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "L"                     
+                         ENDIF                                           
                          ELSE 
                          @ nRow, .1 PRINT TO oPrn TEXT "Subtotal $ " + STR(oQryVen1:neto,12,2);
                                   SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "L"                     
@@ -2689,6 +2706,10 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                         @ nRow,0 PRINT TO oPrn TEXT "Puntos: "+STR(oQryVen1:puntos,8) SIZE 4.8,1 CM FONT oFont  ALIGN "L" LASTROW nRow
                         @ nRow,0 PRINT TO oPrn TEXT "Acumulados: "+STR(oQryVen1:puntosacu,8) SIZE 4.8,1 CM FONT oFont  ALIGN "L" LASTROW nRow
                         @ nRow,0 PRINT TO oPrn TEXT "Total: "+STR(oQryVen1:puntos+oQryVen1:puntosacu ,8) SIZE 4.8,1 CM FONT oFont  ALIGN "L" LASTROW nRow
+                     ENDIF
+                     IF oQryPar1:emite_pie
+                        @ nRow, .1 PRINT TO oPrn TEXT oQryPar1:texto_pie ;
+                                    SIZE 4.8,1.5 CM FONT oFont2 LASTROW nRow ALIGN "L"             
                      ENDIF            
                      @ nRow,.1 PRINT TO oPrn TEXT "...";
                               SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"
@@ -2789,7 +2810,16 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                       nRow := nRow + .3
                       IF LEFT(cNumComp,1)<>"A"       
                          @ nRow, .1 PRINT TO oPrn TEXT "Total $ " + STR(oQryVen1:importe,12,2);
-                                  SIZE 7.1,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"                     
+                                  SIZE 7.1,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"   
+                         //Nuevo... Transparencia Fiscal
+                         @ nRow, .1 PRINT TO oPrn TEXT "Regimen Transparencia Fiscal";
+                                  SIZE 7.1,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"
+                         @ nRow, .1 PRINT TO oPrn TEXT    "IVA Contenido: $"+STR(oQryVen1:iva,12,2);
+                                  SIZE 7.1,.5 CM FONT oFont1 LASTROW nRow ALIGN "L" 
+                         IF oQryVen1:sobretasa > 0
+                            @ nRow, .1 PRINT TO oPrn TEXT "Imp. Internos: $"+STR(oQryVen1:sobretasa,12,2) ;
+                              SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "L"                     
+                         ENDIF                             
                          ELSE 
                          @ nRow, .1 PRINT TO oPrn TEXT "Subtotal $ " + STR(oQryVen1:neto,12,2);
                                   SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "L"                     
@@ -2829,6 +2859,10 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                         @ nRow,0 PRINT TO oPrn TEXT "Acumulados: "+STR(oQryVen1:puntosacu,8) SIZE 7.1,1 CM FONT oFont  ALIGN "L" LASTROW nRow
                         @ nRow,0 PRINT TO oPrn TEXT "Total: "+STR(oQryVen1:puntos+oQryVen1:puntosacu ,8) SIZE 7.1,1 CM FONT oFont  ALIGN "L" LASTROW nRow
                      ENDIF 
+                     IF oQryPar1:emite_pie
+                        @ nRow, .1 PRINT TO oPrn TEXT oQryPar1:texto_pie ;
+                                    SIZE 4.8,1.5 CM FONT oFont2 LASTROW nRow ALIGN "L"             
+                     ENDIF
                      @ nRow,.1 PRINT TO oPrn TEXT "...";
                               SIZE 7.1,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"
                      @ nRow,.1 PRINT TO oPrn TEXT "...";
@@ -3934,8 +3968,6 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                  oQryDet1:Skip()                 
               NEXT       
               y := y + .5
-              @ y, 1 PRINT TO oPrn TEXT oQryVen1:observa ;
-                      SIZE 18,3 CM FONT oFont ALIGN "L" LASTROW y 
               IF oApp:usabultosventa
                  @ y  ,1  PRINT TO oPrn TEXT "Total Bultos:" + STR(nBultos,4);
                           SIZE 3,1 CM FONT oFont ALIGN "L"
@@ -3950,6 +3982,10 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                                   SIZE 18,3 CM FONT oFont LASTROW nRow ALIGN "L" 
                  @ nRow, 1 PRINT TO oPrn TEXT "Descuento Gral:"+STR(nDesFac,12,2) ;
                       SIZE 18,3 CM FONT oFont ALIGN "L"
+                 ELSE
+                 y := y + .5
+                 @ y, 1 PRINT TO oPrn TEXT ALLTRIM(STRTRAN(oQryVen1:observa,"PUNTO DE VENTA",""));
+                                  SIZE 18,3 CM FONT oFont LASTROW nRow ALIGN "L"      
               ENDIF        
               @ 23.0,1  PRINT TO oPrn TEXT IF(!empty(oQryVen1:vendedor),"Vendedor: "+ALLTRIM(oQryVen1:vendedor),"") ;
                       SIZE 5,.5 CM FONT oFont3

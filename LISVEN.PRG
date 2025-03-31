@@ -39,9 +39,9 @@ ENDIF
 nTipo := aTipoForm[nTipo]
 IF nTipo <> "RE"
     CursorWait()
-         DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
-         DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
-         DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC     
+         DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-10
+         DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-10 BOLD
+         DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC     
     oQry := oApp:oServer:Query("SELECT CONCAT(v.ticomp,v.letra, v.numcomp) AS compro, v.fecha as fecha, v.hora as hora, "+;
                               " c.nombre AS cliente,c.cuit, v.neto*IF(v.ticomp='NC',-1,1) AS neto,"+;
                               " v.iva*IF(v.ticomp='NC',-1,1) AS iva, v.cae AS cae,"+;
@@ -157,9 +157,9 @@ IF !mrta
    RETURN
 ENDIF
 CursorWait()
-     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
-     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
-     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC     
+     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-10
+     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-10 BOLD
+     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC     
 oQry := oApp:oServer:Query("SELECT CONCAT(v.ticomp,v.letra, v.numcomp) AS compro, v.fecha as fecha, v.codcli as codcli, "+;
                           " c.nombre AS cliente,c.cuit, v.neto*IF(v.ticomp='NC',-1,1) AS neto,"+;
                           " v.iva*IF(v.ticomp='NC',-1,1) AS iva, v.cae AS cae, vc.saldo*IF(v.ticomp='NC',-1,1) as saldo,"+;
@@ -497,9 +497,9 @@ IF !lProv .and. !lPorFactura
     Procesando(.t.)
     oQry = oApp:oServer:Query(cSql)
     Procesando(.f.)
-         DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
-         DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
-         DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC   
+         DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-10
+         DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-10 BOLD
+         DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC   
     REPORT oRep TITLE "Articulos vendidos por fecha del " + ;
                       DTOC(mdesde) + " al " + DTOC(mhasta), IF(lRanking,"Ranking","")+" Vendedor:"+ALLTRIM(cVendedor) ;
            FONT  oFont1,oFont2,oFont3 HEADER OemToAnsi(oApp:nomb_emp) , ;
@@ -567,9 +567,9 @@ ELSE
       Procesando(.t.)
       oQry = oApp:oServer:Query(cSql)
       Procesando(.f.)
-           DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
-           DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
-           DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC   
+           DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-10
+           DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-10 BOLD
+           DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC   
       REPORT oRep TITLE "Articulos vendidos por fecha del "+ ;
                         DTOC(mdesde) + " al " + DTOC(mhasta) , "Vendedor:"+ALLTRIM(cVendedor)  ;
              FONT  oFont1,oFont2,oFont3 HEADER OemToAnsi(oApp:nomb_emp) , ;
@@ -624,9 +624,9 @@ ELSE
     Procesando(.t.)
     oQry = oApp:oServer:Query(cSql)
     Procesando(.f.)
-           DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
-           DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
-           DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC   
+           DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-9
+           DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-9 BOLD
+           DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-9 BOLD ITALIC   
     REPORT oRep TITLE "Articulos vendidos por fecha del " + ;
                         DTOC(mdesde) + " al " + DTOC(mhasta) ;
              FONT  oFont1,oFont2,oFont3 HEADER OemToAnsi(oApp:nomb_emp) , ;
@@ -693,9 +693,9 @@ IF !mrta
    RETURN
 ENDIF
 CursorWait()
-     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
-     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
-     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC     
+     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-10
+     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-10 BOLD
+     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC     
 IF nTipo = 1     
    oQry := oApp:oServer:Query("SELECT SUM(IF(LEFT(v.nrofac,2)='NC',-v.cantidad,v.cantidad)) AS cantidad,  "+;
                          " SUM(IF(LEFT(v.nrofac,2)='NC',-v.importe,v.importe)) AS importe, "+;
@@ -820,9 +820,9 @@ ENDIF
 mnomven:= alltrim(mnomven)
 CursorWait()
 lTipo:= IF(nTipo=1,.t.,.f.)
-     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
-     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
-     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC  
+     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-10
+     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-10 BOLD
+     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC  
 IF nTipo1 = 1
     IF lResu
     oQry := oApp:oServer:Query("SELECT v.codcli AS codigo, c.nombre as nombre, "+;
@@ -1185,9 +1185,9 @@ IF !mrta
    RETURN
 ENDIF
 CursorWait()
-     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
-     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
-     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC   
+     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-12
+     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-12 BOLD
+     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-12 BOLD ITALIC   
 
 oQry := oApp:oServer:Query("SELECT * FROM ("+;
                            " SELECT codart, fecha, IF(tipocomp='NC',-cantidad,cantidad) AS debe, 0 AS haber FROM ge_"+oApp:cId+"compradet WHERE codart ="+ ClipValue2Sql(mcodcli)+;
@@ -1256,9 +1256,9 @@ IF !mrta
 ENDIF
 CursorWait()
 lTipo:= IF(nTipo=1,.f.,.t.)
-     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
-     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
-     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC 
+     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-10
+     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-10 BOLD
+     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC 
 IF !lControl   
 oQry := oApp:oServer:Query("SELECT res.*, cam.nombre AS nomcam FROM ("+;
 "SELECT ve.camionero AS camionero, ve.fecha AS fecha, c.nombre as cliente, "+;

@@ -643,7 +643,7 @@ IF lFisc
          RETURN nil 
       ENDIF           
       FacturaElec1( nPuntoVta, 1, cLetra, aTablaIva, @nNumero, @cCae, @dFecVtoC,@nTipFor,;
-                   dFecha,oQryCliAux:cuit,oQryCliAux:dni,oBrwDet:aCols[7]:nTotal,oBrwDet:aCols[8]:nTotal,oBrwDet:aCols[9]:nTotal,oBrwDet:aCols[11]:nTotal)
+                   dFecha,oQryCliAux:cuit,oQryCliAux:dni,oBrwDet:aCols[7]:nTotal,oBrwDet:aCols[8]:nTotal,oBrwDet:aCols[9]:nTotal,oBrwDet:aCols[11]:nTotal,oQryCliAux:coniva)
       ELSE 
       nNumero := FacturaFiscal(oQryDet,oGet[08]:Value)
       nPuntoVta:=  oApp:oServer:Query("SELECT caja FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip)):caja

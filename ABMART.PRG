@@ -190,7 +190,7 @@ ENDIF
       cEmp := oQry7:nombre
    ENDIF   
 
-base:observa := IF(EMPTY(base:observa),SPACE(255),base:observa)
+base:observa := IF(EMPTY(base:observa),SPACE(255),ALLTRIM(base:observa)+SPACE(255-LEN(ALLTRIM(base:observa))))
 
 DO WHILE .T.
 DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Articulo" RESOURCE "ABMART1" OF oWnd1

@@ -37,9 +37,9 @@ IF !mrta
    RETURN
 ENDIF
 CursorWait()
-     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
-     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
-     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC     
+     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-10
+     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-10 BOLD
+     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC     
 oQry := oApp:oServer:Query("SELECT fecha, CONCAT('OP ',LPAD(CAST(numero AS CHAR),8,'0')) AS compro,"+;
                             " 0 AS debe, total AS haber"+;                          
                             " FROM ge_"+oApp:cId+"ordpag "+;                          
@@ -118,9 +118,9 @@ IF !mrta
    RETURN
 ENDIF
 CursorWait()
-     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
-     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
-     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC 
+     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-9
+     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-9 BOLD
+     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC 
 IF !lDetalle
     oQry := oApp:oServer:Query("SELECT c.codpro AS codpro, p.nombre AS nombre, p.direccion AS direccion, "+;
                              " p.telefono AS telefono, "+;
@@ -160,6 +160,8 @@ IF !lDetalle
     oQry:End()
     ELSE
     IF !lDeta1
+      DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-9
+      DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-9 BOLD
       oQry := oApp:oServer:Query("SELECT * FROM ("+;
                               "SELECT c.codpro AS codpro, p.nombre AS nombre, c.fecfac as fecha,  "+;
                                " c.saldo*IF(c.tipocomp='NC',-1,1) AS saldo,"+;           

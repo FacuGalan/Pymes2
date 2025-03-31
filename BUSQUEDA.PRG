@@ -105,7 +105,7 @@ IF base:nRecCount > 0
    RETURN .t. */
    ELSE
    base:SetNewFilter(SET_WHERE,cFiltro+" AND "+cFiltro2,.t.)
-   base:SetOrder("nombre",.T.)
+   base:SetOrder(if('a.'$base:cQuery,'a.nombre','nombre'),.T.)
    base:GoTop()
    aSizes := {}
    FOR i:= 1 TO base:FCount()

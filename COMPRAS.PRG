@@ -171,7 +171,7 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
                        "(SELECT codigo,nombre,tipo,0 FROM ge_"+oApp:cId+"retencio WHERE retecli IS FALSE) ")
   oQryRet:= oApp:oServer:Query("SELECT * FROM reten_temp")
   
-  oQryArt := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu    ORDER BY codigo")
+  oQryArt := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu    ORDER BY codigo LIMIT 0")
   oQryTip := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"tipocomp  ORDER BY codigo")
   oQryCom := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"compras   LIMIT 0")
   aTipoDoc:={"Factura","Nota de credito","Nota de debito","Presupuesto","Remito"} 
@@ -891,14 +891,19 @@ oGet[42]:Refresh()
 RETURN .t.
 
 **********************************************************************************************
-STATIC FUNCTION ValidaArt(oDlg1,oGet)
-
-    oQryArt := oApp:oServer:Query("SELECT a.*, i.nombre AS cNomIva, i.tasa AS tasaiva, a.iva AS codiva, a.codigopro AS codigopro, a.uxbulto AS uxbulto FROM ge_"+oApp:cId+"articu a "+;
-                                  "LEFT JOIN ge_"+oApp:cId+"ivas i ON a.iva = i.codigo "+;
-                                  "WHERE a.codigo = " + ClipValue2SQL(basedet:codart))
-    IF oQryArt:RecCount() = 0
-       BuscarArt(oQryArt,oDlg1,oGet[17],oGet[18])
-    ENDIF
+STATIC FUNCTION ValidaArt(oDlg1,oGet)   
+    LOCAL oQryArt 
+    IF basedet:codart > 0
+        oQryArt := oApp:oServer:Query("SELECT codigo,nombre,iva,codigopro,precossiva,siniva  FROM ge_"+oApp:cId+"articu "+;                                  
+                                  "WHERE codigo = " + ClipValue2SQL(basedet:codart))
+        IF oQryArt:RecCount() = 0 
+           oQryArt := oApp:oServer:Query("SELECT codigo,nombre,iva,codigopro,precossiva,siniva FROM ge_"+oApp:cId+"articu limit 100")      
+           BuscarArt(oQryArt,oDlg1,oGet[17],oGet[18],'0','nosale')
+        ENDIF
+        ELSE 
+        oQryArt := oApp:oServer:Query("SELECT codigo,nombre,iva,codigopro,precossiva,siniva FROM ge_"+oApp:cId+"articu limit 100")      
+        BuscarArt(oQryArt,oDlg1,oGet[17],oGet[18],'0','nosale')
+    ENDIF    
     nIvaArt:= oQryArt:iva
     nCant:= 1
     IF !EMPTY(oQryArt:codigopro) .and. oQryArt:codigopro <> "0" 
@@ -912,7 +917,7 @@ STATIC FUNCTION ValidaArt(oDlg1,oGet)
     oGet[21]:cText:= oQryArt:precossiva
     basedet:siniva:= oQryArt:siniva
 
-    oQryArt:SetNewFilter(SET_WHERE,"true",.t.)
+    //oQryArt:SetNewFilter(SET_WHERE,"true",.t.)
 RETURN .t.
 
 **********************************************************************************************
