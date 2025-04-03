@@ -1360,8 +1360,8 @@ RETURN .T.
 ** Reporte de pedidos 
 STATIC FUNCTION ReporPed()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,oGru,;
-      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(3), oBot1, oBot2, ;
-      mdesde := DATE(), mhasta := DATE(), mtotal := 0, lResu := .t.
+      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(4), oBot1, oBot2, ;
+      mdesde := DATE(), mhasta := DATE(), mtotal := 0, lResu := .t., lFacturados := .f.
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 DEFINE DIALOG oDlg1 TITLE "Reporte de Pedidos Pendientes" FROM 03,15 TO 13,50 Of oApp:oWnd
    acor := AcepCanc(oDlg1)    
@@ -1369,7 +1369,8 @@ DEFINE DIALOG oDlg1 TITLE "Reporte de Pedidos Pendientes" FROM 03,15 TO 13,50 Of
    @ 22, 01 SAY "Hasta Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
    @ 05, 65 GET oGet[1] VAR mdesde    OF oDlg1 PIXEL
    @ 20, 65 GET oGet[2] VAR mhasta    OF oDlg1 PIXEL VALID(mhasta >= mdesde) 
-   @ 35 ,65 CHECKBOX oGet[3] VAR lResu PROMPT "Resumido" OF oDlg1 PIXEL SIZE 90,12   
+   @ 35 ,05 CHECKBOX oGet[3] VAR lResu PROMPT "Resumido" OF oDlg1 PIXEL SIZE 60,12   
+   @ 35 ,70 CHECKBOX oGet[4] VAR lFacturados PROMPT "Incluye Facturados" OF oDlg1 PIXEL SIZE 90,12   
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
@@ -1389,15 +1390,15 @@ IF lResu
                          " LEFT JOIN ge_"+oApp:cId+"pedidos_encab p1 ON p1.id = p.idpedido "+;
                          " WHERE p1.parafecha >= " + ClipValue2Sql(mdesde) + " AND "+;
                          " p1.parafecha <= "+ ClipValue2Sql(mhasta) +;
-                         " AND p1.estado = 'P' "+;
+                         IF(lFacturados," AND p1.estado IN ('P','F') "," AND p1.estado = 'P' ")+;
                          " GROUP BY p.codart,p.detart ")
-    REPORT oRep TITLE "Pedidos Pendientes" + ;
+    REPORT oRep TITLE IF(!lFacturados,"Pedidos Pendientes","Todos los Pedidos") + ;
                       " del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
            FONT  oFont1,oFont2,oFont3 ;
            HEADER OemToAnsi(oApp:nomb_emp) , ;
-           "Pedidos Pendientes" CENTER ;
+           IF(!lFacturados,"Pedidos Pendientes","Todos los Pedidos") CENTER ;
            FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
-           PREVIEW CAPTION  "Pedidos Pendientes"
+           PREVIEW CAPTION  IF(!lFacturados,"Pedidos Pendientes","Todos los Pedidos")
 
     COLUMN TITLE "Producto"   DATA oQry:detart     SIZE 30 FONT 1
     COLUMN TITLE "Unidades"   DATA oQry:cantidad  PICTURE "999999999.999" SIZE 10 FONT 1 TOTAL
@@ -1421,15 +1422,15 @@ IF lResu
                          " LEFT JOIN ge_"+oApp:cId+"pedidos_det p ON p.idpedido = p1.id "+;
                          " WHERE p1.parafecha >= " + ClipValue2Sql(mdesde) + " AND "+;
                          " p1.parafecha <= "+ ClipValue2Sql(mhasta) +;
-                         " AND p1.estado = 'P' "+;
+                         IF(lFacturados," AND p1.estado IN ('P','F') "," AND p1.estado = 'P' ")+;
                          " ORDER BY p1.id,p.codart ")
-    REPORT oRep TITLE "Pedidos Pendientes (Detalle) " + ;
+    REPORT oRep TITLE IF(!lFacturados,"Pedidos Pendientes (Detalle) ","Todos los Pedidos (Detalle) ") + ;
                       " del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
            FONT  oFont1,oFont2,oFont3 ;
            HEADER OemToAnsi(oApp:nomb_emp) , ;
-           "Pedidos Pendientes" CENTER ;
+           IF(!lFacturados,"Pedidos Pendientes","Todos los Pedidos") CENTER ;
            FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
-           PREVIEW CAPTION  "Pedidos Pendientes (Detalle) "
+           PREVIEW CAPTION  IF(!lFacturados,"Pedidos Pendientes (Detalle) ","Todos los Pedidos (Detalle) ")
     GROUP oGru ON oQry:id HEADER "Cliente: "+ALLTRIM(STR(oQry:codcli))+" "+ALLTRIM(oQry:nombre) + " "+ALLTRIM(oQry:observa) FOOTER "Totales Cliente"  FONT 3
     COLUMN TITLE "N° Pedido"  DATA oQry:id         SIZE 08 FONT 1
     COLUMN TITLE "Producto"   DATA oQry:detart     SIZE 30 FONT 1 

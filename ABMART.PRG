@@ -24,7 +24,7 @@ AADD(oApp:aVentanas,cVentana)
 
 oQryBrw:= oApp:oServer:Query("SELECT codigo,codigopro,nombre,stockact,Preciocos,Precioven,reventa,fecmod,observa,nosale"+;
                                 " FROM ge_"+oApp:cId+"articu "+;
-                                "ORDER BY nombre")
+                                "ORDER BY nombre LIMIT 1000")
 MENU oPop2 POPUP
      MENUITEM "Todos los productos"  ACTION FiltrarVen(nil)
      MENUITEM "Solo Vendibles"       ACTION FiltrarVen(.t.)

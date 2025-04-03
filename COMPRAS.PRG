@@ -98,7 +98,7 @@ RETURN
 
 
 STATIC FUNCTION Formu(lAlta)
-LOCAL oGet:=ARRAY(45),oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTipoComp, nBultos:=0,;
+LOCAL oGet:=ARRAY(46),oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTipoComp, nBultos:=0,;
       cNomPro,  cCuit, cConIva, cNomCue, nDeuda, nCodArt, cDetArt, nCantidad, oError, i, ;
       nPunit, nPTotal, cNomRet1, cNomRet2, cNomRet3, cNomRet4, cNomRet5, oDlg1, oQryDoc,nRenglon,;
       nSaldoIni:=0, nImporteIni:=0,oQryCodigos,nMaximo,nOrden, lPuedeCobrar, oQryPedPen, cInPed, cNumCompAnt,;
@@ -184,6 +184,7 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
     base    := oQry:GetBlankRow()
     base:fecfac:= DATE()
     base:fecing:= DATE()
+    base:fecvto:= DATE()
     base:imputaiva := .t.
     base:estado := "I"
     nTipoComp:= 1
@@ -254,6 +255,7 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
     REDEFINE GET oGet[04] VAR oApp:usuario ID 113 OF oDlg1 WHEN(.F.)
     REDEFINE GET oGet[05] VAR base:fecfac  ID 114 OF oDlg1
     REDEFINE GET oGet[06] VAR base:fecing  ID 115 OF oDlg1  
+    REDEFINE GET oGet[46] VAR base:fecvto  ID 4018 OF oDlg1  
     REDEFINE GET oGet[07] VAR base:codpro  ID 116 OF oDlg1 PICTURE "99999999" WHEN(lAlta .and. oQryComprasDet:RecCount()=0);
                  VALID(ValidaPro(oGet,lAlta,oDlg1));
                  ACTION (oGet[07]:cText:= 0, ValidaPro(oGet,lAlta,oDlg1)) BITMAP "BUSC1"
@@ -898,11 +900,11 @@ STATIC FUNCTION ValidaArt(oDlg1,oGet)
                                   "WHERE codigo = " + ClipValue2SQL(basedet:codart))
         IF oQryArt:RecCount() = 0 
            oQryArt := oApp:oServer:Query("SELECT codigo,nombre,iva,codigopro,precossiva,siniva FROM ge_"+oApp:cId+"articu limit 100")      
-           BuscarArt(oQryArt,oDlg1,oGet[17],oGet[18],'0','nosale')
+           BuscarArt(oQryArt,oDlg1,oGet[17],oGet[18])
         ENDIF
         ELSE 
         oQryArt := oApp:oServer:Query("SELECT codigo,nombre,iva,codigopro,precossiva,siniva FROM ge_"+oApp:cId+"articu limit 100")      
-        BuscarArt(oQryArt,oDlg1,oGet[17],oGet[18],'0','nosale')
+        BuscarArt(oQryArt,oDlg1,oGet[17],oGet[18])
     ENDIF    
     nIvaArt:= oQryArt:iva
     nCant:= 1

@@ -20,7 +20,7 @@ IF ASCAN(oApp:aVentanas,cVentana) > 0
 ENDIF
 AADD(oApp:aVentanas,cVentana)
 
-aEstado := {'En revisión','Reparado', 'No reparado', 'Entregado', 'Descartado'}
+aEstado := {'En revisión','Reparado', 'No reparado', 'Entregado', 'Descartado','Baja Stock'}
 lAdmin:= oApp:oServer:Query("SELECT tipo FROM ge_"+oApp:cId+"usuarios WHERE usuario = "+ClipValue2Sql(oApp:usuario)):tipo = 'admin'
 validarqueexista()
 oQryBrw:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"service")
@@ -142,7 +142,7 @@ DEFINE DIALOG oForm TITLE "Registro de producto en Service" FROM 05,15 TO 36,100
    
    acor := AcepCanc(oForm)
    @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Grabar" OF oForm SIZE 30,10 ;
-           ACTION ((lRta := .t.), oForm:End() ) PIXEL
+           ACTION ((lRta := .t.), oForm:End() ) PIXEL WHEN(base:estado < 6 )
    @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oForm SIZE 30,10 ;
            ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL
 ACTIVATE DIALOG oForm CENTER
@@ -157,6 +157,11 @@ oQry:oRow := base
 TRY
   oApp:oServer:BeginTransaction()
   oQry:Save()
+  IF base:estado = 6 //Baja de stock
+     oApp:oServer:Insert("ge_"+oApp:cId+"stoman",{"codart","entradas","salidas","fecha","motivo","costo"},;
+                           {base:codart,0,1,DATE(),5,oQry2:precossiva})
+     oApp:oServer:Execute('UPDATE ge_'+oApp:cId+'articu SET STOCKACT = STOCKACT - 1')
+  ENDIF  
   oQryBrw:Refresh(.t.)   
   oApp:oServer:CommitTransaction()
 CATCH oError
@@ -272,6 +277,10 @@ RETURN .t.
 ** Baja de registro
 STATIC FUNCTION Baja (  )
 LOCAL mrta := .f., oError, nNum := oQryBrw:id
+IF oQryBrw:estado = 6
+   MsgStop("No se puede eliminar este service porque fue dado de baja de stock","Atencion")
+   RETURN nil 
+ENDIF   
 mrta := MsgNoYes("Seguro de eliminar"+CHR(10)+;
                  "el pedido  N°:"+STR(nNum),"Atencion")
 IF !mrta

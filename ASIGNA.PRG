@@ -601,9 +601,9 @@ RETURN nil
 ///Repòrte de Hojas de ruta
 FUNCTION LISASIREP
 LOCAL oRep, oFont1, oFont2, oFont3, oQryRep, oDlg1, oFont,;
-      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(6), oBot1, oBot2, oBot3, oBot4, oQryVen,;
+      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(7), oBot1, oBot2, oBot3, oBot4, oQryVen,;
       cVendedor, aVen, oBrwVen,i,j,mvende, mdesde := DATE(), mhasta := DATE(),;
-      oGru, lReimp, nCartaPorte := 0, lOrden := .f., lResumen := .f.
+      oGru, lReimp, nCartaPorte := 0, lOrden := .f., lResumen := .f., lSinAsignar := .f.
 oQryVen:= oApp:oServer:Query("SELECT *  FROM ge_"+oApp:cId+"reparto ORDER BY nombre") 
 aVen   := {}
 DO WHILE !oQryVen:Eof()
@@ -623,7 +623,8 @@ DEFINE DIALOG oDlg1 TITLE "Asignaciones por repartidor" FROM 03,15 TO 23,70 Of o
    @ 20, 65 GET oGet[1] VAR mdesde    OF oDlg1 PIXEL
    @ 35, 65 GET oGet[2] VAR mhasta    OF oDlg1 PIXEL VALID(mhasta >= mdesde) WHEN(!lReimp)
    @ 95,130 BUTTON oBot4 PROMPT "ORDEN TRABAJO" ACTION (lOrden := .t., oDlg1:End()) PIXEL SIZE 60,25 OF oDlg1
-   @ 35,165 CHECKBOX oGet[3] VAR lResumen PROMPT "Resumido" SIZE 100,12 OF oDlg1 PIXEL WHEN(!lReimp)
+   @ 20,145 CHECKBOX oGet[3] VAR lResumen PROMPT "Resumido" SIZE 100,12 OF oDlg1 PIXEL WHEN(!lReimp)
+   @ 35,145 CHECKBOX oGet[7] VAR lSinAsignar PROMPT "Facturas Sin Asignar" SIZE 100,12 OF oDlg1 PIXEL WHEN(!lReimp)
    @ 50,130 BUTTON oBot1 PROMPT "Inc" ACTION Cambiar(@aVen,oBrwVen) PIXEL SIZE 20,10 OF oDlg1
    @ 50, 05 XBROWSE oBrwVen SIZE 125,80 pixel OF oDlg1 ARRAY aVen ;
       HEADERS "Incluir", "Repartidor","Codigo";
@@ -659,7 +660,7 @@ FOR i := 1 TO LEN(aVen)
     ENDIF
 NEXT i
 cVendedor := cVendedor + ")"
-    IF !lResumen
+    IF !lResumen .and. !lSinAsignar
       oQryRep := oApp:oServer:Query("SELECT CONCAT(v.ticomp,v.letra,v.numcomp) AS compro, "+;
                                     "v.fecha AS fecha, v.fechaasig AS fecasi, c.nombre as nombre, v.codcli AS codcli, "+;
                                     "r.nombre as repar, v.cartaporte,"+;
@@ -696,36 +697,68 @@ cVendedor := cVendedor + ")"
                       ON STARTGROUP oRep:NewLine() ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.JPG",.5,.5);
                       ON POSTGROUP oRep:NewLine()
       oQryRep:End()
-    ELSE
-      oQryRep := oApp:oServer:Query("SELECT COUNT(v.ticomp) AS casos, "+;                                   
-                                    "r.nombre as repar,"+;
-                                    "SUM((v.importe)*IF(v.ticomp='NC',-1,1)) as importe " +;
+    ENDIF 
+    IF lResumen .and. !lSinAsignar
+        oQryRep := oApp:oServer:Query("SELECT COUNT(v.ticomp) AS casos, "+;                                   
+                                      "r.nombre as repar,"+;
+                                      "SUM((v.importe)*IF(v.ticomp='NC',-1,1)) as importe " +;
+                                      " FROM ge_"+oApp:cId+"ventas_encab v "+;
+                                      "INNER JOIN ge_"+oApp:cId+"reparto r ON v.codrep = r.codigo "+;
+                                      "INNER JOIN ge_"+oApp:cId+"clientes c ON c.codigo = v.codcli "+;                              
+                                      "WHERE v.fechaasig >= "+ClipValue2Sql(mdesde)+" AND "+;
+                                      "      v.fechaasig <= "+ClipValue2Sql(mhasta)+" AND "+;
+                                      "v.codrep IN "+cVendedor+" GROUP BY v.codrep ORDER BY r.nombre" )
+        DEFINE FONT oFont1 NAME "TAHOMA" SIZE 0,24
+        DEFINE FONT oFont  NAME "TAHOMA" SIZE 0,8
+        REPORT oRep TITLE "Asignaciones por reparto (Resumen)" + ;
+                          DTOC(mdesde) + " al " + DTOC(mhasta) ;
+               HEADER OemToAnsi(oApp:nomb_emp) , ;
+               "Asignaciones de " + cVendedor CENTER FONT oFont,oFont1 ;
+               PREVIEW CAPTION  "Asignaciones por Reparto (Resumen)"    
+        COLUMN TITLE "Repartidor" DATA oQryRep:repar   SIZE 25  FONT 1 
+        COLUMN TITLE "Oper."      DATA oQryRep:casos   PICTURE "9999" SIZE 05 TOTAL FONT 1 
+        COLUMN TITLE "Importe"   DATA oQryRep:importe  PICTURE "99999999.99"  FONT 1;
+                                    SIZE 10  TOTAL 
+        COLUMN TITLE "Sin IVA"   DATA oQryRep:importe/1.21  PICTURE "99999999.99"  FONT 1;
+                                    SIZE 10  TOTAL 
+        COLUMN TITLE "Firma"   DATA " " SIZE 15 FONT 2 
+
+        // Digo que el titulo lo escriba con al letra 2
+
+        oRep:bInit := {|| oQryRep:GoTop() }
+        oRep:bSkip := {|| oQryRep:Skip() }
+        
+        END REPORT
+        // Activo el reporte
+        ACTIVATE REPORT oRep WHILE !oQryRep:EOF() ON INIT CursorArrow();
+                        ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.JPG",.5,.5)
+        oQryRep:End()
+    ENDIF
+    IF lSinAsignar
+        oQryRep := oApp:oServer:Query("SELECT CONCAT(v.ticomp,v.letra,v.numcomp) AS compro, "+;
+                                    "v.fecha AS fecha, CONCAT(c.nombre,' ',c.direccion) as nombre, v.codcli AS codcli, "+;
+                                    "(v.importe)*IF(v.ticomp='NC',-1,1) as importe " +;                                   
                                     " FROM ge_"+oApp:cId+"ventas_encab v "+;
-                                    "INNER JOIN ge_"+oApp:cId+"reparto r ON v.codrep = r.codigo "+;
                                     "INNER JOIN ge_"+oApp:cId+"clientes c ON c.codigo = v.codcli "+;                              
-                                    "WHERE v.fechaasig >= "+ClipValue2Sql(mdesde)+" AND "+;
-                                    "      v.fechaasig <= "+ClipValue2Sql(mhasta)+" AND "+;
-                                    "v.codrep IN "+cVendedor+" GROUP BY v.codrep ORDER BY r.nombre" )
-      DEFINE FONT oFont1 NAME "TAHOMA" SIZE 0,24
-      DEFINE FONT oFont  NAME "TAHOMA" SIZE 0,8
-      REPORT oRep TITLE "Asignaciones por reparto (Resumen)" + ;
+                                    "WHERE v.fecha >= "+ClipValue2Sql(mdesde)+" AND "+;
+                                    "      v.fecha <= "+ClipValue2Sql(mhasta)+" AND v.cartaporte = 0 "+;
+                                    " ORDER BY v.fecha" )      
+      REPORT oRep TITLE "Facturas Pendientes de Asignar " + ;
                         DTOC(mdesde) + " al " + DTOC(mhasta) ;
              HEADER OemToAnsi(oApp:nomb_emp) , ;
-             "Asignaciones de " + cVendedor CENTER FONT oFont,oFont1 ;
-             PREVIEW CAPTION  "Asignaciones por Reparto (Resumen)"    
-      COLUMN TITLE "Repartidor" DATA oQryRep:repar   SIZE 25  FONT 1 
-      COLUMN TITLE "Oper."      DATA oQryRep:casos   PICTURE "9999" SIZE 05 TOTAL FONT 1 
-      COLUMN TITLE "Importe"   DATA oQryRep:importe  PICTURE "99999999.99"  FONT 1;
-                                  SIZE 10  TOTAL 
-      COLUMN TITLE "Sin IVA"   DATA oQryRep:importe/1.21  PICTURE "99999999.99"  FONT 1;
-                                  SIZE 10  TOTAL 
-      COLUMN TITLE "Firma"   DATA " " SIZE 15 FONT 2 
+             "Pendientes de Asignar "  CENTER ;
+             PREVIEW CAPTION  "Facturas Sin Reparto"    
+      COLUMN TITLE "Nro.Fact." DATA oQryRep:compro   SIZE 15
+      COLUMN TITLE "Nro"       DATA oQryRep:codcli   SIZE 6
+      COLUMN TITLE "Cliente"   DATA oQryRep:nombre   SIZE 30 MEMO
+      COLUMN TITLE "Fecha"     DATA oQryRep:fecha    PICTURE "@D"   SIZE 10    
+      COLUMN TITLE "Importe"   DATA oQryRep:importe  PICTURE "99999999.99" ;
+                                  SIZE 10  TOTAL
 
       // Digo que el titulo lo escriba con al letra 2
 
       oRep:bInit := {|| oQryRep:GoTop() }
       oRep:bSkip := {|| oQryRep:Skip() }
-      
       END REPORT
       // Activo el reporte
       ACTIVATE REPORT oRep WHILE !oQryRep:EOF() ON INIT CursorArrow();

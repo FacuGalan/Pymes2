@@ -62,7 +62,7 @@ oApp:oServer:NextResult()
 
 oQryPun:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ClipValue2Sql(oApp:cIp))
 oQryPar:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros")
-oQryArt:= oApp:oServer:Query("SELECT codigo,nombre,precioven,reventa,stockact,stockmin,stockotro FROM ge_"+oApp:cId+"articu")
+oQryArt:= oApp:oServer:Query("SELECT codigo,nombre,precioven,reventa,stockact,stockmin,stockotro FROM ge_"+oApp:cId+"articu LIMIT 0")
 lReemplaza:=.t.
    oBot:=ARRAY(70)
    oGet:=ARRAY(10)

@@ -104,6 +104,7 @@ IF base:nRecCount > 0
    ENDIF
    RETURN .t. */
    ELSE
+   base:SetNewFilter(SET_LIMIT,"1000",.t.)
    base:SetNewFilter(SET_WHERE,cFiltro+" AND "+cFiltro2,.t.)
    base:SetOrder(if('a.'$base:cQuery,'a.nombre','nombre'),.T.)
    base:GoTop()

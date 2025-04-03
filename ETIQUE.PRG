@@ -439,7 +439,7 @@ RETURN nil
 STATIC FUNCTION Alta(oLbx,oDlg,lCodBarra)
 LOCAL mcodigo := 0, oDlg1,oGet1, oGet2, oGet3, oGet4,oGet5, oGet6, oGet7, oGet8, oGet9, oGet10, acor, oBot1, oBot2,;
       mnombre := SPACE(45), mrta := .t., mprecio := 0, mincru := 0, mincrp := 0, muxb1 := 0, muxb2 := 0,;
-      mbarra1 := 0, mbarra2 := 0, mbarra3 := 0, mcant := 1, mneto
+      mbarra1 := 0, mbarra2 := 0, mbarra3 := 0, mcant := 1, mneto :=0 
 DO WHILE mrta
 DEFINE DIALOG oDlg1 TITLE "Agregar articulos" FROM 05,15 TO 15,70 OF oDlg
    acor := AcepCanc(oDlg1)
@@ -497,6 +497,7 @@ IF oQryArt:nRecCount > 0
    ELSE
    Buscar(oQryArt,oDlg,oGet1,oGet2)
    oGet3:cText := oQryArt:precioven
+   mneto := oQryArt:precioven - oQryArt:impint
    mneto := mneto - IF(oQryArt:iva = 5, mneto * 21 / 121,IF(oQryArt:iva = 4, mneto * 10.5 / 110.5,mneto ))
 ENDIF
 RETURN .t.
