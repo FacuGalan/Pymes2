@@ -129,6 +129,7 @@ CLASS WSAFip
    // Métodos privados
    METHOD CheckTAExpired() PROTECTED
    METHOD GenerarTRA(cService) PROTECTED
+   METHOD GetAFIPServerTime() PROTECTED
    METHOD FirmarTRA(cTRA, cCertFile, cPrivKeyFile) PROTECTED
    METHOD EnviarTRA(cTraFirmadoBase64) PROTECTED
    METHOD ParseLoginTicketResponse(cResponse) PROTECTED
@@ -1098,26 +1099,70 @@ RETURN lExpired
 METHOD GenerarTRA(cService) CLASS WSAFip
    LOCAL cTRA := ""
    LOCAL cUniqueId, cGenerationTime, cExpirationTime
-   LOCAL dNow, dTomorrow, cDateTime
+   LOCAL aServerTime, dNow, cNowTime, dExp, cExpTime, nExpirationHours := 10
+   LOCAL nHour, nMin, nSec
    
-   // Generar ID único
+   // Generar ID único con números aleatorios para evitar colisiones
    cUniqueId := ALLTRIM(STR(INT(SECONDS() * 100)))
    
-   // Obtener fecha y hora actual
-   dNow := DATE()
-   dTomorrow := dNow + 1
+   // Obtener fecha y hora del servidor AFIP
+   aServerTime := ::GetAFIPServerTime()
+   dNow := aServerTime[1]
+   cNowTime := aServerTime[2]
    
-   // Formato ISO 8601 exacto que espera AFIP
-   // Formato: YYYY-MM-DDThh:mm:ss-03:00
+   // Extraer componentes de tiempo
+   nHour := VAL(SUBSTR(cNowTime, 1, 2))
+   nMin := VAL(SUBSTR(cNowTime, 4, 2))
+   nSec := VAL(SUBSTR(cNowTime, 7, 2))
+   
+   // AJUSTE: Restar 2 minutos al tiempo de generación para asegurar que no está en el futuro
+   // Esto compensa cualquier desincronización o tiempo de procesamiento
+   nMin := nMin - 2
+   IF nMin < 0
+      nMin := nMin + 60
+      nHour := nHour - 1
+      IF nHour < 0
+         nHour := nHour + 24
+         dNow := dNow - 1
+      ENDIF
+   ENDIF
+   
+   // Actualizar el tiempo con el ajuste
+   cNowTime := PADL(ALLTRIM(STR(nHour)), 2, "0") + ":" + ;
+               PADL(ALLTRIM(STR(nMin)), 2, "0") + ":" + ;
+               PADL(ALLTRIM(STR(nSec)), 2, "0")
+   
+   // Tiempo de expiración: nExpirationHours horas después (en vez de 24)
+   // Partimos del tiempo ajustado
+   nHour := nHour + nExpirationHours
+   
+   // Manejar cambio de día si corresponde
+   IF nHour >= 24
+      nHour := nHour - 24
+      dExp := dNow + 1
+   ELSE
+      dExp := dNow
+   ENDIF
+   
+   // Formatear el tiempo de expiración
+   cExpTime := PADL(ALLTRIM(STR(nHour)), 2, "0") + ":" + ;
+               PADL(ALLTRIM(STR(nMin)), 2, "0") + ":" + ;
+               PADL(ALLTRIM(STR(nSec)), 2, "0")
+   
+   // Formato ISO 8601 exacto que espera AFIP, incluyendo milisegundos
+   // Formato: YYYY-MM-DDThh:mm:ss.000-03:00
    cGenerationTime := SUBSTR(DTOS(dNow), 1, 4) + "-" + ;
-                      SUBSTR(DTOS(dNow), 5, 2) + "-" + ;
-                      SUBSTR(DTOS(dNow), 7, 2) + "T" + ;
-                      TIME() + "-03:00"
+                     SUBSTR(DTOS(dNow), 5, 2) + "-" + ;
+                     SUBSTR(DTOS(dNow), 7, 2) + "T" + ;
+                     cNowTime + ".000-03:00"
    
-   cExpirationTime := SUBSTR(DTOS(dTomorrow), 1, 4) + "-" + ;
-                      SUBSTR(DTOS(dTomorrow), 5, 2) + "-" + ;
-                      SUBSTR(DTOS(dTomorrow), 7, 2) + "T" + ;
-                      TIME() + "-03:00"
+   cExpirationTime := SUBSTR(DTOS(dExp), 1, 4) + "-" + ;
+                     SUBSTR(DTOS(dExp), 5, 2) + "-" + ;
+                     SUBSTR(DTOS(dExp), 7, 2) + "T" + ;
+                     cExpTime + ".000-03:00"
+   
+   ::WriteLog("TRA generado con - Generation Time: " + cGenerationTime)
+   ::WriteLog("TRA generado con - Expiration Time: " + cExpirationTime)
    
    // Crear XML del TRA
    cTRA := '<?xml version="1.0" encoding="UTF-8"?>' + ;
@@ -1131,6 +1176,96 @@ METHOD GenerarTRA(cService) CLASS WSAFip
            '</loginTicketRequest>'
    
 RETURN cTRA
+
+/**
+ * GetAFIPServerTime - Obtiene la fecha y hora del servidor de AFIP
+ * @return Array    Array con {fecha, hora} del servidor de AFIP
+ */
+METHOD GetAFIPServerTime() CLASS WSAFip
+   LOCAL cResponse := "", oXMLHTTP, oError
+   LOCAL dServerDate := DATE()
+   LOCAL cServerTime := TIME()
+   LOCAL cDateHeader, aMonths, nMonth, cDay, cMonthStr, cYear, cTime
+   LOCAL nHour, nMin, nSec
+   
+   ::WriteLog("Obteniendo fecha y hora del servidor AFIP...")
+   
+   // Definir array con nombres de meses en inglés (como vienen en el header HTTP)
+   aMonths := {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
+   
+   TRY
+      // Crear objeto para HTTP request
+      oXMLHTTP := CreateObject('MSXML2.XMLHTTP')
+      
+      // Consultar cualquier servicio de AFIP para obtener headers
+      IF ::cUrlWsfe == "https://wswhomo.afip.gov.ar/wsfev1/service.asmx"
+         // Ambiente de homologación
+         oXMLHTTP:Open('HEAD', "https://wswhomo.afip.gov.ar/wsfev1/service.asmx", .F.)
+      ELSE
+         // Ambiente de producción
+         oXMLHTTP:Open('HEAD', "https://servicios1.afip.gov.ar/wsfev1/service.asmx", .F.)
+      ENDIF
+      
+      oXMLHTTP:Send()
+      
+      // Obtener header de fecha
+      cDateHeader := oXMLHTTP:GetResponseHeader("Date")
+      ::WriteLog("Header de fecha obtenido: " + cDateHeader)
+      
+      // Parsear el formato de fecha HTTP
+      // Formato típico: "Thu, 03 Apr 2025 14:02:24 GMT"
+      IF !EMPTY(cDateHeader)
+         // Extraer día, mes, año y hora
+         cDay := ALLTRIM(SUBSTR(cDateHeader, AT(",", cDateHeader) + 2, 2))
+         cMonthStr := ALLTRIM(SUBSTR(cDateHeader, AT(",", cDateHeader) + 5, 3))
+         cYear := ALLTRIM(SUBSTR(cDateHeader, AT(" " + cMonthStr + " ", cDateHeader) + 5, 4))
+         cTime := ALLTRIM(SUBSTR(cDateHeader, AT(cYear, cDateHeader) + 5, 8))
+         
+         // Convertir mes de texto a número
+         nMonth := 0
+         FOR nMonth := 1 TO 12
+            IF cMonthStr == aMonths[nMonth]
+               EXIT
+            ENDIF
+         NEXT
+         
+         // Crear fecha en formato adecuado para CTOD
+         dServerDate := CTOD(cDay + "/" + PADL(ALLTRIM(STR(nMonth)), 2, "0") + "/" + cYear)
+         
+         // Extraer la hora en componentes
+         nHour := VAL(SUBSTR(cTime, 1, 2))
+         nMin := VAL(SUBSTR(cTime, 4, 2)) 
+         nSec := VAL(SUBSTR(cTime, 7, 2))
+         
+         // Convertir de GMT a GMT-3 (Argentina), restando 3 horas
+         nHour := nHour - 3
+         // Manejar cambio de día si la hora se vuelve negativa
+         IF nHour < 0
+            nHour := nHour + 24
+            dServerDate := dServerDate - 1
+         ENDIF
+         
+         // Formatear la hora correctamente
+         cServerTime := PADL(ALLTRIM(STR(nHour)), 2, "0") + ":" + ;
+                        PADL(ALLTRIM(STR(nMin)), 2, "0") + ":" + ;
+                        PADL(ALLTRIM(STR(nSec)), 2, "0")
+         
+         ::WriteLog("Fecha del servidor AFIP convertida: " + DTOC(dServerDate) + " " + cServerTime)
+      ELSE
+         ::WriteLog("No se pudo obtener el header de fecha. Usando fecha y hora local.")
+      ENDIF
+      
+   CATCH oError
+      ::cLastError := "Error al obtener la hora del servidor: " + oError:Description
+      ::nLastCode := 1090
+      ::WriteLog(::cLastError)
+      ::WriteLog("Usando fecha y hora local como alternativa.")
+   END
+   
+   // Liberar recursos
+   oXMLHTTP := NIL
+   
+RETURN {dServerDate, cServerTime}
 
 /**
  * FirmarTRA - Firma el TRA con certificado y clave privada
