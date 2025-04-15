@@ -175,7 +175,18 @@ LOCAL oQryParmetros, oSer, aPlacas, i, lExiste := .f., nPV := 1, oQryPun, oIni
     aPlacas := GetNetCardInfo()
     
     IF nCliente <> 0
-       MsgGet("Punto a operar","Punto a operar",@nPV)      
+       DO WHILE .T.
+         oQryPun:=  oApp:oServer:Query("SELECT caja AS codigo,nombre FROM ge_"+oApp:cId+"punto")
+         IF !MsgGet2("Punto a operar","Punto a operar",@nPV,oQryPun,,,,'caja')
+            oApp:oServer:End()
+            QUIT
+         ENDIF
+         IF nPV = 0
+            MsgStop("No dejes 0, elegí una caja papastrela","Atencion!")
+            LOOP
+         ENDIF
+      EXIT
+      ENDDO      
        oApp:cIP := oApp:oServer:Query("SELECT ip FROM ge_"+oApp:cId+"punto WHERE caja = " + ClipValue2SQL(nPv)):ip
        lExiste := .t.
     ENDIF   
@@ -303,7 +314,7 @@ IF FILE("BCN_administra.DLL") .and. nCliente > 0
 ENDIF       
 
 oApp:oServer:Execute("SET SESSION wait_timeout = 36600")
-IF FILE("C:\FWH16\GENERAL\FUENTES\ABMART.PRG")
+IF FILE("C:\FWH16\GENERAL\FUENTES\ABMART.PRG") .or. FILE("BCN_administra.DLL") 
    aVar[1] :="MARKET      "
    aVar[2] :="1           "
    ELSE

@@ -14,10 +14,10 @@ PROCEDURE RepCre1()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
       acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(6), oBot1, oBot2, oQryCli,;
       cTodos := "Todos los clientes          ", mnomcli := SPACE(30), mdesde := CTOD("01/01/2010"), mhasta := DATE(),;
-      mcodcli := 0, mTotal := 0, lTipo := .f.,nTipo:=1,aTipo:={"Sistema","Demo"}
+      mcodcli := 0, mTotal := 0, lTipo := .f.,nTipo:=1,aTipo:={"Sistema","Demo"}, lConArt := .f.
 oQryCli:= oApp:oServer:Query("SELECT codigo,nombre, direccion FROM ge_"+oApp:cId+"clientes ORDER BY nombre")           
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
-DEFINE DIALOG oDlg1 TITLE "Cuentas corrientes" FROM 03,15 TO 13,70 Of oApp:oWnd
+DEFINE DIALOG oDlg1 TITLE "Cuentas corrientes" FROM 03,15 TO 14,70 Of oApp:oWnd
    acor := AcepCanc(oDlg1)    
    @ 07, 01 SAY "Desde Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
    @ 22, 01 SAY "Hasta Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
@@ -27,7 +27,8 @@ DEFINE DIALOG oDlg1 TITLE "Cuentas corrientes" FROM 03,15 TO 13,70 Of oApp:oWnd
    @ 35, 65 GET oGet[3] VAR mcodcli OF oDlg1 SIZE 30,12 PIXEL RIGHT;
                 VALID(Buscar(oQryCli,oDlg1,oGet[3],oGet[4]));
                 ACTION (oGet[3]:cText:= 0, Buscar(oQryCli,oDlg1,oGet[3],oGet[4])) BITMAP "BUSC1" 
-   @ 35,100 GET oGet[4] VAR mnomcli PICTURE "@!"  OF oDlg1 PIXEL WHEN(.F.)   
+   @ 35,100 GET oGet[4] VAR mnomcli PICTURE "@!"  OF oDlg1 PIXEL WHEN(.F.)
+   @ 50, 65 CHECKBOX oGet[5] VAR lConArt PROMPT "Muestrar Articulos"   OF oDlg1 PIXEL 
   
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
@@ -43,15 +44,19 @@ lTipo:= IF(nTipo=1,.f.,.t.)
      DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-9 BOLD
      DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC     
 oQry := oApp:oServer:Query("SELECT fecha, CONCAT('REC ',LPAD(CAST(numero AS CHAR),8,'0')) AS compro,"+;
-                            " 0 AS debe, total AS haber, interes as interes"+;                          
+                            " 0 AS debe, total AS haber, interes as interes, ' ' as det"+;                          
                             " FROM ge_"+oApp:cId+"pagos "+;                          
                             " WHERE fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
                             "       fecha <= " + ClipValue2Sql(mhasta) + " AND "+;
                             "       cliente = " + ClipValue2Sql(mcodcli) + " AND total <> 0 "+;
-                            " UNION "+;                            
-                           "SELECT fecha, CONCAT(ticomp,letra,numcomp) AS compro,"+;
-                           " importe*IF(ticomp='NC' OR ticomp='DE',-1,1) AS debe, 0 AS haber, 0 as interes"+;                         
-                           " FROM ge_"+oApp:cId+"ventas_encab "+;                         
+                            " UNION "+;   
+                           "SELECT v.fecha, CONCAT(v.ticomp,v.letra,v.numcomp) AS compro,"+;
+                           " v.importe*IF(v.ticomp='NC' OR v.ticomp='DE',-1,1) AS debe, 0 AS haber, 0 as interes,"+;
+                           "d.det AS det "+;
+                           " FROM ge_"+oApp:cId+"ventas_encab v"+;
+                           " LEFT JOIN (SELECT GROUP_CONCAT(detart,' ',cantidad) AS det, NROFAC "+;
+                           " FROM ge_"+oApp:cId+"ventas_det GROUP BY NROFAC) d "+;
+                           " ON CONCAT(v.ticomp,v.letra,v.numcomp) = d.nrofac "+;                         
                            " WHERE fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
                            "       fecha <= " + ClipValue2Sql(mhasta) + " AND "+;
                            "       codcli = " + ClipValue2Sql(mcodcli) +;
@@ -66,7 +71,7 @@ oQry := oApp:oServer:Query("SELECT fecha, CONCAT('REC ',LPAD(CAST(numero AS CHAR
                                    " AND cliente = "+ClipValue2Sql(mcodcli)+") AS haber ,"+;
                            "(SELECT SUM(interes) "+;
                              "FROM ge_"+oApp:cId+"pagos WHERE fecha < "+ClipValue2Sql(mdesde)+;
-                                   " AND cliente = "+ClipValue2Sql(mcodcli)+") AS interes "+;
+                                   " AND cliente = "+ClipValue2Sql(mcodcli)+") AS interes, ' ' as det "+;
                            " ORDER BY fecha ")
 REPORT oRep TITLE "Cuenta corriente de (" + STR(mcodcli,6)+") "+  ALLTRIM(mNomCli)  + ;
                   " del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
@@ -76,7 +81,7 @@ REPORT oRep TITLE "Cuenta corriente de (" + STR(mcodcli,6)+") "+  ALLTRIM(mNomCl
        FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
        PREVIEW CAPTION  "Cuenta corrientes cliente"
 
-COLUMN TITLE "Comprobante" DATA oQry:compro    SIZE 35 FONT 1
+COLUMN TITLE "Comprobante" DATA oQry:compro    SIZE IF(lConArt,15,35) FONT 1
 COLUMN TITLE "Fecha"       DATA FechaSql(oQry:fecha)     PICTURE "@D" SIZE 08 FONT 1
 COLUMN TITLE "Debe"        DATA oQry:debe      PICTURE "99999999999.99" ;
                            SIZE 10 FONT 2 TOTAL
@@ -86,6 +91,9 @@ COLUMN TITLE "Interes"     DATA oQry:interes PICTURE "99999999999.99" ;
                            SIZE 10 FONT 2 
 COLUMN TITLE "Saldo"       DATA mtotal PICTURE "99999999999.99" ;
                            SIZE 10 FONT 2 
+IF lConArt
+   COLUMN TITLE "Productos"       DATA STRTRAN(oQry:det,","," - ") SIZE 35 FONT 1 MEMO
+ENDIF                           
 
 // Digo que el titulo lo escriba con al letra 2
 oRep:oTitle:aFont[1] := {|| 2 }
@@ -519,7 +527,7 @@ ELSE
       ENDIF   
       lTipo:= IF(nTipo=1,.f.,.t.)
       // Defino el reporte
-      oQry := oApp:oServer:Query( "SELECT p.cliente,p.numero,p.fecha, p.total,p.facturas, c.nombre , res.efec, res.tarj, res.cheq, res.anti,res.transf,res.promo,res.mpago,res.reten, p.id_cierre "+;
+      oQry := oApp:oServer:Query( "SELECT p.cliente,p.numero,p.fecha, p.total,p.facturas, c.nombre , res.efec, res.tarj, res.cheq, res.anti,res.transf,res.promo,res.mpago,res.reten, p.id_cierre,pf.factura "+;
                                   "FROM ge_"+oApp:cId+"pagos p "+;
                                   "LEFT JOIN "+;
                                   "(SELECT res.numero,SUM(res.efec) AS efec,SUM(tarj) AS tarj,SUM(cheq) AS cheq,"+;
@@ -542,6 +550,7 @@ ELSE
                                   ") res GROUP BY res.numero ) "  +;
                                   "res ON p.NUMERO = res.NUMERO "+;
                                   "LEFT JOIN ge_"+oApp:cId+"clientes c ON c.CODIGO = p.cliente "+;
+                                  "LEFT JOIN (SELECT numero,GROUP_CONCAT(ticomp,letra,numcomp) AS factura FROM ge_"+oApp:cId+"pagfac GROUP BY numero) pf ON pf.numero = res.numero "+;
                                   "WHERE (p.fecha >= "+ClipValue2Sql(mdesde)+") and "+;
                                   "(p.fecha <= "+ClipValue2Sql(mhasta)+") "+;  
                                   IF(cUsua="TODOS"," "," AND p.usuario = " +ClipValue2Sql(cUsua)) +;
@@ -572,6 +581,7 @@ ELSE
       IF !lPorTurno
          COLUMN TITLE "Cierre"         DATA oQry:id_cierre  SIZE 06 FONT 1
       ENDIF
+      COLUMN TITLE "Facturas"         DATA oQry:factura  SIZE 30 FONT 1
       // Digo que el titulo lo escriba con al letra 2
       // Digo que el titulo lo escriba con al letra 2
       oRep:oTitle:aFont[1] := {|| 2 }

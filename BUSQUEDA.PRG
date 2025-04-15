@@ -123,7 +123,7 @@ IF base:nRecCount > 0
               ID 111 OF oDlg1 AUTOSORT ON DBLCLICK oDlg1:End()             
      REDEFINE GET oGetSeek VAR cSeek ID 102 OF oDlg1
      base:bOnChangePage := {|| oLbx:Refresh() }
-     oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt(base, oGetSeek, oLbx, nKey, uValor, cCampoFiltro) }
+     oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt(base, oGetSeek, oLbx, nKey, cFiltro+" AND "+cFiltro2) }
      oLbx:bKeyDown := {|nKey| IF(nKey==13,oDlg1:End(),.t.) }
      PintaBrw(oLbx,0)
    REDEFINE BUTTON oBot1[1] ID 103 OF oDlg1 ACTION oDlg1:end() CANCEL WHEN(base:nRecCount>0)
@@ -148,8 +148,10 @@ FOR i:= 1 TO base:FCount()
 NEXT i     
 RETURN nil
 
-FUNCTION FiltraArt(base, oG, oLbx, nKey, uValor, cCampoFiltro)
-LOCAL cFiltro, cText, cNombre := if('a.'$base:cQuery,'a.nombre','nombre')
+FUNCTION FiltraArt(base, oG, oLbx, nKey, cCampoFiltro)
+LOCAL cFiltro, cText, cNombre := if('a.'$base:cQuery,'a.nombre','nombre'),;
+      cCodigo := if('a.'$base:cQuery,'a.codigo','codigo')
+DEFAULT cCampoFiltro := ''      
 oG:Assign()
 IF nKey = 38 .or. nKey = 40
    oLbx:SetFocus()
@@ -166,10 +168,11 @@ ENDIF
 cText := STRTRAN(cText,"'","")
 cText := STRTRAN(cText,"%","")
 cText := STRTRAN(cText," ","%' and "+cNombre+" like '%") 
-IF uValor <> nil 
-   cFiltro := cCampoFiltro + " = " + ClipValue2Sql(uValor) + " AND "+cNombre+" LIKE '%"+ cText +"%'" 
+IF !EMPTY(cCampoFiltro)
+   cFiltro := cCampoFiltro  + " AND ( "+cNombre+" LIKE '%"+ cText +"%' OR " +;
+              cCodigo + " LIKE '%"+ cText +"%')"          
    ELSE 
-   cFiltro := cNombre+" LIKE '%"+ cText +"%'"
+   cFiltro := cNombre+" LIKE '%"+ cText +"%' OR " + cCodigo + " LIKE '%"+ cText +"%'"
 ENDIF
 base:SetNewFilter(SET_WHERE,cFiltro,.t.)
 // Se refresca el listbox

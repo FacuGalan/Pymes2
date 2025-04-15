@@ -246,7 +246,7 @@ STATIC FUNCTION ValidaCli(oGet)
 
 oQryCli:= oApp:oServer:Query("SELECT codigo,nombre,saldo,cuit,direccion FROM ge_"+oApp:cId+"clientes WHERE codigo = " +ClipValue2Sql(mcodcli))
 IF oQryCli:RecCount() = 0 
-   Buscar(oQryCli,oDlg,oGet[01])
+   BuscarArt(oQryCli,oDlg,oGet[01])
 ENDIF
 oGet[02]:cText:= oQryCli:nombre 
 oGet[05]:cText:= oQryCli:saldo // IF(lMostrarSis,oQryCli:saldo,oQryCli:saldod) 

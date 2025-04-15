@@ -4,7 +4,7 @@
 MEMVAR oApp, nCliente
 
 FUNCTION Conectar()
-LOCAL oServer, cDB, lRta, cHost, lLocal, oQryProc
+LOCAL oServer, cDB, lRta, cHost, lLocal, oQryProc, oQryCli
    D_SetCaseSensitive( .T. )
    Set_MyLang( "es_ES" )
    
@@ -34,7 +34,10 @@ LOCAL oServer, cDB, lRta, cHost, lLocal, oQryProc
    ENDIF
    nCliente := 0
    IF FILE("BCN_administra.DLL")      
-      MsgGet("Ingrese cliente","Ingrese Cliente",@nCliente)
+      oQryCli  := oServer:Query("SELECT id AS codigo,nombre,nomemp FROM config_clientes WHERE pack = 'GE3'")
+      IF !MsgGet2("Ingrese cliente","Ingrese Cliente",@nCliente,oQryCli,'pack','"GE3"',oApp:oWnd,'id')
+         QUIT
+      ENDIF
    ENDIF   
    IF EMPTY(bcn->id)
       lRta := PrimeraVez(oServer)

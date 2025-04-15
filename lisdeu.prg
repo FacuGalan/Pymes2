@@ -98,7 +98,7 @@ RETURN
 PROCEDURE RepDeu2()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
       acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(6), oBot1, oBot2,;
-      mdesde := CTOD("01/01/2020"), mhasta := DATE(), lDetalle := .f., oGru, lTipo := .F., lDeta1 := .f.
+      mdesde := CTOD("01/01/2020"), mhasta := DATE(), lDetalle := .f., oGru, lTipo := .F., lDeta1 := .f., lVto := .f.
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 DEFINE DIALOG oDlg1 TITLE "Resumen de deudas a Pagar" FROM 03,15 TO 15,50 Of oApp:oWnd
    acor := AcepCanc(oDlg1)    
@@ -109,6 +109,7 @@ DEFINE DIALOG oDlg1 TITLE "Resumen de deudas a Pagar" FROM 03,15 TO 15,50 Of oAp
    @ 35, 05 CHECKBOX oGet[3] VAR lDetalle PROMPT "Detallado" OF oDlg1 SIZE 70,12 PIXEL   
    @ 35, 85 CHECKBOX oGet[4] VAR lTipo    PROMPT "Solo Imputables" OF oDlg1 SIZE 70,12 PIXEL
    @ 50, 05 CHECKBOX oGet[5] VAR lDeta1   PROMPT "Solo Origen/Saldo" OF oDlg1 SIZE 70,12 PIXEL WHEN(lDetalle)
+   @ 50, 85 CHECKBOX oGet[5] VAR lVto     PROMPT "Por fecha Vto" OF oDlg1 SIZE 70,12 PIXEL 
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
@@ -127,11 +128,11 @@ IF !lDetalle
                              " p.saldo AS acuenta, SUM(c.saldo*IF(c.tipocomp='NC',-1,1)) AS importe,"+;
                              " (SELECT MAX(o.fecha) FROM ge_"+oApp:cId+"ordpag o WHERE o.proveedor = p.codigo)  AS fecha  " +;                         
                              " FROM ge_"+oApp:cId+"compras c LEFT JOIN ge_"+oApp:cId+"provee p ON c.codpro = p.codigo "+;                                                 
-                             " WHERE c.saldo > 0 AND c.fecfac >= " + ClipValue2Sql(mdesde) + " AND "+;
-                             " c.fecfac <= "+ ClipValue2Sql(mhasta) +; 
+                             " WHERE c.saldo > 0 AND "+IF(lVto,"c.fecvto","c.fecfac")+ " >= " + ClipValue2Sql(mdesde) + " AND "+;
+                             " "+IF(lVto,"c.fecvto","c.fecfac")+ " <= "+ ClipValue2Sql(mhasta) +; 
                              " AND " + IF(!lTipo,"TRUE","c.imputaiva")+;
                              " GROUP BY c.codpro ORDER BY p.nombre " )
-    REPORT oRep TITLE "Resumen de deudas" + " del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
+    REPORT oRep TITLE "Resumen de deudas" + IF(lVto," Por Fecha Vto"," Por Fecha Factura") + " del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
            FONT  oFont1,oFont2,oFont3  HEADER OemToAnsi(oApp:nomb_emp) , ;
            "Resumen de deudas a Pagar" CENTER ;
            FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
@@ -163,13 +164,13 @@ IF !lDetalle
       DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-9
       DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-9 BOLD
       oQry := oApp:oServer:Query("SELECT * FROM ("+;
-                              "SELECT c.codpro AS codpro, p.nombre AS nombre, c.fecfac as fecha,  "+;
+                              "SELECT c.codpro AS codpro, p.nombre AS nombre, "+IF(lVto,"c.fecvto","c.fecfac")+ " as fecha,  "+;
                                " c.saldo*IF(c.tipocomp='NC',-1,1) AS saldo,"+;           
                                " c.importe*IF(c.tipocomp='NC',-1,1) AS importe,"+;                             
                                " CONCAT(c.tipocomp,c.letra,c.numfac) as compro "+;
                                " FROM ge_"+oApp:cId+"compras c LEFT JOIN ge_"+oApp:cId+"provee p ON c.codpro = p.codigo "+;                                                 
-                               " WHERE c.saldo > 0 AND c.fecfac >= " + ClipValue2Sql(mdesde) + " AND "+;
-                               " c.fecfac <= "+ ClipValue2Sql(mhasta) +; 
+                               " WHERE c.saldo > 0 AND "+IF(lVto,"c.fecvto","c.fecfac")+ " >= " + ClipValue2Sql(mdesde) + " AND "+;
+                               " "+IF(lVto,"c.fecvto","c.fecfac")+ " <= "+ ClipValue2Sql(mhasta) +; 
                                " AND " + IF(!lTipo,"TRUE","c.imputaiva")+;      
                                " UNION " +;
                                "SELECT codigo AS codpro, nombre, CURDATE()  AS fecha , "+;                            
@@ -186,7 +187,7 @@ IF !lDetalle
              PREVIEW CAPTION  "Detalle de deudas a Pagar"
       GROUP oGru ON oQry:codpro HEADER oQry:nombre FOOTER "Totales Proveedor"  FONT 3 
       COLUMN TITLE "Comprobante"  DATA oQry:compro     SIZE 14 FONT 1
-      COLUMN TITLE "Fecha"        DATA FechaSql(oQry:fecha)       PICTURE "@D" SIZE 09 FONT 1
+      COLUMN TITLE IF(lVto,"Fecha Vto","Fecha Fac")        DATA FechaSql(oQry:fecha)       PICTURE "@D" SIZE 09 FONT 1
       COLUMN TITLE "+60 dias"     DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha>60,oQry:saldo,0)  ;
                    SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
       COLUMN TITLE "30/60 dias"   DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha>30 .AND. DATE()-oQry:fecha<=60 ,oQry:saldo,0)  ;
@@ -215,13 +216,13 @@ IF !lDetalle
       ELSE
 
       oQry := oApp:oServer:Query(""+;
-                              "SELECT c.codpro AS codpro, p.nombre AS nombre, c.fecfac as fecha,  "+;
+                              "SELECT c.codpro AS codpro, p.nombre AS nombre, "+IF(lVto,"c.fecvto","c.fecfac")+ " as fecha,  "+;
                                " c.saldo*IF(c.tipocomp='NC',-1,1) AS saldo,"+;           
                                " c.importe*IF(c.tipocomp='NC',-1,1) AS origen,"+;                             
                                " CONCAT(c.tipocomp,c.letra,c.numfac) as compro "+;
                                " FROM ge_"+oApp:cId+"compras c LEFT JOIN ge_"+oApp:cId+"provee p ON c.codpro = p.codigo "+;                                                 
-                               " WHERE c.saldo > 0 AND c.fecfac >= " + ClipValue2Sql(mdesde) + " AND "+;
-                               " c.fecfac <= "+ ClipValue2Sql(mhasta) +; 
+                               " WHERE c.saldo > 0 AND "+IF(lVto,"c.fecvto","c.fecfac")+ ">= " + ClipValue2Sql(mdesde) + " AND "+;
+                               " "+IF(lVto,"c.fecvto","c.fecfac")+ " <= "+ ClipValue2Sql(mhasta) +; 
                                " AND " + IF(!lTipo,"TRUE","c.imputaiva")+;                                     
                                "" )
       REPORT oRep TITLE "Detalle de deudas" + " del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
@@ -231,7 +232,7 @@ IF !lDetalle
              PREVIEW CAPTION  "Detalle de deudas a Pagar"
       GROUP oGru ON oQry:codpro HEADER oQry:nombre FOOTER "Totales Proveedor"  FONT 3 
       COLUMN TITLE "Comprobante"  DATA oQry:compro     SIZE 14 FONT 1
-      COLUMN TITLE "Fecha"        DATA FechaSql(oQry:fecha)       PICTURE "@D" SIZE 09 FONT 1
+      COLUMN TITLE IF(lVto,"Fecha Vto","Fecha Fac")        DATA FechaSql(oQry:fecha)       PICTURE "@D" SIZE 09 FONT 1
       COLUMN TITLE "Imp.Origen"   DATA oQry:origen SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
       COLUMN TITLE "Aplicado"     DATA oQry:origen-oQry:saldo SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
       COLUMN TITLE "Saldo Actual" DATA oQry:saldo  SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL

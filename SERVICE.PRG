@@ -40,6 +40,10 @@ oQryBrw:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"service")
             TOOLTIP "Eliminar Registro"  ;
             ACTION (Baja( ),oBrwG:Refresh());
             PROMPT "Baja" TOP WHEN(oQryBrw:RecCount()>0 .and. "B"$cPermisos)
+         DEFINE BUTTON RESOURCE "IMPOR" OF oBar ;
+            TOOLTIP "Recuperar de Stock"  ;
+            ACTION (Recupera( ),oBrwG:Refresh());
+            PROMPT "Recupera" TOP WHEN(oQryBrw:RecCount()>0 .and. "B"$cPermisos)
          DEFINE BUTTON RESOURCE "EXCE" OF oBar ;
             TOOLTIP "Exportar a Excel" ;
             ACTION oBrwG:ToExcel() WHEN(oQryBrw:RecCount()>0 .AND. "E"$cPermisos);
@@ -87,19 +91,21 @@ RETURN
 ** Formulario de carga
 STATIC FUNCTION Formu(lAlta)
 LOCAL oGet := ARRAY(15), oBot := ARRAY(2), oForm, lRta := .f., aCor, base, oError,;
-      cNomCli:=SPACE(30),oQryCli, cNomArt := SPACE(50), oQry2, oQry
+      cNomCli:=SPACE(30),oQryCli, cNomArt := SPACE(50), oQry2, oQry, nEst
 oQryCli := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"clientes")
-oQry2   := oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"articu")
+oQry2   := oApp:oServer:Query("SELECT codigo,nombre,precossiva FROM ge_"+oApp:cId+"articu")
 IF lAlta
    oQry := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"service LIMIT 0")
    base := oQry:GetBlankRow()
    base:id:= oApp:oServer:GetAutoIncrement("ge_"+oApp:cId+"service")
    base:estado:= 1
    base:fecha_ingreso:=DATE()
+   nEst:=0
 
    ELSE
    oQry   := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"service WHERE id = " + ClipValue2SQL(oQryBrw:id))
    base := oQry:GetRowObj()
+   nEst:=base:estado
    oQry2:GoTop()
    IF oQry2:Seek(base:codart,1) > 0
       cNomArt := oQry2:nombre
@@ -142,7 +148,7 @@ DEFINE DIALOG oForm TITLE "Registro de producto en Service" FROM 05,15 TO 36,100
    
    acor := AcepCanc(oForm)
    @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Grabar" OF oForm SIZE 30,10 ;
-           ACTION ((lRta := .t.), oForm:End() ) PIXEL WHEN(base:estado < 6 )
+           ACTION ((lRta := .t.), oForm:End() ) PIXEL WHEN(nEst < 6 )
    @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oForm SIZE 30,10 ;
            ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL
 ACTIVATE DIALOG oForm CENTER
@@ -160,7 +166,7 @@ TRY
   IF base:estado = 6 //Baja de stock
      oApp:oServer:Insert("ge_"+oApp:cId+"stoman",{"codart","entradas","salidas","fecha","motivo","costo"},;
                            {base:codart,0,1,DATE(),5,oQry2:precossiva})
-     oApp:oServer:Execute('UPDATE ge_'+oApp:cId+'articu SET STOCKACT = STOCKACT - 1')
+     oApp:oServer:Execute('UPDATE ge_'+oApp:cId+'articu SET STOCKACT = STOCKACT - 1 WHERE codigo = '+Clipvalue2sql(base:codart))
   ENDIF  
   oQryBrw:Refresh(.t.)   
   oApp:oServer:CommitTransaction()
@@ -179,7 +185,7 @@ STATIC FUNCTION Filtrar( )
    LOCAL oFilt,oGet:=ARRAY(7),oBot:=ARRAY(2),acor:=ARRAY(4),vProv:=0,cNomProv:=SPACE(30),;
    vDesde:=CTOD("01/01/2000"),vHasta:=DATE(),oQryPro,lRta:=.f.,oFont,cWhere,;
    vPDesde:=DATE(),vPHasta := CTOD("01/01/2100") , nEstado := 1,;
-   aEstado := {'TODOS','En revisión', 'Reparado', 'No reparado', 'Entregado', 'Descartado'}
+   aEstado := {'TODOS','En revisión', 'Reparado', 'No reparado', 'Entregado', 'Descartado','Baja Stock'}
    
 oQryPro:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"clientes")
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
@@ -736,6 +742,51 @@ ENDIF
 RETURN nil
 
 */
+
+
+****************************************FILTRADO**********************
+STATIC FUNCTION Recupera()
+   LOCAL oFilt,oGet:=ARRAY(7),oBot:=ARRAY(2),acor:=ARRAY(4),oError,lRta:=.f.,oFont,cWhere,;
+   nEstado := 1,;
+   aEstado := {'En revisión', 'Reparado', 'No reparado', 'Entregado', 'Descartado'}
+   
+IF oQryBrw:estado <> 6
+   MsgStop('Este producto no esta en estado de BAJA',"Error")
+   RETURN NIL 
+ENDIF   
+DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
+
+                        
+    DEFINE DIALOG oFilt TITLE "Recuperar estado de baja";
+           FROM 05,15 TO 18,70 OF oWnd1 FONT oFont
+       @ 07, 05 SAY "Pasar a Estado:"                 OF oFilt PIXEL SIZE 50,20 RIGHT 
+       @ 05, 60 COMBOBOX oGet[07] VAR nEstado ITEMS aEstado   OF oFilt PIXEL SIZE 90,12
+
+          
+       acor := AcepCanc(oFilt)
+       @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Recupera" OF oFilt SIZE 30,10 ;
+               ACTION ((lRta := .t.), oFilt:End() ) PIXEL
+       @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oFilt SIZE 30,10 ;
+               ACTION ((lRta := .f.), oFilt:End() ) PIXEL CANCEL
+    ACTIVATE DIALOG oFilt CENTER 
+
+    IF !lRta
+        RETURN nil
+    ENDIF    
+TRY
+  oApp:oServer:BeginTransaction()
+  oApp:oServer:Insert("ge_"+oApp:cId+"stoman",{"codart","entradas","salidas","fecha","motivo","costo"},;
+                           {oQryBrw:codart,1,0,DATE(),6,0})
+  oApp:oServer:Execute('UPDATE ge_'+oApp:cId+'articu SET STOCKACT = STOCKACT + 1 WHERE codigo = '+Clipvalue2sql(oQryBrw:codart))  
+  oApp:oServer:Execute('UPDATE ge_'+oApp:cId+'service SET estado = '+Clipvalue2sql(nEstado)+' WHERE id = '+Clipvalue2sql(oQryBrw:id))  
+  oQryBrw:Refresh(.t.)   
+  oApp:oServer:CommitTransaction()
+CATCH oError
+  MsgStop("Error al grabar"+CHR(10)+oError:description,"Error")
+  oApp:oServer:RollBack()
+END TRY
+oBrwG:Refresh()
+RETURN nil
 
 
 

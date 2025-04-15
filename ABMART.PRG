@@ -24,7 +24,7 @@ AADD(oApp:aVentanas,cVentana)
 
 oQryBrw:= oApp:oServer:Query("SELECT codigo,codigopro,nombre,stockact,Preciocos,Precioven,reventa,fecmod,observa,nosale"+;
                                 " FROM ge_"+oApp:cId+"articu "+;
-                                "ORDER BY nombre LIMIT 1000")
+                                "ORDER BY nombre")
 MENU oPop2 POPUP
      MENUITEM "Todos los productos"  ACTION FiltrarVen(nil)
      MENUITEM "Solo Vendibles"       ACTION FiltrarVen(.t.)
@@ -439,8 +439,8 @@ DEFINE DIALOG oDlgR RESOURCE "RESETA" OF oForm TITLE IF(lReceta,"Receta Producci
 	REDEFINE GET oGet[1] VAR nPara     ID 100 OF oDlgR PICTURE "9999999.999" WHEN(lReceta)
   IF lReceta
     	REDEFINE GET oGet[2] VAR nCodArt   ID 101 OF oDlgR PICTURE "99999999999999";
-    	             VALID(ValidaArtR(nCodArt,oGet) .and. oGet[03]:SetFocus() = nil );
-                     ACTION (oGet[2]:cText:= 0, ValidaArtR(nCodArt,oGet)) BITMAP "BUSC1" 
+    	             VALID(BuscarArt(oQryArt,oDlgR,oGet[2],oGet[3],'1','mprima') .and. oGet[03]:SetFocus() = nil );
+                     ACTION (oGet[2]:cText:= 0, BuscarArt(oQryArt,oDlgR,oGet[2],oGet[3],'1','mprima')) BITMAP "BUSC1" 
      ELSE 
      REDEFINE GET oGet[2] VAR nCodArt   ID 101 OF oDlgR PICTURE "99999999999999";
                VALID(BuscarArt(oQryArt,oDlgR,oGet[2],oGet[3]));
@@ -527,12 +527,12 @@ RETURN nil
 
 *****************************************************************************************************************************
 ****** VALIDO EL ARTICULO Y BUSCO LA RESETA 
-STATIC FUNCTION ValidaArtR(nCodArt,oGet)
+STATIC FUNCTION ValidaArtR(nCodArt,oGet, oDlg)
 LOCAL oQryValid:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu WHERE codigo = "+ ClipValue2Sql(nCodArt)+" and mprima = TRUE")
 IF oQryValid:RecCount() > 0 
    oGet[03]:cText:= oQryValid:nombre 
 ELSE
-   Buscar(oQryValid,oDlg,oGet[02],oGet[03],"TRUE","mprima")
+   BuscarArt(oQryValid,oDlg,oGet[02],oGet[03],"TRUE","mprima")
 ENDIF
 RETURN .t.
 

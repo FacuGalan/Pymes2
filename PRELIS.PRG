@@ -38,7 +38,11 @@ oQryBrw:=oApp:oServer:Query("SELECT codigo, nombre,precioven,fecmod "+;
          DEFINE BUTTON RESOURCE "IMPR" OF oBar ;
             TOOLTIP "Imprimir Lista de Precios"  ;
             ACTION ListaPre();
-            PROMPT "Listas" TOP WHEN("R"$cPermisos)   
+            PROMPT "Listas" TOP WHEN("R"$cPermisos)
+         DEFINE BUTTON RESOURCE "IMPOR" OF oBar ;
+            TOOLTIP "Transmitir precios a Balanzas"  ;
+            ACTION (oWnd1:End(),Transmitir(cPermisos));
+            PROMPT "Transmitir" TOP WHEN("A"$cPermisos)   
          // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;
             TOOLTIP "Cerrar Ventana" ;
@@ -102,8 +106,9 @@ FUNCTION ListaPre()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, cOrden, oFont,;
       acor:= ARRAY(4), norden:=1, mrta:=.F., oGet:= ARRAY(7), oBot1, oBot2,;
       cSql, aOrden, oQryMar, oQryRub,oQryProv, oQryArt, aEst, i, nOrden2 := 1, oCom, oBrw, aRub, aMar, oBrwMar, oBrwRub,;
-      cMarca, cRubro,cProvee, oGru, oCol,aProv,oBrwProv, lCompleta := .f., aOrdenada := .f.,;
-      aListas := {.t.,.f.,.f.}, nLispre := 0, oQryLis
+      cMarca, cRubro,cProvee, oGru, oCol,aProv,oBrwProv, lCompleta := .f.,;
+      aOrdenada := {"Por Nombre","Por Marca","Por Rubro","Por Marca y Rubro"},;
+      aListas := {.t.,.f.,.f.}, nLispre := 0, oQryLis, a
 CursorWait()      
 oQryMar := oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"marcas  ORDER BY nombre")
 oQryRub := oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"rubros  ORDER BY nombre")
@@ -163,8 +168,9 @@ DEFINE DIALOG oDlg1 TITLE "Listado de Articulos" FROM 03,15 TO 37,90
       :aCols[ 1 ]:nEditType := 1
       :aCols[ 1 ]:SetCheck()
       :CreateFromCode()
-   END 
-   @ 200, 155 CHECKBOX oGet[7] VAR aOrdenada PROMPT "Separar x Rubro/Marca" OF oDlg1 SIZE  100,12 PIXEL   
+   END
+   @ 180, 155 SAY "Ordenar por:" OF oDlg1 SIZE  100,12 PIXEL   
+   @ 200, 155 COMBOBOX oGet[7] VAR norden ITEMS aOrdenada OF oDlg1 SIZE  100,12 PIXEL   
    @ 220, 005 CHECKBOX oGet[2] VAR aListas[1] PROMPT "Lista 1" OF oDlg1 SIZE  25,12 PIXEL
    @ 220, 035 CHECKBOX oGet[3] VAR aListas[2] PROMPT "Lista 2" OF oDlg1 SIZE  25,12 PIXEL
    @ 220, 065 CHECKBOX oGet[4] VAR aListas[3] PROMPT "Lista Especial" OF oDlg1 SIZE  60,12 PIXEL
@@ -219,7 +225,17 @@ IF cMarca = "()" .or. cRubro = "()" .or. cProvee = "()"
    RETURN NIL
 ENDIF
 cSql := cSql + " WHERE nosale is false and a.rubro IN " + cRubro + " AND a.marca IN " + cMarca + " AND a.prov IN " + cProvee 
-cSql := cSql + " ORDER BY r.nombre, m.nombre,  a.nombre "
+//cSql := cSql + " ORDER BY r.nombre, m.nombre,  a.nombre "
+DO CASE 
+   CASE norden = 1
+        cSql := cSql + " ORDER BY a.nombre " 
+   CASE nOrden = 2 
+        cSql := cSql + " ORDER BY m.nombre,  a.nombre "
+   CASE nOrden = 3
+        cSql := cSql + " ORDER BY r.nombre,  a.nombre "
+   CASE nOrden = 4
+        cSql := cSql + " ORDER BY r.nombre, m.nombre,  a.nombre "
+ENDCASE   
 CursorWait()
 oQry = oApp:oServer:Query(cSql)
      DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
@@ -231,10 +247,17 @@ REPORT oRep TITLE "LISTA DE PRECIOS MAYORISTA" ;
        FOOTER "Fecha de Emisión:" + DTOC(DATE()),"Hoja:" + STR(oRep:npage,3) ,"(Los precios incluyen I.V.A.)",;
        "Lista sujeta a variacion sin previo aviso" CENTER;
        PREVIEW CAPTION  "Lista de precios"
-IF aOrdenada       
+IF nOrden = 2
+  GROUP ON oQry:marca HEADER oQry:Marca_Descr FOOTER " " FONT 3
+ENDIF
+IF nOrden = 3
+  GROUP ON oQry:rubro HEADER oQry:Rubro_Descr FOOTER " " FONT 3
+ENDIF
+IF nOrden = 4 
   GROUP ON oQry:rubro HEADER oQry:Rubro_Descr FOOTER " " FONT 3
   GROUP ON oQry:marca HEADER oQry:Marca_Descr FOOTER " " FONT 3
 ENDIF
+
 
   COLUMN TITLE "Codigo"          DATA oQry:codigo             SIZE 10 FONT 1
   COLUMN TITLE "Descripción del Producto"       DATA oQry:nombre             SIZE 60 FONT 1

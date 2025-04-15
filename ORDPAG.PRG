@@ -271,7 +271,7 @@ STATIC FUNCTION ValidaProvee(oGet)
 
 oQryPro:= oApp:oServer:Query("SELECT codigo,nombre,saldo,retencio,cuit,direccion,localidad,retiva,gasto,exgana FROM ge_"+oApp:cId+"provee WHERE codigo = " +ClipValue2Sql(mcodpro))
 IF oQryPro:RecCount() = 0 
-   Buscar(oQryPro,oDlg,oGet[01])
+   BuscarArt(oQryPro,oDlg,oGet[01])
 ENDIF
 oGet[02]:cText:= oQryPro:nombre 
 oGet[05]:cText:= oQryPro:saldo //IF(lMostrarSis,oQryPro:saldo,oQryPro:saldod) 

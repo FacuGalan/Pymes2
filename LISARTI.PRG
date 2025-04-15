@@ -13,10 +13,10 @@ MEMVAR oApp
 
 FUNCTION LisArti()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, cOrden, oFont,;
-      acor:= ARRAY(4), norden:=1, mrta:=.F., oGet:= ARRAY(6), oBot1, oBot2,;
+      acor:= ARRAY(4), norden:=1, mrta:=.F., oGet:= ARRAY(7), oBot1, oBot2,;
       cSql, aOrden, oQryMar, oQryRub, oQryArt, aEst, i, nOrden2 := 1, oCom, oBrw, aRub, aMar, oBrwMar, oBrwRub,;
       cMarca, cRubro, oGru, oCol, oError, aTipo := {"Todos los productos","Solo los vendibles","Solo los no vendibles"}, ;
-      nTipo := 1
+      nTipo := 1, lOrdenPrecio := .f.
 CursorWait()      
 oQryMar:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"deptos  ORDER BY nombre")
 oQryRub:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"rubros  ORDER BY nombre")
@@ -101,6 +101,7 @@ DEFINE DIALOG oDlg1 TITLE "Listado de Articulos" FROM 03,15 TO 35,90
    PintaBrw(oBrw,0)
    @ 110,130 SAY "Ordenar por" OF oDlg1 PIXEL
    @ 120,130 COMBOBOX oCom VAR nOrden2 ITEMS aOrden OF oDlg1 PIXEL SIZE 70,12  
+   @ 135,130 CHECKBOX oGet[7] VAR lOrdenPrecio PROMPT "Y Ordena por precio" OF oDlg1 PIXEL SIZE 80,12
    @ 110,210 SAY "Listar" OF oDlg1 PIXEL
    @ 120,210 COMBOBOX oGet[1] VAR nTipo ITEMS aTipo OF oDlg1 PIXEL SIZE 70,12  
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
@@ -143,7 +144,7 @@ NEXT i
 cRubro := cRubro + ")"
 cSql := cSql + " WHERE a.rubro IN " + cRubro + " AND a.depto IN " + cMarca
 cSql := cSql + IF(nTipo = 1,"",IF(nTipo = 3," AND nosale IS TRUE "," AND nosale IS FALSE "))
-cSql := cSql +   " ORDER BY "+ aorden[nOrden2]
+cSql := cSql +   " ORDER BY "+ aorden[nOrden2] + if(lOrdenPrecio,',precioven','')
 CursorWait()
 TRY
 oQry = oApp:oServer:Query(cSql)

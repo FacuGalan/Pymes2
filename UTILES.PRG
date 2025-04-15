@@ -1066,3 +1066,33 @@ oDlgF:lHelpIcon := .f.
        ACTION oDlgF:End() PIXEL     
 ACTIVATE DIALOG oDlgF CENTER 
 RETURN .f.  
+
+********************************************
+*** Pide clave de autorizacion 
+FUNCTION MsgGet2(cTexto1,cTexto2,nValor,oQry,cFiltro1,cValor1,oPadre,cCampo)
+LOCAL oGet1,oGet2, oBot1, oBot2, oDlg1, oFont, mrta := .f., aCor,lRespuesta:=.f.,cClave:=SPACE(15),;
+      cNombre:=SPACE(100)
+DEFAULT cTexto1:="INGRESAR VALOR",cTexto2:="INGRESAR VALOR",nValor:=0,oPadre:=oApp:oWnd,cFiltro1:=nil,cValor1:=nil,;
+        cCampo := "codigo"
+DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5      
+DEFINE DIALOG oDlg1 TITLE cTexto1 FROM 03,20 TO 10,70 OF oPadre FONT oFont
+   acor := AcepCanc(oDlg1)
+   
+   @ 05, 05 SAY cTexto2 OF oDlg1 PIXEL SIZE 100,12 
+   
+   @ 15, 05 GET oGet1 VAR nValor OF oDlg1 PICTURE "999999" PIXEL SIZE 35,12 RIGHT;
+            VALID(oGet1:value = 0 .or. Buscar(oQry,oDlg1,oGet1,oGet2,cValor1,cFiltro1,,,cCampo));
+            ACTION ((oGet1:cText := 0,Buscar(oQry,oDlg1,oGet1,oGet2,cValor1,cFiltro1,,,cCampo))) BITMAP "BUSC1" 
+   @ 15, 45 GET oGet2 VAR cNombre OF oDlg1 PICTURE "@!" PIXEL SIZE 140,12 WHEN(.F.)
+
+   
+   @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Aceptar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .f.), oDlg1:End() ) PIXEL
+ACTIVATE DIALOG oDlg1 CENTER ON INIT oGet1:SetFocus()
+IF !mrta
+   RETURN .f.
+ENDIF
+
+RETURN .T.
