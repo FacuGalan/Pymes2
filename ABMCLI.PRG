@@ -452,15 +452,15 @@ RETURN nil
 ** Importar Clientes
 STATIC FUNCTION Importar()
 LOCAL oDlg1, acor:= ARRAY(4), mrta:=.F., oBot1, oBot2, oBrwTmp,;
-      aCols := {{0,SPACE(30),SPACE(30),SPACE(30),SPACE(30),SPACE(13),0,SPACE(30)}},;
+      aCols := {{0,SPACE(30),SPACE(30),SPACE(30),SPACE(30),SPACE(13),0,SPACE(30),0}},;
       i, cError, cSql
 DO WHILE .T.       
 DEFINE DIALOG oDlg1 TITLE "Importar Clientes" FROM 03,15 TO 35,140
    acor := AcepCanc(oDlg1)    
    @ 20, 05 XBROWSE oBrwTmp SIZE 465,180 pixel OF oDlg1 ARRAY aCols ;
-      HEADERS "Codigo", "Razon Social","Direccion","Telefono","Localidad","CUIT","IVA","Email";
-      COLUMNS 1, 2 ,3, 4, 5,6,7,8;
-      SIZES 60,150,100,100,200,90,40,100;
+      HEADERS "Codigo", "Razon Social","Direccion","Telefono","Localidad","CUIT","IVA","Email","Vendedor";
+      COLUMNS 1, 2 ,3, 4, 5,6,7,8,9;
+      SIZES 60,150,100,100,200,90,40,100,100;
       CELL LINES NOBORDER FASTEDIT
    WITH OBJECT oBrwTmp
       :nEditTypes := 1  
@@ -522,7 +522,7 @@ ENDIF
 EXIT
 ENDDO
 cSql := "INSERT INTO ge_"+oApp:cId+"clientes "+;
-        " (codigo,nombre,direccion,telefono,localidad,cuit,coniva,mail,lispre) VALUES "
+        " (codigo,nombre,direccion,telefono,localidad,cuit,coniva,mail,vendedor,lispre) VALUES "
 FOR i := 1 TO LEN(aCols)
     cSql := cSql + "("+ClipValue2SQL(aCols[i,1]) + "," + ;
                        ClipValue2SQL(aCols[i,2]) + "," + ;
@@ -531,7 +531,8 @@ FOR i := 1 TO LEN(aCols)
                        ClipValue2SQL(aCols[i,5]) + "," + ;
                        ClipValue2SQL(aCols[i,6]) + "," + ;
                        ClipValue2SQL(aCols[i,7]) + "," + ;
-                       ClipValue2SQL(aCols[i,8]) + ",1), "
+                       ClipValue2SQL(aCols[i,8]) + "," + ;
+                       ClipValue2SQL(aCols[i,9]) + ",1), "
 NEXT i
 cSql := LEFT(cSql,LEN(cSql)-2)
 TRY

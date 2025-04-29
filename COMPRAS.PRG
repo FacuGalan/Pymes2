@@ -263,8 +263,8 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
     REDEFINE GET oGet[09] VAR cCuit        ID 118 OF oDlg1 WHEN(.F.)
     REDEFINE GET oGet[10] VAR cConIva      ID 119 OF oDlg1 WHEN(.F.)
     REDEFINE GET oGet[11] VAR base:codcue  ID 120 OF oDlg1 PICTURE "9999";
-                VALID(Buscar(oQryCue,oDlg1,oGet[11],oGet[12]));
-                ACTION (oGet[11]:cText:= 0, Buscar(oQryCue,oDlg1,oGet[11],oGet[12])) BITMAP "BUSC1"
+                VALID(BuscarArt(oQryCue,oDlg1,oGet[11],oGet[12]));
+                ACTION (oGet[11]:cText:= 0, BuscarArt(oQryCue,oDlg1,oGet[11],oGet[12])) BITMAP "BUSC1"
     REDEFINE GET oGet[12] VAR cNomCue      ID 121 OF oDlg1 WHEN(.F.)            
     REDEFINE GET oGet[13] VAR nDeuda       ID 122 OF oDlg1 WHEN(.F.) PICTURE "999999999.99"
     REDEFINE CHECKBOX oGet[14] VAR base:imputaiva   ID 123 OF oDlg1 
@@ -278,7 +278,7 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
                  ACTION (oGet[15]:cText:= "-1", ValidaArtP(oDlg1,oGet,.T.)) BITMAP "BUSC1" PICTURE "@!"
     oGet[15]:bGotFocus:={|| oGet[15]:SelectAll()}
     REDEFINE GET oGet[18] VAR basedet:detart  ID 127 OF oDlg1 WHEN(.F.)
-    REDEFINE GET oGet[19] VAR basedet:cantidad ID 128 OF oDlg1 PICTURE "9999999999.99";
+    REDEFINE GET oGet[19] VAR basedet:cantidad ID 128 OF oDlg1 PICTURE "9999999999.999";
                  VALID((oGet[21]:cText:= basedet:cantidad * basedet:punit) <> "XXX")
     REDEFINE GET oGet[20] VAR basedet:punit  ID 129 OF oDlg1 PICTURE "999999999.99" WHEN(.F.)
     REDEFINE GET oGet[21] VAR basedet:total  ID 130 OF oDlg1 PICTURE "999999999.99" WHEN(.F.)

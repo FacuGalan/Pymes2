@@ -1668,10 +1668,10 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
       ENDIF
       //3 - FACTURA ------------------------------------------------------------------------
       IF nCtaCte <= 0  
-         oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET saldo = "+ClipValue2Sql(ABS(nCtaCte)) + " WHERE codigo = " +ClipValue2Sql(nCliente))
+         oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET saldo = "+ClipValue2Sql(ABS(nCtaCte)) + ", FECULT = CURDATE() WHERE codigo = " +ClipValue2Sql(nCliente))
       ELSE
          IF nTipoDoc <> 3
-            oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET saldo = 0 WHERE codigo = " +ClipValue2Sql(nCliente))
+            oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET saldo = 0, FECULT = CURDATE() WHERE codigo = " +ClipValue2Sql(nCliente))
          ENDIF   
          oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"concfact (ticomp,letra,numcomp,codcon,tipocon,importe,observa,fecha,caja) "+;
                              "VALUES("+ClipValue2Sql(cTipoDoc)+","+ClipValue2Sql(LEFT(cNumComp,1))+","+;
@@ -2607,7 +2607,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                                   SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "C"
                      @ nRow, .1 PRINT TO oPrn TEXT "Cod:" + oQryVen1:tipfor+" Nro:"+RIGHT(cNumcomp,13) ;
                                   SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "C"                 
-                     @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecha);
+                     @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecha)+" "+oQryVen1:hora;
                                   SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "C"                                                  
                      IF oQryVen1:coniva = 5 .and. oQryVen1:codcli <= 1 .and. "CONSUMIDOR"$oQryVen1:nombre 
                         @ nRow, .1 PRINT TO oPrn TEXT "A Consumidor Final";
@@ -2751,7 +2751,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                                   SIZE 7.1,.5 CM FONT oFont1 LASTROW nRow ALIGN "C"
                      @ nRow, .1 PRINT TO oPrn TEXT "Cod:" + oQryVen1:tipfor+" Nro:"+RIGHT(cNumcomp,13) ;
                                   SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"                 
-                     @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecha);
+                     @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecha)+" "+oQryVen1:hora;
                                   SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"                                                  
                      IF oQryVen1:coniva = 5 .and. oQryVen1:codcli <= 1 .and. "CONSUMIDOR"$oQryVen1:nombre 
                         @ nRow, .1 PRINT TO oPrn TEXT "A Consumidor Final";

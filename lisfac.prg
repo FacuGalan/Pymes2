@@ -636,7 +636,7 @@ oQry := oApp:oServer:Query("SELECT v.*, ve.comision AS comi, ve.condfac, ve.cond
                          " LEFT JOIN (SELECT tipo, letra, numero, SUM(saldo) as saldo FROM ge_"+oApp:cId+"ventas_cuota GROUP BY tipo,letra,numero) vc ON vc.tipo = v.ticomp AND vc.letra = v.letra AND vc.numero = v.numcomp "+;
                          " LEFT JOIN ge_"+oApp:cId+"vendedores ve ON v.vendedor = ve.nombre "+;
                          " WHERE v.fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
-                         " v.fecha <= "+ ClipValue2Sql(mhasta) + " AND "+;
+                         " v.fecha <= "+ ClipValue2Sql(mhasta) + " AND v.vendedor IS NOT NULL AND "+;
                          IF(mvendedor = 0,"TRUE"," v.vendedor = " + ClipValue2Sql(mnomven)) +;
                          " ORDER BY v.vendedor, v.nombre " )
 REPORT oRep TITLE "Comisiones. Vendedor:" + ALLTRIM(mnomven)  + ;

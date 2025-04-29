@@ -585,6 +585,8 @@ ELSE
                                   SIZE 10 FONT 2 TOTAL
       COLUMN TITLE "Importe"   DATA oQry:precio ;
                                PICTURE "9,999,999,999.99" SIZE 12 FONT 2 TOTAL
+      COLUMN TITLE "Costo"   DATA oQry:costo ;
+                               PICTURE "9,999,999,999.99" SIZE 12 FONT 2 TOTAL
       COLUMN TITLE "Utilidad"   DATA oQry:precio - oQry:costo ;
                                PICTURE "9,999,999,999.99" SIZE 12 FONT 2 TOTAL     
       // Digo que el titulo lo escriba con al letra 2

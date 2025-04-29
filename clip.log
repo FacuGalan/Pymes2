@@ -1,5 +1,5 @@
 Harbour 3.2.0dev (r1601050904)
 Copyright (c) 1999-2015, http://harbour-project.org/
-Compiling 'arca2.prg' and generating preprocessed output to 'arca2.ppo'...
-1002001001001002003004005001002001002001002001002003004005006007008009001000110012001300140015001600170018001900200010020030040050060070080090010001100120013001400150016001700180019002000Lines 6694, Functions/Procedures 44
-Generating C source output to 'arca2.c'... Done.
+Compiling 'abmven.prg' and generating preprocessed output to 'abmven.ppo'...
+10020010010010020030040050010020010020010020010020030040050060070080090010001100120013001400150016001700180019002000100200100200300100Lines 5444, Functions/Procedures 4
+Generating C source output to 'abmven.c'... Done.

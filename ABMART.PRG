@@ -248,7 +248,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Articulo" RESOU
   REDEFINE GET oGet[35] VAR base:unimed     ID 135 OF oForm PICTURE "@!"
   REDEFINE GET oGet[47] VAR base:medida     ID 500 OF oForm PICTURE "9999999"
   REDEFINE GET oGet[48] VAR base:entero     ID 501 OF oForm PICTURE "9999999"
-  REDEFINE GET oGet[49] VAR base:uxbulto    ID 502 OF oForm PICTURE "99999"
+  REDEFINE GET oGet[49] VAR base:uxbulto    ID 502 OF oForm 
   REDEFINE GET oGet[50] VAR base:pxbulto    ID 503 OF oForm PICTURE "999999999.99";
                VALID((oGet[06]:cText:= (base:pxbulto/base:uxbulto)) <> "xxx")
 

@@ -38,16 +38,18 @@ LOCAL oBar, hHand,cDialog,oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTip
     +"`PORCENTAJEREV` DECIMAL(10,2) NOT NULL DEFAULT '0.00',";
     +"`REVENTA` DECIMAL(12,2) NOT NULL DEFAULT '0.00',";
     +"`CODIVA` DECIMAL(2) DEFAULT '0',";
+    +"`UXB` DECIMAL(10,2) DEFAULT '0',";
+    +"`PXB` DECIMAL(12,2) DEFAULT '0',";
     +" PRIMARY KEY (RENGLON)) ENGINE=INNODB DEFAULT CHARSET=utf8")   
   oApp:oServer:NextResult()
   oApp:oServer:Execute("TRUNCATE proped_temp")
   oApp:oServer:NextResult()
   oApp:oServer:Execute("INSERT INTO proped_temp (provee,codart,detart,siniva,precossiva,desc1,desc2,desc3,desc4,desc5,"+;
-                                                "impint,flete,pcosto,iva,neto,porcentaje,precioven,codiva,porcentajerev,reventa) "+;
+                                                "impint,flete,pcosto,iva,neto,porcentaje,precioven,codiva,porcentajerev,reventa,uxb,pxb) "+;
                         "(SELECT a.prov,a.codigo,a.nombre,a.siniva,a.precossiva,a.desc1,a.desc2,a.desc3,a.desc4,a.desc5,"+;
                                                 "a.impint,a.flete,a.preciocos,IF(a.siniva,a.preciocos*(i.tasa/100),a.preciocos-a.preciocos/(i.tasa/100+1)),"+;
                                                 "IF(a.siniva,a.preciocos,a.preciocos/(i.tasa/100+1)),a.porcentaje,"+;
-                                                "a.precioven,a.iva,a.porcentajerev,a.reventa FROM ge_"+oApp:cId+"articu a "+;
+                                                "a.precioven,a.iva,a.porcentajerev,a.reventa, a.uxbulto,a.pxbulto FROM ge_"+oApp:cId+"articu a "+;
                                                 "LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = a.iva )")       
 
         
@@ -59,7 +61,8 @@ LOCAL oBar, hHand,cDialog,oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTip
     oDlg1:lHelpIcon := .f.
       
 
-    //GRILLA ---------------------------------------------------------------      
+    //GRILLA --------------------------------------------------------------- 
+    IF !oApp:usar_bultos     
     REDEFINE XBROWSE oBrw DATASOURCE oQryComprasDet;
        COLUMNS "CODART","DETART","siniva","precossiva","desc1","desc2","desc3","desc4","desc5",;
                "impint","flete","iva","neto","pcosto","porcentaje","precioven","porcentajerev","reventa";
@@ -68,6 +71,16 @@ LOCAL oBar, hHand,cDialog,oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTip
        FOOTERS ;
        SIZES 85,300,70,70,60,60,60,50,50,55;
        ID 132 OF oDlg1 AUTOSORT
+    ELSE    
+    REDEFINE XBROWSE oBrw DATASOURCE oQryComprasDet;
+       COLUMNS "CODART","DETART","siniva","precossiva","desc1","desc2","desc3","desc4","desc5",;
+               "impint","flete","iva","neto","pcosto","porcentaje","precioven","porcentajerev","reventa",'uxb','pxb';
+       HEADERS "Codigo","Articulo","I.V.A","Costo s/iva","Dto 1","Dto 2","Dto 3","Dto 4","Dto 5",;
+               "Imp.Int.","Flete","I.V.A","Neto","P.costo","Porcentaje 1","Precio venta 1","Porcentaje 2","Precio venta 2",'UXP','$XB';
+       FOOTERS ;
+       SIZES 85,300,70,70,60,60,60,50,50,55;
+       ID 132 OF oDlg1 AUTOSORT
+    ENDIF   
     PintaBrw(oBrw,0)
     oBrw:nfreeze:=2
     oBrw:nMoveType := 1
@@ -115,6 +128,11 @@ LOCAL oBar, hHand,cDialog,oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTip
     oBrw:aCols[18]:lAutoSave := .t.
     oBrw:aCols[18]:nEditType := EDIT_GET  
     oBrw:aCols[18]:bOnPostEdit := {|oCol, xVal, nKey | CambiaValor(18,xval)} 
+    IF oApp:usar_bultos     
+      oBrw:aCols[20]:lAutoSave := .t.
+      oBrw:aCols[20]:nEditType := EDIT_GET  
+      oBrw:aCols[20]:bOnPostEdit := {|oCol, xVal, nKey | CambiaValor(21,xval)} 
+    ENDIF  
     oQryComprasDet:bOnChangePage := {|| oBrw:Refresh() }
 
    
@@ -152,6 +170,7 @@ TRY
                             "a.precioven=p.precioven, "+;
                             "a.porcentajerev=p.porcentajerev,"+;
                             "a.reventa=p.reventa,"+;
+                            "a.pxbulto=p.pxb,"+;
                             "a.fecmod=IF(a.precossiva<>p.precossiva OR a.preciocos<>p.pcosto OR a.precioven<>p.precioven OR a.reventa<>p.reventa,"+;
                             "CURDATE(),a.fecmod),"+;
                             "a.horamod=IF(a.precossiva<>p.precossiva OR a.preciocos<>p.pcosto OR a.precioven<>p.precioven OR a.reventa<>p.reventa,"+;
@@ -301,8 +320,8 @@ DO WHILE .T.
   REDEFINE CHECKBOX oGet[34] VAR vnosale ID 103 
   REDEFINE CHECKBOX oGet[46] VAR vpesable ID 4011 OF oFilt 
   *REDEFINE CHECKBOX oGet[43] VAR vcombustible ID 4005 OF oFilt
-  *REDEFINE CHECKBOX oGet[44] VAR vmprima      ID 4007 OF oFilt
-  *REDEFINE CHECKBOX oGet[45] VAR vproduccion  ID 4008 OF oFilt
+  REDEFINE CHECKBOX oGet[44] VAR vmprima      ID 4007 OF oFilt
+  REDEFINE CHECKBOX oGet[45] VAR vproduccion  ID 4008 OF oFilt
 
   REDEFINE GET oGet[04] VAR vprov ID 104 OF oFilt ;
                VALID(EMPTY(oGet[04]:cText) .or. Buscar(oQry2,oFilt,oGet[04],oGet[05]));
@@ -429,11 +448,11 @@ TRY
     oApp:oServer:BeginTransaction()  
     oApp:oServer:Execute("TRUNCATE proped_temp")
     oApp:oServer:Execute("INSERT INTO proped_temp (provee,codart,detart,siniva,precossiva,desc1,desc2,desc3,desc4,desc5,"+;
-                                                    "impint,flete,pcosto,iva,neto,porcentaje,precioven,codiva,porcentajerev,reventa) "+;
+                                                    "impint,flete,pcosto,iva,neto,porcentaje,precioven,codiva,porcentajerev,reventa,uxb,pxb) "+;
                             "(SELECT a.prov,a.codigo,a.nombre,a.siniva,a.precossiva,a.desc1,a.desc2,a.desc3,a.desc4,a.desc5,"+;
                                                     "a.impint,a.flete,a.preciocos,IF(a.siniva,a.preciocos*(i.tasa/100),a.preciocos-a.preciocos/(i.tasa/100+1)),"+;
                                                     "IF(a.siniva,a.preciocos,a.preciocos/(i.tasa/100+1)),a.porcentaje,"+;
-                                                    "a.precioven,a.iva,a.porcentajerev,a.reventa FROM ge_"+oApp:cId+"articu a "+;
+                                                    "a.precioven,a.iva,a.porcentajerev,a.reventa, a.uxbulto,a.pxbulto FROM ge_"+oApp:cId+"articu a "+;
                                                     "LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = a.iva "+;
                                                     "WHERE "+ cWhere+")") 
     oApp:oServer:CommitTransaction()
@@ -476,7 +495,10 @@ LOCAL nNeto,nNeto2,nTasa,nImpInt,nFlete,nIVA,nNetoPar
 DEFAULT n := 1, xVal:=0
 IF n<>1
   oQryComprasDet:fieldput( n+2, xVal )
-  oQryComprasDet:Save()
+  IF n = 21
+     oQryComprasDet:PRECOSSIVA := xVal / oQryComprasDet:uxb
+  ENDIF   
+  oQryComprasDet:Save()  
   oQryComprasDet:Refresh()
 ENDIF
 nTasa:= oApp:oServer:Query("SELECT tasa FROM ge_"+oApp:cId+"ivas WHERE codigo = "+ClipValue2Sql(oQryComprasDet:codiva)):tasa
@@ -493,7 +515,7 @@ IF n = 14
 
     oQryComprasDet:precossiva:= nNeto + IF(oQryComprasDet:siniva,0,nIVA) 
 ENDIF  
-IF n <> 14 .and. n <> 16 .and. n <> 15 .and. n <> 17 .and. n <> 18
+IF n <> 14 .and. n <> 16 .and. n <> 15 .and. n <> 17 .and. n <> 18 
     nNeto:= IF(oQryComprasDet:siniva,oQryComprasDet:precossiva,oQryComprasDet:precossiva/(1+nTasa/100))
     nNeto:= nNeto - nNeto * (oQryComprasDet:desc1/100) 
     nNeto:= nNeto - nNeto * (oQryComprasDet:desc2/100) 

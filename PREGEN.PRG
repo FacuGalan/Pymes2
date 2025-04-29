@@ -19,6 +19,8 @@ oApp:oServer:Execute("";
     +"`NOMBRE`     VARCHAR(150) NOT NULL,";
     +"`preciocos`  DECIMAL(12,2) DEFAULT '0',";
     +"`preciocos1` DECIMAL(12,2) DEFAULT '0',";
+    +"`uxb` DECIMAL(10,2) DEFAULT '0',";
+    +"`pxb` DECIMAL(12,2) DEFAULT '0',";
     +"`costofin`  DECIMAL(12,2) DEFAULT '0',";
     +"`incru`  DECIMAL(12,2) DEFAULT '0',";  
     +"`incru1`  DECIMAL(12,2) DEFAULT '0',";
@@ -69,11 +71,19 @@ DEFINE DIALOG oDlg TITLE "Cambio general de precios" FROM 02,01 TO 30,140 OF oAp
      WHEN(nPorcUn>0 .or. nPorcUnR > 0)
    @ 05,440 COMBOBOX oGet[6] VAR nRedondeo ITEMS aRedondeo OF oDlg PIXEL SIZE 55,12  WHEN ((nPorc+nImpo+nPorcUn+nPorcUnR>0) .or. nPorc<0)
    @ 05,500 BUTTON oBot[3] PROMPT "Filtrar" OF oDlg SIZE 35,12 ACTION (Filtrar(nImpo,nPorc,nPorcUn,nPorcUnR)) WHEN ((nPorc+nImpo+nPorcUn+nPorcUnR>0) .or. nPorc<0) PIXEL
+   IF !oApp:usar_bultos
    @ 35,02 XBROWSE oBrw DATASOURCE oQryTemp ;
              COLUMNS "codigo","nombre","preciocos","incru","precioven","incruR","reventa","preciocos1","costofin","incru1","precioven1","incruR1","reventa1";
              HEADERS "Codigo","Articulo", "Costo","Utilidad","Venta","Utilidad Rev.","Reventa","Nuevo Costo","Costo final","Uti. Nuevo","Venta nuevo","Uti. Rev. Nuevo","Reventa nuevo";
              SIZES   50, 210, 80, 80, 80, 80,80,80,80,80,80,80,80;
              OF oDlg SIZE 520, 160 AUTOSORT PIXEL
+   ELSE          
+   @ 35,02 XBROWSE oBrw DATASOURCE oQryTemp ;
+             COLUMNS "codigo","nombre","preciocos","incru","precioven","incruR","reventa","preciocos1","costofin","incru1","precioven1","incruR1","reventa1","uxb","pxb";
+             HEADERS "Codigo","Articulo", "Costo","Utilidad","Venta","Utilidad Rev.","Reventa","Nuevo Costo","Costo final","Uti. Nuevo","Venta nuevo","Uti. Rev. Nuevo","Reventa nuevo","UXB","$Xb";
+             SIZES   50, 210, 80, 80, 80, 80,80,80,80,80,80,80,80,80,80;
+             OF oDlg SIZE 520, 160 AUTOSORT PIXEL          
+   ENDIF          
    oBrw:CreateFromCode()
    oBrw:nMoveType := 4
    oBrw:nFreeze:= 2
@@ -92,6 +102,12 @@ DEFINE DIALOG oDlg TITLE "Cambio general de precios" FROM 02,01 TO 30,140 OF oAp
    oBrw:aCols[13]:lAutoSave := .t.
    oBrw:aCols[13]:nEditType := EDIT_GET  
    oBrw:aCols[13]:bOnPostEdit := {|oCol, xVal, nKey | CambiaValor(12,xval)} 
+   IF oApp:usar_bultos
+     oBrw:aCols[15]:lAutoSave := .t.
+     oBrw:aCols[15]:nEditType := EDIT_GET  
+     oBrw:aCols[15]:bOnPostEdit := {|oCol, xVal, nKey | CambiaValor(15,xval)} 
+   ENDIF
+
    PintaBrw(oBrw,0)          
    @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Cambiar"  OF oDlg SIZE 30,10 ACTION ((lrta := .t.), oDlg:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oDlg SIZE 30,10 ACTION ((lrta := .f.), oDlg:End() ) PIXEL
@@ -136,7 +152,8 @@ TRY
                        "    a.porcentajerev =  IF(a1.incruR1>0,a1.incruR1,a.porcentajerev),"+;
                        "    a.reventa       =  TRUNCATE(a1.reventa1,0), "+;                
                        "    a.fecmod=IF(a.precioven<>TRUNCATE(a1.precioven1,0),CURDATE(),a.fecmod),"+;
-                       "    a.horamod=IF(a.precioven<>TRUNCATE(a1.precioven1,0),CURTIME(),a.horamod)" )
+                       "    a.horamod=IF(a.precioven<>TRUNCATE(a1.precioven1,0),CURTIME(),a.horamod),"+; 
+                       "    a.pxbulto = a1.pxb")
 
   oApp:oServer:Execute("DROP TABLE articu_temp")                   
   oApp:oServer:CommitTransaction()
@@ -193,32 +210,32 @@ IF filt()
                         ClipValue2Sql(nPorcUn) + ","+cCostoFin+"+("+cCostoFin+"*"+ClipValue2Sql(nPorcUn)+"/100),"+;
                         ClipValue2Sql(nPorcUnR) + ","+cCostoFin+"+("+cCostoFin+"*"+ClipValue2Sql(nPorcUnR)+"/100) "+;
                         " FROM ge_"+oApp:cId+"articu a WHERE " + cWhere + ")")*/
-    oApp:oServer:Execute("INSERT INTO articu_temp (codigo, nombre, preciocos, incru,precioven,incruR,reventa, preciocos1,costofin, incru1,precioven1,incruR1,reventa1) "+;
+    oApp:oServer:Execute("INSERT INTO articu_temp (codigo, nombre, preciocos, incru,precioven,incruR,reventa, preciocos1,costofin, incru1,precioven1,incruR1,reventa1,uxb,pxb) "+;
                         "(SELECT a.codigo, a.nombre, a.precossiva, a.porcentaje,a.precioven,a.porcentajerev,a.reventa, a.precossiva,"+ClipValue2Sql(cCostoFin)+","+;
                         cPorUti1 + ","+cCostoFin+"+("+cCostoFin+"*"+cPorUti1+"/100),"+;
                         cPorUti2 + ","+cCostoFin+"+("+cCostoFin+"*"+cPorUti2+"/100) "+;
-                        " FROM ge_"+oApp:cId+"articu a WHERE " + cWhere + ")")
+                        ",a.uxbulto,a.pxbulto FROM ge_"+oApp:cId+"articu a WHERE " + cWhere + ")")
  ENDIF
  IF ((nPorc + nImpo) <> 0)
 
    IF lVenta
-    oApp:oServer:Execute("INSERT INTO articu_temp (codigo, nombre, preciocos, incru,precioven,incruR,reventa, preciocos1,costofin, incru1,precioven1,incruR1,reventa1)  "+;
+    oApp:oServer:Execute("INSERT INTO articu_temp (codigo, nombre, preciocos, incru,precioven,incruR,reventa, preciocos1,costofin, incru1,precioven1,incruR1,reventa1,uxb,pxb)  "+;
                         "(SELECT a.codigo, a.nombre, a.precossiva, a.porcentaje,a.precioven,a.porcentajerev,a.reventa,"+;
                         "a.precossiva,"+cCostoFin+","+;
                         "((a.precioven+(a.precioven*"+ClipValue2SQL(nPorc)+"/100)+"+ClipValue2SQL(nImpo)+")*100)/"+cCostoFin+" -100,"+;
                         "a.precioven+(a.precioven*"+ClipValue2SQL(nPorc)+"/100)+"+ClipValue2SQL(nImpo)+","+;
                         "((a.reventa+(a.reventa*"+ClipValue2SQL(nPorc)+"/100)+"+ClipValue2SQL(nImpo)+")*100)/"+cCostoFin+" -100,"+;
                         "a.reventa+(a.reventa*"+ClipValue2SQL(nPorc)+"/100)+"+ClipValue2SQL(nImpo)+" "+;
-                        " FROM ge_"+oApp:cId+"articu a WHERE " + cWhere + ")") 
+                        ",a.uxbulto,a.pxbulto FROM ge_"+oApp:cId+"articu a WHERE " + cWhere + ")") 
 
 
    ELSE
-   oApp:oServer:Execute("INSERT INTO articu_temp (codigo, nombre, preciocos, incru,precioven,incruR,reventa, preciocos1,costofin, incru1,precioven1,incruR1,reventa1)  "+;
+   oApp:oServer:Execute("INSERT INTO articu_temp (codigo, nombre, preciocos, incru,precioven,incruR,reventa, preciocos1,costofin, incru1,precioven1,incruR1,reventa1,uxb,pxb)  "+;
                         "(SELECT a.codigo, a.nombre, a.precossiva, a.porcentaje,a.precioven,a.porcentajerev,a.reventa,"+;
                         cIncrCostoB+","+cIncrCostoF+","+;
                         "a.porcentaje,"+cIncrCostoF+"+"+cIncrCostoF+"*(a.porcentaje/100),"+;
                         "a.porcentajerev,"+cIncrCostoF+"+"+cIncrCostoF+"*(a.porcentajerev/100) "+;  
-                        " FROM ge_"+oApp:cId+"articu a WHERE " + cWhere + ")") 
+                        ",a.uxbulto,a.pxbulto FROM ge_"+oApp:cId+"articu a WHERE " + cWhere + ")") 
    ENDIF
 ENDIF
 DO CASE 
@@ -271,8 +288,8 @@ DO WHILE .T.
   REDEFINE CHECKBOX oGet[34] VAR vnosale ID 103 
   REDEFINE CHECKBOX oGet[46] VAR vpesable ID 4011 OF oFilt 
   *REDEFINE CHECKBOX oGet[43] VAR vcombustible ID 4005 OF oFilt
-  *REDEFINE CHECKBOX oGet[44] VAR vmprima      ID 4007 OF oFilt
-  *REDEFINE CHECKBOX oGet[45] VAR vproduccion  ID 4008 OF oFilt
+  REDEFINE CHECKBOX oGet[44] VAR vmprima      ID 4007 OF oFilt
+  REDEFINE CHECKBOX oGet[45] VAR vproduccion  ID 4008 OF oFilt
 
   REDEFINE GET oGet[04] VAR vprov ID 104 OF oFilt ;
                VALID(EMPTY(oGet[04]:cText) .or. Buscar(oQry2,oFilt,oGet[04],oGet[05]));
@@ -620,6 +637,25 @@ IF n = 12
   oQryTemp:reventa1:= xVal
   oQryTemp:incruR1:= (oQryTemp:reventa1 * 100) / oQryTemp:costofin -100
 ENDIF 
+IF n = 15   
+    nNeto:= IF(oQryArt:siniva,xVal/oQryArt:uxbulto,xVal/(1+nTasa/100)/oQryArt:uxbulto)
+    nNeto:= nNeto - nNeto * (oQryArt:desc1/100) 
+    nNeto:= nNeto - nNeto * (oQryArt:desc2/100) 
+    nNeto:= nNeto - nNeto * (oQryArt:desc3/100) 
+    nNeto:= nNeto - nNeto * (oQryArt:desc4/100) 
+    nNeto:= nNeto - nNeto * (oQryArt:desc5/100) 
+    nImpInt:= nNeto * (oQryArt:impint/100)
+    nFlete:= nNeto * (oQryArt:flete/100) 
+    nIVA:= nNeto * nTasa/100
+    nNeto:= nNeto + nImpInt + nFlete + nIVA
+    
+    oQryTemp:pxb := xVal
+    oQryTemp:preciocos1 := xVal/oQryArt:uxbulto
+    oQryTemp:costofin   := nNeto
+    oQryTemp:precioven1 := nNeto + nNeto  * (oQryTemp:incru1/100)
+    oQryTemp:reventa1   := nNeto + nNeto  * (oQryTemp:incruR1/100)
+
+ENDIF
 
 
 oQryTemp:Save()

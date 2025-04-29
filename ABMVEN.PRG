@@ -82,8 +82,10 @@ LOCAL oGet := ARRAY(14), oBot := ARRAY(3), oForm, lRta := .F., aCor, base, oErro
 
 IF lAlta
    oQry:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"vendedores LIMIT 0")
-   base := oQry:GetBlankRow()
+   base := oQry:GetBlankRow()   
    base:codigo := oApp:oServer:GetAutoIncrement("ge_"+oApp:cId+"vendedores")
+   base:condfac := 1
+   base:condtot := 1
    ELSE
    oQry:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"vendedores WHERE codigo = " + ClipValue2Sql(oQryBrw:codigo))
    base := oQry:GetRowObj()

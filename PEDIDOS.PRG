@@ -542,21 +542,53 @@ RETURN nil
 ** Agregar item a la venta
 STATIC FUNCTION AgregaItem(nTiArt,lUsoBorrar)
 LOCAL oQryIva, nTotalcIva, nIvaPes, nCodIva1, nSubTotal, nDescuento,;
-      i,nCantidad,nPrecio1,nPrecio2,lRta:=.f.,nIvaCalc:=0,nPrecioVen,oQryOfe, nPUnit
+      i,nCantidad,nPrecio1,nPrecio2,lRta:=.f.,nIvaCalc:=0,nPrecioVen,oQryOfe, nPUnit, oQryS
 
 IF nTiArt = 1
-   IF oQryPun:pidestock = 1 .and. oQryArt:stockact-oGet[16]:value < 0
+   //Valido que tenga stock el producto cuando no es stock de otro
+   IF oQryPun:pidestock = 1 .and. oQryArt:stockact-oGet[16]:value < 0 .and. !oQryArt:stockotro
       lRta:=MsgYesNo("El articulo que esta facturando esta fuera de stock,"+CHR(10)+;
               "verifique su disponibilidad ¿Desea continuar?"+CHR(10)+;
               "Stock actual: "+ALLTRIM(STR(oQryArt:stockact)),"Atencion")
       IF !lRta 
          RETURN .f.
-      ENDIF
+      ENDIF      
   ENDIF
-  IF oQryPun:pidestock = 2 .and. oQryArt:stockact-oGet[16]:value < 0
+  //Valido que tenga stock el producto que es stock de otro
+  IF oQryPun:pidestock = 1 .and. oQryArt:stockotro 
+      oQryS := oApp:oServer:Query("SELECT r.CODUSA, (a.STOCKACT - (r.CANTIDAD * "+STR(oGet[16]:value)+" )) AS STOCK_FINAL "+;
+                                  " FROM ge_"+oApp:cId+"reseta r "+;
+                                  " JOIN ge_"+oApp:cId+"articu a ON r.CODUSA = a.CODIGO "+;
+                                  " JOIN ge_"+oApp:cId+"articu a1 ON r.CODART = a1.CODIGO "+;
+                                  " WHERE r.CODART = "+STR(oQryArt:codigo)+;
+                                  " HAVING STOCK_FINAL < 0")
+      IF oQryS:nRecCount > 0
+          lRta:=MsgYesNo("El articulo que esta facturando tiene receta, y los articulos"+chr(10)+;
+                  "que la componen estan fuera de stock,"+CHR(10)+;
+                  "verifique su disponibilidad ¿Desea continuar?","Atencion")
+          IF !lRta 
+             RETURN .f.
+          ENDIF                
+      ENDIF    
+  ENDIF   
+  IF oQryPun:pidestock = 2 .and. oQryArt:stockact-oGet[16]:value < 0 .and. !oQryArt:stockotro
      MsgStop("No puede facturar el articulo seleccionado porque no esta en stock"+CHR(10)+;
            "Stock actual: "+ALLTRIM(STR(oQryArt:stockact)),"Atencion")
      RETURN .F.
+  ENDIF
+  //No dejo vender por falta de stock de la receta
+  IF oQryPun:pidestock = 2 .and. oQryArt:stockotro 
+      oQryS := oApp:oServer:Query("SELECT r.CODUSA, (a.STOCKACT - (r.CANTIDAD * "+STR(oGet[16]:value)+" )) AS STOCK_FINAL "+;
+                                  " FROM ge_"+oApp:cId+"reseta r "+;
+                                  " JOIN ge_"+oApp:cId+"articu a ON r.CODUSA = a.CODIGO "+;
+                                  " JOIN ge_"+oApp:cId+"articu a1 ON r.CODART = a1.CODIGO "+;
+                                  " WHERE r.CODART = "+STR(oQryArt:codigo)+;
+                                  " HAVING STOCK_FINAL < 0")
+      IF oQryS:nRecCount > 0
+          MsgStop("No puede facturar, el articulo seleccionado tiene receta, "+chr(10)+;
+                  "y los articulos que la componen estan fuera de stock."+CHR(10),"Atencion")
+          RETURN .F.
+      ENDIF    
   ENDIF
 
    nPrecioVen:= oGet[17]:value
@@ -728,7 +760,7 @@ RETURN .T.
 ** Validar Articulo
 STATIC FUNCTION ValidaArt()
 LOCAL oQryPrecio,nPrecioven:=0
-oQryArt:= oApp:oServer:Query("SELECT codigo,nombre,stockact,precioven,reventa,iva,fecmod,preciocos,endolares  "+;
+oQryArt:= oApp:oServer:Query("SELECT codigo,nombre,stockact,precioven,reventa,iva,fecmod,preciocos,endolares,stockotro  "+;
                              "FROM ge_"+oApp:cId+"articu WHERE nosale is false AND codigo = "+ClipValue2Sql(oGet[14]:cText))
 IF oQryArt:RecCount() = 0 .OR. oGet[14]:value = 0
   oGet[14]:cText:= 0

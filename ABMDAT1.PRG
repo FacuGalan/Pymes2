@@ -8,7 +8,7 @@ STATIC oDlg1
 FUNCTION Punto()
 LOCAL oGet1, oGet2, oGet3, oGet4, oGet5, oGet6, oGet7, oGet8, oGet9, oGet10,;
       oGet11, oGet12, oGet13, oGet14, oGet15, oGet16, oGet17, oGet18, oGet19, oGet20, ;
-      oGet21, oGet22, oGet23, oGet24, oGet25,;
+      oGet21, oGet22, oGet23, oGet24, oGet25, oGet26, oGet27, oGet28, oGet29, oGet30, oGet31, oGet32,;
       oBot1, oBot2, oBot3, oDlg1, base, hHand, oQry, oError, aCor, mrta := .f.,;
       aCobrar := {"Cobro Salon","Cobro distribucion","Cobro ambos"}, oFont,;
       aTipos :={"Facturacion electronica","Facturacion con control. fiscal"}, aTipoC:={"Codigo interno","Codigo de barras"},;
@@ -28,7 +28,7 @@ ENDIF
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 
 DO WHILE .T.
-DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 32,75 OF oApp:oWnd ICON oApp:oIco FONT oFont
+DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 36,75 OF oApp:oWnd ICON oApp:oIco FONT oFont
    acor := AcepCanc(oDlg1)   
    
    @ 07, 05 SAY "Ultima Fact. A:"      OF oDlg1 PIXEL SIZE 55,12 RIGHT
@@ -53,6 +53,13 @@ DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 32,75 OF oApp
    @ 92,105 SAY "Domicilio PV:" OF oDlg1 PIXEL SIZE 40,12 
 
    @172, 10 SAY "Limite Efectivo en caja:" OF oDlg1 PIXEL SIZE 55,20 RIGHT
+   
+   @172,170 SAY "Clave:" OF oDlg1 PIXEL SIZE 20,20 RIGHT
+
+   @187, 60 SAY "Desde:" OF oDlg1 PIXEL SIZE 35,20 RIGHT
+   @187,160 SAY "Hasta:" OF oDlg1 PIXEL SIZE 35,20 RIGHT
+   @202, 60 SAY "Desde:" OF oDlg1 PIXEL SIZE 35,20 RIGHT
+   @202,160 SAY "Hasta:" OF oDlg1 PIXEL SIZE 35,20 RIGHT
    
    @ 05, 65 GET oGet1 VAR base:facturaa PICTURE "99999999" OF oDlg1 PIXEL RIGHT WHEN(.F.)
    @ 05,150 GET oGet2 VAR base:facturab PICTURE "99999999" OF oDlg1 PIXEL RIGHT WHEN(.F.)
@@ -89,7 +96,13 @@ DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 32,75 OF oApp
    oGet24:cToolTip := "Esto permite que al momento de imprimir, pueda elegir entre impresion de ticket o formulario A4"
    @155,155 CHECKBOX oGet20 VAR base:usavales  PROMPT "Usa Vales de clientes" OF oDlg1 PIXEL SIZE 95,12 
    @170, 70 GET oGet23 VAR base:limitepesos PICTURE "99999999.99" OF oDlg1 PIXEL RIGHT
-   
+   @170,120 CHECKBOX oGet26 VAR base:retiroconclave PROMPT "Retiros con clave" OF oDlg1 PIXEL SIZE 50,12
+   @170,195 GET oGet27 VAR base:retiroclave OF oDlg1 PIXEL PICTURE "@S7" PASSWORD  WHEN(base:retiroconclave)  
+   @185, 05 CHECKBOX oGet28 VAR base:cierrexhora PROMPT "Cierro con horario" OF oDlg1 PIXEL SIZE 54,12
+   @185, 95 GET oGet29 VAR base:desdehora1 OF oDlg1 PIXEL PICTURE "99:99:99" WHEN(base:cierrexhora)
+   @185,195 GET oGet30 VAR base:hastahora1 OF oDlg1 PIXEL PICTURE "99:99:99" WHEN(base:cierrexhora)  
+   @200, 95 GET oGet31 VAR base:desdehora2 OF oDlg1 PIXEL PICTURE "99:99:99" WHEN(base:cierrexhora)
+   @200,195 GET oGet32 VAR base:hastahora2 OF oDlg1 PIXEL PICTURE "99:99:99" WHEN(base:cierrexhora)  
    
    
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Grabar" OF oDlg1 SIZE 30,10 ;

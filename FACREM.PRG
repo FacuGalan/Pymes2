@@ -1268,9 +1268,9 @@ cTipoDoc := IF(nTipoDoc=1,"FR",IF(nTipoDoc=2,"ND","NC"))
       ENDIF  
       //3 - FACTURA ------------------------------------------------------------------------
       IF nCtaCte <= 0  
-         oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET saldo = "+ClipValue2Sql(ABS(nCtaCte)) + " WHERE codigo = " +ClipValue2Sql(nCliente))
+         oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET saldo = "+ClipValue2Sql(ABS(nCtaCte)) + ", FECULT = CURDATE() WHERE codigo = " +ClipValue2Sql(nCliente))
       ELSE
-         oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET saldo = 0 WHERE codigo = " +ClipValue2Sql(nCliente))
+         oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET saldo = 0, FECULT = CURDATE() WHERE codigo = " +ClipValue2Sql(nCliente))
       ENDIF
 
       DO WHILE !oQryChe:Eof()

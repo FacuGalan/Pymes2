@@ -93,6 +93,11 @@ IF lAlta
    IF !ValidarTurno(oWnd1)
       RETURN nil 
    ENDIF
+   IF oQryPun:retiroconclave
+      IF !PedirClaveR("Para retirar dinero necesita clave de autorizacion",oWnd1)
+         RETURN nil 
+      ENDIF   
+   ENDIF
    base := oQry:GetBlankRow()
    base:fecha := DATE()
    base:caja:= oQryPun:caja
@@ -424,3 +429,39 @@ oQry:SetNewFilter(SET_WHERE,cWhere,.t.)
 oBrw:Maketotals()
 oBrw:Refresh()
 RETURN nil
+
+
+********************************************
+*** Pide clave de autorizacion 
+STATIC FUNCTION PedirClaveR(cTexto,oPadre)
+LOCAL oGet1, oBot1, oBot2, oDlg1, oFont, mrta := .f., aCor,lRespuesta:=.f.,;
+      oQryDat:= oApp:oServer:Query( "SELECT retiroclave FROM ge_"+oApp:cId+"punto WHERE caja = "+str(oApp:prefijo)),;
+      cClave:=SPACE(15)
+
+DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5      
+DEFINE DIALOG oDlg1 TITLE "Ingresar clave de autorizacion" FROM 03,20 TO 11,75 OF oPadre FONT oFont
+   acor := AcepCanc(oDlg1)
+   
+   @ 05, 05 SAY cTexto OF oDlg1 PIXEL CENTER SIZE 200,20 
+   @ 27, 05 SAY "Clave:" OF oDlg1 PIXEL RIGHT SIZE 85,10
+   
+   @ 25, 95 GET oGet1 VAR cClave OF oDlg1 PICTURE "@!" PIXEL PASSWORD
+
+   
+   @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Aceptar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .f.), oDlg1:End() ) PIXEL
+ACTIVATE DIALOG oDlg1 CENTER ON INIT oGet1:SetFocus()
+IF !mrta
+   RETURN .f.
+ENDIF
+
+IF cClave = oQryDat:retiroclave
+   lRespuesta:= .t.
+ELSE 
+   MsgStop("Clave incorrecta")
+   lRespuesta:= .f.
+ENDIF
+
+RETURN lRespuesta

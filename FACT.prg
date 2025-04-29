@@ -450,6 +450,16 @@ oApp:oServer:Execute("UPDATE VENTAS_DET_H1 v LEFT JOIN ge_"+oApp:cId+"ivas i  ON
                          "v.stotal = ((v.cantidad * "+cPunit+") - ((v.cantidad * "+cPunit+") * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100),"+;
                          "v.ptotal = ((v.cantidad * "+cPunit+") - ((v.cantidad * "+cPunit+") * ("+ClipValue2Sql(nDescu)+"/100))),"+;
                          "v.neto =  ((v.cantidad * "+cPunit+") - ((v.cantidad * "+cPunit+") * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100) WHERE v.codart > 0")
+
+oApp:oServer:Execute("UPDATE VENTAS_DET_H1 v LEFT JOIN ge_"+oApp:cId+"ivas i  ON i.codigo = v.codiva "+;
+                     "LEFT JOIN ge_"+oApp:cId+"deptos a ON a.codigo = ABS(v.codart) "+;                     
+                     "SET "+;
+                         "v.descuento = (v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100),"+;
+                         "v.iva =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))-(((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100)),"+;
+                         "v.stotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100),"+;
+                         "v.ptotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100))),"+;
+                         "v.neto =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100) WHERE v.codart < 0")
+
 oQryDet:Refresh()
 oBrwDet:Refresh()
 oBrwDet:MakeTotals()
@@ -810,7 +820,9 @@ cNumComp := STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNumero,8)," ","0")
 
       IF oApp:usar_puntos
          oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET puntos = puntos + "+ClipValue2Sql(INT(nTotal/oApp:pesos_x_punto)) +;
-          " WHERE codigo = "+ClipValue2Sql(nCliente))
+          ", FECULT = CURDATE() WHERE codigo = "+ClipValue2Sql(nCliente))
+         ELSE
+         oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET FECULT = CURDATE() WHERE codigo = "+ClipValue2Sql(nCliente))
       ENDIF
       IF nDescu > 0
          Auditar(6," FC"+cLetra+cNumcomp+" "+alltrim(STR(nDescu,6,2))+"% Caja "+STR(oApp:prefijo,4))

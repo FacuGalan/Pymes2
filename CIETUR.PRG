@@ -23,13 +23,29 @@ IF nCaja = 0
    MsgInfo("Hay un error en el numero de caja","Error")
    RETURN  
 ENDIF
+IF oApp:oServer:Query("SELECT "+;
+       "IF( "+;
+       "     cierrexhora = 0, "+;
+       "    1, "+;
+       "    IF( "+;
+       "      (TIME(NOW()) BETWEEN desdehora1 AND hastahora1) OR  "+;
+       "      (TIME(NOW()) BETWEEN desdehora2 AND hastahora2), "+;
+       "      1, "+;
+       "      0 "+;
+       "     ) "+;
+       "   ) AS acceso_valido "+;
+       " FROM ge_"+oApp:cId+"punto WHERE caja = "+str(nCaja)):acceso_valido = 0
+   MsgStop("El horario para el cierre no es el permitido","Error")
+   RETURN  
+ENDIF
 IF oApp:oServer:Query("SELECT * "+;
                              " FROM ge_"+oApp:cId+"fondo "+;
                              " WHERE checkeado = FALSE "+;
                              IF(oApp:unifica_cajas," "," AND caja = " +ClipValue2Sql(nCaja))):nRecCount = 0
    MsgStop("El turno esta cerrado","Error")
    RETURN 
-ENDIF 
+ENDIF
+
 AADD(oApp:aVentanas,cVentana)
     oQry := oApp:oServer:Query("SELECT 'FONDO DE CAJA' AS concepto, SUM(importe) AS debe, 0 AS haber, SUM(importe) AS efec "+;
                              " FROM ge_"+oApp:cId+"fondo "+;
