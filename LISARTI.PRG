@@ -201,7 +201,7 @@ oQryRub:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"rubros  
 oQryArt := oApp:oServer:Query("SELECT  a.nombre AS Nombre, a.codigo AS Codigo,"+;
                               "d.nombre AS Depto_Descr, r.nombre AS Rubro_Descr, a.preciocos AS Precio_Costo, "+;                              
                               "a.stockact AS Stock, ROUND(a.stockact * a.preciocos,2) AS ValorizaCost, "+;
-                              " ROUND(a.stockact * a.precioven,2) AS ValorizaVent  "+;
+                              " ROUND(a.stockact * a.precioven,2) AS ValorizaVent, a.stockmin as StockMin , a.stockide as StockIde "+;
                               "FROM ge_"+oApp:cId+"articu a "+;
                               "LEFT JOIN ge_"+oApp:cId+"rubros r ON r.codigo = a.rubro "+;
                               "LEFT JOIN ge_"+oApp:cId+"deptos d ON d.codigo = a.depto LIMIT 0")
@@ -285,7 +285,7 @@ ENDIF
 cSql :=  "SELECT  a.nombre AS Nombre, a.codigo AS Codigo,"+;
                               "d.nombre AS Depto_Descr, r.nombre AS Rubro_Descr, a.preciocos AS Precio_Costo, "+;                              
                               "a.stockact AS Stock, ROUND(a.stockact * a.preciocos,2) AS ValorizaCost, "+;
-                              " ROUND(a.stockact * a.precioven,2) AS ValorizaVent  "+;
+                              " ROUND(a.stockact * a.precioven,2) AS ValorizaVent , a.stockmin as StockMin, a.stockide as StockIde "+;
                               "FROM ge_"+oApp:cId+"articu a "+;
                               "LEFT JOIN ge_"+oApp:cId+"rubros r ON r.codigo = a.rubro "+;
                               "LEFT JOIN ge_"+oApp:cId+"deptos d ON d.codigo = a.depto "
@@ -368,7 +368,7 @@ static function MakeRepCol( oRep, i , oQry)
    
    bData := { || oQry:FieldGet(i) }
    
-   nSize       := oQry:FieldLen(i)*IF(oQry:FieldType(i)=="C",.3,1)
+   nSize       := IF(oQry:FieldLen(i)>150,100,oQry:FieldLen(i))*IF(oQry:FieldType(i)=="C",.3,1)
    cPic        := IF(oQry:FieldType(i)=="N",;
                        REPLICATE("9",oQry:FieldLen( i ))+"."+REPLICATE("9",MIN(oQry:FieldDec( i ),3)),NIL)
    cPic        := IF(RIGHT(cPic,1)=".",LEFT(cPic,LEN(cPic)-1),cPic)

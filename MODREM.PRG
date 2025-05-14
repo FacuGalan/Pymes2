@@ -329,6 +329,7 @@ TRY
      oQryStock:Skip()
   ENDDO
   oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"remitos WHERE nrorem = "+ClipValue2SQL(nNum))
+  Auditar(1," Remito:"+nNum)
   oApp:oServer:CommitTransaction()
   oQry:Refresh(.t.)
 CATCH oError

@@ -99,7 +99,7 @@ RETURN
 
 STATIC FUNCTION Formu(lAlta)
 LOCAL oGet:=ARRAY(46),oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTipoComp, nBultos:=0,;
-      cNomPro,  cCuit, cConIva, cNomCue, nDeuda, nCodArt, cDetArt, nCantidad, oError, i, ;
+      cNomPro,  cCuit, cConIva, cNomCue, nDeuda, nCodArt, cDetArt, nCantidad, oError, i, lAgenda := .f.,;
       nPunit, nPTotal, cNomRet1, cNomRet2, cNomRet3, cNomRet4, cNomRet5, oDlg1, oQryDoc,nRenglon,;
       nSaldoIni:=0, nImporteIni:=0,oQryCodigos,nMaximo,nOrden, lPuedeCobrar, oQryPedPen, cInPed, cNumCompAnt,;
       dCierrecompras := oApp:oServer:Query( "SELECT cierrecompra FROM ge_"+oApp:cId+"parametros"):cierrecompra
@@ -254,12 +254,12 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
     oGet[28]:bGotFocus:={|| oGet[28]:SelectAll()}
     REDEFINE GET oGet[04] VAR oApp:usuario ID 113 OF oDlg1 WHEN(.F.)
     REDEFINE GET oGet[05] VAR base:fecfac  ID 114 OF oDlg1
-    REDEFINE GET oGet[06] VAR base:fecing  ID 115 OF oDlg1  
+    REDEFINE GET oGet[06] VAR base:fecing  ID 115 OF oDlg1    
     REDEFINE GET oGet[46] VAR base:fecvto  ID 4018 OF oDlg1  
     REDEFINE GET oGet[07] VAR base:codpro  ID 116 OF oDlg1 PICTURE "99999999" WHEN(lAlta .and. oQryComprasDet:RecCount()=0);
                  VALID(ValidaPro(oGet,lAlta,oDlg1));
                  ACTION (oGet[07]:cText:= 0, ValidaPro(oGet,lAlta,oDlg1)) BITMAP "BUSC1"
-    REDEFINE GET oGet[08] VAR cNomPro      ID 117 OF oDlg1 WHEN(.F.)
+    REDEFINE GET oGet[08] VAR cNomPro      ID 117 OF oDlg1 WHEN(.F.)    
     REDEFINE GET oGet[09] VAR cCuit        ID 118 OF oDlg1 WHEN(.F.)
     REDEFINE GET oGet[10] VAR cConIva      ID 119 OF oDlg1 WHEN(.F.)
     REDEFINE GET oGet[11] VAR base:codcue  ID 120 OF oDlg1 PICTURE "9999";
@@ -420,6 +420,10 @@ IF lAlta
       base:saldo = 0
       base:estado = 'P'
    ENDIF
+   IF base:fecvto > base:fecfac 
+      lAgenda := MsgNoYes("¿Desea agendar el vencimiento de esta factura "+chr(10)+;
+                "en la agenda del sistema?","Atencion!")
+   ENDIF   
 ELSE
    IF nImporteIni <> base:importe
      lRta:= MsgNoYes("¿Desea realizar los cambios al comprobante? Tenga en cuenta que si ya tiene pagos realizados permaneceran igual","Atencion!")
@@ -577,6 +581,11 @@ TRY
          oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"pedprov WHERE id = " + ClipValue2Sql(lUsoPedido[i]))
          oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"pedprov_det WHERE numero = " + ClipValue2Sql(lUsoPedido[i]))
      NEXT i
+  ENDIF
+  IF lAgenda
+     oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"citas (fecha,hora,horafin,motivo,usuario,estado,alerta) "+;
+                 " VALUES ("+ClipValue2Sql(base:fecvto)+",'08:00','08:30','Vence FC "+base:numfac+" "+alltrim(cNomPro)+"',"+;
+                 ClipValue2Sql(oApp:usuario)+",0,1)") 
   ENDIF
   oApp:oServer:CommitTransaction()
 CATCH oError
@@ -975,21 +984,26 @@ RETURN .T.
                             
 ******************************************************************************************************
 
-STATIC FUNCTION ValidaPro(oGet,lAlta,oDlg1)
+STATIC FUNCTION ValidaPro(oGet,lAlta,oDlg1,nDias)
    LOCAL oQryDeu,oQryCue
-   oQryPro := oApp:oServer:Query("SELECT codigo,nombre,alias,localidad,cuit,coniva,codcue,saldo  FROM ge_"+oApp:cId+"provee")
+   oQryPro := oApp:oServer:Query("SELECT codigo,nombre,alias,localidad,cuit,coniva,codcue,saldo,diasvenci  FROM ge_"+oApp:cId+"provee")
    BuscarArt(oQryPro,oDlg1,oGet[07],oGet[08])
-   oQryPro := oApp:oServer:Query("SELECT codigo,nombre,alias,localidad,cuit,coniva,codcue,saldo FROM ge_"+oApp:cId+"provee  WHERE codigo = " + ClipValue2SQL(base:codpro))
+   oQryPro := oApp:oServer:Query("SELECT codigo,nombre,alias,localidad,cuit,coniva,codcue,saldo,diasvenci FROM ge_"+oApp:cId+"provee  WHERE codigo = " + ClipValue2SQL(base:codpro))
    oQryIva := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"tipoiva   WHERE codigo = " + ClipValue2SQL(oQryPro:coniva))   
+   nDias := oQryPro:diasvenci
    oGet[09]:cText:= oQryPro:cuit
    oGet[10]:cText:= oQryIva:nombre
    IF lAlta 
-   oQryCue := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"plancont WHERE codigo = " + ClipValue2SQL(oQryPro:codcue))
-    oGet[11]:cText:= oQryPro:codcue
-    oGet[12]:cText:= oQryCue:nombre
-   ELSE
-   oQryCue := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"plancont WHERE codigo = " + ClipValue2SQL(oGet[11]:Value))
-     oGet[12]:cText:= oQryCue:nombre
+      oQryCue := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"plancont WHERE codigo = " + ClipValue2SQL(oQryPro:codcue))
+      oGet[11]:cText:= oQryPro:codcue
+      oGet[12]:cText:= oQryCue:nombre
+      IF oQryPro:diasvenci > 0
+         oGet[46]:cText := CTOD(oGet[05]:cText) + oQryPro:diasvenci 
+      ENDIF   
+      oGet[46]:Refresh()
+      ELSE
+      oQryCue := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"plancont WHERE codigo = " + ClipValue2SQL(oGet[11]:Value))
+      oGet[12]:cText:= oQryCue:nombre
    ENDIF
    oQryDeu := oApp:oServer:Query("SELECT SUM(saldo*IF(tipocomp='NC',-1,1)) AS deuda FROM ge_"+oApp:cId+"compras WHERE codpro = " + ClipValue2Sql(base:codpro) +;
                                  " AND saldo > 0 ")

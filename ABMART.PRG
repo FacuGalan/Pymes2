@@ -32,12 +32,12 @@ MENU oPop2 POPUP
 ENDMENU
 
 
-   oQry2  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"provee ORDER BY codigo")
-   oQry3  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"ivas ORDER BY codigo")
-   oQry4  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"marcas ORDER BY codigo")
-   oQry5  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"rubros ORDER BY codigo")
-   oQry6  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"deptos ORDER BY codigo")
-   oQry7  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"empresas ORDER BY codigo")
+   oQry2  := oApp:oServer:Query( "SELECT codigo,nombre,alias FROM ge_"+oApp:cId+"provee ORDER BY codigo")
+   oQry3  := oApp:oServer:Query( "SELECT codigo,nombre,tasa FROM ge_"+oApp:cId+"ivas ORDER BY codigo")
+   oQry4  := oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"marcas ORDER BY codigo")
+   oQry5  := oApp:oServer:Query( "SELECT codigo,nombre,depto FROM ge_"+oApp:cId+"rubros ORDER BY codigo")
+   oQry6  := oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"deptos ORDER BY codigo")
+   oQry7  := oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"empresas ORDER BY codigo")
  
   DEFINE WINDOW oWnd1 MDICHILD TITLE "A/B/M de Articulos: Solo articulos vendibles";
           OF oApp:oWnd NOZOOM ICON oApp:oIco FROM 05,05 TO 50,50
@@ -141,7 +141,7 @@ RETURN
 STATIC FUNCTION Formu (lAlta,nCodArt)
 LOCAL oGet := ARRAY(53), oBot := ARRAY(8), oForm, lRta := .F., aCor, base, cProve:=SPACE(30), nNeto,;
       cIvaNom:=SPACE(30), cMarc:=SPACE(30), cRub:=SPACE(30), cDept:=SPACE(30), cEmp:=SPACE(30), nIva,oError,nPrecioven:=0,nPreciocos:=0,;
-      nova1,nova2,oSay:=ARRAY(8),oGru:=ARRAY(2), mstock := 0
+      nova1,nova2,oSay:=ARRAY(8),oGru:=ARRAY(2), mstock := 0, lActualizaGrupo := .f.
 IF !lAlta .and. nCodArt = 0
    RETURN nil 
 ENDIF   
@@ -320,8 +320,8 @@ IF nPrecioven <> base:precioven .OR. nPreciocos <> ROUND(base:preciocos,3)
                         ClipValue2Sql(base:precossiva)+","+ClipValue2Sql(base:precioven)+","+ClipValue2Sql(base:reventa)+",CURDATE(),"+;
                         ClipValue2Sql(oApp:usuario)+",'Cambio puntual')")
    base:fecmod := oApp:oServer:Query("SELECT CURDATE() AS fecha"):fecha
-   base:horamod := oApp:oServer:Query("SELECT CURTIME() AS hora"):hora
-   ActualizarGrupo(base)
+   base:horamod := oApp:oServer:Query("SELECT CURTIME() AS hora"):hora   
+   lActualizaGrupo := .t.
 ENDIF
 IF !oApp:utilfija
    base:porcentaje := (base:precioven * 100) / base:preciocos - 100
@@ -350,10 +350,13 @@ TRY
      oApp:oServer:Insert("ge_"+oApp:cId+"stoman",{"codart","entradas","salidas","fecha","motivo","costo"},;
                            {base:codigo,if(mstock < base:stockact, base:stockact - mstock,0),;
                             if(mstock > base:stockact, mstock - base:stockact,0),DATE(),1,base:precossiva}) 
-  ENDIF
-  oQry:Refresh()
-  oQryBrw:Refresh(.f.)
+  ENDIF  
   oApp:oServer:CommitTransaction()
+  IF !lAlta .AND. lActualizaGrupo 
+     ActualizarGrupo(base)
+  ENDIF
+  oQry:Refresh()   
+  oQryBrw:Refresh(.f.)
 CATCH oError
     ValidaError(oError)
   LOOP
@@ -366,27 +369,37 @@ RETURN nil
 *************************************************************************************************************
 ********** ACTUALIZA EL PRECIO DE LOS ARTICULOS QUE SE ENCUENTRAN EN EL MISMO GRUPO QUE EL MODIFICADO
 STATIC FUNCTION ActualizarGrupo(base)
-LOCAL nGrupo:= oApp:oServer:Query("SELECT codgru FROM ge_"+oApp:cId+"gruposdet WHERE codart = "+ClipValue2Sql(base:codigo)):codgru
-
-oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"articu SET precossiva = "+ClipValue2Sql(base:precossiva)+","+;
-                                       "desc1      = "+ClipValue2Sql(base:desc1)+","+;
-                                       "desc2      = "+ClipValue2Sql(base:desc2)+","+;
-                                       "desc3      = "+ClipValue2Sql(base:desc3)+","+;
-                                       "desc4      = "+ClipValue2Sql(base:desc4)+","+;
-                                       "desc5      = "+ClipValue2Sql(base:desc5)+","+;
-                                       "impint     = "+ClipValue2Sql(base:impint)+","+;
-                                       "flete      = "+ClipValue2Sql(base:flete)+","+;
-                                       "iva        = "+ClipValue2Sql(base:iva)+","+;
-                                       "preciocos  = "+ClipValue2Sql(base:preciocos)+","+;
-                                       "porcentaje = "+ClipValue2Sql(base:porcentaje)+","+;
-                                       "precioven  = "+ClipValue2Sql(base:precioven)+","+;
-                                       "preciopro  = "+ClipValue2Sql(base:preciopro)+","+;
-                                       "porcentajerev = "+ClipValue2Sql(base:porcentajerev)+","+;
-                                       "reventa    = "+ClipValue2Sql(base:reventa)+","+;
-                                       "fecmod     = CURDATE(),"+;
-                                       "horamod    = CURTIME(),"+;
-                                       "siniva     = "+ClipValue2Sql(base:siniva)+" "+;
-                     "WHERE codigo IN (SELECT codart FROM ge_"+oApp:cId+"gruposdet WHERE codgru = "+ClipValue2Sql(nGrupo)+")")
+LOCAL nGrupo, oError
+nGrupo:= oApp:oServer:Query("SELECT codgru FROM ge_"+oApp:cId+"gruposdet WHERE codart = "+ClipValue2Sql(base:codigo)):codgru
+IF nGrupo <> 0
+  TRY
+  oApp:oServer:BeginTransaction()
+  oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"gruposdet g LEFT JOIN ge_"+oApp:cId+"articu a "+;
+                       " ON g.codart = a.codigo AND "+;
+                       "    g.codgru = "+ClipValue2Sql(nGrupo)+;
+                       " SET a.precossiva = "+ClipValue2Sql(base:precossiva)+","+;
+                                         "a.desc1      = "+ClipValue2Sql(base:desc1)+","+;
+                                         "a.desc2      = "+ClipValue2Sql(base:desc2)+","+;
+                                         "a.desc3      = "+ClipValue2Sql(base:desc3)+","+;
+                                         "a.desc4      = "+ClipValue2Sql(base:desc4)+","+;
+                                         "a.desc5      = "+ClipValue2Sql(base:desc5)+","+;
+                                         "a.impint     = "+ClipValue2Sql(base:impint)+","+;
+                                         "a.flete      = "+ClipValue2Sql(base:flete)+","+;
+                                         "a.iva        = "+ClipValue2Sql(base:iva)+","+;
+                                         "a.preciocos  = "+ClipValue2Sql(base:preciocos)+","+;
+                                         "a.porcentaje = "+ClipValue2Sql(base:porcentaje)+","+;
+                                         "a.precioven  = "+ClipValue2Sql(base:precioven)+","+;
+                                         "a.preciopro  = "+ClipValue2Sql(base:preciopro)+","+;
+                                         "a.porcentajerev = "+ClipValue2Sql(base:porcentajerev)+","+;
+                                         "a.reventa    = "+ClipValue2Sql(base:reventa)+","+;
+                                         "a.fecmod     = CURDATE(),"+;
+                                         "a.horamod    = CURTIME(),"+;
+                                         "a.siniva     = "+ClipValue2Sql(base:siniva)+" ")
+    oApp:oServer:CommitTransaction() 
+  CATCH oError
+    ValidaError(oError)
+  END TRY    
+ENDIF  
 RETURN nil
 
 ************************************************************************************************************
@@ -528,7 +541,7 @@ RETURN nil
 *****************************************************************************************************************************
 ****** VALIDO EL ARTICULO Y BUSCO LA RESETA 
 STATIC FUNCTION ValidaArtR(nCodArt,oGet, oDlg)
-LOCAL oQryValid:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu WHERE codigo = "+ ClipValue2Sql(nCodArt)+" and mprima = TRUE")
+LOCAL oQryValid:= oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"articu WHERE codigo = "+ ClipValue2Sql(nCodArt)+" and mprima = TRUE")
 IF oQryValid:RecCount() > 0 
    oGet[03]:cText:= oQryValid:nombre 
 ELSE

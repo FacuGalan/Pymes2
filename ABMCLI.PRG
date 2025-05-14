@@ -9,7 +9,7 @@
 MEMVAR oApp
 STATIC oQry, oWnd1, oBrw, oDlg, lEdit := .f., cVentana, oQryF, oBrw1
 PROCEDURE Clientes(cPermisos)
-   LOCAL oGet, cBuscar := SPACE(50), oBar, hHand, oFol
+   LOCAL oGet, cBuscar := SPACE(50), oBar, hHand, oFol, oGetSeek, cSeek := SPACE(50)
    cVentana := PROCNAME()
    IF ASCAN(oApp:aVentanas,cVentana) > 0
       hHand := ASCAN(oApp:aVentanas,cVentana)
@@ -87,13 +87,14 @@ PROCEDURE Clientes(cPermisos)
          SIZES 100,290,60,60,90,210,200;
          ID 111 OF oDlg AUTOSORT ON DBLCLICK IF("M"$cPermisos,(Formu( .f.),oBrw:Refresh()),nil)
      
-      REDEFINE SAY oBrw:oSeek PROMPT "" ID 113 OF oDlg
+      REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg
       oQry:bOnChangePage := {|| oBrw:Refresh() }
       //oBrw:SetDolphin(oQry,.f.,.t.)
       PintaBrw(oBrw,7)
       oDlg:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar, oBrw,cPermisos,6)}
+      oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt(oQry, oGetSeek, oBrw, nKey) }
       // Activo el dialogo y al iniciar muevo a 0,0
-      ACTIVATE DIALOG oDlg NOWAIT ON INIT oDlg:Move(0,0) VALID( oWnd1:End() )
+      ACTIVATE DIALOG oDlg NOWAIT ON INIT (oGetSeek:SetFocus(),oDlg:Move(0,0)) VALID( oWnd1:End() )
       ACTIVATE WINDOW oWnd1 ON INIT Incrusta( oWnd1, oDlg, .T.) VALID(cerrar(oQry))
  
 RETURN

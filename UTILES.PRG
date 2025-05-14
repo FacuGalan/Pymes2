@@ -1096,3 +1096,166 @@ IF !mrta
 ENDIF
 
 RETURN .T.
+
+
+FUNCTION VERIFICA_CUIT(cCuit)
+*VERIFICA LA EXISTENCIA DE LA CUIT
+LOCAL cWeb:= "https://www.cuitonline.com/search.php?q="+StrTran(cCuit,"-",""),oHttp,hData
+oHttp:=CreateObject("winhttp.winhttprequest.5.1")
+oHttp:Open("GET",cWeb,.f.)
+oHttp:Send()
+hData:=ExtractDataFromHtml(oHttp:ResponseText())
+// Mostrar los datos en un mensaje
+IF hData != NIL
+  IF "iva" $ hData
+    MsgInfo( "Nombre: " + hData[ "name" ] + CRLF + ;
+             "CUIT: " + hData[ "cuit" ] + CRLF + ;
+             "Persona: " + hData[ "persona" ] + CRLF + ;
+             "IVA: " + hData[ "iva" ], "Datos Extraídos" )
+  ELSEIF "monotributista" $ hData
+    MsgInfo( "Nombre: " + hData[ "name" ] + CRLF + ;
+             "CUIT: " + hData[ "cuit" ] + CRLF + ;
+             "Persona: " + hData[ "persona" ] + CRLF + ;
+             "Monotributista: " + hData[ "monotributista" ], "Datos Extraídos" )
+  ELSE
+    MsgInfo( "Nombre: " + hData[ "name" ] + CRLF + ;
+             "CUIT: " + hData[ "cuit" ] + CRLF + ;
+             "Persona: " + hData[ "persona" ], "Tipo de contribuyente no identificado" )
+  ENDIF
+ELSE
+  MsgInfo( "No se pudieron extraer los datos.", "Error" )
+ENDIF
+RETURN .t.
+
+//----------------------------------------------------------------------------//
+
+STATIC FUNCTION ExtractDataFromHtml( cHtml )
+*EXTRAER LOS DATOS DEL HTML
+LOCAL cName, cCuit, cPersona, cExtra
+LOCAL cFacets, aLines, cLine, i
+LOCAL nStart, nEnd, cTempHtml
+LOCAL cTipo := "Desconocido" // Para identificar el tipo de contribuyente
+// Inicializar variables
+cName   :="No disponible"
+cCuit   :="No disponible"
+cPersona:="No disponible"
+cExtra  :="No disponible"
+// 1. Limpiar el HTML completo reemplazando   y  
+cHtml := StrTran( cHtml, " ", " " )
+cHtml := StrTran( cHtml, " ", " " )
+cHtml := StrTran( cHtml, " ", " " )
+// 2. Extraer el nombre (está dentro de <h2 class="denominacion">)
+nStart := At( '<h2 class="denominacion"', cHtml )
+IF nStart > 0
+  cTempHtml := SubStr( cHtml, nStart + Len( '<h2 class="denominacion"' ) )
+  nStart := At( ">", cTempHtml )
+  IF nStart > 0
+    cTempHtml := SubStr( cTempHtml, nStart + 1 )
+    nEnd := At( "</h2>", cTempHtml )
+    IF nEnd > 0
+      cName := SubStr( cTempHtml, 1, nEnd - 1 )
+      cName := CleanText( cName )
+    ENDIF
+  ENDIF
+ENDIF
+// 3. Extraer el CUIT (está dentro de <span class="cuit">)
+nStart := At( '<span class="cuit">', cHtml )
+IF nStart > 0
+  cTempHtml := SubStr( cHtml, nStart + Len( '<span class="cuit">' ) )
+  nEnd := At( "</span>", cTempHtml )
+  IF nEnd > 0
+    cCuit := SubStr( cTempHtml, 1, nEnd - 1 )
+    cCuit := CleanText( cCuit )
+  ENDIF
+ENDIF
+// 4. Extraer los detalles (están dentro de <div class="doc-facets">)
+nStart := At( '<div class="doc-facets"', cHtml )
+IF nStart > 0
+  cTempHtml := SubStr( cHtml, nStart )
+  nStart := At( ">", cTempHtml )
+  IF nStart > 0
+    cTempHtml := SubStr( cTempHtml, nStart + 1 )
+    nEnd := At( "</div>", cTempHtml )
+    IF nEnd > 0
+      cFacets := SubStr( cTempHtml, 1, nEnd - 1 )
+      // Dividir los detalles por <br/>
+      aLines := hb_ATokens( cFacets, "<br/>" )
+      FOR i := 1 TO Len( aLines )
+        cLine := AllTrim( aLines[ i ] )
+        // Limpiar la línea completamente
+        cLine := CleanText( cLine )
+        IF Empty( cLine )
+          LOOP
+        ENDIF
+        // Buscar "Persona" y extraer lo que está después
+        IF "Persona" $ cLine
+          nStart := At( "Persona", cLine )
+          cPersona := SubStr( cLine, nStart + Len( "Persona" ) )
+          // Eliminar información adicional entre paréntesis (como "masculino")
+          nStart := At( "(", cPersona )
+          IF nStart > 0
+            cPersona := SubStr( cPersona, 1, nStart - 1 )
+          ENDIF
+          cPersona := AllTrim( cPersona )
+          IF At("s Fisicas",cPersona)>0
+            cPersona := StrTran( cPersona, "s Fisicas", "Física")
+          ENDIF  
+        ENDIF
+        IF Upper( "IVA" ) $ Upper( cLine )
+          cTipo := "PersonaJurídica"
+          nStart := At( "IVA", cLine )
+          cExtra := SubStr( cLine, nStart + Len( "IVA:" ) )
+          cExtra := AllTrim( cExtra )
+        ELSEIF Upper( "MONOTRIBUTISTA" ) $ Upper( cLine ) .OR. Upper( "CATEGORÍA" ) $ Upper( cLine )
+          cTipo := "Monotributista"
+          IF Upper( "MONOTRIBUTISTA" ) $ Upper( cLine )
+            nStart := At( "Monotributista", cLine )
+            cExtra := SubStr( cLine, nStart + Len( "Monotributista" ) )
+            cExtra:=StrTran(cExtra, "Constancia Monotributo", "")
+          ENDIF   
+        ENDIF
+      NEXT
+    ENDIF
+  ENDIF
+ENDIF
+// 6. Devolver los datos como un hash
+IF cTipo == "PersonaJurídica"
+  RETURN { "name" => cName, "cuit" => cCuit, "persona" => cPersona, "iva" => cExtra }
+ELSEIF cTipo == "Monotributista"
+  RETURN { "name" => cName, "cuit" => cCuit, "persona" => cPersona, "monotributista" => cExtra }
+ELSE
+  RETURN { "name" => cName, "cuit" => cCuit, "persona" => cPersona }
+ENDIF
+
+RETURN {}
+
+//----------------------------------------------------------------------------//
+
+STATIC FUNCTION CleanText( cText )
+*Función auxiliar para limpiar el texto de etiquetas HTML y caracteres especiales
+LOCAL cClean := cText
+LOCAL nStart, nEnd
+// Reemplazar caracteres especiales
+cClean := StrTran( cClean, " ", " " )
+cClean := StrTran( cClean, " ", " " )
+cClean := StrTran( cClean, " ", " " )
+cClean := StrTran( cClean, "•", "" ) // Eliminar el bullet •
+cClean := StrTran( cClean, "&nbsp;", " " )  // Reemplazar &nbsp; por un espacio normal
+cClean := StrTran( cClean, "&raquo;", "" )  // Eliminar &raquo;
+// Corregir caracteres mal codificados
+cClean := StrTran( cClean, "CATEGOR?A", "CATEGORÍA" )
+// Eliminar todas las etiquetas HTML (cualquier cosa entre < y >)
+DO WHILE .T.
+  nStart := At( "<", cClean )
+  IF nStart == 0
+      EXIT
+  ENDIF
+  nEnd := At( ">", cClean )
+  IF nEnd == 0
+      EXIT
+  ENDIF
+  cClean := SubStr( cClean, 1, nStart - 1 ) + SubStr( cClean, nEnd + 1 )
+ENDDO
+// Eliminar espacios múltiples y limpiar
+cClean := AllTrim(cClean)
+RETURN cClean

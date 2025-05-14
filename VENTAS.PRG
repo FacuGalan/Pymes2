@@ -82,6 +82,7 @@ oApp:oServer:Execute("";
     +"`PCOSTO` DECIMAL(12,3) DEFAULT '0.00',";
     +"`IMPINT` DECIMAL(12,3) DEFAULT '0.00',";
     +"`BULTOS` DECIMAL(6,1) DEFAULT '0.0',";
+    +"`ESPROMO` TINYINT(1) DEFAULT '0' NOT NULL, ";
     +"PRIMARY KEY (`id`)) ENGINE=INNODB DEFAULT CHARSET=utf8")
     //+"`COSTO` DECIMAL(10,2) DEFAULT '0.00', PRIMARY KEY (`id`)) ENGINE=INNODB DEFAULT CHARSET=utf8")
 
@@ -1004,19 +1005,19 @@ RETURN .t.
 STATIC FUNCTION EliminarItem()
 LOCAL cLetra
 IF oQryDet:RecCount()>0
-oQryDet:DELETE()
-oBrw:Refresh()
-oQryDet:Refresh()
-oBrw:Maketotals()
-cLetra := IF(nTipoDoc=5,"R",IF(oApp:tipo_iva<>6,IF(oGet[13]:nAt = 1 .or. oGet[13]:nAt = 2 .or. oGet[13]:nAt = 6,"A","B"),"C"))
-cLetra := IF(!lFacturaM,cLetra,IF(cLetra="A","M",cLetra))
-oGet[19]:cText := oBrw:aCols[7]:nTotal 
-oGet[20]:cText := oBrw:aCols[8]:nTotal   
-oGet[38]:cText := oBrw:aCols[7]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
-oGet[21]:cText := oBrw:aCols[9]:nTotal + oGet[38]:value
-oGet[19]:Refresh()
-oGet[20]:Refresh()
-oGet[21]:Refresh()
+  oQryDet:DELETE()
+  oBrw:Refresh()
+  oQryDet:Refresh()
+  oBrw:Maketotals()
+  cLetra := IF(nTipoDoc=5,"R",IF(oApp:tipo_iva<>6,IF(oGet[13]:nAt = 1 .or. oGet[13]:nAt = 2 .or. oGet[13]:nAt = 6,"A","B"),"C"))
+  cLetra := IF(!lFacturaM,cLetra,IF(cLetra="A","M",cLetra))
+  oGet[19]:cText := oBrw:aCols[7]:nTotal 
+  oGet[20]:cText := oBrw:aCols[8]:nTotal   
+  oGet[38]:cText := oBrw:aCols[7]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
+  oGet[21]:cText := oBrw:aCols[9]:nTotal + oGet[38]:value
+  oGet[19]:Refresh()
+  oGet[20]:Refresh()
+  oGet[21]:Refresh()
 ENDIF
 RETURN .t.
 
@@ -1212,6 +1213,10 @@ nCliente:= IF(nTipoCli=1,oGet[8]:value,-1)
 DO CASE 
 CASE nTipoDoc < 4
 // Validacion datos Ok
+IF nTipoDoc = 1
+   CalcularPromos()
+
+ENDIF
 //Traigo trarjetas para el detalle de la tarjeta
 oQryTar:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"tarjetas")
 aTarjetas:={}
@@ -1867,6 +1872,8 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
   ENDIF   
 */
 CASE nTipoDoc = 4
+     Recalcula()
+
      nCliente:= IF(nTipoCli=1,oGet[8]:value,-1)
      IF !PreguntasPresupu(@lEnDolares,@dFecVen,@lGuarda,@lImpSinIva,@lPreciosFinales)
         RETURN .f. 
@@ -1896,6 +1903,7 @@ CASE nTipoDoc = 4
 CASE nTipoDoc = 5
   nCodAut:=0
   cTipoDoc:="RE"
+  oApp:oServer:Execute("DELETE FROM ventas_det_H WHERE ESPROMO IS TRUE") 
   cNumComp:= STRTRAN(STR(nPuntoVta,4)+"-"+STR(oApp:oServer:Query("SELECT remito FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip)):remito+1,8)," ","0")  
   TRY
   oApp:oServer:BeginTransaction()                     
@@ -2199,7 +2207,8 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                 "Pequeño Contribuyente Eventual Social",;
                 "IVA NO Alcanzado"}, nIndiceDolar, cSigno,;
   i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, oFont5, oQryVen1, oQryDet1, config, lComan,;
-  oQryIvaDet, aCor,cCondVen,cFormaPag, nDesFac, oQryP , nRow1, nHoja , oQryPar1, cDomicilioFiscal, nBultos 
+  oQryIvaDet, aCor,cCondVen,cFormaPag, nDesFac, oQryP , nRow1, nHoja , oQryPar1, cDomicilioFiscal, nBultos,;
+  lImprimio_promo 
   oQryVen1 := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"ventas_encab  "+;                                 
                                  "WHERE ticomp = " + ClipValue2Sql(cTipoDoc)+;
                                  " AND letra = "+Clipvalue2sql(LEFT(cNumComp,1))+;
@@ -2269,6 +2278,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
            FOR x := 1 TO 2
              nHoja := 1
              nBultos := 0
+             lImprimio_promo := .f.
              PAGE    
              @ 0,0 PRINT TO oPrn IMAGE "fondofac.jpg" SIZE oPrn:nHorzRes(), oPrn:nVertRes() PIXEL STRETCH GRAY
              *oPrn:SayImage(0,0, "fondofac.jpg",;
@@ -2361,7 +2371,12 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
              y := 9.2
              oQryDet1:GoTop()
              nDesFac := 0
-             FOR i = 1 TO oQryDet1:nRecCount           
+             FOR i = 1 TO oQryDet1:nRecCount  
+                 IF oQryDet1:punit < 0 .and. !lImprimio_promo 
+                    @ y+.4, 01 PRINT TO oPrn TEXT "Descuentos Promociones" SIZE 10,1 CM FONT oFont ALIGN "TC" LASTROW y
+                    lImprimio_promo := .t.
+                    y := y + .3
+                 ENDIF         
                  IF oApp:impcodpro
                      @ y-0.07, 01 PRINT TO oPrn TEXT IF(EMPTY(oQryDet1:codigopro),STR(oQryDet1:codart,13),LEFT(oQryDet1:codigopro,13)) ;
                           SIZE 2.5,.5 CM FONT oFont5 ALIGN "TL"
@@ -2631,9 +2646,15 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                      @ nRow1, 03.8 PRINT TO oPrn TEXT "Total";
                                   SIZE 1.0,.5 CM FONT oFont LASTROW nRow ALIGN "R"
                                       oQryDet1:GoTop()   
-                     nDesFac := 0               
+                     nDesFac := 0     
+                     lImprimio_promo := .f.           
                      FOR i = 1 TO oQryDet1:nRecCount           
                          nRow1 := nRow
+                         IF oQryDet1:punit < 0 .and. !lImprimio_promo 
+                            @ nRow1+.2, 00 PRINT TO oPrn TEXT "Descuentos Promos" SIZE 5,1 CM FONT oFont1 ALIGN "C" LASTROW nRow1
+                            lImprimio_promo := .t.
+                            nRow1 := nRow1 + .1
+                         ENDIF
                          @ nRow1, 00 PRINT TO oPrn TEXT ALLTRIM(oQryDet1:detart);
                               SIZE 2.9,.5 CM FONT oFont LASTROW nRow ALIGN "L"
                          @ nRow1, 03 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,06,1);
@@ -2779,9 +2800,15 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                      oQryDet1:GoTop()  
                      oPrn:CmLine( nRow,0, nRow,9 )              
                      nRow := nRow + .2   
-                     nDesFac := 0                  
+                     nDesFac := 0
+                     lImprimio_promo := .f.                  
                      FOR i = 1 TO oQryDet1:nRecCount           
                          nRow1 := nRow
+                         IF oQryDet1:punit < 0 .and. !lImprimio_promo 
+                            @ nRow1+.2, 00 PRINT TO oPrn TEXT "Descuentos Promos" SIZE 7.1,1 CM FONT oFont1 ALIGN "C" LASTROW nRow1
+                            lImprimio_promo := .t.
+                            nRow1 := nRow1 + .1
+                         ENDIF
                          @ nRow1, 00.00 PRINT TO oPrn TEXT ALLTRIM(oQryDet1:detart);
                               SIZE 3.5,.5 CM FONT oFont LASTROW nRow ALIGN "L"
                          @ nRow1, 03.60 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,06,2);
@@ -3706,7 +3733,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                 "Pequeño Contribuyente Eventual","Monotributista Social",;
                 "Pequeño Contribuyente Eventual Social","IVA no Alcanzado"},;
       i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, oFont5, oQryVen1, oQryDet1, config,;
-      oQryIvaDet, aCor,cCondVen,cFormaPag, oQryP, nRow1, nHoja, nDesFac, nBultos, lComan
+      oQryIvaDet, aCor,cCondVen,cFormaPag, oQryP, nRow1, nHoja, nDesFac, nBultos, lComan, lImprimio_promo := .f.
    oQryVen1 := oApp:oServer:Query("SELECT *  FROM ge_"+oApp:cId+"ventas_encab "+;
                                  " WHERE ticomp = " + ClipValue2Sql(cTipoDoc)+;
                                  " AND letra = "+Clipvalue2sql(LEFT(cNumComp,1))+;
@@ -3756,6 +3783,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
            FOR x := 1 TO 2
              PAGE 
              nHoja := 1   
+             lImprimio_promo := .f.
              nBultos := 0
              IF oQryP:imprimeDat
                 @ 0,0 PRINT TO oPrn IMAGE "fondofac.jpg" SIZE oPrn:nHorzRes(), oPrn:nVertRes() PIXEL GRAY
@@ -3846,7 +3874,12 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
              y := 9.2
              oQryDet1:GoTop()
              nDesFac := 0
-             FOR i = 1 TO oQryDet1:nRecCount           
+             FOR i = 1 TO oQryDet1:nRecCount  
+                 IF oQryDet1:punit < 0 .and. !lImprimio_promo 
+                    @ y+.4, 01 PRINT TO oPrn TEXT "Descuentos Promociones" SIZE 10,1 CM FONT oFont ALIGN "TC" LASTROW y
+                    lImprimio_promo := .t.
+                    y := y + .3
+                 ENDIF         
                  IF oApp:impcodpro
                     @ y-0.07, 01 PRINT TO oPrn TEXT IF(EMPTY(oQryDet1:codigopro),STR(oQryDet1:codart,13),LEFT(oQryDet1:codigopro,13)) ;
                       SIZE 2.5,.5 CM FONT oFont5 ALIGN "TL"
@@ -4043,14 +4076,14 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                                       SIZE 5,.5 CM FONT oFont LASTROW nRow ALIGN "C"                                      
                          @ nRow, .1 PRINT TO oPrn TEXT "No Valido como factura " ;
                                       SIZE 5,.5 CM FONT oFont LASTROW nRow ALIGN "C"                 
-                         @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecha);
+                         @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecha) + " "+oQryVen1:hora;
                                       SIZE 5,.5 CM FONT oFont LASTROW nRow ALIGN "C"
                          ELSE 
                          @ nRow, .1 PRINT TO oPrn TEXT ALLTRIM(oQryPar:textonofiscal)  ;
                                       SIZE 5,.5 CM FONT oFont LASTROW nRow ALIGN "C"                     
                          @ nRow, .1 PRINT TO oPrn TEXT cNumcomp ;
                                       SIZE 5,.5 CM FONT oFont LASTROW nRow ALIGN "C"
-                         @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecha);
+                         @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecha) + " "+oQryVen1:hora;
                                       SIZE 5,.5 CM FONT oFont LASTROW nRow ALIGN "C"
                      ENDIF
                      IF oQryVen1:coniva = 5 .and. oQryVen1:codcli <= 1 .and. "CONSUMIDOR"$oQryVen1:nombre 
@@ -4075,9 +4108,15 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                      @ nRow1, 03.9 PRINT TO oPrn TEXT "Total";
                                   SIZE 0.9,.5 CM FONT oFont LASTROW nRow ALIGN "R"
                                       oQryDet1:GoTop()
-                     nDesFac := 0                  
+                     nDesFac := 0     
+                     lImprimio_promo := .f.              
                      FOR i = 1 TO oQryDet1:nRecCount           
                          nRow1 := nRow  
+                         IF oQryDet1:punit < 0 .and. !lImprimio_promo 
+                            @ nRow1+.4, 00 PRINT TO oPrn TEXT "Descuentos Promos" SIZE 5,1 CM FONT oFont1 ALIGN "C" LASTROW nRow1
+                            lImprimio_promo := .t.
+                            nRow1 := nRow1 + .1
+                         ENDIF
                          @ nRow1, 00 PRINT TO oPrn TEXT ALLTRIM(oQryDet1:detart);
                               SIZE 2.9,.5 CM FONT oFont LASTROW nRow ALIGN "L"
                          @ nRow1, 03 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,06,1);
@@ -4150,14 +4189,14 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                                       SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"              
                          @ nRow, .1 PRINT TO oPrn TEXT "No Valido como factura " ;
                                       SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"                 
-                         @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecha);
+                         @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecha) + " "+oQryVen1:hora;
                                       SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"
                          ELSE 
                          @ nRow, .1 PRINT TO oPrn TEXT ALLTRIM(oQryPar:textonofiscal)  ;
                                       SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"                     
                          @ nRow, .1 PRINT TO oPrn TEXT cNumcomp ;
                                       SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"
-                         @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecha);
+                         @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecha) + " "+oQryVen1:hora;
                                       SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"
                      ENDIF
                      IF oQryVen1:coniva = 5 .and. oQryVen1:codcli <= 1 .and. "CONSUMIDOR"$oQryVen1:nombre 
@@ -4186,9 +4225,15 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                      oQryDet1:GoTop()  
                      oPrn:CmLine( nRow,0, nRow,9 )               
                      nRow := nRow + .2  
-                     nDesFac := 0                   
+                     nDesFac := 0          
+                     lImprimio_promo := .f.            
                      FOR i = 1 TO oQryDet1:nRecCount           
                          nRow1 := nRow
+                         IF oQryDet1:punit < 0 .and. !lImprimio_promo 
+                            @ nRow1+.4, 00 PRINT TO oPrn TEXT "Descuentos Promos" SIZE 7.1,1 CM FONT oFont1 ALIGN "C" LASTROW nRow1
+                            lImprimio_promo := .t.
+                            nRow1 := nRow1 + .1
+                         ENDIF
                          @ nRow1, 00.00 PRINT TO oPrn TEXT ALLTRIM(oQryDet1:detart);
                               SIZE 3.5,.5 CM FONT oFont LASTROW nRow ALIGN "L"
                          @ nRow1, 03.60 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,06,2);
@@ -4775,3 +4820,149 @@ LOCAL lRta := .t.
       ENDIF
    ENDIF
 RETURN .t.   
+
+
+//////// Calcular Promos
+STATIC FUNCTION CalcularPromos()
+LOCAL cText, oQryTem, nNeto, nIva, nAux, i
+//Borro las promos que cargue
+IF !oApp:oServer:TableExist('ge_'+oApp:cId+"promociones")
+   RETURN nil 
+ENDIF   
+oApp:oServer:Execute("DELETE FROM ventas_det_H WHERE ESPROMO = TRUE")
+//Calculo las nuevas promos
+TEXT INTO cText 
+(SELECT
+    prom.CODART,
+    prom.TIPO,
+    prom.id,
+    prom.nompromo AS DETART,
+    CASE 
+        WHEN prom.tipo = 2 AND FLOOR(p.CANTIDAD / prom.cantidad_requerida) > 0 THEN 
+            p.cantidad - (FLOOR(p.CANTIDAD / prom.cantidad_requerida) * prom.cantidad_a_pagar + MOD(p.CANTIDAD, prom.cantidad_requerida))
+        ELSE p.CANTIDAD
+    END AS CANTIDAD,
+    CASE
+        WHEN prom.tipo = 1 THEN p.punit - prom.precio_especial        
+        WHEN prom.tipo = 4 AND p.CANTIDAD BETWEEN prom.cantidad_minima AND prom.cantidad_maxima THEN p.punit - prom.precio_unitario
+        ELSE p.PUNIT
+    END AS PUNIT,    
+    CASE
+        WHEN prom.tipo = 3 AND p.CANTIDAD >= prom.descuento_a_unidad THEN
+            prom.descuento_porcentual * FLOOR(p.CANTIDAD / prom.descuento_a_unidad)
+        ELSE 0
+    END AS DESCUENTO,    
+    p.CODIVA    
+FROM  ge_000001promociones AS prom    
+JOIN (SELECT CODART, DETART, SUM(CANTIDAD) AS CANTIDAD, PUNIT AS PUNIT, SUM(NETO) AS NETO,
+       0 AS DESCUENTO, SUM(STOTAL) AS STOTAL, SUM(IVA) AS IVA, CODIVA, SUM(PTOTAL) AS PTOTAL, 
+       0 AS PCOSTO, 0 AS IMPINT, 0 AS ESPROMO FROM ventas_det_H GROUP BY CODART) AS p    
+    ON p.CODART = prom.codart   
+WHERE 
+    CURRENT_DATE BETWEEN prom.fecha_inicio AND prom.fecha_fin
+    AND (
+        (prom.tipo = 1) OR
+        (prom.tipo = 2 AND p.CANTIDAD >= prom.cantidad_requerida) OR
+        (prom.tipo = 3 AND p.CANTIDAD >= prom.descuento_a_unidad) OR
+        (prom.tipo = 4 AND p.CANTIDAD BETWEEN prom.cantidad_minima AND prom.cantidad_maxima)
+    ) GROUP BY prom.CODART, prom.TIPO)
+ENDTEXT
+
+cText := STRTRAN(cText,'ge_000001promociones','ge_'+oApp:cId+'promociones')
+oQryTem := oApp:oServer:Query(cText)
+oQryTem:GoTop()
+IF oQryTem:nRecCount > 0
+   DO WHILE !oQryTem:Eof()
+      DO CASE
+         CASE oQryTem:codiva = 3
+              nNeto := oQryTem:punit * oQryTem:cantidad 
+              nIva  := 0
+         CASE oQryTem:codiva = 4
+              nNeto := oQryTem:punit * oQryTem:cantidad  / 1.105
+              nIva  := oQryTem:punit * oQryTem:cantidad  - nNeto
+         CASE oQryTem:codiva = 5
+              nNeto := oQryTem:punit * oQryTem:cantidad  / 1.21
+              nIva  := oQryTem:punit * oQryTem:cantidad  - nNeto
+      ENDCASE
+      DO CASE 
+         CASE oQryTem:tipo = 1 .or. oQryTem:tipo = 2 .or. oQryTem:tipo = 4
+              oApp:oServer:Execute("INSERT INTO ventas_det_H (CODART, DETART, CANTIDAD, PUNIT, "+;
+                +" NETO, DESCUENTO, STOTAL, IVA, CODIVA, PTOTAL, PCOSTO, IMPINT, ESPROMO) VALUES ("+;
+                ClipValue2Sql(oQryTem:codart)+","+Clipvalue2Sql(oQryTem:DETART)+","+;
+                ClipValue2Sql(oQryTem:cantidad)+","+ClipValue2Sql(-oQryTem:punit)+","+;
+                ClipValue2Sql(-nNeto)+",0,"+ClipValue2Sql(-nNeto)+","+Clipvalue2Sql(-nIva)+","+;
+                ClipValue2Sql(oQryTem:codiva)+","+ClipValue2Sql(-nNeto-nIva)+",0,0,1"+;
+                +")")         
+         CASE oQryTem:tipo = 3
+              nNeto := nNeto / oQryTem:cantidad
+              nIva  := nIva  / oQryTem:cantidad
+              oApp:oServer:Execute("INSERT INTO ventas_det_H (CODART, DETART, CANTIDAD, PUNIT, "+;
+                +" NETO, DESCUENTO, STOTAL, IVA, CODIVA, PTOTAL, PCOSTO, IMPINT, ESPROMO) VALUES ("+;
+                ClipValue2Sql(oQryTem:codart)+","+Clipvalue2Sql(oQryTem:DETART)+","+;
+                ClipValue2Sql(1)+","+ClipValue2Sql(-oQryTem:punit*oQryTem:descuento/100)+","+;
+                ClipValue2Sql(-nNeto*oQryTem:descuento/100)+;
+                ",0,"+ClipValue2Sql(-nNeto*oQryTem:descuento/100)+;
+                  ","+Clipvalue2Sql(-nIva*oQryTem:descuento/100)+","+;
+                ClipValue2Sql(oQryTem:codiva)+","+ClipValue2Sql( (-nNeto-nIva)*oQryTem:descuento/100)+",0,0,1"+;
+                +")")         
+
+      ENDCASE   
+      oQryTem:Skip()
+   ENDDO
+ENDIF
+oQryDet:Refresh()
+oBrw:Refresh()
+oBrw:MakeTotals()
+oBrw:GoBottom()
+oGet[19]:cText := oBrw:aCols[7]:nTotal 
+oGet[20]:cText := oBrw:aCols[8]:nTotal  
+oGet[14]:cText:= IF(oQryArt <> nil,oQryArt:codigo,1)
+oGet[14]:Refresh()
+oGet[15]:cText:=SPACE(70)
+oGet[25]:cText:=SPACE(500)
+oGet[33]:cText := 0
+oGet[25]:Refresh()
+oGet[15]:Refresh()
+FOR i:= 16 TO 18
+   oGet[i]:cText:=0
+   oGet[i+10]:cText:=0
+   oGet[i]:Refresh()
+   oGet[i+10]:Refresh()
+NEXT i
+oGet[38]:cText := oBrw:aCols[7]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
+oGet[21]:cText := oBrw:aCols[9]:nTotal + oGet[38]:value  
+oGet[42]:cText := oBrw:aCols[11]:nTotal
+oGet[19]:Refresh()
+oGet[20]:Refresh()
+oGet[21]:Refresh()
+RETURN nil
+
+STATIC FUNCTION Recalcula()
+local i
+oApp:oServer:Execute("DELETE FROM ventas_det_H WHERE ESPROMO IS TRUE") 
+oQryDet:Refresh()
+oBrw:Refresh()
+oBrw:MakeTotals()
+oBrw:GoBottom()
+oGet[19]:cText := oBrw:aCols[7]:nTotal 
+oGet[20]:cText := oBrw:aCols[8]:nTotal  
+oGet[14]:cText:= IF(oQryArt <> nil,oQryArt:codigo,1)
+oGet[14]:Refresh()
+oGet[15]:cText:=SPACE(70)
+oGet[25]:cText:=SPACE(500)
+oGet[33]:cText := 0
+oGet[25]:Refresh()
+oGet[15]:Refresh()
+FOR i:= 16 TO 18
+   oGet[i]:cText:=0
+   oGet[i+10]:cText:=0
+   oGet[i]:Refresh()
+   oGet[i+10]:Refresh()
+NEXT i
+oGet[38]:cText := oBrw:aCols[7]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
+oGet[21]:cText := oBrw:aCols[9]:nTotal + oGet[38]:value  
+oGet[42]:cText := oBrw:aCols[11]:nTotal
+oGet[19]:Refresh()
+oGet[20]:Refresh()
+oGet[21]:Refresh()
+RETURN nil

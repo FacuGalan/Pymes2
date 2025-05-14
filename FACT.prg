@@ -42,6 +42,7 @@ oApp:oServer:Execute("";
     +"`PTOTAL` DECIMAL(12,3) DEFAULT '0.00',";
     +"`PCOSTO`  DECIMAL(12,3) DEFAULT '0.00', ";
     +"`IMPINT`  DECIMAL(12,3) DEFAULT '0.00', ";
+    +"`ESPROMO` TINYINT(1) DEFAULT '0' NOT NULL, ";
     +"PRIMARY KEY (`id`)) ENGINE=INNODB DEFAULT CHARSET=utf8")
 oApp:oServer:Execute("TRUNCATE VENTAS_DET_H1")
 
@@ -155,7 +156,7 @@ ENDIF
                    ACTION(oDlg1:End())
    REDEFINE BTNBMP oBot[35] ID 306 OF oDlg1 2007 CENTER; //ELIJE FORMAS DE PAGO
                    PROMPT "&Cobrar [F4]";
-                   ACTION(ElijeFormPag(),oGet[02]:SetFocus());
+                   ACTION(CalcularPromos(),ElijeFormPag(),oGet[02]:SetFocus());
                    WHEN(nTotal>0) 
    REDEFINE BTNBMP oBot[36] ID 307 OF oDlg1 2007 CENTER; //CONSULTA
                    PROMPT "&Consulta";
@@ -2102,3 +2103,101 @@ LOCAL lRta := .t.
       ENDIF
    ENDIF
 RETURN .t.   
+
+STATIC FUNCTION CalcularPromos()
+LOCAL cText, oQryTem, nNeto, nIva, nAux
+//Borro las promos que cargue
+IF !oApp:oServer:TableExist('ge_'+oApp:cId+"promociones")
+   RETURN nil 
+ENDIF   
+oApp:oServer:Execute("DELETE FROM VENTAS_DET_H1 WHERE ESPROMO = TRUE")
+//Calculo las nuevas promos
+TEXT INTO cText 
+(SELECT
+    prom.CODART,
+    prom.TIPO,
+    prom.id,
+    prom.nompromo AS DETART,
+    CASE 
+        WHEN prom.tipo = 2 AND FLOOR(p.CANTIDAD / prom.cantidad_requerida) > 0 THEN 
+            p.cantidad - (FLOOR(p.CANTIDAD / prom.cantidad_requerida) * prom.cantidad_a_pagar + MOD(p.CANTIDAD, prom.cantidad_requerida))
+        ELSE p.CANTIDAD
+    END AS CANTIDAD,
+    CASE
+        WHEN prom.tipo = 1 THEN p.punit - prom.precio_especial        
+        WHEN prom.tipo = 4 AND p.CANTIDAD BETWEEN prom.cantidad_minima AND prom.cantidad_maxima THEN p.punit - prom.precio_unitario
+        ELSE p.PUNIT
+    END AS PUNIT,    
+    CASE
+        WHEN prom.tipo = 3 AND p.CANTIDAD >= prom.descuento_a_unidad THEN
+            prom.descuento_porcentual * FLOOR(p.CANTIDAD / prom.descuento_a_unidad)
+        ELSE 0
+    END AS DESCUENTO,    
+    p.CODIVA    
+FROM  ge_000001promociones AS prom    
+JOIN (SELECT CODART, DETART, SUM(CANTIDAD) AS CANTIDAD, PUNIT AS PUNIT, SUM(NETO) AS NETO,
+       0 AS DESCUENTO, SUM(STOTAL) AS STOTAL, SUM(IVA) AS IVA, CODIVA, SUM(PTOTAL) AS PTOTAL, 
+       0 AS PCOSTO, 0 AS IMPINT, 0 AS ESPROMO FROM VENTAS_DET_H1 GROUP BY CODART) AS p    
+    ON p.CODART = prom.codart   
+WHERE 
+    CURRENT_DATE BETWEEN prom.fecha_inicio AND prom.fecha_fin
+    AND (
+        (prom.tipo = 1) OR
+        (prom.tipo = 2 AND p.CANTIDAD >= prom.cantidad_requerida) OR
+        (prom.tipo = 3 AND p.CANTIDAD >= prom.descuento_a_unidad) OR
+        (prom.tipo = 4 AND p.CANTIDAD BETWEEN prom.cantidad_minima AND prom.cantidad_maxima)
+    ) GROUP BY prom.CODART, prom.TIPO)
+ENDTEXT
+cText := STRTRAN(cText,'ge_000001promociones','ge_'+oApp:cId+'promociones')
+oQryTem := oApp:oServer:Query(cText)
+oQryTem:GoTop()
+IF oQryTem:nRecCount > 0
+   DO WHILE !oQryTem:Eof()
+      DO CASE
+         CASE oQryTem:codiva = 3
+              nNeto := oQryTem:punit * oQryTem:cantidad 
+              nIva  := 0
+         CASE oQryTem:codiva = 4
+              nNeto := oQryTem:punit * oQryTem:cantidad  / 1.105
+              nIva  := oQryTem:punit * oQryTem:cantidad  - nNeto
+         CASE oQryTem:codiva = 5
+              nNeto := oQryTem:punit * oQryTem:cantidad  / 1.21
+              nIva  := oQryTem:punit * oQryTem:cantidad  - nNeto
+      ENDCASE
+      DO CASE 
+         CASE oQryTem:tipo = 1 .or. oQryTem:tipo = 2 .or. oQryTem:tipo = 4
+              oApp:oServer:Execute("INSERT INTO VENTAS_DET_H1 (CODART, DETART, CANTIDAD, PUNIT, "+;
+                +" NETO, DESCUENTO, STOTAL, IVA, CODIVA, PTOTAL, PCOSTO, IMPINT, ESPROMO) VALUES ("+;
+                ClipValue2Sql(oQryTem:codart)+","+Clipvalue2Sql(oQryTem:DETART)+","+;
+                ClipValue2Sql(oQryTem:cantidad)+","+ClipValue2Sql(-oQryTem:punit)+","+;
+                ClipValue2Sql(-nNeto)+",0,"+ClipValue2Sql(-nNeto)+","+Clipvalue2Sql(-nIva)+","+;
+                ClipValue2Sql(oQryTem:codiva)+","+ClipValue2Sql(-nNeto-nIva)+",0,0,1"+;
+                +")")         
+         CASE oQryTem:tipo = 3
+              nNeto := nNeto / oQryTem:cantidad
+              nIva  := nIva  / oQryTem:cantidad
+              oApp:oServer:Execute("INSERT INTO VENTAS_DET_H1 (CODART, DETART, CANTIDAD, PUNIT, "+;
+                +" NETO, DESCUENTO, STOTAL, IVA, CODIVA, PTOTAL, PCOSTO, IMPINT, ESPROMO) VALUES ("+;
+                ClipValue2Sql(oQryTem:codart)+","+Clipvalue2Sql(oQryTem:DETART)+","+;
+                ClipValue2Sql(1)+","+ClipValue2Sql(-oQryTem:punit*oQryTem:descuento/100)+","+;
+                ClipValue2Sql(-nNeto*oQryTem:descuento/100)+;
+                ",0,"+ClipValue2Sql(-nNeto*oQryTem:descuento/100)+;
+                  ","+Clipvalue2Sql(-nIva*oQryTem:descuento/100)+","+;
+                ClipValue2Sql(oQryTem:codiva)+","+ClipValue2Sql( (-nNeto-nIva)*oQryTem:descuento/100)+",0,0,1"+;
+                +")")         
+
+      ENDCASE   
+      oQryTem:Skip()
+   ENDDO
+ENDIF
+oQryDet:Refresh()
+oBrwDet:Refresh()
+oBrwDet:MakeTotals()
+oBrwDet:GoBottom()
+oGet[02]:cText:=0
+oGet[07]:cText:=SPACE(30)
+oGet[01]:Refresh()
+oGet[02]:Refresh()
+oGet[03]:Refresh()
+nTotal := ROUND(oBrwDet:aCols[9]:nTotal,2)
+RETURN nil

@@ -1687,6 +1687,7 @@ RETURN cXML
  */
 METHOD ParseFECAESolicitarResponse(cResponse) CLASS WSAFip
    LOCAL lSuccess := .F., nPos, nIniTag, nFinTag, cErrorData, cCode, cMsg, cObsData, cFchVto
+   LOCAL cErrorMsg := ""
    
    // Reiniciar datos
    ::cCAE := ""
@@ -1697,7 +1698,7 @@ METHOD ParseFECAESolicitarResponse(cResponse) CLASS WSAFip
    
    // Verificar si hay errores
    IF AT("<Errors>", cResponse) > 0
-      // Procesar errores
+      // Procesar errores generales
       nPos := 1
       DO WHILE .T.
          nIniTag := AT("<Err>", SUBSTR(cResponse, nPos))
@@ -1714,6 +1715,7 @@ METHOD ParseFECAESolicitarResponse(cResponse) CLASS WSAFip
          cMsg := SUBSTR(cErrorData, AT("<Msg>", cErrorData) + 5, AT("</Msg>", cErrorData) - AT("<Msg>", cErrorData) - 5)
          
          AADD(::aErrors, {VAL(cCode), cMsg})
+         cErrorMsg := cMsg  // Guardamos el mensaje para mostrarlo
          
          nPos := nFinTag
       ENDDO
@@ -1727,6 +1729,7 @@ METHOD ParseFECAESolicitarResponse(cResponse) CLASS WSAFip
       ENDIF
       
       ::WriteLog("Error en solicitud de CAE: " + ::cLastError + " (Código: " + ALLTRIM(STR(::nLastCode)) + ")")
+      MsgStop(::cLastError, "Error")
       RETURN .F.
    ENDIF
    
@@ -1735,8 +1738,36 @@ METHOD ParseFECAESolicitarResponse(cResponse) CLASS WSAFip
       ::cResultado := SUBSTR(cResponse, AT("<Resultado>", cResponse) + 11, AT("</Resultado>", cResponse) - AT("<Resultado>", cResponse) - 11)
    ENDIF
    
+   // Procesar observaciones (pueden estar presentes aun si no hay errores generales)
+   IF AT("<Observaciones>", cResponse) > 0
+      nPos := 1
+      DO WHILE .T.
+         nIniTag := AT("<Obs>", SUBSTR(cResponse, nPos))
+         IF nIniTag == 0
+            EXIT
+         ENDIF
+         
+         nIniTag := nPos + nIniTag - 1
+         nFinTag := AT("</Obs>", SUBSTR(cResponse, nIniTag)) + nIniTag + 6
+         
+         cObsData := SUBSTR(cResponse, nIniTag, nFinTag - nIniTag)
+         
+         cCode := SUBSTR(cObsData, AT("<Code>", cObsData) + 6, AT("</Code>", cObsData) - AT("<Code>", cObsData) - 6)
+         cMsg := SUBSTR(cObsData, AT("<Msg>", cObsData) + 5, AT("</Msg>", cObsData) - AT("<Msg>", cObsData) - 5)
+         
+         AADD(::aObservaciones, {VAL(cCode), cMsg})
+         
+         // Guardar el primer mensaje de observación para mostrar
+         IF EMPTY(cErrorMsg)
+            cErrorMsg := cMsg
+         ENDIF
+         
+         nPos := nFinTag
+      ENDDO
+   ENDIF
+   
    // Si hay CAE, extraerlo junto con la fecha de vencimiento
-   IF AT("<CAE>", cResponse) > 0
+   IF AT("<CAE>", cResponse) > 0 .AND. AT("</CAE>", cResponse) > AT("<CAE>", cResponse) .AND. !EMPTY(ALLTRIM(SUBSTR(cResponse, AT("<CAE>", cResponse) + 5, AT("</CAE>", cResponse) - AT("<CAE>", cResponse) - 5)))
       ::cCAE := SUBSTR(cResponse, AT("<CAE>", cResponse) + 5, AT("</CAE>", cResponse) - AT("<CAE>", cResponse) - 5)
       
       cFchVto := SUBSTR(cResponse, AT("<CAEFchVto>", cResponse) + 11, AT("</CAEFchVto>", cResponse) - AT("<CAEFchVto>", cResponse) - 11)
@@ -1744,35 +1775,27 @@ METHOD ParseFECAESolicitarResponse(cResponse) CLASS WSAFip
          ::dCAEVto := STOD(SUBSTR(cFchVto, 1, 4) + SUBSTR(cFchVto, 5, 2) + SUBSTR(cFchVto, 7, 2))
       ENDIF
       
-      // Procesar observaciones si las hay
-      IF AT("<Obs>", cResponse) > 0
-         nPos := 1
-         DO WHILE .T.
-            nIniTag := AT("<Observaciones>", SUBSTR(cResponse, nPos))
-            IF nIniTag == 0
-               EXIT
-            ENDIF
-            
-            nIniTag := nPos + nIniTag - 1
-            nFinTag := AT("</Observaciones>", SUBSTR(cResponse, nIniTag)) + nIniTag + 16
-            
-            cObsData := SUBSTR(cResponse, nIniTag, nFinTag - nIniTag)
-            
-            cCode := SUBSTR(cObsData, AT("<Code>", cObsData) + 6, AT("</Code>", cObsData) - AT("<Code>", cObsData) - 6)
-            cMsg := SUBSTR(cObsData, AT("<Msg>", cObsData) + 5, AT("</Msg>", cObsData) - AT("<Msg>", cObsData) - 5)
-            
-            AADD(::aObservaciones, {VAL(cCode), cMsg})
-            
-            nPos := nFinTag
-         ENDDO
-      ENDIF
-      
       lSuccess := .T.
       ::WriteLog("Solicitud de CAE exitosa: " + ::cCAE + ", Venc: " + DTOC(::dCAEVto))
    ELSE
+      // No se encontró CAE o está vacío
       ::cLastError := "No se encontró CAE en la respuesta"
-      ::nLastCode := 1015
-      ::WriteLog("No se encontró CAE en la respuesta")
+      IF LEN(::aObservaciones) > 0
+         // Si hay observaciones, usar el primer mensaje de observación
+         ::cLastError := ::aObservaciones[1, 2]
+         ::nLastCode := ::aObservaciones[1, 1]
+      ELSE
+         ::nLastCode := 1015
+      ENDIF
+      
+      ::WriteLog("No se encontró CAE en la respuesta. Error: " + ::cLastError)
+      
+      // Mostrar el mensaje de error con la observación
+      IF !EMPTY(cErrorMsg)
+         MsgStop(cErrorMsg, "Error en solicitud de CAE")
+      ELSE
+         MsgStop(::cLastError, "Error")
+      ENDIF
    ENDIF
    
 RETURN lSuccess

@@ -102,11 +102,12 @@ RETURN NIL
 ** Formulario de altas y modificaciones
 STATIC FUNCTION Formu ( lAlta)
 LOCAL oGet := ARRAY(9), oBot := ARRAY(6),oQryPar,oQryEnt,oQryPro, oForm, lRta := .f., aCor, base, oError,;
-      oBrw1,oBrw2,oFont
+      oBrw1, oBrw2, oFont, nCod
 
 oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS `transi_artp` ("+;
                            "`codart` BIGINT(14) NOT NULL,"+;
                            "`nomart` VARCHAR(50),"+;
+                           "`nuevo` TINYINT(1) DEFAULT 0 NOT NULL,"+;
                            "PRIMARY KEY (codart,nomart)) ENGINE=INNODB DEFAULT CHARSET=latin1")
 oApp:oServer:NextResult()
 oApp:oServer:Execute("TRUNCATE transi_artp ")
@@ -120,8 +121,8 @@ IF lAlta
    ELSE
    oQryPro:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"grupos WHERE codigo = " +ClipValue2Sql(oQry:codigo))
    base := oQryPro:GetRowObj()
-   oApp:oServer:Execute("INSERT INTO transi_artp (codart,nomart) "+;
-                     "SELECT p.codart,a.nombre FROM ge_"+oApp:cId+"gruposdet p LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = p.codart "+;
+   oApp:oServer:Execute("INSERT INTO transi_artp (codart,nomart, nuevo) "+;
+                     "SELECT p.codart,a.nombre,0 FROM ge_"+oApp:cId+"gruposdet p LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = p.codart "+;
                      "WHERE p.codgru = " + ClipValue2Sql(oQry:codigo))
    oApp:oServer:NextResult()
 ENDIF
@@ -169,9 +170,14 @@ TRY
   oQryPro:Save()
   oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"gruposdet WHERE codgru = " + ClipValue2Sql(base:codigo))
   oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"gruposdet (codgru,codart) "+;
-                       "SELECT "+ClipValue2Sql(base:codigo)+",codart FROM transi_artp") 
+                       "SELECT "+ClipValue2Sql(base:codigo)+",codart FROM transi_artp")   
   oQry:Refresh()
   oApp:oServer:CommitTransaction()
+  IF !lAlta
+     nCod := oApp:oServer:Query("SELECT * FROM transi_artp WHERE nuevo = 0"):GetRowObj():codart
+     base := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu WHERE codigo = "+STR(nCod)):GetRowObj()
+     ActualizarGrupo(base)
+  ENDIF   
 CATCH oError
     ValidaError(oError)
   LOOP
@@ -225,7 +231,7 @@ IF !lRta
 ENDIF
 TRY
   oApp:oServer:BeginTransaction() 
-  oApp:oServer:Insert("transi_artp",{"codart","nomart"},{nArticu,cNomArt})
+  oApp:oServer:Insert("transi_artp",{"codart","nomart","nuevo"},{nArticu,cNomArt,1})
   oApp:oServer:CommitTransaction()
 CATCH oError
     ValidaError(oError)
@@ -271,3 +277,40 @@ CATCH oError
 END TRY
 oBrw:Refresh()
 RETURN nil 
+
+
+*************************************************************************************************************
+********** ACTUALIZA EL PRECIO DE LOS ARTICULOS QUE SE ENCUENTRAN EN EL MISMO GRUPO QUE EL MODIFICADO
+STATIC FUNCTION ActualizarGrupo(base)
+LOCAL nGrupo, oError
+nGrupo:= oApp:oServer:Query("SELECT codgru FROM ge_"+oApp:cId+"gruposdet WHERE codart = "+ClipValue2Sql(base:codigo)):codgru
+IF nGrupo <> 0
+  TRY
+  oApp:oServer:BeginTransaction()
+  oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"gruposdet g LEFT JOIN ge_"+oApp:cId+"articu a "+;
+                       " ON g.codart = a.codigo AND "+;
+                       "    g.codgru = "+ClipValue2Sql(nGrupo)+;
+                       " SET a.precossiva = "+ClipValue2Sql(base:precossiva)+","+;
+                                         "a.desc1      = "+ClipValue2Sql(base:desc1)+","+;
+                                         "a.desc2      = "+ClipValue2Sql(base:desc2)+","+;
+                                         "a.desc3      = "+ClipValue2Sql(base:desc3)+","+;
+                                         "a.desc4      = "+ClipValue2Sql(base:desc4)+","+;
+                                         "a.desc5      = "+ClipValue2Sql(base:desc5)+","+;
+                                         "a.impint     = "+ClipValue2Sql(base:impint)+","+;
+                                         "a.flete      = "+ClipValue2Sql(base:flete)+","+;
+                                         "a.iva        = "+ClipValue2Sql(base:iva)+","+;
+                                         "a.preciocos  = "+ClipValue2Sql(base:preciocos)+","+;
+                                         "a.porcentaje = "+ClipValue2Sql(base:porcentaje)+","+;
+                                         "a.precioven  = "+ClipValue2Sql(base:precioven)+","+;
+                                         "a.preciopro  = "+ClipValue2Sql(base:preciopro)+","+;
+                                         "a.porcentajerev = "+ClipValue2Sql(base:porcentajerev)+","+;
+                                         "a.reventa    = "+ClipValue2Sql(base:reventa)+","+;
+                                         "a.fecmod     = CURDATE(),"+;
+                                         "a.horamod    = CURTIME(),"+;
+                                         "a.siniva     = "+ClipValue2Sql(base:siniva)+" ")
+    oApp:oServer:CommitTransaction() 
+  CATCH oError
+    ValidaError(oError)
+  END TRY    
+ENDIF  
+RETURN nil

@@ -1562,7 +1562,7 @@ oQry := oApp:oServer:Query(;
 "WHERE ve.letra <> 'X' "+;
 IF(nPunto = 0," "," AND LEFT(numcomp,4) = " + ClipValue2Sql(STRTRAN(STR(nPunto,4)," ","0")))+;
 "AND ve.fecha BETWEEN " + ClipValue2Sql(mdesde) + " AND "+ ClipValue2Sql(mhasta)+" "+;
-"ORDER BY ve.fecha")
+"ORDER BY ve.fecha, ve.ticomp, ve.letra, ve.numcomp")
 /*"SELECT "+;
 "    CONCAT(ve.ticomp,ve.letra,ve.numcomp) AS compro, "+;
 "    ve.fecha, "+; 

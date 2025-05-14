@@ -48,10 +48,10 @@ oQry  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"lispre ORDER BY nombr
             TOOLTIP "Imprimir Lista de Precios"  ;
             ACTION ListaPre();
             PROMPT "Listas" TOP WHEN("R"$cPermisos)   
-         /*DEFINE BUTTON RESOURCE "PROMO" OF oBar ;
+         DEFINE BUTTON RESOURCE "PROMO" OF oBar ;
             TOOLTIP "Promociones"  ;
             ACTION (oWnd1:End(),Promociones(cPermisos));
-            PROMPT "Promos" TOP WHEN("A"$cPermisos)   */
+            PROMPT "Promos" TOP WHEN("A"$cPermisos)   
 
             // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;

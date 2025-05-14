@@ -3,7 +3,7 @@
 #include "tdolphin.ch"
 MEMVAR oApp
 FUNCTION buscar(base, oWnd, oGet1, oGet2, uValor, cCampoFiltro,uValor2, cCampoFiltro2, xnombre_codigo)
-LOCAL oDlg1, oBot1:=ARRAY(1), cFiltro,cFiltro2, oLbx, n := VAL(oGet1:cText), oQr1, oQryPun,nRows
+LOCAL oDlg1, oBot1:=ARRAY(1), cFiltro,cFiltro2, oLbx, n := VAL(oGet1:cText), oQr1, oQryPun,nRows, aSizes, i
 DEFAULT xnombre_codigo := 'codigo'
 IF uValor <> nil
    cFiltro := cCampoFiltro + " = "+uValor
@@ -41,6 +41,10 @@ IF base:nRecCount > 0
    base:SetNewFilter(SET_WHERE,cFiltro+" AND "+cFiltro2,.t.)
    base:SetOrder("nombre",.T.)
    base:GoTop()
+   aSizes := {}
+   FOR i:= 1 TO base:FCount()
+       AADD(aSizes,base:FieldLen(i))
+   NEXT i 
    //oQryPun:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = " + ClipValue2Sql(oApp:cIp))
    DEFINE DIALOG oDlg1 RESOURCE "BUSCAR" TITLE "Busqueda" OF oWnd 
      oDlg1:lHelpIcon := .f.
@@ -54,8 +58,9 @@ IF base:nRecCount > 0
      base:bOnChangePage := {|| oLbx:Refresh() }
      oLbx:bKeyDown := {|nKey| IF(nKey==13,oDlg1:End(),.t.) }
      PintaBrw(oLbx,0)
+     oLbx:nMarqueeStyle := MARQSTYLE_HIGHLROWMS
    REDEFINE BUTTON oBot1[1] ID 103 OF oDlg1 ACTION oDlg1:end() CANCEL
-   ACTIVATE DIALOG oDlg1 ON INIT oLbx:SetFocus() CENTER
+   ACTIVATE DIALOG oDlg1 ON INIT (ResizeCols(oLbx,aSizes,base),oLbx:SetFocus()) CENTER
   SendMessage( FindWindow( 0, "Teclado en pantalla" ), WM_CLOSE )
    oGet1:cText := base:codigo
    IF oGet2 <> nil
@@ -126,6 +131,7 @@ IF base:nRecCount > 0
      oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt(base, oGetSeek, oLbx, nKey, cFiltro+" AND "+cFiltro2) }
      oLbx:bKeyDown := {|nKey| IF(nKey==13,oDlg1:End(),.t.) }
      PintaBrw(oLbx,0)
+     oLbx:nMarqueeStyle := MARQSTYLE_HIGHLROWMS
    REDEFINE BUTTON oBot1[1] ID 103 OF oDlg1 ACTION oDlg1:end() CANCEL WHEN(base:nRecCount>0)
    ACTIVATE DIALOG oDlg1 ON INIT (ResizeCols(oLbx,aSizes,base),oGetSeek:SetFocus()) CENTER
    oGet1:cText := base:codigo
@@ -141,9 +147,9 @@ STATIC FUNCTION ResizeCols(oLbx,aSizes,base)
 LOCAL i
 FOR i:= 1 TO base:FCount()
     IF(aSizes[i] >= 100) 
-      oLbx:aCols[i]:nWidth := oLbx:aCols[i]:nWidth *.25
+      oLbx:aCols[i]:nWidth := IF(oLbx:aCols[i]:nWidth *.25>300,250,oLbx:aCols[i]:nWidth *.25)
       ELSE 
-      oLbx:aCols[i]:nWidth := oLbx:aCols[i]:nWidth *.80
+      oLbx:aCols[i]:nWidth := oLbx:aCols[i]:nWidth *.70
     ENDIF  
 NEXT i     
 RETURN nil

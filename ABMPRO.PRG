@@ -9,7 +9,7 @@
 MEMVAR oApp
 STATIC oQryBrw,oWnd1, oBrw, oDlg, cVentana
 PROCEDURE PROVEE(cPermisos)
-LOCAL oBar, hHand
+LOCAL oBar, hHand, oGetSeek, cSeek := SPACE(50)
 cVentana := PROCNAME()
 IF ASCAN(oApp:aVentanas,cVentana) > 0
    hHand := ASCAN(oApp:aVentanas,cVentana)
@@ -69,15 +69,16 @@ oQryBrw:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"provee ORDER BY nombr
               HEADERS "Código","Nombre","Alias","Localidad","Telefonos";
               SIZES 60,345,70,100,100;
               ID 111 OF oDlg AUTOSORT ON DBLCLICK IF("M"$cPermisos,(Formu( .f.),oBrw:Refresh()),nil)
-     REDEFINE SAY oBrw:oSeek PROMPT "" ID 113 OF oDlg
+     REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg
      oQryBrw:bOnChangePage := {|| oBrw:Refresh() }
     *oBrw:aCols[2]:SetOrder()
      //oBrw:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar,cPermisos)}
      //oBrw:SetDolphin(oQry,.f.,.t.)
      PintaBrw(oBrw,5) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
      oBrw:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar, oBrw,cPermisos,6)}
+     oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt(oQryBrw, oGetSeek, oBrw, nKey) }
      // Activo el dialogo y al iniciar muevo a 0,0
-     ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT oDlg:Move(0,0) VALID(oWnd1:End())
+     ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT (oGetSeek:SetFocus(),oDlg:Move(0,0)) VALID(oWnd1:End())
    ACTIVATE WINDOW oWnd1 ON INIT Incrusta( oWnd1, oDlg, .T.) VALID(cerrar())
 RETURN
 
@@ -98,7 +99,7 @@ RETURN NIL*/
 *************************************
 ** Agregar un registro nuevo
 STATIC FUNCTION Formu (lAlta)
-LOCAL oGet := ARRAY(21), oBot := ARRAY(3), oForm, lRta := .F., aCor, base, oError, oQry,oSay,;
+LOCAL oGet := ARRAY(22), oBot := ARRAY(3), oForm, lRta := .F., aCor, base, oError, oQry,oSay,;
 	    cCuenta:=SPACE(50),aTipoIva :=  {"RESPO. INSCRIPTO","RES.NO INSCRIPTO", "NO RESPONSABLE .",;
                                        "EXENTO         .","CONSUMIDOR FINAL", "MONOTRIBUTO    ."},;
       oQryCue, nCuit := 0
@@ -137,6 +138,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Proveedores";
    @127, 00 SAY "Condicion IVA:"       OF oForm PIXEL SIZE 60,10 TRANSPARENT RIGHT
    @142, 00 SAY "Imputación Cta:"      OF oForm PIXEL SIZE 60,10 TRANSPARENT RIGHT  
    @157, 00 SAY "Anticipo:"            OF oForm PIXEL SIZE 60,10 TRANSPARENT RIGHT
+   @157,115 SAY "Dias Credito:"        OF oForm PIXEL SIZE 60,10 TRANSPARENT RIGHT
    @172, 00 SAY "Mail:"                OF oForm PIXEL SIZE 60,10 TRANSPARENT RIGHT
    @187, 00 SAY "Cuenta bancaria:"     OF oForm PIXEL SIZE 60,10 TRANSPARENT RIGHT
    @202, 00 SAY "Observaciones:"       OF oForm PIXEL SIZE 60,10 TRANSPARENT RIGHT
@@ -172,6 +174,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Proveedores";
                          ACTION (oGet[10]:cText:= 0, Buscar(oQryCue,oForm,oGet[10],oGet[11])) BITMAP "BUSC1"  
    @140, 95 GET oGet[11] VAR cCuenta         OF oForm PIXEL PICTURE "@!" WHEN(.F.)       
    @155, 65 GET oGet[12] VAR base:saldo      OF oForm PIXEL PICTURE "99999999.99" RIGHT WHEN(.F.)
+   @155,180 GET oGet[22] VAR base:diasvenci  OF oForm PIXEL PICTURE "999" RIGHT 
    @170, 65 GET oGet[17] VAR base:mail       OF oForm PIXEL 
    @185, 65 GET oGet[15] VAR base:ctabanco   OF oForm PIXEL PICTURE "@!"
    @185,215 CHECKBOX oGet[19] VAR base:gasto OF oForm PIXEL SIZE 60,12 PROMPT "No aplicar retenciones"
