@@ -1136,10 +1136,11 @@ FONT 8, "MS Sans Serif"
   CONTROL "Opciones", -1, "Button", BS_GROUPBOX, 4, 176, 208, 32
   CONTROL "&Actualizar precios", 4002, "Button", WS_TABSTOP, 8, 184, 64, 20
   CONTROL "&Filtrar", 4004, "Button", WS_TABSTOP, 76, 184, 64, 20
-  CONTROL "&Salir", 4006, "Button", WS_TABSTOP, 144, 184, 64, 20
+  CONTROL "&Salir", 4006, "Button", WS_TABSTOP, 212, 184, 64, 20
   CONTROL "&Por %", 4001, "Button", WS_TABSTOP, 584, 188, 64, 20
   CONTROL "Por &lista proveedor", 4003, "Button", WS_TABSTOP, 500, 188, 80, 20
   CONTROL "Por &Receta", 4005, "Button", WS_TABSTOP, 416, 188, 80, 20
+  CONTROL "&Excel", 4007, "Button", WS_TABSTOP, 144, 184, 64, 20
 }
 
 CANPAG DIALOG DISCARDABLE 59, 54, 257, 198
@@ -1837,6 +1838,7 @@ FONT 8, "Tahoma"
   CONTROL "Lista de precios:", -1, "Static", SS_RIGHT|WS_GROUP, 492, 68, 56, 8
   CONTROL "", 300, "Button", BS_AUTORADIOBUTTON, 16, 120, 16, 12
   CONTROL "", 301, "Button", BS_AUTORADIOBUTTON, 16, 152, 16, 12
+  CONTROL "", 4014, "ComboBox", WS_BORDER|CBS_DROPDOWNLIST|WS_VSCROLL|WS_TABSTOP, 404, 12, 124, 40
   CONTROL "Codigo Articulo", -1, "Static", SS_CENTER|WS_GROUP, 32, 112, 60, 8
   CONTROL "", 191, "Edit", ES_RIGHT|ES_UPPERCASE|WS_BORDER|WS_TABSTOP, 32, 120, 60, 12
   CONTROL "Descripción del artículo", 4006, "Static", SS_CENTER|WS_GROUP, 120, 144, 152, 8
@@ -1886,6 +1888,7 @@ FONT 8, "Tahoma"
   CONTROL "Pedido N°:", -1, "Static", SS_RIGHT|WS_GROUP, 0, 20, 47, 8
   CONTROL "Para Fecha:", -1, "Static", SS_RIGHT|WS_GROUP, 220, 20, 52, 8
   CONTROL "", 4016, "Edit", ES_RIGHT|ES_AUTOHSCROLL|ES_UPPERCASE|WS_BORDER|WS_TABSTOP, 32, 136, 84, 12
+  CONTROL "Vendedor:", -1, "Static", SS_RIGHT|WS_GROUP, 336, 16, 59, 8
 }
 
 ASIGNA DIALOG DISCARDABLE 6, 18, 422, 290

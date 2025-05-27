@@ -705,7 +705,7 @@ LOCAL nNumero,cNumComp,cLetra:=IF(oApp:tipo_iva<>6,IF(nCondicion = 1 .or. nCondi
       nNumDep, nPunLocal, nSaldoCta, oTransferencias,;
       nCodCue := 0, nNumOpe := 0, cObserva1:="Pago por Pos "+SPACE(255), oQryTransf,;
       nCodCue2 := 0, nNumOpe2 := 0, cObserva2:="Pago por Pos "+SPACE(255),;
-      nPuntos := 0, nPuntosAcu := 0
+      nPuntos := 0, nPuntosAcu := 0, cSQL
 nTransf:= oApp:oServer:Query("SELECT SUM(importe) AS monto FROM formapag_temp WHERE tipopag = 2"):monto
 oTransferencias:= oApp:oServer:Query("SELECT f1.* FROM formapag_temp f1 LEFT JOIN ge_"+oApp:cId+"forpag f2 ON f2.codigo = f1.codforma WHERE f1.tipopag = 2 AND f2.codcue = 0")
 IF nTransf > 0
@@ -936,11 +936,12 @@ cNumComp := STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNumero,8)," ","0")
                "("+; 
                "SELECT codart, SUM(cantidad) as suma "+;
                "FROM VENTAS_DET_H1 "+;
+               "WHERE ESPROMO IS FALSE "+;
                "GROUP BY codart "+;
                ") v ON a.codigo = v.codart "+;
                "SET a.stockact = a.stockact - v.suma WHERE a.stockotro IS FALSE")
       // Actualizo el stock de los que descuentan de otros articulos
-      oQryStock:= oApp:oServer:Query("SELECT SUM(d.cantidad) AS cantidad,"+;
+      /*oQryStock:= oApp:oServer:Query("SELECT SUM(d.cantidad) AS cantidad,"+;
                                      "d.codart AS codart FROM VENTAS_DET_H1 d "+;
                                      "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = d.codart "+;
                                      "WHERE a.stockotro = TRUE GROUP BY d.codart ")
@@ -951,7 +952,19 @@ cNumComp := STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNumero,8)," ","0")
                               "SET m.stockact = m.stockact - (("+ClipValue2Sql(oQryStock:cantidad)+") * r.cantidad) "+;
                               "WHERE r.codart = "+ClipValue2Sql(oQryStock:codart))
          oQryStock:Skip()
-      ENDDO
+      ENDDO*/
+      cSQL := "UPDATE ge_"+oApp:cId+"articu m " + ;
+        "JOIN ( " + ;
+        "  SELECT r.codusa AS codigo_usado, SUM(d.cantidad * r.cantidad) AS total_a_restar " + ;
+        "  FROM VENTAS_DET_H1 d " + ;
+        "  JOIN ge_"+oApp:cId+"articu a ON a.codigo = d.codart " + ;
+        "  JOIN ge_"+oApp:cId+"reseta r ON r.codart = d.codart " + ;
+        "  WHERE a.stockotro = TRUE AND d.ESPROMO IS FALSE " + ;
+        "  GROUP BY r.codusa " + ;
+        ") AS t ON t.codigo_usado = m.codigo " + ;
+        "SET m.stockact = m.stockact - t.total_a_restar"
+
+      oApp:oServer:Execute( cSQL )
 
 
       IF lFisc       
@@ -1155,7 +1168,7 @@ IF nCodArt >= 0
 
    //Valido el costo y aviso   
    IF oQryPun:validacosto = 1
-      IF oQryAux:preciocos > (nTotalcIva/nCantidad) * IF(oQryAux:endolares,oQryPar:dolar,1)
+      IF oQryAux:preciocos > (nTotalcIva/nCantidad) * IF(oQryAux:endolares,oQryPar:dolar,1) +1
           lRta:=MsgYesNo("El precio que está facturando está por debajo,"+CHR(10)+;
               "del costo del producto ¿Desea continuar?"+CHR(10)+;
               "Costo: "+ALLTRIM(STR(oQryAux:preciocos)),"Atencion")
@@ -1168,7 +1181,7 @@ IF nCodArt >= 0
    ENDIF
    //Prohibo la venta por costo menor a venta
    IF oQryPun:validacosto = 2
-      IF oQryAux:preciocos > (nTotalcIva/nCantidad) * IF(oQryAux:endolares,oQryPar:dolar,1)
+      IF oQryAux:preciocos > (nTotalcIva/nCantidad) * IF(oQryAux:endolares,oQryPar:dolar,1) +1
           MsgStop("No puede facturar el articulo seleccionado porque el "+CHR(10)+;
              "precio está por debajo del costo"+CHR(10)+;
              "Costo: "+ALLTRIM(STR(oQryAux:preciocos)),"Atencion")
@@ -1385,7 +1398,7 @@ IF !lSoloPuntual
                              "v.stotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100),"+;
                              "v.ptotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100))),"+;
                              "v.neto =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100)")
-    IF oApp:oServer:Query("SELECT * FROM VENTAS_DET_H1 WHERE pcosto > (ptotal/cantidad)"):nRecCount > 0
+    IF oApp:oServer:Query("SELECT * FROM VENTAS_DET_H1 WHERE pcosto > (ptotal/cantidad)+1"):nRecCount > 0
        IF oQryPun:validacosto = 1
           lRta:=MsgYesNo("El descuento aplicado deja por debajo,"+CHR(10)+;
                   "del costo a producto ¿Desea continuar?","Atencion")
@@ -1416,7 +1429,7 @@ IF !lSoloPuntual
                              "v.ptotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100))),"+;
                              "v.neto =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100)))/(1+i.tasa/100)"+;
                              " WHERE v.id = " + STR(oQryDet:id))
-    IF oApp:oServer:Query("SELECT * FROM VENTAS_DET_H1 WHERE pcosto > (ptotal/cantidad)"):nRecCount > 0
+    IF oApp:oServer:Query("SELECT * FROM VENTAS_DET_H1 WHERE pcosto > (ptotal/cantidad)+1"):nRecCount > 0
        IF oQryPun:validacosto = 1
           lRta:=MsgYesNo("El descuento aplicado deja por debajo,"+CHR(10)+;
                   "del costo a producto ¿Desea continuar?","Atencion")
@@ -2251,7 +2264,7 @@ RETURN lRta
 STATIC FUNCTION ValidarCosto(nCos,nVen)
 LOCAL lRta := .t.
    IF oQryPun:validacosto = 1
-      IF nCos > nVen
+      IF nCos > nVen+1
           lRta:=MsgYesNo("El precio que está facturando está por debajo,"+CHR(10)+;
               "del costo del producto ¿Desea continuar?"+CHR(10)+;
               "Costo: "+ALLTRIM(STR(nCos)),"Atencion")
@@ -2264,7 +2277,7 @@ LOCAL lRta := .t.
    ENDIF
    //Prohibo la venta por costo menor a venta
    IF oQryPun:validacosto = 2
-      IF nCos > nVen
+      IF nCos > nVen+1
           MsgStop("No puede facturar el articulo seleccionado porque el "+CHR(10)+;
              "precio está por debajo del costo"+CHR(10)+;
              "Costo: "+ALLTRIM(STR(nCos)),"Atencion")

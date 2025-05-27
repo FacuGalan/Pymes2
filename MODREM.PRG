@@ -417,11 +417,18 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                 "Pequeño Contribuyente Eventual","Monotributista Social",;
                 "Pequeño Contribuyente Eventual Social","IVA NO Alcanzado"},;
       i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, oFont5,  config,;
-       aCor, oQryP, nRow1, nHoja, oQryVen1, oQryPar
+       aCor, oQryP, nRow1, nHoja, oQryVen1, oQryPar, lComan
    oQryVen1 := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"clientes WHERE codigo = " + ClipValue2Sql(base:codcli))
    oQryPar := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros")   
    oQryP :=  oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip))   
-   config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")   
+   config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config") 
+   IF oQryP:preguntaimpr 
+      lComan := SiNoCancelar("Atencion","Por donde desea emitir el Comprobante?",{"Comandera","Impresora","No imprimir"})
+      IF lComan == nil 
+         RETURN nil 
+      ENDIF
+      oQryP:imprimeTic := lComan
+   ENDIF   
    DO CASE
       CASE !oQryP:imprimeTic   
            ** FACTURACION CON FORMATO PARA FACTURA ELECTRONICA

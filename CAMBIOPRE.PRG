@@ -7,7 +7,7 @@
 MEMVAR oApp
 STATIC oWnd1, oBrw, oDlg, cVentana,oQry, oQryBrw, nCant,oQryIvaDet,oBrwIvas,oBrwRet,lIncluido, ;
        oQryComprasDet, oQryCue, oQryPro, oQryArt,  oQryIva, oQryTip, oQryRet, oQryCom, oBot, base, baseDet,;
-       oQry2,oQry3,oQry4,oQry5,oQry6,oQry7,cNumRe1,cNumRe2,lActualizar,oQryPun,nCodPro,nimporte
+       oQry2,oQry3,oQry4,oQry5,oQry6,oQry7,cNumRe1,cNumRe2,lActualizar,oQryPun,nCodPro,nimporte,lSoloCosto
 PROCEDURE CambioPre(cPermisos) 
 LOCAL oBar, hHand,cDialog,oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTipoComp, nBultos:=0,;
       cNomPro,  cCuit, cConIva, cNomCue, nDeuda, nCodArt, cDetArt, nCantidad, oError, ;
@@ -28,7 +28,7 @@ LOCAL oBar, hHand,cDialog,oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTip
     +"`DESC3` DECIMAL(5,2) NOT NULL DEFAULT '0.00',";
     +"`DESC4` DECIMAL(5,2) NOT NULL DEFAULT '0.00',";
     +"`DESC5` DECIMAL(5,2) NOT NULL DEFAULT '0.00',";
-    +"`IMPINT` DECIMAL(5,2) NOT NULL DEFAULT '0.00',";
+    +"`IMPINT` DECIMAL(7,2) NOT NULL DEFAULT '0.00',";
     +"`FLETE` DECIMAL(5,2) NOT NULL DEFAULT '0.00',";
     +"`NETO` DECIMAL(12,2) NOT NULL DEFAULT '0.00',";
     +"`IVA` DECIMAL(12,2) NOT NULL DEFAULT '0.00',";
@@ -57,6 +57,7 @@ LOCAL oBar, hHand,cDialog,oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTip
   DEFINE FONT oFontTotal NAME "ARIAL" SIZE 12,30
   oQryComprasDet :=oApp:oServer:Query("SELECT * FROM proped_temp")
   DO WHILE .T.
+    lSoloCosto := .f.
     DEFINE DIALOG oDlg1 RESOURCE "PROCESAPED" OF oWnd1
     oDlg1:lHelpIcon := .f.
       
@@ -86,7 +87,7 @@ LOCAL oBar, hHand,cDialog,oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTip
     oBrw:nMoveType := 1
     oBrw:aCols[2]:SetOrder()
 
-    oBrw:aCols[3]:bStrData := {|| IF(oQryComprasDet:RecCount()>0,IF(oQryComprasDet:siniva,"Sin IVA","IVA incluido"),"")}
+    oBrw:aCols[3]:bEditValue := {|| IF(oQryComprasDet:RecCount()>0,IF(oQryComprasDet:siniva,"Sin IVA","IVA incluido"),"")}
     oBrw:aCols[12]:Hide()
     oBrw:aCols[13]:Hide()
     oBrw:aCols[4]:lAutoSave := .t.
@@ -141,6 +142,7 @@ LOCAL oBar, hHand,cDialog,oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTip
     REDEFINE BUTTON oBot[2] ID 4002 ACTION (lRta:=.t.,oDlg1:End()) 
     REDEFINE BUTTON oBot[4] ID 4004 ACTION (Filtrar(),oBrw:SetFocus())
     REDEFINE BUTTON oBot[5] ID 4006 ACTION (lRta:=.f.,oDlg1:End()) CANCEL 
+    REDEFINE BUTTON oBot[5] ID 4007 ACTION oBrw:ToExcel()
     REDEFINE BUTTON oBot[4] ID 4001 ACTION (lRta:=.f.,oDlg1:End(), PREGEN()) CANCEL 
     REDEFINE BUTTON oBot[6] ID 4003 ACTION (lRta:=.f.,oDlg1:End(), PREGENLIS()) CANCEL 
     REDEFINE BUTTON oBot[7] ID 4005 ACTION ( PorReceta()) CANCEL 
@@ -199,6 +201,8 @@ DEFINE DIALOG oForm TITLE "Actualizar precios por receta";
    
    @ 07, 05 SAY "Redondear?:"   OF oForm PIXEL SIZE 40,12 RIGHT
    @ 05, 50 COMBOBOX oGet[1] VAR nRedondeo ITEMS aRedondeo OF oDlg PIXEL SIZE 55,12
+
+   @ 20, 50 CHECKBOX oGet[2] VAR lSoloCosto PROMPT "Modificar solo Costo" OF oDlg PIXEL SIZE 95,12
   
    acor := AcepCanc(oForm)
    @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Procesar" OF oForm SIZE 30,10 ;
@@ -241,6 +245,7 @@ Procesando(.t.)
                         "ON res.codart = a.codigo "+;
                         "WHERE a.stockotro = TRUE AND res.costo IS NOT NULL)")
    oApp:oServer:Execute( "TRUNCATE temp")
+
 // Actualizo los valores 
 oApp:oServer:Execute("UPDATE proped_temp p LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = p.codiva "+;
   "SET "+;
@@ -264,23 +269,28 @@ DO WHILE !oQryComprasDet:EOF()
     CambiaValor(4,oQryComprasDet:precossiva,nRedondeo)
     oQryComprasDet:Skip()
 ENDDO*/
-DO CASE 
-   CASE nRedondeo = 1
-   CASE nRedondeo = 2
-        oApp:oServer:Execute("UPDATE proped_temp SET precioven = ROUND(precioven), reventa = ROUND(reventa)") 
-   CASE nRedondeo = 3
-        oApp:oServer:Execute("UPDATE proped_temp SET precioven = ROUND(precioven,-1), reventa = ROUND(reventa,-1)") 
-        oApp:oServer:Execute("UPDATE proped_temp SET precioven = 10 WHERE precioven = 0") 
-        oApp:oServer:Execute("UPDATE proped_temp SET reventa = 10 WHERE reventa = 0") 
-   CASE nRedondeo = 4
-        oApp:oServer:Execute("UPDATE proped_temp SET precioven = ROUND(precioven / 50) * 50, reventa = ROUND(reventa/50)*50") 
-        oApp:oServer:Execute("UPDATE proped_temp SET precioven = 50 WHERE precioven = 0") 
-        oApp:oServer:Execute("UPDATE proped_temp SET reventa = 50 WHERE reventa = 0")
-   CASE nRedondeo = 5
-        oApp:oServer:Execute("UPDATE proped_temp SET precioven = ROUND(precioven,-2), reventa = ROUND(reventa,-2)") 
-        oApp:oServer:Execute("UPDATE proped_temp SET precioven = 100 WHERE precioven = 0") 
-        oApp:oServer:Execute("UPDATE proped_temp SET reventa = 100 WHERE reventa = 0")    
-ENDCASE
+IF !lSoloCosto
+    DO CASE 
+       CASE nRedondeo = 1
+       CASE nRedondeo = 2
+            oApp:oServer:Execute("UPDATE proped_temp SET precioven = ROUND(precioven), reventa = ROUND(reventa)") 
+       CASE nRedondeo = 3
+            oApp:oServer:Execute("UPDATE proped_temp SET precioven = ROUND(precioven,-1), reventa = ROUND(reventa,-1)") 
+            oApp:oServer:Execute("UPDATE proped_temp SET precioven = 10 WHERE precioven = 0") 
+            oApp:oServer:Execute("UPDATE proped_temp SET reventa = 10 WHERE reventa = 0") 
+       CASE nRedondeo = 4
+            oApp:oServer:Execute("UPDATE proped_temp SET precioven = ROUND(precioven / 50) * 50, reventa = ROUND(reventa/50)*50") 
+            oApp:oServer:Execute("UPDATE proped_temp SET precioven = 50 WHERE precioven = 0") 
+            oApp:oServer:Execute("UPDATE proped_temp SET reventa = 50 WHERE reventa = 0")
+       CASE nRedondeo = 5
+            oApp:oServer:Execute("UPDATE proped_temp SET precioven = ROUND(precioven,-2), reventa = ROUND(reventa,-2)") 
+            oApp:oServer:Execute("UPDATE proped_temp SET precioven = 100 WHERE precioven = 0") 
+            oApp:oServer:Execute("UPDATE proped_temp SET reventa = 100 WHERE reventa = 0")    
+    ENDCASE
+    ELSE
+    oApp:oServer:Execute("UPDATE proped_temp p LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = p.codart "+;
+                         "SET p.precioven = a.precioven, p.reventa = a.reventa" )
+ENDIF
 oQryComprasDet:Refresh()
 oBrw:Refresh()
 Procesando(.f.)
@@ -505,12 +515,13 @@ nTasa:= oApp:oServer:Query("SELECT tasa FROM ge_"+oApp:cId+"ivas WHERE codigo = 
 
 IF n = 14
     nNeto:= oQryComprasDet:pcosto/;
-               (1+(nTasa/100)+(oQryComprasDet:flete/100)+(oQryComprasDet:impint/100))
+               (1+(nTasa/100)+(oQryComprasDet:flete/100))
     nNeto:= nNeto * IF(oQryComprasDet:desc5>0,(100/oQryComprasDet:desc5),1) 
     nNeto:= nNeto * IF(oQryComprasDet:desc4>0,(100/oQryComprasDet:desc4),1) 
     nNeto:= nNeto * IF(oQryComprasDet:desc3>0,(100/oQryComprasDet:desc3),1) 
     nNeto:= nNeto * IF(oQryComprasDet:desc2>0,(100/oQryComprasDet:desc2),1) 
     nNeto:= nNeto * IF(oQryComprasDet:desc1>0,(100/oQryComprasDet:desc1),1) 
+    nNeto := nNeto +  oQryComprasDet:impint
     nIVA :=   nNeto * (nTasa/100) 
 
     oQryComprasDet:precossiva:= nNeto + IF(oQryComprasDet:siniva,0,nIVA) 
@@ -522,7 +533,7 @@ IF n <> 14 .and. n <> 16 .and. n <> 15 .and. n <> 17 .and. n <> 18
     nNeto:= nNeto - nNeto * (oQryComprasDet:desc3/100) 
     nNeto:= nNeto - nNeto * (oQryComprasDet:desc4/100) 
     nNeto:= nNeto - nNeto * (oQryComprasDet:desc5/100) 
-    nImpInt:= nNeto * (oQryComprasDet:impint/100)
+    nImpInt:= oQryComprasDet:impint
     nFlete:= nNeto * (oQryComprasDet:flete/100) 
     nIVA:= nNeto * nTasa/100
     nNeto:= nNeto + nImpInt + nFlete + nIVA
@@ -531,13 +542,13 @@ ENDIF
 IF n = 16
     oQryComprasDet:porcentaje:= (oQryComprasDet:precioven * 100) / oQryComprasDet:pcosto -100
 ENDIF  
-IF n <> 16
+IF n <> 16 .and. !lSoloCosto
     oQryComprasDet:precioven:= INT(oQryComprasDet:pcosto + oQryComprasDet:pcosto * (oQryComprasDet:porcentaje/100))
 ENDIF
 IF n = 18
     oQryComprasDet:porcentajerev:= (oQryComprasDet:reventa * 100) / oQryComprasDet:pcosto -100
 ENDIF  
-IF n <> 18
+IF n <> 18  .and. !lSoloCosto
     oQryComprasDet:reventa:= INT(oQryComprasDet:pcosto + oQryComprasDet:pcosto * (oQryComprasDet:porcentajerev/100))
 ENDIF
 

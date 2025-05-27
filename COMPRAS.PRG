@@ -20,7 +20,7 @@ ENDIF
 AADD(oApp:aVentanas,cVentana)
 
 oQryBrw    := oApp:oServer:Query( "SELECT c.tipocomp,c.letra,c.numfac,c.fecfac,c.importe,"+;
-                                  "c.estado,c.observa,p.nombre AS nompro,c.codpro ,c.saldo "+;
+                                  "c.estado,c.observa,p.nombre AS nompro,c.codpro ,c.saldo, c.fecvto "+;
                                   "FROM ge_"+oApp:cId+"compras c LEFT JOIN ge_"+oApp:cId+"provee p ON p.codigo = c.codpro "+;
                                   "WHERE YEAR(c.fecfac) = " + STR(YEAR(DATE()))+" "+;
                                   "ORDER BY c.fecfac")
@@ -77,10 +77,10 @@ oQryBrw    := oApp:oServer:Query( "SELECT c.tipocomp,c.letra,c.numfac,c.fecfac,c
    oWnd1:bResized := { || Incrusta( oWnd1, oDlg, .t.) }
      DEFINE DIALOG oDlg RESOURCE "ABMS" OF oWnd1
      REDEFINE XBROWSE oBrw DATASOURCE oQryBrw;
-              COLUMNS "tipocomp","letra","numfac","fecfac","nompro","importe","saldo","estado","observa";
-              HEADERS "Tipo","Letra","Numero","Fecha","Proveedor","Importe","Saldo","Estado","Obsevaciones";
+              COLUMNS "tipocomp","letra","numfac","fecfac","nompro","importe","saldo","estado","observa","fecvto";
+              HEADERS "Tipo","Letra","Numero","Fecha","Proveedor","Importe","Saldo","Estado","Obsevaciones","F.Vto";
               FOOTERS ;
-              SIZES 40,30,110,80,200,100,100,55,50;
+              SIZES 40,30,90,70,180,80,80,55,50,70;
               ID 111 OF oDlg AUTOSORT ON DBLCLICK IF("M"$cPermisos,(Formu( .f.),oBrw:Refresh()),nil)
      REDEFINE SAY oBrw:oSeek PROMPT "" ID 113 OF oDlg
      oQryBrw:bOnChangePage := {|| oBrw:Refresh() }
@@ -89,7 +89,7 @@ oQryBrw    := oApp:oServer:Query( "SELECT c.tipocomp,c.letra,c.numfac,c.fecfac,c
      oBrw:aCols[7]:nFooterTypE := AGGR_SUM
      //oBrw:SetDolphin(oQry,.f.,.t.)
      oBrw:MakeTotals()
-     PintaBrw(oBrw,9) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
+     PintaBrw(oBrw,10) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
      oBrw:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar, oBrw,cPermisos,6)}
      // Activo el dialogo y al iniciar muevo a 0,0
      ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT oDlg:Move(0,0) VALID(oWnd1:End())

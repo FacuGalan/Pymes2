@@ -476,6 +476,9 @@ ENDIF
     oGet[38]:cText := oBrw:aCols[7]:nTotal * (oGet[37]:value/100) 
     oGet[21]:cText := oBrw:aCols[9]:nTotal + oGet[38]:value
     oGet[42]:cText := oBrw:aCols[11]:nTotal
+    IF !EMPTY(oQryRem:vendedor)
+        oGet[36]:Set(ALLTRIM(oQryRem:vendedor))
+    ENDIF    
   
 
 RETURN .T. 
@@ -1200,7 +1203,7 @@ LOCAL oGet1 := ARRAY(22), oBot := ARRAY(4), oForm, lRta := .f., oBrw2, oQryCuo, 
       oQryFormaPag:=oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"forpag"), oQryStock,;
       dFecVen:=DATE(),lGuarda:=.t.,lEnDolares:=.f.,nNumero, nPunLocal , nVuelto := 0, oFontV,;
       lImpSinIva := .f., cNomban, nSaldoCta, nNewPed, nCotiza, nPuntos := 0, nPuntosAcu := 0,;
-      cNotaCre := "", lPreciosFinales := .f.
+      cNotaCre := "", lPreciosFinales := .f., cSQL
 cLetra := IF(nTipoDoc=5,"R",IF(oApp:tipo_iva<>6,IF(oGet[13]:nAt = 1 .or. oGet[13]:nAt = 2 .or. oGet[13]:nAt = 6,"A","B"),"C"))
 cLetra := IF(!lFacturaM,cLetra,IF(cLetra="A","M",cLetra))
 // Validar que el DATOS CLIENTE
@@ -1767,12 +1770,13 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
                    "("+; 
                    "SELECT codart, SUM(cantidad) as suma "+;
                    "FROM ventas_det_H "+;
+                   "WHERE ESPROMO IS FALSE "+;
                    "GROUP BY codart "+;
                    ") v ON a.codigo = v.codart "+;
                    "SET a.stockact = a.stockact - (v.suma * "+IF(cTipoDoc="NC","-1","1")+") WHERE a.stockotro IS FALSE")
 
           // Actualizo el stock de los que descuentan de otros articulos
-          oQryStock:= oApp:oServer:Query("SELECT SUM(d.cantidad) * ("+IF(cTipoDoc="NC","-1","1")+") AS cantidad,"+;
+          /*oQryStock:= oApp:oServer:Query("SELECT SUM(d.cantidad) * ("+IF(cTipoDoc="NC","-1","1")+") AS cantidad,"+;
                                          "d.codart AS codart FROM ventas_det_H d "+;
                                          "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = d.codart "+;
                                          "WHERE a.stockotro = TRUE GROUP BY d.codart ")
@@ -1783,7 +1787,19 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
                                   "SET m.stockact = m.stockact - (("+ClipValue2Sql(oQryStock:cantidad)+") * r.cantidad) "+;
                                   "WHERE r.codart = "+ClipValue2Sql(oQryStock:codart))
              oQryStock:Skip()
-          ENDDO
+          ENDDO*/
+          cSQL := "UPDATE ge_"+oApp:cId+"articu m " + ;
+          "JOIN ( " + ;
+          "  SELECT r.codusa AS codigo_usado, SUM(d.cantidad * r.cantidad) AS total_a_restar " + ;
+          "  FROM ventas_det_H d " + ;
+          "  JOIN ge_"+oApp:cId+"articu a ON a.codigo = d.codart " + ;
+          "  JOIN ge_"+oApp:cId+"reseta r ON r.codart = d.codart " + ;
+          "  WHERE a.stockotro = TRUE AND d.ESPROMO IS FALSE " + ;
+          "  GROUP BY r.codusa " + ;
+          ") AS t ON t.codigo_usado = m.codigo " + ;
+          "SET m.stockact = m.stockact - t.total_a_restar"
+
+          oApp:oServer:Execute( cSQL )
       ENDIF
 
 
@@ -2196,7 +2212,7 @@ RETURN .T.
 *** Imprimir factura electronica
 *******************************************
 ** Impresion de factura
-FUNCTION PrintFactuElec(cTipoDoc,cNumComp)
+FUNCTION PrintFactuElec(cTipoDoc,cNumComp,aMetodosPago)
 LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                 "IVA no Responsable","IVA Sujeto Exento",;
                 "Consumidor Final","Responsable Monotributo",;
@@ -2209,6 +2225,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
   i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, oFont5, oQryVen1, oQryDet1, config, lComan,;
   oQryIvaDet, aCor,cCondVen,cFormaPag, nDesFac, oQryP , nRow1, nHoja , oQryPar1, cDomicilioFiscal, nBultos,;
   lImprimio_promo 
+DEFAULT aMetodosPago := {}  
   oQryVen1 := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"ventas_encab  "+;                                 
                                  "WHERE ticomp = " + ClipValue2Sql(cTipoDoc)+;
                                  " AND letra = "+Clipvalue2sql(LEFT(cNumComp,1))+;
@@ -2728,9 +2745,19 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                         @ nRow,0 PRINT TO oPrn TEXT "Acumulados: "+STR(oQryVen1:puntosacu,8) SIZE 4.8,1 CM FONT oFont  ALIGN "L" LASTROW nRow
                         @ nRow,0 PRINT TO oPrn TEXT "Total: "+STR(oQryVen1:puntos+oQryVen1:puntosacu ,8) SIZE 4.8,1 CM FONT oFont  ALIGN "L" LASTROW nRow
                      ENDIF
-                     IF oQryPar1:emite_pie
+                     IF oQryPar1:emite_pie                        
+                        IF !EMPTY(aMetodosPago)
+                           @ nRow+.3, .1 PRINT TO oPrn TEXT "FORMAS DE PAGO" ;
+                                    SIZE 4.8,1 CM FONT oFont1 LASTROW nRow ALIGN "L"   
+                           FOR i := 1 TO LEN(aMetodosPago)
+                               @ nRow+.3, .1 PRINT TO oPrn TEXT aMetodosPago[i,1] ;
+                                    SIZE 2.8,.5 CM FONT oFont ALIGN "TL"
+                               @ nRow+.3, 3 PRINT TO oPrn TEXT STR(aMetodosPago[i,2],12,2) ;
+                                    SIZE 1.8,.5 CM FONT oFont ALIGN "TR" LASTROW nRow
+                           NEXT i
+                        ENDIF           
                         @ nRow, .1 PRINT TO oPrn TEXT oQryPar1:texto_pie ;
-                                    SIZE 4.8,1.5 CM FONT oFont2 LASTROW nRow ALIGN "L"             
+                                    SIZE 4.8,1.5 CM FONT oFont2 LASTROW nRow ALIGN "L"  
                      ENDIF            
                      @ nRow,.1 PRINT TO oPrn TEXT "...";
                               SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"
@@ -2887,6 +2914,16 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                         @ nRow,0 PRINT TO oPrn TEXT "Total: "+STR(oQryVen1:puntos+oQryVen1:puntosacu ,8) SIZE 7.1,1 CM FONT oFont  ALIGN "L" LASTROW nRow
                      ENDIF 
                      IF oQryPar1:emite_pie
+                        IF !EMPTY(aMetodosPago)
+                           @ nRow+.3, .1 PRINT TO oPrn TEXT "FORMAS DE PAGO" ;
+                                    SIZE 4.8,1 CM FONT oFont1 LASTROW nRow ALIGN "L"   
+                           FOR i := 1 TO LEN(aMetodosPago)
+                               @ nRow+.3, .1 PRINT TO oPrn TEXT aMetodosPago[i,1] ;
+                                    SIZE 2.8,.5 CM FONT oFont ALIGN "TL"
+                               @ nRow+.3, 3 PRINT TO oPrn TEXT STR(aMetodosPago[i,2],12,2) ;
+                                    SIZE 1.8,.5 CM FONT oFont ALIGN "TR" LASTROW nRow
+                           NEXT i
+                        ENDIF 
                         @ nRow, .1 PRINT TO oPrn TEXT oQryPar1:texto_pie ;
                                     SIZE 4.8,1.5 CM FONT oFont2 LASTROW nRow ALIGN "L"             
                      ENDIF
@@ -3723,7 +3760,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
 RETURN nil
 
 
-FUNCTION FacturaNoFiscal(cTipoDoc,cNumComp)
+FUNCTION FacturaNoFiscal(cTipoDoc,cNumComp,aMetodosPago)
 LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                 "IVA no Responsable","IVA Sujeto Exento",;
                 "Consumidor Final","Responsable Monotributo",;
@@ -3734,6 +3771,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                 "Pequeño Contribuyente Eventual Social","IVA no Alcanzado"},;
       i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, oFont5, oQryVen1, oQryDet1, config,;
       oQryIvaDet, aCor,cCondVen,cFormaPag, oQryP, nRow1, nHoja, nDesFac, nBultos, lComan, lImprimio_promo := .f.
+DEFAULT aMetodosPago := {}      
    oQryVen1 := oApp:oServer:Query("SELECT *  FROM ge_"+oApp:cId+"ventas_encab "+;
                                  " WHERE ticomp = " + ClipValue2Sql(cTipoDoc)+;
                                  " AND letra = "+Clipvalue2sql(LEFT(cNumComp,1))+;
@@ -4137,8 +4175,18 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                       @ nRow, .1 PRINT TO oPrn TEXT "Total $ " + STR(oQryVen1:importe,12,2);
                                   SIZE 5,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"            
                       IF oQryPar:emite_pie
-                        @ nRow, .1 PRINT TO oPrn TEXT oQryPar:texto_pie ;
-                                    SIZE 3,1.5 CM FONT oFont2 LASTROW nRow ALIGN "L"             
+                          IF !EMPTY(aMetodosPago)
+                             @ nRow+.3, .1 PRINT TO oPrn TEXT "FORMAS DE PAGO" ;
+                                      SIZE 4.8,1 CM FONT oFont1 LASTROW nRow ALIGN "L"   
+                             FOR i := 1 TO LEN(aMetodosPago)
+                                 @ nRow+.3, .1 PRINT TO oPrn TEXT aMetodosPago[i,1] ;
+                                      SIZE 2.8,.5 CM FONT oFont ALIGN "TL"
+                                 @ nRow+.3, 3 PRINT TO oPrn TEXT STR(aMetodosPago[i,2],12,2) ;
+                                      SIZE 1.8,.5 CM FONT oFont ALIGN "TR" LASTROW nRow
+                             NEXT i
+                          ENDIF 
+                          @ nRow, .1 PRINT TO oPrn TEXT oQryPar:texto_pie ;
+                                      SIZE 4.8,1.5 CM FONT oFont2 LASTROW nRow ALIGN "L"                         
                       ENDIF
                       IF oApp:usar_puntos .and. oQryVen1:codcli > 1
                         @ nRow,0 PRINT TO oPrn TEXT "Puntos: "+STR(oQryVen1:puntos,8) SIZE 4.1,1 CM FONT oFont  ALIGN "L" LASTROW nRow
@@ -4258,7 +4306,17 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                               SIZE 5,.5 CM FONT oFont2 LASTROW nRow ALIGN "L"
                      @ nRow, .1 PRINT TO oPrn TEXT "Total $ " + STR(oQryVen1:importe,12,2);
                                   SIZE 7.1,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"            
-                     IF oQryPar:emite_pie
+                     IF oQryPar:emite_pie                        
+                        IF !EMPTY(aMetodosPago)
+                           @ nRow+.3, .1 PRINT TO oPrn TEXT "FORMAS DE PAGO" ;
+                                    SIZE 4.8,1 CM FONT oFont1 LASTROW nRow ALIGN "L"   
+                           FOR i := 1 TO LEN(aMetodosPago)
+                               @ nRow+.3, .1 PRINT TO oPrn TEXT aMetodosPago[i,1] ;
+                                    SIZE 2.8,.5 CM FONT oFont ALIGN "TL"
+                               @ nRow+.3, 3 PRINT TO oPrn TEXT STR(aMetodosPago[i,2],12,2) ;
+                                    SIZE 1.8,.5 CM FONT oFont ALIGN "TR" LASTROW nRow
+                           NEXT i
+                        ENDIF                         
                         @ nRow, .1 PRINT TO oPrn TEXT oQryPar:texto_pie ;
                                   SIZE 5.0,1.5 CM FONT oFont2 LASTROW nRow ALIGN "L"             
                      ENDIF
@@ -4799,7 +4857,7 @@ RETURN lRta
 STATIC FUNCTION ValidarCosto(nCos,nVen)
 LOCAL lRta := .t.
    IF oQryPun:validacosto = 1
-      IF nCos > nVen
+      IF nCos > nVen+1
           lRta:=MsgYesNo("El precio que está facturando está por debajo,"+CHR(10)+;
               "del costo del producto ¿Desea continuar?"+CHR(10)+;
               "Costo: "+ALLTRIM(STR(nCos)),"Atencion")
@@ -4812,7 +4870,7 @@ LOCAL lRta := .t.
    ENDIF
    //Prohibo la venta por costo menor a venta
    IF oQryPun:validacosto = 2
-      IF nCos > nVen
+      IF nCos > nVen+1
           MsgStop("No puede facturar el articulo seleccionado porque el "+CHR(10)+;
              "precio está por debajo del costo"+CHR(10)+;
              "Costo: "+ALLTRIM(STR(nCos)),"Atencion")

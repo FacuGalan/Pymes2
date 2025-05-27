@@ -23,13 +23,16 @@ LOCAL oBar, hHand,cDialog, cCod
      RETURN
   ENDIF
   AADD(oApp:aVentanas,cVentana)
-oGet := ARRAY(42) 
+oGet := ARRAY(43) 
 lAdmin:= IF(oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHERE usuario = "+ClipValue2Sql(oApp:usuario)+" AND modulo = 'CREUSU'"):RecCount()>0,.t.,.f.)
 validarqueexista()
 cDialog:= "ABMS"
 oQryPar:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros LIMIT 1")
-oQryBrw:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"pedidos_encab WHERE estado = 'P' ORDER BY orden DESC")
-
+oQryBrw:= oApp:oServer:Query("SELECT p.nuevo, p.id,p.CODCLI,p.CLIENTE,p.FECHA,p.PARAFECHA,p.Observa,"+;
+                             "p.VENDEDOR,p.ESTADO,ROUND(SUM(pd.cantidad * pd.punitario),2) as total "+;
+                             " FROM ge_"+oApp:cId+"pedidos_encab p "+;
+                             "INNER JOIN ge_"+oApp:cId+"pedidos_det pd ON pd.idpedido = p.id "+;
+                             " WHERE p.estado = 'P' GROUP BY p.id")
 
   DEFINE WINDOW oWnd1 MDICHILD TITLE "Generacion de pedidos" ;
           OF oApp:oWnd NOZOOM ICON oApp:oIco FROM 05,05 TO 50,50
@@ -75,15 +78,15 @@ oQryBrw:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"pedidos_encab WHERE e
    oWnd1:bResized := { || Incrusta( oWnd1, oDlg, .t.) }
      DEFINE DIALOG oDlg RESOURCE cDialog OF oWnd1
      REDEFINE XBROWSE oBrwG DATASOURCE oQryBrw;
-              COLUMNS "nuevo","id","CODCLI","CLIENTE","FECHA","PARAFECHA","Observa","VENDEDOR","ESTADO";
-              HEADERS "","Nro Pedido","Código Cliente","Nombre","Fecha","Para Fecha","Observaciones","Vendedor","Estado";
-              SIZES 40,70,65,270,90,90,200,100,100;
+              COLUMNS "nuevo","id","CODCLI","CLIENTE","FECHA","PARAFECHA","total","VENDEDOR","ESTADO","observa";
+              HEADERS "","Nro Pedido","Código Cliente","Nombre","Fecha","Para Fecha","Total","Vendedor","Estado","Observaciones";
+              SIZES 40,70,65,270,90,90,200,100,100,100;
+              FOOTERS;
               ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu(cPermisos,.f.),oBrwG:Refresh()),.T.))
      REDEFINE SAY oBrwG:oSeek PROMPT "" ID 113 OF oDlg
      oQryBrw:bOnChangePage := {|| oBrwG:Refresh() }
      oQryBrw:SetOrder("cliente")
-     //oBrwG:SetDolphin(oQry,.f.,.t.)
-     PintaBrw(oBrwG,9) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
+     //oBrwG:SetDolphin(oQry,.f.,.t.)          
      oBrwG:aCols[1]:bStrData := {|| IF(oQryBrw:Reccount()>0,IF(oQryBrw:nuevo,"Nuevo!",""),"")}
      oBrwG:bClrStd := { || IF(oQryBrw:nuevo,{ CLR_BLACK, RGB(255,50,50) },;
                           If( oBrwG:KeyNo() % 2 == 0, ;
@@ -92,6 +95,9 @@ oQryBrw:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"pedidos_encab WHERE e
      oBrwG:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar,cPermisos)}
      oBrwG:cSeek := ""
      oBrwG:oSeek:SetText("")
+     oBrwG:aCols[7]:nFooterTypE := AGGR_SUM
+     oBrwG:Maketotals()
+     PintaBrw(oBrwG,10) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
      // Activo el dialogo y al iniciar muevo a 0,0
      ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT oDlg:Move(0,0) VALID(oWnd1:End())
    ACTIVATE WINDOW oWnd1 ON INIT Incrusta( oWnd1, oDlg, .T.) VALID(cerrar())
@@ -179,7 +185,7 @@ RETURN NIL
 *******************************************************************************************************************************************
 ***************VENTANA DE PEDIDOS 
 STATIC FUNCTION Formu(cPermiso,lAlta)
-LOCAL oBot := ARRAY(9) , aTipoIva, aTipoDoc, base, cDireccion:=SPACE(30), cLocalidad:=SPACE(30),;
+LOCAL oBot := ARRAY(9) , aTipoIva, aTipoDoc, base, cDireccion:=SPACE(30), cLocalidad:=SPACE(30), aVendedor, oQryV,;
       cCUIT:=SPACE(13),  nCodArt:=0, nCantidad:=0, nPunit:=0, nPtotal:=0,  nNeto:=0, oQry, lUsoBorrar := .f.,;      
       nIVA:=0,  oFontLetra, oFontTotal,cDescu,oSay2,oDlg2,oWnd2,i,lResp:=.f.,oQryLis,cLisPre:="SIN LISTA ESPECIAL"+SPACE(31),;
       nNumFac:=0, nDNI := 0, nTiArt,oQryIvaT, cNomLis:=SPACE(50),aListas:={"Lista 1","Lista 2"}, cCodArtP := SPACE(30)
@@ -231,6 +237,8 @@ IF lAlta
     base:id :=  oApp:oServer:GetAutoIncrement("ge_"+oApp:cId+"pedidos_encab")
     oQryDet :=oApp:oServer:Query("SELECT *,(cantidad-faltantes) AS disponibles FROM ventas_det_h2")
     oQryDet:ZAP()
+    oQryV := oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"vendedores")
+    aVendedor := oQryV:FillArray(,{'nombre'})
     ELSE    
     oQry    := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"pedidos_encab WHERE id = " + ClipValue2Sql(oQryBrw:id)+" ")
     base:= oQry:GetRowObj() 
@@ -257,6 +265,7 @@ IF lAlta
           RETURN .f.
        ENDIF   
     ENDIF   
+    aVendedor := {base:vendedor}
 
 ENDIF
 oApp:oServer:Execute("";
@@ -312,7 +321,7 @@ oQryLisPre:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre")
 
     //CLIENTE
     REDEFINE GET oGet[08] VAR base:codcli ID 185 OF oDlg2 PICTURE "999999" WHEN(lAlta) ;
-             ACTION (oGet[08]:cText:= 0, ValidaCli(,base:vendedor))  BITMAP "BUSC1" VALID (ValidaCli(,base:vendedor)) 
+             ACTION (oGet[08]:cText:= 0, ValidaCli(,base:vendedor,lAlta))  BITMAP "BUSC1" VALID (ValidaCli(,base:vendedor,lAlta)) 
     REDEFINE GET oGet[09] VAR base:cliente ID 186 OF oDlg2 PICTURE "@!"  WHEN(.f.)
     REDEFINE GET oGet[10] VAR cDireccion ID 187  OF oDlg2 PICTURE "@!" WHEN(.f.)
     REDEFINE GET oGet[11] VAR cLocalidad ID 188  OF oDlg2 PICTURE "@!" WHEN(.f.)
@@ -320,9 +329,13 @@ oQryLisPre:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre")
              WHEN(.f.) VALID(ValidaCuit(cCuit))
     REDEFINE GET oGet[22] VAR nDNI      ID 201 OF oDlg2 PICTURE "99999999" ;
              WHEN(.f.)
-    REDEFINE SAY oSay3 VAR cRemitos ID 4002 OF oDlg2 COLOR CLR_GREEN
+    REDEFINE SAY oSay3 VAR cRemitos ID 4002 OF oDlg2 COLOR CLR_GREEN 
+
     REDEFINE COMBOBOX oGet[13] VAR nConIva ID 190 OF oDlg2 WHEN(.f.) ITEMS aTipoIva;
              ON CHANGE ValidaCli(.f.,base:vendedor) 
+
+    REDEFINE COMBOBOX oGet[43] VAR base:vendedor ID 4014 OF oDlg2 WHEN(lAlta) ITEMS aVendedor
+
     REDEFINE GET oGet[31] VAR nDescuGen ID 308 OF oDlg2 PICTURE "999.99" WHEN(nTipoDoc = 5)
     REDEFINE GET oGet[32] VAR nDeuda    ID 4001 OF oDlg2 PICTURE "9999999999.99" WHEN(.F.)
     REDEFINE COMBOBOX oGet[36] VAR nLisPre   ID 4011  ITEMS aListas OF oDlg2 
@@ -425,7 +438,7 @@ oQryLisPre:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre")
     // F9 Para grabar             
     oDlg2:bKeyDown = { | nKey, nFlags | IF(nKey==120,oBot[3]:Click,.f.) }
     //ACTiVACION   ---------------------------------------------------------------
-    ACTIVATE DIALOG oDlg2 CENTER ON INIT IF(base:codcli>0,ValidaCli(,base:vendedor),nil)
+    ACTIVATE DIALOG oDlg2 CENTER ON INIT IF(base:codcli>0,ValidaCli(,base:vendedor,.f.),nil)
 
 RETURN lResp
 
@@ -704,7 +717,7 @@ RETURN .t.
 
 
 ************************************************************************************
-STATIC FUNCTION ValidaCli(lVerCli,cVendedor)
+STATIC FUNCTION ValidaCli(lVerCli,cVendedor,lAlta)
 LOCAL nNro:=0,oQryLis1
 DEFAULT lVerCli := .T.
 
@@ -753,6 +766,9 @@ oGet[21]:cText := oBrw:aCols[12]:nTotal
 oGet[19]:Refresh()
 oGet[20]:Refresh()
 oGet[21]:Refresh()
+IF lAlta 
+   oGet[43]:Set(oApp:oServer:Query("SELECT nombre FROM ge_"+oApp:cId+"vendedores WHERE codigo = "+ClipValue2Sql(oQryCli:vendedor)):nombre)
+ENDIF
 RETURN .T.
 
 
@@ -1118,7 +1134,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
          NEXT    
          @ y, 1 PRINT TO oPrn TEXT ALLTRIM(oGet[42]:cText) ;
                           SIZE 18,3 CM FONT oFont ALIGN "L"   
-         @ 23.0,1  PRINT TO oPrn TEXT IF(!empty(oQryCli:nomven),"Vendedor: "+ALLTRIM(oQryCli:nomven),"") ;
+         @ 23.0,1  PRINT TO oPrn TEXT IF(!empty(base:vendedor),"Vendedor: "+ALLTRIM(base:vendedor),"") ;
                       SIZE 5,.5 CM FONT oFont3                 
          @ 23.5, 12 PRINT TO oPrn TEXT "Total $:" ;
                           SIZE 4,.5 CM FONT oFont3 ALIGN "R"
@@ -1190,6 +1206,8 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                               SIZE 4.5,3 CM FONT oFont ALIGN "L" LASTROW nRow   
                  @ nRow, 00 PRINT TO oPrn TEXT "Total $:" + STR(nTotal,12,2);
                               SIZE 4,.5 CM FONT oFont1 ALIGN "R"
+                 @ nRow, 00 PRINT TO oPrn TEXT "V:" + ALLTRIM(base:vendedor);
+                              SIZE 4.5,.5 CM FONT oFont1 ALIGN "L" LASTROW nRow 
                  @ nRow+.5,.1 PRINT TO oPrn TEXT "...";
                               SIZE 5,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"
            ENDPAGE
@@ -1252,7 +1270,9 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                  @ y, 0 PRINT TO oPrn TEXT ALLTRIM(oGet[42]:cText) ;
                               SIZE 7.5,3 CM FONT oFont ALIGN "L" LASTROW nRow   
                  @ nRow, 00 PRINT TO oPrn TEXT "Total $:" + STR(nTotal,12,2);
-                              SIZE 7.5,.5 CM FONT oFont1 ALIGN "L" LASTROW nRow   
+                              SIZE 7.5,.5 CM FONT oFont1 ALIGN "L" LASTROW nRow 
+                 @ nRow, 00 PRINT TO oPrn TEXT "V:" + ALLTRIM(base:vendedor);
+                              SIZE 7.5,.5 CM FONT oFont1 ALIGN "L" LASTROW nRow 
                  @ nRow, 00 PRINT TO oPrn TEXT "...";
                               SIZE 7.5,.5 CM FONT oFont LASTROW nRow ALIGN "L"
            ENDPAGE

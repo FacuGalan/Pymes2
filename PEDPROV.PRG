@@ -216,7 +216,7 @@ STATIC FUNCTION EligeArt(oDlg,oGet1)
 LOCAL oGet := ARRAY(4), oBot := ARRAY(3), oForm, lRta := .F., aCor, base, oError, oQry,;
       cNomArt:=SPACE(50),oQryArt,nCantidad:=1,nCodArt:=0,nPrecio:=0, cCodPro1 := " "
 
-oQryArt:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu")
+oQryArt:= oApp:oServer:Query("SELECT codigo,nombre,stockact,precossiva,preciocos,iva, siniva,codigopro FROM ge_"+oApp:cId+"articu")
 
 
 DEFINE DIALOG oForm TITLE "Encargar articulo";

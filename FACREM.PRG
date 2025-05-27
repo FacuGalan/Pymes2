@@ -356,7 +356,7 @@ LOCAL oQryIva, nTotalcIva, nIvaPes, nCodIva1, nSubTotal, nDescuento,;
       i,nCantidad,nPrecio1,nPrecio2,lRta:=.f.,nIvaCalc:=0,nDescMar
 
 IF nTiArt = 1
-   IF oQryPun:pidestock = 1 .and. oQryArt:stockact-oGet[16]:value <= 0
+   IF oQryPun:pidestock = 1 .and. oQryArt:stockact-oGet[16]:value < 0
       lRta:=MsgYesNo("El articulo que esta facturando esta fuera de stock,"+CHR(10)+;
               "verifique su disponibilidad ¿Desea continuar?"+CHR(10)+;
               "Stock actual: "+ALLTRIM(STR(oQryArt:stockact)),"Atencion")
@@ -364,7 +364,7 @@ IF nTiArt = 1
          RETURN .f.
       ENDIF
   ENDIF
-  IF oQryPun:pidestock = 2 .and. oQryArt:stockact-oGet[16]:value <= 0
+  IF oQryPun:pidestock = 2 .and. oQryArt:stockact-oGet[16]:value < 0
      MsgStop("No puede facturar el articulo seleccionado porque no esta en stock"+CHR(10)+;
            "Stock actual: "+ALLTRIM(STR(oQryArt:stockact)),"Atencion")
      RETURN .F.

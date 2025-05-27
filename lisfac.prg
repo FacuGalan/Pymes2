@@ -527,7 +527,7 @@ ELSE
       ENDIF   
       lTipo:= IF(nTipo=1,.f.,.t.)
       // Defino el reporte
-      oQry := oApp:oServer:Query( "SELECT p.cliente,p.numero,p.fecha, p.total,p.facturas, c.nombre , res.efec, res.tarj, res.cheq, res.anti,res.transf,res.promo,res.mpago,res.reten, p.id_cierre,pf.factura "+;
+      oQry := oApp:oServer:Query( "SELECT p.cliente,p.numero,p.fecha, p.total,p.facturas, c.nombre , res.efec, res.tarj, res.cheq, res.anti,res.transf,res.promo,res.mpago,res.reten, p.id_cierre,pf.factura,p.usuario "+;
                                   "FROM ge_"+oApp:cId+"pagos p "+;
                                   "LEFT JOIN "+;
                                   "(SELECT res.numero,SUM(res.efec) AS efec,SUM(tarj) AS tarj,SUM(cheq) AS cheq,"+;
@@ -557,6 +557,7 @@ ELSE
                                   IF(mcodcli > 0, " AND p.cliente = " + ClipValue2Sql(mcodcli),"") + " " + ;
                                   IF(lPorTurno .and. nCierre <> 0, " AND p.id_cierre = " + ClipValue2Sql(nCierre),"") + " " + ;
                                   IF(lPorTurno,"ORDER BY p.id_cierre,p.fecha,p.numero","ORDER BY p.fecha,p.numero"))
+      DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8.5 
       REPORT oRep TITLE "Cobranzas del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
              FONT  oFont1,oFont2,oFont3 ;
              HEADER OemToAnsi(oApp:nomb_emp) , ;
@@ -582,6 +583,9 @@ ELSE
          COLUMN TITLE "Cierre"         DATA oQry:id_cierre  SIZE 06 FONT 1
       ENDIF
       COLUMN TITLE "Facturas"         DATA oQry:factura  SIZE 30 FONT 1
+      IF cUsua = "TODOS"
+         COLUMN TITLE "Usuario"       DATA oQry:usuario  SIZE 09 FONT 1
+      ENDIF   
       // Digo que el titulo lo escriba con al letra 2
       // Digo que el titulo lo escriba con al letra 2
       oRep:oTitle:aFont[1] := {|| 2 }

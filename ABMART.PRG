@@ -163,30 +163,36 @@ IF lAlta
    nPrecioven:=base:precioven
    nPreciocos:=base:preciocos
    mstock := base:stockact
+   oQry2:Refresh()
+   oQry3:Refresh()
+   oQry4:Refresh()
+   oQry5:Refresh()
+   oQry6:Refresh()
+   oQry7:Refresh()
 ENDIF
 
    oQry2:GoTop()
-   IF oQry2:Seek(base:prov,1) > 0
+   IF oQry2:Seek(base:prov,1,1,oQry2:nRecCount,.f.) > 0
       cProve := oQry2:nombre
    ENDIF
    oQry3:GoTop()
-   IF oQry3:Seek(base:iva,1) > 0
+   IF oQry3:Seek(base:iva,1,1,oQry3:nRecCount,.f.) > 0
       cIvaNom := STR(oQry3:tasa,6,2) + "%"
    ENDIF
    oQry4:GoTop()
-   IF oQry4:Seek(base:marca,1) > 0
+   IF oQry4:Seek(base:marca,1,1,oQry4:nRecCount,.f.) > 0
       cMarc := oQry4:nombre
    ENDIF
    oQry5:GoTop()
-   IF oQry5:Seek(base:rubro,1) > 0
+   IF oQry5:Seek(base:rubro,1,1,oQry5:nRecCount,.f.) > 0
       cRub := oQry5:nombre
    ENDIF
    oQry6:GoTop() 
-   IF oQry6:Seek(base:depto,1) > 0
+   IF oQry6:Seek(base:depto,1,1,oQry6:nRecCount,.f.) > 0
       cDept := oQry6:nombre
    ENDIF
    oQry7:GoTop()
-   IF oQry7:Seek(base:empresa,1) > 0
+   IF oQry7:Seek(base:empresa,1,1,oQry4:nRecCount,.f.) > 0
       cEmp := oQry7:nombre
    ENDIF   
 
@@ -248,7 +254,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Articulo" RESOU
   REDEFINE GET oGet[35] VAR base:unimed     ID 135 OF oForm PICTURE "@!"
   REDEFINE GET oGet[47] VAR base:medida     ID 500 OF oForm PICTURE "9999999"
   REDEFINE GET oGet[48] VAR base:entero     ID 501 OF oForm PICTURE "9999999"
-  REDEFINE GET oGet[49] VAR base:uxbulto    ID 502 OF oForm 
+  REDEFINE GET oGet[49] VAR base:uxbulto    ID 502 OF oForm PICTURE "9999"
   REDEFINE GET oGet[50] VAR base:pxbulto    ID 503 OF oForm PICTURE "999999999.99";
                VALID((oGet[06]:cText:= (base:pxbulto/base:uxbulto)) <> "xxx")
 
@@ -833,6 +839,17 @@ IF oApp:oServer:Query("SELECT COUNT(codart) as casos FROM ge_"+oApp:cId+"ventas_
                  "ventas asociadas","Atencion")
    RETURN nil 
 ENDIF
+IF oApp:oServer:Query("SELECT COUNT(codart) as casos FROM ge_"+oApp:cId+"reseta "+;
+          " WHERE codart = "+str(nNum)+" OR codusa = "+str(nNum)):casos > 0
+   MsgStop("No puede borrar este articulo porque tiene"+CHR(10)+;
+                 "recetas asociadas","Atencion")
+   RETURN nil 
+ENDIF
+IF oApp:oServer:Query("SELECT COUNT(codart) as casos FROM ge_"+oApp:cId+"remitos WHERE facturado is false and codart = "+str(nNum)):casos > 0
+   MsgStop("No puede borrar este articulo porque tiene"+CHR(10)+;
+                 "remitos asociados","Atencion")
+   RETURN nil 
+ENDIF
 mrta := MsgNoYes("Seguro de eliminar"+CHR(10)+;
                  "el registro código N°:"+STR(nNum),"Atencion")
 IF !mrta
@@ -842,6 +859,8 @@ TRY
 
   oApp:oServer:BeginTransaction()
   oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"articu WHERE codigo = " + ClipValue2Sql(oQryBrw:codigo))
+  oApp:oServer:Execute("DELETE FROM  ge_"+oApp:cId+"gruposdet WHERE codart = "+ClipValue2SQL(oQryBrw:codigo))
+  oApp:oServer:Execute("DELETE FROM  ge_"+oApp:cId+"lispredet WHERE codart = "+ClipValue2SQL(oQryBrw:codigo))
   oApp:oServer:CommitTransaction()
   oQryBrw:Refresh(.f.)
 
