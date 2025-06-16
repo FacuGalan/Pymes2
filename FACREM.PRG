@@ -356,7 +356,7 @@ LOCAL oQryIva, nTotalcIva, nIvaPes, nCodIva1, nSubTotal, nDescuento,;
       i,nCantidad,nPrecio1,nPrecio2,lRta:=.f.,nIvaCalc:=0,nDescMar
 
 IF nTiArt = 1
-   IF oQryPun:pidestock = 1 .and. oQryArt:stockact-oGet[16]:value < 0
+   /*IF oQryPun:pidestock = 1 .and. oQryArt:stockact-oGet[16]:value < 0
       lRta:=MsgYesNo("El articulo que esta facturando esta fuera de stock,"+CHR(10)+;
               "verifique su disponibilidad ¿Desea continuar?"+CHR(10)+;
               "Stock actual: "+ALLTRIM(STR(oQryArt:stockact)),"Atencion")
@@ -368,7 +368,10 @@ IF nTiArt = 1
      MsgStop("No puede facturar el articulo seleccionado porque no esta en stock"+CHR(10)+;
            "Stock actual: "+ALLTRIM(STR(oQryArt:stockact)),"Atencion")
      RETURN .F.
-  ENDIF
+  ENDIF*/
+  IF !ValidarCantidad(oQryArt:codigo,oGet[16]:value)
+      RETURN .f.
+  ENDIF 
 
 
    nDescMar:= oApp:oServer:Query("SELECT descuento FROM ge_"+oApp:cId+"desccli WHERE codmar ="+ClipValue2Sql(oQryArt:marca)+" AND "+;
@@ -446,6 +449,69 @@ oGet[19]:Refresh()
 oGet[20]:Refresh()
 oGet[21]:Refresh()
 RETURN .t.
+
+
+STATIC FUNCTION ValidarCantidad(nCod, nVal)
+LOCAL lRta := .t., nCanti, oQryAux, oQryS
+IF nCod <= 0 .OR. nTipoDoc = 3
+   RETURN .t.
+ENDIF   
+nCanti := oApp:oServer:Query("SELECT SUM(cantidad) as canti FROM VENTAS_DET_H3 WHERE codart ="+str(nCod)):canti
+nCanti := nCanti + nVal
+oQryAux := oApp:oServer:Query("SELECT* FROM ge_"+oApp:cId+"articu WHERE codigo ="+str(nCod))
+  //Valido que tenga stock el producto cuando no es stock de otro
+   IF oQryPun:pidestock = 1 .and. oQryAux:stockact-nCanti < 0 .and. !oQryAux:stockotro
+      lRta:=MsgYesNo("El articulo que esta facturando esta fuera de stock,"+CHR(10)+;
+              "verifique su disponibilidad ¿Desea continuar?"+CHR(10)+;
+              "Stock actual: "+ALLTRIM(STR(oQryAux:stockact)),"Atencion")
+      IF !lRta 
+         RETURN .f.
+      ENDIF            
+  ENDIF
+  //Valido que tenga stock el producto que es stock de otro
+  IF oQryPun:pidestock = 1 .and. oQryAux:stockotro 
+      oQryS := oApp:oServer:Query("SELECT r.CODUSA, (a.STOCKACT - (r.CANTIDAD * "+STR(nCanti)+" )) AS STOCK_FINAL "+;
+                                  " FROM ge_"+oApp:cId+"reseta r "+;
+                                  " JOIN ge_"+oApp:cId+"articu a ON r.CODUSA = a.CODIGO "+;
+                                  " JOIN ge_"+oApp:cId+"articu a1 ON r.CODART = a1.CODIGO "+;
+                                  " WHERE r.CODART = "+STR(nCod)+;
+                                  " HAVING STOCK_FINAL < 0")
+      IF oQryS:nRecCount > 0
+          lRta:=MsgYesNo("El articulo que esta facturando tiene receta, y los articulos"+chr(10)+;
+                  "que la componen estan fuera de stock,"+CHR(10)+;
+                  "verifique su disponibilidad ¿Desea continuar?","Atencion")
+          IF !lRta 
+             RETURN .f.
+          ENDIF                
+      ENDIF    
+  ENDIF
+
+  //No dejo vender por falta de stock
+  IF oQryPun:pidestock = 2 .and. oQryAux:stockact-nCanti < 0 .and. !oQryAux:stockotro
+     MsgStop("No puede facturar el articulo seleccionado porque no esta en stock"+CHR(10)+;
+           "Stock actual: "+ALLTRIM(STR(oQryAux:stockact)),"Atencion")
+     RETURN .F.
+  ENDIF
+  //No dejo vender por falta de stock de la receta
+  IF oQryPun:pidestock = 2 .and. oQryAux:stockotro 
+      oQryS := oApp:oServer:Query("SELECT r.CODUSA, (a.STOCKACT - (r.CANTIDAD * "+STR(nCanti)+" )) AS STOCK_FINAL "+;
+                                  " FROM ge_"+oApp:cId+"reseta r "+;
+                                  " JOIN ge_"+oApp:cId+"articu a ON r.CODUSA = a.CODIGO "+;
+                                  " JOIN ge_"+oApp:cId+"articu a1 ON r.CODART = a1.CODIGO "+;
+                                  " WHERE r.CODART = "+STR(nCod)+;
+                                  " HAVING STOCK_FINAL < 0")
+      IF oQryS:nRecCount > 0
+          MsgStop("No puede facturar, el articulo seleccionado tiene receta, "+chr(10)+;
+                  "y los articulos que la componen estan fuera de stock."+CHR(10),"Atencion")
+          RETURN .F.
+      ENDIF    
+  ENDIF
+
+
+  IF oQryPun:pidestock < 3 .and. oQryAux:stockmin > 0 .and. oQryAux:stockact-nCanti  < oQryAux:stockmin .and. !oQryAux:stockotro
+     MsgAlert("Se esta quedando sin stock, llego al stock minimo","Atencion")         
+  ENDIF
+RETURN lRta
 
 *******************************************************************************************
 ******* MOSTRAR REMITOS A FACTURAR

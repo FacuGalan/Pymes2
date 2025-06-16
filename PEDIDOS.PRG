@@ -31,7 +31,7 @@ oQryPar:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros LIMIT 1")
 oQryBrw:= oApp:oServer:Query("SELECT p.nuevo, p.id,p.CODCLI,p.CLIENTE,p.FECHA,p.PARAFECHA,p.Observa,"+;
                              "p.VENDEDOR,p.ESTADO,ROUND(SUM(pd.cantidad * pd.punitario),2) as total "+;
                              " FROM ge_"+oApp:cId+"pedidos_encab p "+;
-                             "INNER JOIN ge_"+oApp:cId+"pedidos_det pd ON pd.idpedido = p.id "+;
+                             "LEFT JOIN ge_"+oApp:cId+"pedidos_det pd ON pd.idpedido = p.id "+;
                              " WHERE p.estado = 'P' GROUP BY p.id")
 
   DEFINE WINDOW oWnd1 MDICHILD TITLE "Generacion de pedidos" ;
@@ -106,16 +106,17 @@ RETURN
 
 ****************************************FILTRADO**********************
 STATIC FUNCTION Filtrar( )
-   LOCAL oFilt,oGet:=ARRAY(7),oBot:=ARRAY(2),acor:=ARRAY(4),vProv:=0,cNomProv:=SPACE(30),;
+   LOCAL oFilt,oGet:=ARRAY(9),oBot:=ARRAY(2),acor:=ARRAY(4),vProv:=0,cNomProv:=SPACE(30),;
    vDesde:=CTOD("01/01/2000"),vHasta:=DATE(),oQryPro,lRta:=.f.,oFont,cWhere,;
-   vPDesde:=DATE(),vPHasta := CTOD("01/01/2100") , nEstado := 1, aEstado := {"Solo Pendientes","Todos"}
+   vPDesde:=DATE(),vPHasta := CTOD("01/01/2100") , nEstado := 1, aEstado := {"Solo Pendientes","Todos"},;
+   oQryVen := oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"vendedores"), cNomVende := SPACE(30), vVende := 0
    
 oQryPro:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"clientes")
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 
 DO WHILE .T.                        
     DEFINE DIALOG oFilt TITLE "Filtrado de Pedidos";
-           FROM 05,15 TO 18,70 OF oWnd1 FONT oFont
+           FROM 05,15 TO 19,70 OF oWnd1 FONT oFont
        
        @ 07, 05 SAY "Cliente:"                OF oFilt PIXEL SIZE 50,20 RIGHT
        @ 22, 05 SAY "Desde:"                  OF oFilt PIXEL SIZE 50,20 RIGHT
@@ -123,6 +124,7 @@ DO WHILE .T.
        @ 37, 05 SAY "Para fecha:"             OF oFilt PIXEL SIZE 50,20 RIGHT
        @ 37, 75 SAY "Hasta:"                  OF oFilt PIXEL SIZE 50,20 RIGHT
        @ 52, 05 SAY "Estado:"                 OF oFilt PIXEL SIZE 50,20 RIGHT
+       @ 72, 05 SAY "Vendedor:"               OF oFilt PIXEL SIZE 50,20 RIGHT
 
 
        @ 05, 60 GET oGet[01] VAR vProv     OF oFilt PIXEL PICTURE "99999999" ;
@@ -134,6 +136,10 @@ DO WHILE .T.
        @ 35, 60 GET oGet[05] VAR vPDesde   OF oFilt PIXEL PICTURE "@D" CENTER                      
        @ 35,130 GET oGet[06] VAR vPHasta   OF oFilt PIXEL PICTURE "@D" CENTER 
        @ 55, 60 COMBOBOX oGet[07] VAR nEstado ITEMS aEstado   OF oFilt PIXEL SIZE 90,12
+       @ 70, 60 GET oGet[08] VAR vVende     OF oFilt PIXEL PICTURE "99999999" ;
+                    VALID(oGet[08]:value = 0 .or. Buscar(oQryVen,oFilt,oGet[08],oGet[09]));
+                    ACTION (oGet[08]:cText:= 0, Buscar(oQryVen,oFilt,oGet[08],oGet[09])) BITMAP "BUSC1"
+       @ 70,100 GET oGet[09] VAR cNomVende  OF oFilt PIXEL PICTURE "@!" WHEN(.F.)
 
           
        acor := AcepCanc(oFilt)
@@ -153,7 +159,8 @@ DO WHILE .T.
           + "" + IF(EMPTY(Vhasta),""," and fecha <=" + ClipValue2SQL(Vhasta) + "") ;
           + "" + IF(EMPTY(VPdesde),""," and parafecha >=" + ClipValue2SQL(VPdesde) + "") ; 
           + "" + IF(EMPTY(VPhasta),""," and parafecha <=" + ClipValue2SQL(VPhasta) + "") ;
-          + "" + IF(nEstado = 2," and estado <> 'A' "," and estado = 'P' " ) 
+          + "" + IF(nEstado = 2," and estado <> 'A' "," and estado = 'P' " ) ;
+          + "" + IF(vVende = 0,""," and codven =  "+str(vVende) ) 
    EXIT
 ENDDO
 oQryBrw:SetNewFilter(SET_WHERE,cWhere,.t.)
@@ -686,6 +693,8 @@ oGet[15]:cText:=SPACE(30)
 oGet[25]:cText:=SPACE(30)
 oGet[25]:Refresh()
 oGet[15]:Refresh()
+oGet[33]:cText := 0
+oGet[34]:cText := 0
 FOR i:= 16 TO 18
    oGet[i]:cText:=0
    oGet[i+10]:cText:=0
@@ -1013,7 +1022,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                   SIZE 6,.5 CM FONT oFont ALIGN "L"
          @ 5.5, 9.5  PRINT TO oPrn TEXT "Razon Social:" ;
                   SIZE 2.5,1 CM FONT oFont3 ALIGN "R"
-         @ 5.5, 12.5 PRINT TO oPrn TEXT ALLTRIM(oQryCli:nombre) ;
+         @ 5.5, 12.5 PRINT TO oPrn TEXT ALLTRIM(oQryCli:nombre) + " ("+ALlTRIM(STR(oQryCli:codigo))+")"; 
                   SIZE 8,1 CM FONT oFont LASTROW nRow ALIGN "L"
          @ 6,1  PRINT TO oPrn TEXT "Condicion IVA:" ;
                   SIZE 3,.5 CM FONT oFont3 ALIGN "R"
@@ -1468,7 +1477,9 @@ IF lResu
     oQry:End()
     ELSE
     oQry := oApp:oServer:Query("SELECT p1.id,p.cantidad,p.detart,p.codart,p1.parafecha,"+;
-                         "c.nombre,c.codigo as codcli, p1.observa,p.cantidad*p.punitario as importe "+;                         
+                         "c.nombre,c.codigo as codcli, c.direccion as direccion, "+;
+                         " c.localidad as localidad, p1.vendedor as vendedor, "+;
+                         " p1.observa,p.cantidad*p.punitario as importe "+;                         
                          " FROM ge_"+oApp:cId+"pedidos_encab p1 "+;
                          " LEFT JOIN ge_"+oApp:cId+"clientes c ON c.codigo = p1.codcli "+;
                          " LEFT JOIN ge_"+oApp:cId+"pedidos_det p ON p.idpedido = p1.id "+;
@@ -1483,7 +1494,9 @@ IF lResu
            IF(!lFacturados,"Pedidos Pendientes","Todos los Pedidos") CENTER ;
            FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
            PREVIEW CAPTION  IF(!lFacturados,"Pedidos Pendientes (Detalle) ","Todos los Pedidos (Detalle) ")
-    GROUP oGru ON oQry:id HEADER "Cliente: "+ALLTRIM(STR(oQry:codcli))+" "+ALLTRIM(oQry:nombre) + " "+ALLTRIM(oQry:observa) FOOTER "Totales Cliente"  FONT 3
+    GROUP oGru ON oQry:id HEADER "Cliente: "+ALLTRIM(STR(oQry:codcli))+" "+ALLTRIM(oQry:nombre) + " "+;
+          ALLTRIM(oQry:observa) + " ("+ ALLTRIM(oQry:direccion)+" "+ALlTRIM(oQry:localidad)+")"+;
+          IF(!Empty(oQry:vendedor)," Vendedor:"+ALLTRIM(oQry:vendedor),"") FOOTER "Totales Cliente"  FONT 3
     COLUMN TITLE "N° Pedido"  DATA oQry:id         SIZE 08 FONT 1
     COLUMN TITLE "Producto"   DATA oQry:detart     SIZE 30 FONT 1 
     COLUMN TITLE "Unidades"   DATA oQry:cantidad  PICTURE "999999999.999" SIZE 10 FONT 1 TOTAL

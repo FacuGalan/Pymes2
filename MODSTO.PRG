@@ -514,7 +514,7 @@ cSql := " SELECT * FROM (" +;
        "SELECT concat(cd.tipocomp,cd.letra,cd.numfac) as compro, 'Compra' as motivo, "+;
        " (cd.cantidad * IF(cd.tipocomp='NC',-1,1)) as entrada, 0 as salida, c.fecfac as fecha, cd.renglon as id FROM "+;
        " ge_"+oApp:cId+"compras c LEFT JOIN ge_"+oApp:cId+"compradet cd "+;
-       " ON cd.tipocomp = c.tipocomp and cd.letra = c.letra and cd.numfac = c.numfac "+;
+       " ON cd.tipocomp = c.tipocomp and cd.letra = c.letra and cd.numfac = c.numfac and c.codpro = cd.codpro "+;
        " WHERE cd.codart = "+ClipValue2Sql(oQry:codigo)+;
        " AND c.fecfac >= "+ClipValue2Sql(mdesde)+" AND c.fecfac <=  "+ClipValue2Sql(mhasta)+;       
        " UNION "+;

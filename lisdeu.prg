@@ -192,7 +192,9 @@ IF !lDetalle
                    SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
       COLUMN TITLE "30/60 dias"   DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha>30 .AND. DATE()-oQry:fecha<=60 ,oQry:saldo,0)  ;
                    SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
-      COLUMN TITLE "30 dias"      DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha>00 .AND. DATE()-oQry:fecha<=30 ,oQry:saldo,0)  ;
+      COLUMN TITLE "15/30 dias"      DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha>15 .AND. DATE()-oQry:fecha<=30 ,oQry:saldo,0)  ;
+                   SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
+      COLUMN TITLE "01/15 dias"      DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha>00 .AND. DATE()-oQry:fecha<=15 ,oQry:saldo,0)  ;
                    SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL
       COLUMN TITLE "A Vencer"     DATA IF(oQry:compro <> "Anticipo"  .AND. DATE()-oQry:fecha<=00 ,oQry:saldo,0)  ;
                    SIZE 10 PICTURE "9,999,999,999.99"  FONT 1 TOTAL

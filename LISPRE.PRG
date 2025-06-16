@@ -82,15 +82,15 @@ RETURN
 ** Formulario de altas y modificaciones
 STATIC FUNCTION Formu ( lAlta)
 LOCAL oGet := ARRAY(9), oBot := ARRAY(6),oQryPar,oQryEnt,oQryPro, oForm, lRta := .f., aCor, base, oError,;
-      oBrw1,oBrw2,oFont,aListas:={"Lista 1","Lista 2","Precio de costo"}
+      oBrw1,oBrw2,oFont,aListas:={"Lista 1","Lista 2","Precio de costo"}, oGetSeek, cSeek := SPACE(60)
 
 oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS `transi_lispre` ("+;
-                           "`codart` BIGINT(13) NOT NULL,"+;
-                           "`nomart` VARCHAR(200),"+;
+                           "`codigo` BIGINT(13) NOT NULL,"+;
+                           "`nombre` VARCHAR(200),"+;
                            "`numpre` INT(1),"+;
                            "`porc` DECIMAL(5,2),"+;
                            "`precio` DECIMAL(12,2),"+;
-                           "PRIMARY KEY (codart,nomart)) ENGINE=INNODB DEFAULT CHARSET=latin1")
+                           "PRIMARY KEY (codigo,nombre)) ENGINE=INNODB DEFAULT CHARSET=latin1")
 oApp:oServer:NextResult()
 oApp:oServer:Execute("TRUNCATE transi_lispre ")
 oApp:oServer:NextResult()
@@ -103,7 +103,7 @@ IF lAlta
    ELSE
    oQryPro:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre WHERE codigo = " +ClipValue2Sql(oQry:codigo))
    base := oQryPro:GetRowObj()
-   oApp:oServer:Execute("INSERT INTO transi_lispre (codart,nomart,numpre,porc,precio) "+;
+   oApp:oServer:Execute("INSERT INTO transi_lispre (codigo,nombre,numpre,porc,precio) "+;
                      "SELECT p.codart,a.nombre,p.numpre,p.porc,p.precio FROM ge_"+oApp:cId+"lispredet p LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = p.codart "+;
                      "WHERE p.codlis = " + ClipValue2Sql(oQry:codigo))
    oApp:oServer:NextResult()
@@ -113,7 +113,7 @@ oQryPar:= oApp:oServer:Query("SELECT * FROM transi_lispre")
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 DO WHILE .T.
 DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de lista de precios";
-       FROM 05,15 TO 32,81 OF oWnd1 FONT oFont
+       FROM 05,15 TO 34,81 OF oWnd1 FONT oFont
    
    @ 07, 05 SAY "Codigo:"     OF oForm PIXEL SIZE 30,20 RIGHT
    @ 22, 05 SAY "Nombre:"     OF oForm PIXEL SIZE 30,20 RIGHT
@@ -138,9 +138,12 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de lista de precio
    @ 35,200 BUTTON oBot[4] PROMPT "Actualizar" SIZE 40,12 OF oForm PIXEL ACTION(ActualizarPre(base:codigo),oQryPar:Refresh(),;
                                                                        oBrw1:Refresh())
    @ 60, 05 XBROWSE oBrw1 DATASOURCE oQryPar ;
-           COLUMNS "codart","nomart","porc","precio","numpre";
+           COLUMNS "codigo","nombre","porc","precio","numpre";
            HEADERS "Codigo","Detalle del articulo","% Incr.","Precio","Base";
-           SIZES   50,290,50,60,100 OF oForm SIZE 250,120 AUTOSORT PIXEL   
+           SIZES   50,290,50,60,100 OF oForm SIZE 250,120 AUTOSORT PIXEL
+   @187, 05 SAY "Filtrar:" SIZE 20,15 OF oForm PIXEL 
+   @185, 30 GET oGetSeek VAR cSeek OF oForm PIXEL     
+   oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt(oQryPar, oGetSeek, oBrw1, nKey) }      
    oBrw1:CreateFromCode()  
    oBrw1:nFreeze:= 2
    PintaBrw(oBrw1,0) 
@@ -149,7 +152,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de lista de precio
    oBrw1:aCols[4]:bOnPostEdit := {|oCol, xVal, nKey | CambiaPrecio(xval,oQryPar),oBrw1:Refresh()}
    oBrw1:aCols[5]:bStrData := {|| IF(oQryPar:RecCount()>0,IF(oQryPar:numpre=1,'Lista 1',IF(oQryPar:numpre=2,'Lista 2','Precio costo')),nil)}
 
-   oBrw1:bKeyDown := { |nKey| IF (nKey == VK_DELETE,(BorrarArt(oQryPar:codart),oQryPar:Refresh(),oBrw1:Refresh()),)}
+   oBrw1:bKeyDown := { |nKey| IF (nKey == VK_DELETE,(BorrarArt(oQryPar:codigo),oQryPar:Refresh(),oBrw1:Refresh()),)}
 
    acor := AcepCanc(oForm)
    @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Grabar (F9)" OF oForm SIZE 30,10 ;
@@ -175,7 +178,7 @@ TRY
   oQryPro:Save()
   oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"lispredet WHERE codlis = " + ClipValue2Sql(base:codigo))
   oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"lispredet (codlis,codart,numpre,porc,precio) "+;
-                       "SELECT "+ClipValue2Sql(base:codigo)+",codart,numpre,porc,precio FROM transi_lispre") 
+                       "SELECT "+ClipValue2Sql(base:codigo)+",codigo,numpre,porc,precio FROM transi_lispre") 
   oQry:Refresh()
   oApp:oServer:CommitTransaction()
 CATCH oError
@@ -197,7 +200,7 @@ LOCAL  oError,cPrecio:=" IF(l.numpre=1,a.precioven,IF(l.numpre=2,a.reventa,a.pre
 
 TRY
   oApp:oServer:BeginTransaction()
-  oApp:oServer:Execute("UPDATE transi_lispre l LEFT JOIN ge_"+oApp:cId+"articu a ON l.codart = a.codigo "+;
+  oApp:oServer:Execute("UPDATE transi_lispre l LEFT JOIN ge_"+oApp:cId+"articu a ON l.codigo= a.codigo "+;
 	                 "SET l.precio = ROUND("+cPrecio+"+"+cPrecio+"*(l.porc/100),0) ")
   oApp:oServer:CommitTransaction()
 
@@ -214,7 +217,7 @@ STATIC FUNCTION CambiaPrecio(nPrecio,oQryPar)
 LOCAL  base := oQryPar:GetRowObj(),nPreBase
 
 nPreBase:= oApp:oServer:Query("SELECT "+IF(base:numpre=1,"precioven",IF(base:numpre=2,"reventa","preciocos"))+" AS pre "+;
-                              "FROM ge_"+oApp:cId+"articu WHERE codigo = "+ClipValue2Sql(base:codart)):pre
+                              "FROM ge_"+oApp:cId+"articu WHERE codigo = "+ClipValue2Sql(base:codigo)):pre
 
 base:precio:= nPrecio
 base:porc := (nPrecio * 100) / nPreBase - 100
@@ -234,7 +237,7 @@ IF !mrta
 ENDIF
 TRY
   oApp:oServer:BeginTransaction()
-  oApp:oServer:Execute("DELETE FROM transi_lispre WHERE codart = " + ClipValue2Sql(codigo))
+  oApp:oServer:Execute("DELETE FROM transi_lispre WHERE codigo = " + ClipValue2Sql(codigo))
   oApp:oServer:CommitTransaction()
   oQry:Refresh(.t.)
 
@@ -315,14 +318,14 @@ TRY
      oApp:oServer:Execute("TRUNCATE transi_lispre")
   ENDIF
   IF lBorrarFilt
-     oApp:oServer:Execute("DELETE FROM transi_lispre WHERE codart IN (SELECT a.codigo FROM ge_"+oApp:cId+"articu a "+;
+     oApp:oServer:Execute("DELETE FROM transi_lispre WHERE codigo IN (SELECT a.codigo FROM ge_"+oApp:cId+"articu a "+;
 									                       			"WHERE "+IF(nCodProv>0,"a.prov    = "+ClipValue2Sql(nCodProv)," TRUE ")+" AND "+;
 									                                IF(nCodMar>0 ,"a.marca   = "+ClipValue2Sql(nCodMar) ," TRUE ")+" AND "+;
 									                                IF(nCodEmp>0 ,"a.empresa = "+ClipValue2Sql(nCodEmp) ," TRUE ")+" AND "+;
 									                                IF(nCodDto>0 ,"a.depto   = "+ClipValue2Sql(nCodDto) ," TRUE ")+" AND "+;
 									                                IF(nCodRub>0 ,"a.rubro   = "+ClipValue2Sql(nCodRub) ," TRUE ")+")")
   ENDIF
-  oApp:oServer:Execute("INSERT INTO transi_lispre (codart,nomart,numpre,porc,precio) "+;
+  oApp:oServer:Execute("INSERT INTO transi_lispre (codigo,nombre,numpre,porc,precio) "+;
                        "(SELECT a.codigo,a.nombre,"+ClipValue2Sql(nLisBase)+","+ClipValue2Sql(nPorc)+","+;
                               "ROUND(a."+cLista+" + a."+cLista+" * ("+ClipValue2Sql(nPorc)+"/100),0) "+;
                        "FROM ge_"+oApp:cId+"articu a "+;
@@ -378,9 +381,9 @@ ENDIF
 TRY
   oApp:oServer:BeginTransaction() 
   IF lBorrar
-     oApp:oServer:Execute("DELETE FROM transi_lispre WHERE codart = "+ClipValue2Sql(nArticu))
+     oApp:oServer:Execute("DELETE FROM transi_lispre WHERE codigo = "+ClipValue2Sql(nArticu))
   ENDIF
-  oApp:oServer:Insert("transi_lispre",{"codart","nomart","precio","numpre","porc"},{nArticu,cNomArt,ROUND(nPrecio,0),nLisBase,nPorc})
+  oApp:oServer:Insert("transi_lispre",{"codigo","nombre","precio","numpre","porc"},{nArticu,cNomArt,ROUND(nPrecio,0),nLisBase,nPorc})
   oApp:oServer:CommitTransaction()
 CATCH oError
     ValidaError(oError)

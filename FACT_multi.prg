@@ -39,6 +39,10 @@ DEFINE WINDOW oWnd1 MDICHILD TITLE "Ventas Temporales" ;
             TOOLTIP "Refrescar la pantalla"  ;
             ACTION (oQryPendi:Refresh(),oBrwPendi:Refresh());
             PROMPT "Refresca" TOP
+         DEFINE BUTTON RESOURCE "BUSC" OF oBar ;
+            TOOLTIP "Ver el historial de hoy"  ;
+            ACTION Historial(oWnd1);
+            PROMPT "Historial" TOP
          // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;
             TOOLTIP "Cerrar Ventana" ;
@@ -909,7 +913,8 @@ cNumComp := STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNumero,8)," ","0")
                            "('FC',"+ClipValue2Sql(cLetra)+","+ClipValue2Sql(cNumComp)+","+ClipValue2Sql(nCliente)+","+;
                             ClipValue2Sql(DATE())+","+ClipValue2Sql(oBrwDet:aCols[7]:nTotal)+","+ClipValue2Sql(oBrwDet:aCols[8]:nTotal)+","+;
                             ClipValue2Sql(nTotal)+",1,'PUNTO DE VENTA "+IF(nDescu>0," Dto: %"+ALLTRIM(STR(nDescu,6,2)),"")+"',"+;
-                            ClipValue2Sql(oQryCliAux:nombre)+","+ClipValue2Sql(oQryCliAux:cuit)+","+;
+                            ClipValue2Sql(IF(nCliente<=1,ALLTRIM(cCliente)+" "+ALLTRIM(oQryCliAux:nombre),oQryCliAux:nombre))+;
+                            ","+ClipValue2Sql(oQryCliAux:cuit)+","+;
                             ClipValue2Sql(oQryCliAux:dni)+","+ClipValue2Sql(oQryCliAux:direccion)+","+ClipValue2Sql(oQryCliAux:localidad)+","+;
                             ClipValue2Sql(oApp:usuario)+","+ClipValue2SQL(DATE())+","+ClipValue2SQL(oApp:cIp)+","+ClipValue2SQL(nCondicion)+;
                             ",1,"+ClipValue2Sql(nForma)+","+;
@@ -2384,3 +2389,66 @@ oGet[02]:Refresh()
 oGet[03]:Refresh()
 nTotal := ROUND(oBrwDet:aCols[9]:nTotal,2)
 RETURN nil
+
+**********************************************
+** Historial de Ventas realizadas
+STATIC FUNCTION Historial(oWnd1)
+LOCAL oBot := ARRAY(2), oForm, lRta := .f., aCor, oFont, oFont1, oError,;
+      oQryVen, oQryDet, oBrwVen, oBrwDet, aArr
+oQryVen := oApp:oServer:Query("SELECT CONCAT(v.ticomp,v.letra, v.numcomp) AS compro, v.fecha, v.hora, "+;                          
+                          "  v.importe, v.nombre , c.observa "+;
+                          " FROM ge_"+oApp:cId+"ventas_encab v "+;
+                          " LEFT JOIN (SELECT CONCAT(ticomp,letra, numcomp) AS compro, "+;
+                               " GROUP_CONCAT(observa) AS observa "+;
+                               "FROM ge_"+oApp:cId+"concfact WHERE fecha=CURDATE() "+;
+                               " GROUP BY CONCAT(ticomp,letra, numcomp) ) c "+;
+                          " ON c.compro = CONCAT(v.ticomp,v.letra, v.numcomp) "+;     
+                          " WHERE v.fecha = CURDATE() AND v.ticomp IN ('FC','FR')  ")
+oQryDet := oApp:oServer:Query("SELECT codart,cantidad,detart,punit,importe "+;
+                              " FROM ge_"+oApp:cId+"ventas_det LIMIT 0 ")
+aArr := oQryVen:FillArray(,{"hora","compro","nombre","importe","observa"})     
+IF EMPTY(aArr)
+   MsgInfo("Sin datos del dia de hoy para historial","Atencion") 
+   RETURN nil 
+ENDIF      
+DEFINE FONT oFont  NAME "TAHOMA" SIZE 0,-11.5
+DEFINE FONT oFont1 NAME "Segoe UI Light" SIZE 0,-22
+DEFINE DIALOG oForm TITLE "Historial"  FROM 05,15 TO 25,150 OF oWnd1 FONT oFont
+   acor := AcepCanc(oForm)   
+   @ 05, 05 SAY "COMPROBANTES" OF oForm SIZE 100,14 PIXEL FONT oFont1
+   @ 25, 05 XBROWSE oBrwVen SIZE 235,100 PIXEL OF oForm ARRAY aArr ;
+      COLUMNS 1,2,3,4,5;
+      HEADERS "Hora","Comprobante","Cliente","Importe","F. Pago";
+              SIZES 60,100,120,80,100;
+      FOOTERS CELL LINES NOBORDER AUTOSORT ON CHANGE Actuali(aArr,oBrwVen,oQryDet,oBrwDet)
+   oBrwVen:aCols[4]:nFooterType   := AGGR_SUM   
+   oBrwVen:MakeTotals()
+   oBrwVen:CreateFromCode()   
+   PintaBrw(oBrwVen,0)
+   @ 05,245 SAY "Detalle Comprobante" OF oForm SIZE 205,14 PIXEL FONT oFont1
+   @ 25,245 XBROWSE oBrwDet SIZE 255,100 PIXEL OF oForm DATASOURCE oQryDet ;
+          COLUMNS 'codart',"detart","cantidad","punit","importe";
+          HEADERS 'Codigo',"Detalle Producto","Cant.","Unitario","Total";
+          SIZES 70,220,60,60,80 FOOTERS;
+          CELL LINES NOBORDER AUTOSORT          
+   oBrwDet:aCols[3]:nFooterType   := AGGR_SUM
+   oBrwDet:aCols[5]:nFooterType   := AGGR_SUM
+   oBrwDet:MakeTotals()
+   oBrwDet:CreateFromCode()
+   PintaBrw(oBrwDet,0)   
+
+   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Salir" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL
+ACTIVATE DIALOG oForm CENTER ON INIT Actuali(aArr,oBrwVen,oQryDet,oBrwDet)
+RETURN nil
+
+***********************************************
+** Busca los articulos vendidos en cada factura
+STATIC FUNCTION Actuali(aArr,oBrwVen,oQryDet,oBrwDet)
+LOCAL cWhere, cComprobante := aArr[oBrwVen:nRowSel,2]
+
+cWhere := "nrofac = " + ClipValue2Sql(cComprobante) 
+oQryDet:SetNewFilter(SET_WHERE,cWhere,.t.)
+oBrwDet:MakeTotals()
+oBrwDet:Refresh()
+RETURN .t.

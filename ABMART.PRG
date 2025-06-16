@@ -31,13 +31,13 @@ MENU oPop2 POPUP
      MENUITEM "Solo No vendibles"    ACTION FiltrarVen(.f.)
 ENDMENU
 
-
    oQry2  := oApp:oServer:Query( "SELECT codigo,nombre,alias FROM ge_"+oApp:cId+"provee ORDER BY codigo")
    oQry3  := oApp:oServer:Query( "SELECT codigo,nombre,tasa FROM ge_"+oApp:cId+"ivas ORDER BY codigo")
    oQry4  := oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"marcas ORDER BY codigo")
    oQry5  := oApp:oServer:Query( "SELECT codigo,nombre,depto FROM ge_"+oApp:cId+"rubros ORDER BY codigo")
    oQry6  := oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"deptos ORDER BY codigo")
    oQry7  := oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"empresas ORDER BY codigo")
+   
  
   DEFINE WINDOW oWnd1 MDICHILD TITLE "A/B/M de Articulos: Solo articulos vendibles";
           OF oApp:oWnd NOZOOM ICON oApp:oIco FROM 05,05 TO 50,50
@@ -107,7 +107,7 @@ ENDMENU
                   COLUMNS "Codigo","codigopro","nombre","stockact","Preciocos","Precioven","reventa","fecmod","Observa";
                   HEADERS "Código art.","Cód.Prov.","Nombre","Stock","Precio costo","P. Venta 1","P. Venta 2","Fecha Cambio","Observaciones";
                   SIZES 90,70,230,60,70,75,75,70,200;
-                  ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu( .f.,oQryBrw:codigo),IF(oBrw<>nil .and. oQryBrw<>nil,oBrw:Refresh(),.f.)),nil))
+                  ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,Formu( .f.,oQryBrw:codigo),nil))
          REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg
          PintaBrw(oBrw,9) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
      ELSE
@@ -115,7 +115,7 @@ ENDMENU
                   COLUMNS "Codigo","codigopro","nombre","Preciocos","Precioven","reventa","fecmod","observa";
                   HEADERS "Código art","Cód.Prov.","Nombre","Precio costo","P. Venta 1","P. Venta 2","Fecha Cambio","Observaciones";
                   SIZES 90,70,350,70,70,70,70,200;
-                  ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu( .f.,oQryBrw:codigo),IF(oBrw<>nil .and. oQryBrw<>nil,oBrw:Refresh(),.f.)),nil))
+                  ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,Formu( .f.,oQryBrw:codigo),nil))
          REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg
          PintaBrw(oBrw,8) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
      ENDIF
@@ -163,38 +163,21 @@ IF lAlta
    nPrecioven:=base:precioven
    nPreciocos:=base:preciocos
    mstock := base:stockact
-   oQry2:Refresh()
-   oQry3:Refresh()
-   oQry4:Refresh()
-   oQry5:Refresh()
-   oQry6:Refresh()
-   oQry7:Refresh()
 ENDIF
-
-   oQry2:GoTop()
-   IF oQry2:Seek(base:prov,1,1,oQry2:nRecCount,.f.) > 0
-      cProve := oQry2:nombre
-   ENDIF
-   oQry3:GoTop()
-   IF oQry3:Seek(base:iva,1,1,oQry3:nRecCount,.f.) > 0
-      cIvaNom := STR(oQry3:tasa,6,2) + "%"
-   ENDIF
-   oQry4:GoTop()
-   IF oQry4:Seek(base:marca,1,1,oQry4:nRecCount,.f.) > 0
-      cMarc := oQry4:nombre
-   ENDIF
-   oQry5:GoTop()
-   IF oQry5:Seek(base:rubro,1,1,oQry5:nRecCount,.f.) > 0
-      cRub := oQry5:nombre
-   ENDIF
-   oQry6:GoTop() 
-   IF oQry6:Seek(base:depto,1,1,oQry6:nRecCount,.f.) > 0
-      cDept := oQry6:nombre
-   ENDIF
-   oQry7:GoTop()
-   IF oQry7:Seek(base:empresa,1,1,oQry4:nRecCount,.f.) > 0
-      cEmp := oQry7:nombre
-   ENDIF   
+   oQry2  := oApp:oServer:Query( "SELECT codigo,nombre,alias FROM ge_"+oApp:cId+"provee WHERE codigo = "+str(base:prov))
+   oQry3  := oApp:oServer:Query( "SELECT codigo,nombre,tasa FROM ge_"+oApp:cId+"ivas WHERE codigo = "+str(base:iva))
+   oQry4  := oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"marcas WHERE codigo = "+str(base:marca))
+   oQry5  := oApp:oServer:Query( "SELECT codigo,nombre,depto FROM ge_"+oApp:cId+"rubros WHERE codigo = "+str(base:rubro))
+   oQry6  := oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"deptos WHERE codigo = "+str(base:depto))
+   oQry7  := oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"empresas WHERE codigo = "+str(base:empresa))
+   
+   cProve := oQry2:nombre
+   cIvaNom := STR(oQry3:tasa,6,2) + "%"
+   cMarc := oQry4:nombre
+   cRub := oQry5:nombre
+   cDept := oQry6:nombre
+   cEmp := oQry7:nombre
+   
 
 base:observa := IF(EMPTY(base:observa),SPACE(255),ALLTRIM(base:observa)+SPACE(255-LEN(ALLTRIM(base:observa))))
 
@@ -267,7 +250,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Articulo" RESOU
   REDEFINE GET oGet[10] VAR base:desc4      ID 110 OF oForm PICTURE "999.99"
   REDEFINE GET oGet[11] VAR base:desc5      ID 111 OF oForm PICTURE "999.99"  
   REDEFINE GET oGet[39] VAR nNeto           ID 112 OF oForm PICTURE "999999999.99";
-  			   WHEN(CalcularNeto(base,oGet))
+           WHEN(CalcularNeto(base,oGet))
            
   REDEFINE GET oGet[12] VAR base:impint     ID 113 OF oForm PICTURE "99999.99"
   REDEFINE GET oGet[13] VAR base:flete      ID 114 OF oForm PICTURE "99999.9"
@@ -361,8 +344,8 @@ TRY
   IF !lAlta .AND. lActualizaGrupo 
      ActualizarGrupo(base)
   ENDIF
-  oQry:Refresh()   
   oQryBrw:Refresh(.f.)
+  oBrw:Refresh()   
 CATCH oError
     ValidaError(oError)
   LOOP
@@ -443,9 +426,9 @@ oApp:oServer:Execute("TRUNCATE reseta_temp")
 oApp:oServer:NextResult()
 
 oApp:oServer:Execute("INSERT INTO reseta_temp (codart,detart,cantidad,punit,ptotal) "+;
-	                 "(SELECT r.codusa,a.nombre,r.cantidad,a.preciocos,(r.cantidad * a.preciocos) "+;
-	                  "FROM ge_"+oApp:cId+"reseta r LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = r.codusa "+;
-	                  "WHERE r.codart = "+ClipValue2SQL(base:codigo)+")")
+                   "(SELECT r.codusa,a.nombre,r.cantidad,a.preciocos,(r.cantidad * a.preciocos) "+;
+                    "FROM ge_"+oApp:cId+"reseta r LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = r.codusa "+;
+                    "WHERE r.codart = "+ClipValue2SQL(base:codigo)+")")
 oApp:oServer:NextResult()
 oQryRes:= oApp:oServer:Query("SELECT * FROM reseta_temp")
 oQryArt:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu"+IF(lReceta," WHERE  mprima IS TRUE",""))
@@ -453,24 +436,24 @@ nPara := IF(lReceta,nPara,1)
 DEFINE FONT oFontTotal NAME "ARIAL" SIZE 12,30
 DO WHILE .T.
 DEFINE DIALOG oDlgR RESOURCE "RESETA" OF oForm TITLE IF(lReceta,"Receta Produccion","Stock de Otros")
-	oDlgR:lHelpIcon := .f.
+  oDlgR:lHelpIcon := .f.
 
-	REDEFINE GET oGet[1] VAR nPara     ID 100 OF oDlgR PICTURE "9999999.999" WHEN(lReceta)
+  REDEFINE GET oGet[1] VAR nPara     ID 100 OF oDlgR PICTURE "9999999.999" WHEN(lReceta)
   IF lReceta
-    	REDEFINE GET oGet[2] VAR nCodArt   ID 101 OF oDlgR PICTURE "99999999999999";
-    	             VALID(BuscarArt(oQryArt,oDlgR,oGet[2],oGet[3],'1','mprima') .and. oGet[03]:SetFocus() = nil );
+      REDEFINE GET oGet[2] VAR nCodArt   ID 101 OF oDlgR PICTURE "99999999999999";
+                   VALID(BuscarArt(oQryArt,oDlgR,oGet[2],oGet[3],'1','mprima') .and. oGet[03]:SetFocus() = nil );
                      ACTION (oGet[2]:cText:= 0, BuscarArt(oQryArt,oDlgR,oGet[2],oGet[3],'1','mprima')) BITMAP "BUSC1" 
      ELSE 
      REDEFINE GET oGet[2] VAR nCodArt   ID 101 OF oDlgR PICTURE "99999999999999";
                VALID(BuscarArt(oQryArt,oDlgR,oGet[2],oGet[3]));
                ACTION (oGet[2]:cText:= 0, BuscarArt(oQryArt,oDlgR,oGet[2],oGet[3])) BITMAP "BUSC1"
   ENDIF   
-	REDEFINE GET oGet[3] VAR cDetArt   ID 102 OF oDlgR PICTURE "@!" WHEN(.F.)
-	REDEFINE GET oGet[4] VAR nCantidad ID 103 OF oDlgR PICTURE "9999999.999" 
-	REDEFINE GET oGet[5] VAR nTotal    ID 104 OF oDlgR COLOR CLR_RED , CLR_YELLOW READONLY;
+  REDEFINE GET oGet[3] VAR cDetArt   ID 102 OF oDlgR PICTURE "@!" WHEN(.F.)
+  REDEFINE GET oGet[4] VAR nCantidad ID 103 OF oDlgR PICTURE "9999999.999" 
+  REDEFINE GET oGet[5] VAR nTotal    ID 104 OF oDlgR COLOR CLR_RED , CLR_YELLOW READONLY;
                  PICTURE "999999999.99" FONT oFontTotal WHEN(.F.)
 
-	REDEFINE XBROWSE oBrwRes DATASOURCE oQryRes;
+  REDEFINE XBROWSE oBrwRes DATASOURCE oQryRes;
        COLUMNS "CODART","DETART","CANTIDAD","PUNIT","PTOTAL";
        HEADERS "Codigo","Detalle Articulo","Cantidad","Precio U","Total";
        FOOTERS ;
@@ -486,17 +469,17 @@ DEFINE DIALOG oDlgR RESOURCE "RESETA" OF oForm TITLE IF(lReceta,"Receta Producci
                                    nTotal:= oBrwRes:aCols[5]:nTotal,oGet[4]:Refresh()),)}
     oDlgR:bKeyDown = { | nKey, nFlags | IF(nKey==120,oBot[3]:Click,.f.) }
 
-	REDEFINE BUTTON oBot[1] ID 200 OF oDlgR ACTION (AgregaItem(oQryRes,oBrwRes,oGet),oGet[2]:SetFocus());
-					WHEN(nCantidad >0 .AND. nCodArt > 0)
-	REDEFINE BUTTON oBot[2] ID 201 OF oDlgR ACTION (EliminarItem(oQryRes,oBrwRes,oGet),oGet[2]:SetFocus());
-	                WHEN(oQryRes:RecCount()>0)
-	REDEFINE BUTTON oBot[3] ID 202 OF oDlgR ACTION (lRta:=.t.,oDlgR:End()) 
-	REDEFINE BUTTON oBot[4] ID 203 OF oDlgR ACTION (lRta:=.f.,oDlgR:End()) CANCEL
+  REDEFINE BUTTON oBot[1] ID 200 OF oDlgR ACTION (AgregaItem(oQryRes,oBrwRes,oGet),oGet[2]:SetFocus());
+          WHEN(nCantidad >0 .AND. nCodArt > 0)
+  REDEFINE BUTTON oBot[2] ID 201 OF oDlgR ACTION (EliminarItem(oQryRes,oBrwRes,oGet),oGet[2]:SetFocus());
+                  WHEN(oQryRes:RecCount()>0)
+  REDEFINE BUTTON oBot[3] ID 202 OF oDlgR ACTION (lRta:=.t.,oDlgR:End()) 
+  REDEFINE BUTTON oBot[4] ID 203 OF oDlgR ACTION (lRta:=.f.,oDlgR:End()) CANCEL
   REDEFINE BUTTON oBot[5] ID 4001 OF oDlgR ACTION(ActualizarCosto(base,nTotal,nPara))
 ACTIVATE DIALOG oDlgR CENTER ON INIT oGet[1]:SetFocus()
 
 IF !lRta
-	RETURN nil 
+  RETURN nil 
 ENDIF
 IF lReceta
     base:cantprod:= nPara
@@ -505,10 +488,10 @@ IF lReceta
       oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"reseta WHERE codart = " +ClipValue2Sql(base:codigo))
       oApp:oServer:NextResult()
       oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"reseta (codart,codusa,cantidad) "+;
-      	                   "(SELECT "+ClipValue2Sql(base:codigo)+",codart,cantidad FROM reseta_temp)")
+                           "(SELECT "+ClipValue2Sql(base:codigo)+",codart,cantidad FROM reseta_temp)")
       oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"articu SET cantprod = "+ClipValue2Sql(base:cantprod)+","+;
-      	                                     "produccion = TRUE "+;
-      	                   "WHERE codigo = "+ClipValue2Sql(base:codigo))
+                                             "produccion = TRUE "+;
+                           "WHERE codigo = "+ClipValue2Sql(base:codigo))
       oApp:oServer:CommitTransaction()
     CATCH oError
         ValidaError(oError)
@@ -563,9 +546,9 @@ LOCAL oError
 TRY
   oApp:oServer:BeginTransaction()
 oApp:oServer:Execute("INSERT INTO reseta_temp (codart,detart,cantidad,punit,ptotal) "+;
-	                 "(SELECT "+ClipValue2SQL(oGet[2]:cText)+",a.nombre,"+ClipValue2Sql(oGet[4]:cText)+;
-	                 ",a.preciocos,"+ClipValue2Sql(oGet[4]:cText)+"*a.preciocos "+;
-	                  "FROM ge_"+oApp:cId+"articu a WHERE codigo = "+ClipValue2Sql(oGet[2]:cText)+")")
+                   "(SELECT "+ClipValue2SQL(oGet[2]:cText)+",a.nombre,"+ClipValue2Sql(oGet[4]:cText)+;
+                   ",a.preciocos,"+ClipValue2Sql(oGet[4]:cText)+"*a.preciocos "+;
+                    "FROM ge_"+oApp:cId+"articu a WHERE codigo = "+ClipValue2Sql(oGet[2]:cText)+")")
 CATCH oError
     ValidaError(oError)
 END TRY

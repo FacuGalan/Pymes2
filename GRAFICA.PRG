@@ -5,7 +5,7 @@ MEMVAR oApp
 STATIC oFont
 PROCEDURE Grafica1()
 LOCAL oGet3, oGet4, mrta := .f., mtotal, ant, mdesde := DATE(), mhasta := DATE(),;
-      oGraf,aSerie := {}, aLeyen := {}, oDlg, oBot1, oBot2, acor, oQry
+      oGraf,aSerie := {}, aLeyen := {}, oDlg, oBot1, oBot2, acor, oQry, nMax := 0, i
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 DEFINE DIALOG oDlg TITLE "Ventas por fecha" FROM 03,15 TO 11,45 ;
        OF oApp:oWnd FONT oFont
@@ -28,8 +28,16 @@ oQry := oApp:oServer:Query( "SELECT DAY(fecha) as dia, SUM(importe * IF(ticomp='
 DO WHILE !oQry:EOF()
    AADD(aSerie,oQry:cant)
    AADD(aLeyen,STR(oQry:dia))
+   IF oQry:cant > nMax 
+      nMax := oQry:cant 
+   ENDIF   
    oQry:SKIP()
 ENDDO
+IF nMax > 1000000
+  FOR i := 1 TO LEN(aSerie)
+      aSerie[i] := round(aSerie[i]/1000000,2)
+  NEXT i 
+ENDIF        
 oQry:End()
 IF LEN(aSerie) = 0
    MsgStop("Sin datos para mostrar","Atencion")
@@ -41,8 +49,8 @@ ENDIF
       REDEFINE GRAPH oGraf OF oDlg ID 111 TITLE "Ventas por dia" 3D XGRID;
                             YGRID XVALUES YVALUES LEGENDS TYPE 2
       oGraf:cTitle := "Ventas del " + DTOC(mdesde) + " al " + DTOC(mhasta)
-      oGraf:cSubTit:= "En Pesos"
-      oGraf:cTitX  := "Pesos"
+      oGraf:cSubTit:= "En "+if(nMax > 1000000,"Millones de ","")+" Pesos"
+      oGraf:cTitX  := if(nMax > 1000000,"Millones de ","")+"Pesos"
       oGraf:cTitY  := "Dias"
       oGraf:lPopUp := .T.
       oGraf:AddSerie(aSerie, "Ventas por dia", RGB(128,128,255))
@@ -58,7 +66,7 @@ LOCAL oGet3, mrta := .f., mdesde := YEAR(DATE()), ;
       oGraf,aSerie := {0,0,0,0,0,0,0,0,0,0,0,0},;
       aLeyen := {"Ene","Feb","Mar","Abr","May","Jun",;
                  "Jul","Ago","Sep","Oct","Nov","Dic"},;
-      oDlg, oBot1, oBot2, acor, oQry
+      oDlg, oBot1, oBot2, acor, oQry, nMax := 0, i 
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 DEFINE DIALOG oDlg TITLE "Ventas Anuales" FROM 03,15 TO 10,45 OF oApp:oWnd FONT oFont
    acor := AcepCanc(oDlg)
@@ -77,8 +85,16 @@ oQry := oApp:oServer:Query( "SELECT MONTH(fecha) as mes, SUM(importe * IF(ticomp
                             " GROUP BY MONTH(fecha)")
 DO WHILE !oQry:EOF()
    aSerie[oQry:mes] := oQry:cant
+   IF oQry:cant > nMax 
+      nMax := oQry:cant 
+   ENDIF
    oQry:Skip()
 ENDDO
+IF nMax > 1000000
+  FOR i := 1 TO LEN(aSerie)
+      aSerie[i] := round(aSerie[i]/1000000,2)
+  NEXT i 
+ENDIF 
 oQry:End()
 IF LEN(aSerie) = 0
    MsgStop("Sin datos para mostrar","Atencion")
@@ -89,8 +105,8 @@ ENDIF
       REDEFINE GRAPH oGraf OF oDlg ID 111 TITLE "Ventas por mes" 3D XGRID;
                             YGRID XVALUES YVALUES LEGENDS TYPE 1
       oGraf:cTitle := "Ventas Anuales " + STR(mdesde)
-      oGraf:cSubTit:= "En Pesos"
-      oGraf:cTitX  := "Pesos"
+      oGraf:cSubTit:= "En "+if(nMax > 1000000,"Millones de ","")+" Pesos"
+      oGraf:cTitX  := if(nMax > 1000000,"Millones de ","")+"Pesos"
       oGraf:cTitY  := "Mes"
       oGraf:lPopUp := .T.
       oGraf:AddSerie(aSerie, "Mes", RGB(255,128,255))
@@ -104,7 +120,7 @@ RETURN
 PROCEDURE Grafica3()
 LOCAL oGet3, oGet4, mrta := .f., mtotal, ant, mdesde := DATE(), mhasta := DATE(),;
       oGraf,aSerie := {}, aLeyen := {}, oDlg, oBot1, oBot2, acor,;
-      aRubro := {}, aPreci := {}, j, oQry
+      aRubro := {}, aPreci := {}, j, oQry, nMax := 0, i 
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 DEFINE DIALOG oDlg TITLE "Grafico por Rubro" FROM 03,15 TO 11,45 OF oApp:oWnd
    acor := AcepCanc(oDlg)
@@ -128,9 +144,17 @@ oQry := oApp:oServer:Query( "SELECT r.nombre as rubro, SUM(v.importe) as cant FR
                             "  AND v.fecha <= " + ClipValue2SQL(mhasta) + " GROUP BY r.nombre")
 DO WHILE !oQry:Eof()
    AADD(aLeyen,oQry:rubro)
-   AADD(aPreci,oQry:cant)      
+   AADD(aPreci,oQry:cant)    
+   IF oQry:cant > nMax 
+      nMax := oQry:cant 
+   ENDIF  
    oQry:Skip()
 ENDDO
+IF nMax > 1000000
+  FOR i := 1 TO LEN(aPreci)
+      aPreci[i] := round(aPreci[i]/1000000,2)
+  NEXT i 
+ENDIF 
 IF LEN(aLeyen) = 0
    MsgStop("Sin datos para mostrar","Atencion")
    RETURN
@@ -141,8 +165,8 @@ ENDIF
       REDEFINE GRAPH oGraf OF oDlg ID 111 TITLE "Ventas por Marca" 3D XGRID;
                             YGRID XVALUES YVALUES LEGENDS TYPE 4
       oGraf:cTitle := "Ventas x rubros del " + DTOC(mdesde) + " al " + DTOC(mhasta)
-      oGraf:cSubTit:= "En Pesos"
-      oGraf:cTitX  := "Pesos"
+      oGraf:cSubTit:= "En "+if(nMax > 1000000,"Millones de ","")+" Pesos"
+      oGraf:cTitX  := if(nMax > 1000000,"Millones de ","")+"Pesos"
       oGraf:cTitY  := "Rubro"
       oGraf:lPopUp := .T.
       
@@ -159,7 +183,7 @@ RETURN
 ** C O M P R A S 
 PROCEDURE Grafica21()
 LOCAL oGet3, oGet4, mrta := .f., mtotal, ant, mdesde := DATE(), mhasta := DATE(),;
-      oGraf,aSerie := {}, aLeyen := {}, oDlg, oBot1, oBot2, acor, oQry
+      oGraf,aSerie := {}, aLeyen := {}, oDlg, oBot1, oBot2, acor, oQry, nMax := 0, i
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 DEFINE DIALOG oDlg TITLE "Compras por fecha" FROM 03,15 TO 11,45 ;
        OF oApp:oWnd FONT oFont
@@ -180,10 +204,18 @@ ENDIF
 oQry := oApp:oServer:Query( "SELECT DAY(fecfac) as dia, SUM(importe * IF(tipocomp='NC' OR tipocomp='DE',-1,1)) as cant FROM ge_"+oApp:cId+"compras WHERE fecfac >= " + ClipValue2SQL(mdesde) +;
                             " AND fecfac <= " + ClipValue2SQL(mhasta) + " GROUP BY fecfac")
 DO WHILE !oQry:EOF()
-   AADD(aSerie,oQry:cant)
+   AADD(aSerie,oQry:cant)   
    AADD(aLeyen,STR(oQry:dia))
+   IF oQry:cant > nMax 
+      nMax := oQry:cant 
+   ENDIF 
    oQry:SKIP()
 ENDDO
+IF nMax > 1000000
+  FOR i := 1 TO LEN(aSerie)
+      aSerie[i] := round(aSerie[i]/1000000,2)
+  NEXT i 
+ENDIF
 oQry:End()
 IF LEN(aSerie) = 0
    MsgStop("Sin datos para mostrar","Atencion")
@@ -195,8 +227,8 @@ ENDIF
       REDEFINE GRAPH oGraf OF oDlg ID 111 TITLE "Compras por dia" 3D XGRID;
                             YGRID XVALUES YVALUES LEGENDS TYPE 2
       oGraf:cTitle := "Compras del " + DTOC(mdesde) + " al " + DTOC(mhasta)
-      oGraf:cSubTit:= "En Pesos"
-      oGraf:cTitX  := "Pesos"
+      oGraf:cSubTit:= "En "+if(nMax > 1000000,"Millones de ","")+" Pesos"
+      oGraf:cTitX  := if(nMax > 1000000,"Millones de ","")+"Pesos"
       oGraf:cTitY  := "Dias"
       oGraf:lPopUp := .T.
       oGraf:AddSerie(aSerie, "Compras por dia", RGB(128,128,255))
@@ -212,7 +244,7 @@ LOCAL oGet3, mrta := .f., mdesde := YEAR(DATE()), ;
       oGraf,aSerie := {0,0,0,0,0,0,0,0,0,0,0,0},;
       aLeyen := {"Ene","Feb","Mar","Abr","May","Jun",;
                  "Jul","Ago","Sep","Oct","Nov","Dic"},;
-      oDlg, oBot1, oBot2, acor, oQry
+      oDlg, oBot1, oBot2, acor, oQry, nMax := 0, i
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 DEFINE DIALOG oDlg TITLE "Compras Anuales" FROM 03,15 TO 10,45 OF oApp:oWnd FONT oFont
    acor := AcepCanc(oDlg)
@@ -231,8 +263,16 @@ oQry := oApp:oServer:Query( "SELECT MONTH(fecfac) as mes, SUM(importe * IF(tipoc
                             " GROUP BY MONTH(fecfac)")
 DO WHILE !oQry:EOF()
    aSerie[oQry:mes] := oQry:cant
+   IF oQry:cant > nMax 
+      nMax := oQry:cant 
+   ENDIF 
    oQry:Skip()
 ENDDO
+IF nMax > 1000000
+  FOR i := 1 TO LEN(aSerie)
+      aSerie[i] := round(aSerie[i]/1000000,2)
+  NEXT i 
+ENDIF
 oQry:End()
 IF LEN(aSerie) = 0
    MsgStop("Sin datos para mostrar","Atencion")
@@ -243,8 +283,8 @@ ENDIF
       REDEFINE GRAPH oGraf OF oDlg ID 111 TITLE "Compras por mes" 3D XGRID;
                             YGRID XVALUES YVALUES LEGENDS TYPE 1
       oGraf:cTitle := "Compras Anuales " + STR(mdesde)
-      oGraf:cSubTit:= "En Pesos"
-      oGraf:cTitX  := "Pesos"
+      oGraf:cSubTit:= "En "+if(nMax > 1000000,"Millones de ","")+" Pesos"
+      oGraf:cTitX  := if(nMax > 1000000,"Millones de ","")+"Pesos"
       oGraf:cTitY  := "Mes"
       oGraf:lPopUp := .T.
       oGraf:AddSerie(aSerie, "Mes", RGB(255,128,255))
@@ -258,7 +298,7 @@ RETURN
 PROCEDURE Grafica23()
 LOCAL oGet3, oGet4, mrta := .f., mtotal, ant, mdesde := DATE(), mhasta := DATE(),;
       oGraf,aSerie := {}, aLeyen := {}, oDlg, oBot1, oBot2, acor,;
-      aRubro := {}, aPreci := {}, j, oQry
+      aRubro := {}, aPreci := {}, j, oQry, nMax := 0, i
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 DEFINE DIALOG oDlg TITLE "Compras por cuenta" FROM 03,15 TO 11,45 OF oApp:oWnd
    acor := AcepCanc(oDlg)
@@ -281,9 +321,17 @@ oQry := oApp:oServer:Query( "SELECT r.nombre as rubro, SUM(v.importe* IF(v.tipoc
                             "  AND v.fecfac <= " + ClipValue2SQL(mhasta) + " GROUP BY r.nombre")
 DO WHILE !oQry:Eof()
    AADD(aLeyen,oQry:rubro)
-   AADD(aPreci,oQry:cant)      
+   AADD(aPreci,oQry:cant)  
+   IF oQry:cant > nMax 
+      nMax := oQry:cant 
+   ENDIF     
    oQry:Skip()
 ENDDO
+IF nMax > 1000000
+  FOR i := 1 TO LEN(aPreci)
+      aPreci[i] := round(aPreci[i]/1000000,2)
+  NEXT i 
+ENDIF 
 IF LEN(aLeyen) = 0
    MsgStop("Sin datos para mostrar","Atencion")
    RETURN
@@ -294,8 +342,8 @@ ENDIF
       REDEFINE GRAPH oGraf OF oDlg ID 111 TITLE "Compras por cuenta" 3D XGRID;
                             YGRID XVALUES YVALUES LEGENDS TYPE 4
       oGraf:cTitle := "Compras por cuenta del " + DTOC(mdesde) + " al " + DTOC(mhasta)
-      oGraf:cSubTit:= "En Pesos"
-      oGraf:cTitX  := "Pesos"
+      oGraf:cSubTit:= "En "+if(nMax > 1000000,"Millones de ","")+" Pesos"
+      oGraf:cTitX  := if(nMax > 1000000,"Millones de ","")+"Pesos"
       oGraf:cTitY  := "Cuenta"
       oGraf:lPopUp := .T.
       
@@ -312,7 +360,7 @@ RETURN
 PROCEDURE Grafica31()
 LOCAL oGet3, oGet4, mrta := .f., mtotal, ant, mdesde := DATE(), mhasta := DATE(),;
       oGraf,aSerie := {}, aLeyen := {}, oDlg, oBot1, oBot2, acor,;
-      aRubro := {}, aPreci := {}, j, oQry
+      aRubro := {}, aPreci := {}, j, oQry, nMax := 0, i
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 DEFINE DIALOG oDlg TITLE "A cobrar por cliente" FROM 03,15 TO 11,45 OF oApp:oWnd
    acor := AcepCanc(oDlg)
@@ -335,9 +383,17 @@ oQry := oApp:oServer:Query( "SELECT r.nombre as rubro, SUM(v.importe* IF(v.tipo=
                             "  AND v.fecha <= " + ClipValue2SQL(mhasta) + " GROUP BY r.nombre")
 DO WHILE !oQry:Eof()
    AADD(aLeyen,oQry:rubro)
-   AADD(aPreci,oQry:cant)      
+   AADD(aPreci,oQry:cant)  
+   IF oQry:cant > nMax 
+      nMax := oQry:cant 
+   ENDIF     
    oQry:Skip()
 ENDDO
+IF nMax > 1000000
+  FOR i := 1 TO LEN(aPreci)
+      aPreci[i] := round(aPreci[i]/1000000,2)
+  NEXT i 
+ENDIF 
 IF LEN(aLeyen) = 0
    MsgStop("Sin datos para mostrar","Atencion")
    RETURN
@@ -348,8 +404,8 @@ ENDIF
       REDEFINE GRAPH oGraf OF oDlg ID 111 TITLE "A cobrar por cliente" 3D XGRID;
                             YGRID XVALUES YVALUES LEGENDS TYPE 4
       oGraf:cTitle := "Ventas a cobrar del " + DTOC(mdesde) + " al " + DTOC(mhasta)
-      oGraf:cSubTit:= "En Pesos"
-      oGraf:cTitX  := "Pesos"
+      oGraf:cSubTit:= "En "+if(nMax > 1000000,"Millones de ","")+" Pesos"
+      oGraf:cTitX  := if(nMax > 1000000,"Millones de ","")+"Pesos"
       oGraf:cTitY  := "Cliente"
       oGraf:lPopUp := .T.
       
@@ -366,7 +422,7 @@ RETURN
 PROCEDURE Grafica41()
 LOCAL oGet3, oGet4, mrta := .f., mtotal, ant, mdesde := DATE(), mhasta := DATE(),;
       oGraf,aSerie := {}, aLeyen := {}, oDlg, oBot1, oBot2, acor,;
-      aRubro := {}, aPreci := {}, j, oQry
+      aRubro := {}, aPreci := {}, j, oQry, nMax := 0, i
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 DEFINE DIALOG oDlg TITLE "A Pagar por proveedor" FROM 03,15 TO 11,45 OF oApp:oWnd
    acor := AcepCanc(oDlg)
@@ -389,9 +445,17 @@ oQry := oApp:oServer:Query( "SELECT r.nombre as rubro, SUM(v.importe* IF(v.tipoc
                             "  AND v.fecfac <= " + ClipValue2SQL(mhasta) + " GROUP BY r.nombre")
 DO WHILE !oQry:Eof()
    AADD(aLeyen,oQry:rubro)
-   AADD(aPreci,oQry:cant)      
+   AADD(aPreci,oQry:cant)  
+   IF oQry:cant > nMax 
+      nMax := oQry:cant 
+   ENDIF     
    oQry:Skip()
 ENDDO
+IF nMax > 1000000
+  FOR i := 1 TO LEN(aPreci)
+      aPreci[i] := round(aPreci[i]/1000000,2)
+  NEXT i 
+ENDIF 
 IF LEN(aLeyen) = 0
    MsgStop("Sin datos para mostrar","Atencion")
    RETURN
@@ -402,8 +466,8 @@ ENDIF
       REDEFINE GRAPH oGraf OF oDlg ID 111 TITLE "A pagar por proveedor" 3D XGRID;
                             YGRID XVALUES YVALUES LEGENDS TYPE 4
       oGraf:cTitle := "Compras a pagar del " + DTOC(mdesde) + " al " + DTOC(mhasta)
-      oGraf:cSubTit:= "En Pesos"
-      oGraf:cTitX  := "Pesos"
+      oGraf:cSubTit:= "En "+if(nMax > 1000000,"Millones de ","")+" Pesos"
+      oGraf:cTitX  := if(nMax > 1000000,"Millones de ","")+"Pesos"
       oGraf:cTitY  := "Proveedor"
       oGraf:lPopUp := .T.
       

@@ -180,7 +180,7 @@ RETURN .t.
 ** Listado de planilla
 STATIC FUNCTION Planilla(nCartaPorte)
 LOCAL oQryRep, oQryFac, oQryRepa, nTotDeu,;
-      i, x, y, oPrn, nRow, oFont, oFont2, oFont1, oFont3, config, nHoja := 1, aCor
+      i, x, y, oPrn, nRow, oFont, oFont2, oFont1, oFont3, config, nHoja := 1, aCor, oRep
 oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS `transi_fact_det` ("+;
                            "`id` int(10) NOT NULL AUTO_INCREMENT ,"+;
                            "`codart` BIGINT(14) NOT NULL,"+;
@@ -471,7 +471,7 @@ config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
      ENDPAGE
   ENDPRINT
 // Nuevo para cliente nuevo
-  DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.7,config:fon*2.5
+  /*DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.7,config:fon*2.5
   PRINT oPrn NAME "Hoja de Ruta "+STR(nCartaPorte) + " Entregas" PREVIEW MODAL
      oPrn:SetLandscape()
      oPrn:SetPage(9)
@@ -532,6 +532,7 @@ config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
          @ y-0.07, .5 PRINT TO oPrn TEXT DTOC(oQryFac:fecha) ;
                       SIZE 1.1,.5 CM FONT oFont ALIGN "TL"
          @ y-0.07, 01.7 PRINT TO oPrn TEXT ALLTRIM(oQryFac:nombre)+" - "+ALLTRIM(oQryFac:direccion) ;
+              +", "+ALLTRIM(oQryFac:localidad) + " - V:"+ALLTRIM(oQryFac:vendedor)  ;
               SIZE 8,1.5 CM FONT oFont LASTROW nRow ALIGN "TL"
          @ y-0.07, 10 PRINT TO oPrn TEXT oQryFac:numcomp ;
               SIZE 2,.5 CM FONT oFont ALIGN "TR"
@@ -595,7 +596,42 @@ config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
      ENDPAGE
 
 
-   ENDPRINT
+   ENDPRINT*/
+    oQryFac := oApp:oServer:Query("SELECT *  FROM ge_"+oApp:cId+"ventas_encab WHERE cartaporte = "+ClipValue2Sql(nCartaPorte))
+    oQryFac:GoTop()
+    DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
+    DEFINE FONT oFont2 NAME "TAHOMA" SIZE 0,-8 BOLD
+    DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC
+    REPORT oRep TITLE "HOJA DE RUTA Nro "+STR(nCartaPorte) + " Reparto:" + STR(oQryRepa:codigo) +" "+ ALLTRIM(oQryRepa:nombre) ;
+           FONT  oFont1,oFont2,oFont3 ;
+           HEADER "Reparto:" + STR(oQryRepa:codigo) +" "+ ALLTRIM(oQryRepa:nombre) CENTER ;
+           FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
+           PREVIEW CAPTION  "HOJA DE RUTA Nro: "+STR(nCartaPorte)
+    COLUMN TITLE "Fecha"      DATA oQryFac:fecha         SIZE 08 FONT 1
+    COLUMN TITLE "Cliente"    DATA oQryFac:nombre     SIZE 20 FONT 1 
+    COLUMN TITLE "Direccion"  DATA ALLTRIM(oQryFac:direccion)+", "+ALLTRIM(oQryFac:localidad)  SIZE 30 FONT 1 MEMO
+    COLUMN TITLE "Vendedor"   DATA oQryFac:vendedor  SIZE 10 FONT 1
+    COLUMN TITLE "Importe"    DATA oQryFac:importe   PICTURE "999999999999.99" SIZE 12 FONT 1 TOTAL
+    COLUMN TITLE "Devolucion" DATA " "    SIZE 10 FONT 1
+    COLUMN TITLE "Entrega"    DATA " "    SIZE 10 FONT 1
+    COLUMN TITLE "A Cobrar"   DATA " "    SIZE 10 FONT 1
+    COLUMN TITLE "Cza.Anter." DATA " "    SIZE 10 FONT 1
+    COLUMN TITLE "N.Cobrado"  DATA " "    SIZE 10 FONT 1
+    COLUMN TITLE "Efectivo"   DATA " "    SIZE 10 FONT 1
+    COLUMN TITLE "M.Pago"     DATA " "    SIZE 10 FONT 1
+    COLUMN TITLE "Tras/Chq."  DATA " "    SIZE 10 FONT 1
+    COLUMN TITLE "Com.Entrega"  DATA " "    SIZE 10 FONT 1
+    COLUMN TITLE "Com.Venta"  DATA " "    SIZE 10 FONT 1
+
+    // Digo que el titulo lo escriba con al letra 2
+    oRep:oTitle:aFont[1] := {|| 2 }
+    oRep:bInit := {|| oQryFac:GoTop() }
+    oRep:bSkip := {|| oQryFac:Skip() }
+
+    END REPORT
+    ACTIVATE REPORT oRep WHILE !oQryFac:EOF() ON INIT CursorArrow() ;
+             ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.BMP",.5,.5)
+    oQryFac:End()
 RETURN nil
 
 ///Repòrte de Hojas de ruta

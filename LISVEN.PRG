@@ -626,16 +626,16 @@ ELSE
     Procesando(.t.)
     oQry = oApp:oServer:Query(cSql)
     Procesando(.f.)
-           DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-9
-           DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-9 BOLD
-           DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-9 BOLD ITALIC   
+           DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
+           DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
+           DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC   
     REPORT oRep TITLE "Articulos vendidos por fecha del " + ;
                         DTOC(mdesde) + " al " + DTOC(mhasta) ;
              FONT  oFont1,oFont2,oFont3 HEADER OemToAnsi(oApp:nomb_emp) , ;
              "Detalle de Factura" CENTER ;
              FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
              PREVIEW CAPTION  "Articulos por fecha"
-      GROUP oGru ON oQry:nrofac HEADER oQry:nrofac+" "+oQry:nomcli FOOTER "Totales Factura"  FONT 3       
+      GROUP oGru ON oQry:nrofac HEADER oQry:nrofac+" "+DTOC(oQry:fecha) + " "+oQry:nomcli FOOTER "Totales Factura"  FONT 3       
 
       COLUMN TITLE "Articulo" DATA oQry:detart   SIZE 30 FONT 1
       COLUMN TITLE "Codigo"   DATA oQry:codart   SIZE 12 FONT 1

@@ -9,7 +9,7 @@ STATIC oWnd1, oBrw, oDlg, cVentana,oQry, oQryBrw, nCant,oQryIvaDet,oBrwIvas,oBrw
        oQryComprasDet, oQryCue, oQryPro, oQryArt,  oQryIva, oQryTip, oQryRet, oQryCom, oBot, base, baseDet,;
        oQry2,oQry3,oQry4,oQry5,oQry6,oQry7,cNumRe1,cNumRe2,lActualizar,oQryPun,nCodPro,nimporte,lSoloCosto
 PROCEDURE CambioPre(cPermisos) 
-LOCAL oBar, hHand,cDialog,oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTipoComp, nBultos:=0,;
+LOCAL oBar, hHand,cDialog,oBot:=ARRAY(8),oFontTotal, lRta := .f., aTipoDoc, nTipoComp, nBultos:=0,;
       cNomPro,  cCuit, cConIva, cNomCue, nDeuda, nCodArt, cDetArt, nCantidad, oError, ;
       nPunit, nPTotal, cNomRet1, cNomRet2, cNomRet3, cNomRet4, cNomRet5, oDlg1, oQryDoc,nRenglon,;
       nSaldoIni:=0, nImporteIni:=0,i
@@ -146,6 +146,7 @@ LOCAL oBar, hHand,cDialog,oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTip
     REDEFINE BUTTON oBot[4] ID 4001 ACTION (lRta:=.f.,oDlg1:End(), PREGEN()) CANCEL 
     REDEFINE BUTTON oBot[6] ID 4003 ACTION (lRta:=.f.,oDlg1:End(), PREGENLIS()) CANCEL 
     REDEFINE BUTTON oBot[7] ID 4005 ACTION ( PorReceta()) CANCEL 
+    REDEFINE BUTTON oBot[8] ID 4008 ACTION MasOpciones() CANCEL 
     //ACTiVACION   ---------------------------------------------------------------
     ACTIVATE DIALOG oDlg1 CENTER ON INIT Inicializar()
 IF !lRta
@@ -471,6 +472,7 @@ CATCH oError
     oApp:oServer:RollBack()
 END TRY
 oQryComprasDet:Refresh()
+oQryComprasDet:GoTop()
 oBrw:Refresh()
 RETURN nil
 
@@ -651,3 +653,91 @@ FOR i := 1 TO LEN(oApp:aVentanas)
 NEXT i
 oApp:aVentanas := ACLONE(aNueva)
 RETURN .t.
+
+*************************************
+** Mas Opciones 
+STATIC FUNCTION MasOpciones()
+LOCAL i := 0
+LOCAL oGet := ARRAY(5), oBot := ARRAY(2), oForm, lRta := .F., aCor, base, oError, oQry,;
+      nRedondeo := 2,;
+      aRedondeo := {"Sin Redondear","Entero","Multiplo de 10","Multiplo de 50","Multiplo de 100"},;
+      aDescu := {"desc1","desc2","desc3","desc4","desc5"}, nDescu := 1, nDescuento := 0, nAVenta := 1,;
+      aAventa := {"Manterner utilidad y aplicar a venta","Modificar la utilidad (no aplica a venta)"}
+DEFINE DIALOG oForm TITLE "Cargar Descuentos Global";
+       FROM 05,15 TO 14,70 OF oDlg FONT oApp:oFont
+   @ 07, 05 SAY "Cargar Descuento a:"   OF oForm PIXEL SIZE 60,12 RIGHT
+   @ 05, 70 COMBOBOX oGet[3] VAR nDescu ITEMS aDescu OF oForm PIXEL SIZE 55,12
+   @ 05,130 SAY "%" OF oForm PIXEL SIZE 10,12
+   @ 05,152 GET oGet[4] VAR nDescuento PICTURE "99.99" OF oForm PIXEL RIGHT
+   @ 22, 05 SAY "Redondear?:"   OF oForm PIXEL SIZE 40,12 RIGHT
+   @ 20, 70 COMBOBOX oGet[1] VAR nRedondeo ITEMS aRedondeo OF oForm PIXEL SIZE 55,12
+   @ 37, 05 SAY "Como aplica?:"   OF oForm PIXEL SIZE 40,12 RIGHT
+   @ 35, 70 COMBOBOX oGet[2] VAR nAVenta ITEMS aAventa OF oForm PIXEL SIZE 110,12
+  
+   acor := AcepCanc(oForm)
+   @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Procesar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .t.), oForm:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL
+
+ACTIVATE DIALOG oForm CENTER 
+IF !lRta 
+   RETURN nil 
+ENDIF   
+Procesando(.t.)
+    oApp:oServer:Execute("UPDATE proped_temp SET "+aDescu[nDescu]+" = "+ClipValue2Sql(nDescuento))
+    // Actualizo los valores 
+    IF nAVenta = 1
+      oApp:oServer:Execute("UPDATE proped_temp p LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = p.codiva "+;
+        "SET "+;
+          "    p.pcosto = IF(p.siniva, p.precossiva, p.precossiva / (1 + i.tasa / 100)),"+;
+          "    p.pcosto = p.pcosto - p.pcosto * (p.desc1 / 100),"+;
+          "    p.pcosto = p.pcosto - p.pcosto * (p.desc2 / 100),"+;
+          "    p.pcosto = p.pcosto - p.pcosto * (p.desc3 / 100),"+;
+          "    p.pcosto = p.pcosto - p.pcosto * (p.desc4 / 100),"+;
+          "    p.pcosto = p.pcosto - p.pcosto * (p.desc5 / 100),"+;
+          "    p.pcosto = p.pcosto + p.pcosto * (p.flete / 100),"+;
+          "    p.pcosto = p.pcosto + p.pcosto * i.tasa / 100,"+;
+          "    p.pcosto = p.pcosto + p.ImpInt ,"+;
+          "    p.precioven = FLOOR(pcosto + pcosto * (porcentaje / 100)),"+;
+          "    p.reventa = FLOOR(pcosto + pcosto * (porcentajerev / 100)),"+;
+          "    p.iva = IF(p.siniva, p.precossiva * (i.tasa / 100), p.precossiva - p.precossiva / (i.tasa / 100 + 1)),"+;
+          "    p.neto = IF(p.siniva, p.precossiva, p.precossiva / (1 + i.tasa / 100))")
+      DO CASE 
+         CASE nRedondeo = 1
+         CASE nRedondeo = 2
+              oApp:oServer:Execute("UPDATE proped_temp SET precioven = ROUND(precioven), reventa = ROUND(reventa)") 
+         CASE nRedondeo = 3
+              oApp:oServer:Execute("UPDATE proped_temp SET precioven = ROUND(precioven,-1), reventa = ROUND(reventa,-1)") 
+              oApp:oServer:Execute("UPDATE proped_temp SET precioven = 10 WHERE precioven = 0") 
+              oApp:oServer:Execute("UPDATE proped_temp SET reventa = 10 WHERE reventa = 0") 
+         CASE nRedondeo = 4
+              oApp:oServer:Execute("UPDATE proped_temp SET precioven = ROUND(precioven / 50) * 50, reventa = ROUND(reventa/50)*50") 
+              oApp:oServer:Execute("UPDATE proped_temp SET precioven = 50 WHERE precioven = 0") 
+              oApp:oServer:Execute("UPDATE proped_temp SET reventa = 50 WHERE reventa = 0")
+         CASE nRedondeo = 5
+              oApp:oServer:Execute("UPDATE proped_temp SET precioven = ROUND(precioven,-2), reventa = ROUND(reventa,-2)") 
+              oApp:oServer:Execute("UPDATE proped_temp SET precioven = 100 WHERE precioven = 0") 
+              oApp:oServer:Execute("UPDATE proped_temp SET reventa = 100 WHERE reventa = 0")    
+      ENDCASE
+    ELSE
+    oApp:oServer:Execute("UPDATE proped_temp p LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = p.codiva "+;
+        "SET "+;
+          "    p.pcosto = IF(p.siniva, p.precossiva, p.precossiva / (1 + i.tasa / 100)),"+;
+          "    p.pcosto = p.pcosto - p.pcosto * (p.desc1 / 100),"+;
+          "    p.pcosto = p.pcosto - p.pcosto * (p.desc2 / 100),"+;
+          "    p.pcosto = p.pcosto - p.pcosto * (p.desc3 / 100),"+;
+          "    p.pcosto = p.pcosto - p.pcosto * (p.desc4 / 100),"+;
+          "    p.pcosto = p.pcosto - p.pcosto * (p.desc5 / 100),"+;
+          "    p.pcosto = p.pcosto + p.pcosto * (p.flete / 100),"+;
+          "    p.pcosto = p.pcosto + p.pcosto * i.tasa / 100,"+;
+          "    p.pcosto = p.pcosto + p.ImpInt ,"+;
+          "    p.iva = IF(p.siniva, p.precossiva * (i.tasa / 100), p.precossiva - p.precossiva / (i.tasa / 100 + 1)),"+;
+          "    p.neto = IF(p.siniva, p.precossiva, p.precossiva / (1 + i.tasa / 100))")
+    oApp:oServer:Execute("UPDATE proped_temp SET porcentaje = FLOOR(((precioven / pcosto) - 1) * 100), "+;
+                                                "porcentajerev = FLOOR(((reventa / pcosto) - 1) * 100) ")
+ENDIF
+oQryComprasDet:Refresh()
+oBrw:Refresh()
+Procesando(.f.)
+RETURN nil

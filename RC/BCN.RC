@@ -1133,14 +1133,15 @@ CAPTION "Procesar pedido"
 FONT 8, "MS Sans Serif"
 {
   CONTROL "", 132, "TXBROWSE", WS_TABSTOP|0x00b000a1, 4, 4, 644, 168
-  CONTROL "Opciones", -1, "Button", BS_GROUPBOX, 4, 176, 208, 32
+  CONTROL "Opciones", -1, "Button", BS_GROUPBOX, 4, 176, 344, 32
   CONTROL "&Actualizar precios", 4002, "Button", WS_TABSTOP, 8, 184, 64, 20
   CONTROL "&Filtrar", 4004, "Button", WS_TABSTOP, 76, 184, 64, 20
-  CONTROL "&Salir", 4006, "Button", WS_TABSTOP, 212, 184, 64, 20
+  CONTROL "&Salir", 4006, "Button", WS_TABSTOP, 280, 184, 64, 20
   CONTROL "&Por %", 4001, "Button", WS_TABSTOP, 584, 188, 64, 20
   CONTROL "Por &lista proveedor", 4003, "Button", WS_TABSTOP, 500, 188, 80, 20
   CONTROL "Por &Receta", 4005, "Button", WS_TABSTOP, 416, 188, 80, 20
   CONTROL "&Excel", 4007, "Button", WS_TABSTOP, 144, 184, 64, 20
+  CONTROL "&+ Opciones", 4008, "Button", WS_TABSTOP, 212, 184, 64, 20
 }
 
 CANPAG DIALOG DISCARDABLE 59, 54, 257, 198

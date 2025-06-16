@@ -9,7 +9,9 @@
 MEMVAR oApp
 STATIC oQryBrw,oWnd1, oBrw, oDlg, cVentana
 PROCEDURE PROVEE(cPermisos)
-LOCAL oBar, hHand, oGetSeek, cSeek := SPACE(50)
+LOCAL oBar, hHand, oGetSeek, cSeek := SPACE(50),;
+      aTipoIva :=  {"RESPONSABLE INSCRIPTO","RESPONSABLE NO INSCRIPTO", "NO RESPONSABLE",;
+                    "EXENTO","CONSUMIDOR FINAL", "MONOTRIBUTO"}
 cVentana := PROCNAME()
 IF ASCAN(oApp:aVentanas,cVentana) > 0
    hHand := ASCAN(oApp:aVentanas,cVentana)
@@ -19,7 +21,7 @@ IF ASCAN(oApp:aVentanas,cVentana) > 0
 ENDIF
 AADD(oApp:aVentanas,cVentana)
 
-oQryBrw:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"provee ORDER BY nombre")
+oQryBrw:= oApp:oServer:Query("SELECT Codigo,nombre,alias,localidad,telefono,cuit,coniva FROM ge_"+oApp:cId+"provee ORDER BY nombre")
                          
   DEFINE WINDOW oWnd1 MDICHILD TITLE "A/B/M de Proveedores" ;
           OF oApp:oWnd NOZOOM ICON oApp:oIco FROM 05,05 TO 50,50
@@ -65,17 +67,19 @@ oQryBrw:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"provee ORDER BY nombr
    oWnd1:bResized := { || Incrusta( oWnd1, oDlg, .t.) }
      DEFINE DIALOG oDlg RESOURCE "ABMS" OF oWnd1
      REDEFINE XBROWSE oBrw DATASOURCE oQryBrw;
-              COLUMNS "Codigo","nombre","alias","localidad","telefono";
-              HEADERS "Código","Nombre","Alias","Localidad","Telefonos";
-              SIZES 60,345,70,100,100;
+              COLUMNS "Codigo","nombre","alias","localidad","telefono","cuit","coniva";
+              HEADERS "Código","Nombre","Alias","Localidad","Telefonos","C.U.I.T.","I.V.A.";
+              SIZES 60,345,70,100,100,100,150;
               ID 111 OF oDlg AUTOSORT ON DBLCLICK IF("M"$cPermisos,(Formu( .f.),oBrw:Refresh()),nil)
      REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg
      oQryBrw:bOnChangePage := {|| oBrw:Refresh() }
-    *oBrw:aCols[2]:SetOrder()
+     *oBrw:aCols[2]:SetOrder()
+     oBrw:aCols[7]:bStrData := {|| IF(oQryBrw:RecCount()>0 .AND. oQryBrw:coniva > 0,aTipoIva[oQryBrw:coniva],"")}
+     oBrw:aCols[7]:bEditValue := {|| IF(oQryBrw:RecCount()>0 .AND. oQryBrw:coniva > 0,aTipoIva[oQryBrw:coniva],"")}
      //oBrw:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar,cPermisos)}
      //oBrw:SetDolphin(oQry,.f.,.t.)
-     PintaBrw(oBrw,5) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
-     oBrw:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar, oBrw,cPermisos,6)}
+     PintaBrw(oBrw,7) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
+     //oBrw:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar, oBrw,cPermisos,6)}
      oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt(oQryBrw, oGetSeek, oBrw, nKey) }
      // Activo el dialogo y al iniciar muevo a 0,0
      ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT (oGetSeek:SetFocus(),oDlg:Move(0,0)) VALID(oWnd1:End())

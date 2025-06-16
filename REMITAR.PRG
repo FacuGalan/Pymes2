@@ -82,7 +82,7 @@ oApp:oServer:Execute("TRUNCATE VENTAS_DET_H5")
 oApp:oServer:Execute("INSERT INTO VENTAS_DET_H5 (codart,detart,cantidad,remitadas,aremitar,punit,neto,descuento,"+;
   "descup,stotal,iva,codiva,costo,ptotal) (SELECT codart,detart,SUM(cantidad),0.00,0.00,punit,neto,descu,"+;
   "descup,neton,iva,codiva,pcosto,importe "+;
-  " FROM ge_"+oApp:cId+"ventas_det WHERE nrofac = "+ClipValue2Sql(oQry:ticomp+oQry:letra+oQry:numcomp)+" GROUP BY codart) ")
+  " FROM ge_"+oApp:cId+"ventas_det WHERE punit > 0 AND  nrofac = "+ClipValue2Sql(oQry:ticomp+oQry:letra+oQry:numcomp)+" GROUP BY codart) ")
 
 oApp:oServer:Execute("UPDATE VENTAS_DET_H5 v LEFT JOIN  (SELECT codart,SUM(cantidad) as cantidad "+;  
   " FROM ge_"+oApp:cId+"remitos WHERE factura = "+ClipValue2Sql(oQry:ticomp+oQry:letra+oQry:numcomp) + "GROUP BY codart) res "+;
@@ -121,10 +121,10 @@ DEFINE DIALOG oDlg1 TITLE "Listado de Articulos" FROM 03,15 TO 22,100
    END  
    PintaBrw(oBrw,0)
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Remitar" OF oDlg1 SIZE 30,10 ;
-           ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
+           ACTION ((mrta := .t.), oDlg1:End() ) PIXEL WHEN(oBrw:aCols[5]:nTotal > 0)
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .f.), oDlg1:End() ) PIXEL
-ACTIVATE DIALOG oDlg1 CENTER 
+ACTIVATE DIALOG oDlg1 CENTER ON INIT IF(oBrw:aCols[5]:nTotal = 0, MsgInfo("Factura remitada por completo","Atencion"),nil)
 IF !mrta
    RETURN  NIL
 ENDIF
@@ -170,6 +170,6 @@ TRY
 CATCH oError
    ValidaError(oError)
 END TRY
-oQryDet := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"remitos WHERE nrorem="+ClipValue2Sql(cTipoDoc+cNumComp))
+oQryDet := oApp:oServer:Query("SELECT *, 0 as bultos, 0 as promo FROM ge_"+oApp:cId+"remitos WHERE nrorem="+ClipValue2Sql(cTipoDoc+cNumComp))
 PrintRemito(oQryDet,,, cNumComp,oQry:codcli)
 RETURN nil 

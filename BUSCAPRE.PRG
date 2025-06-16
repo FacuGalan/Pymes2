@@ -41,7 +41,7 @@ RETURN
 
 STATIC FUNCTION Fichada(mcodtar,oGet, oSay1, oSay2, oSay3,oWnd,oFont)
 LOCAL cMensaje1 := "", cMensaje2 := "", lHuboError := .f., mfecha := DATE(), ;
-      mhora := TIME(), multimo, oQry
+      mhora := TIME(), multimo, oQry, mprecio_of
 IF lEstaMarcando
    RETURN nil
 ENDIF
@@ -52,11 +52,19 @@ IF mcodtar = 0
    RETURN nil
 ENDIF
 lEstaMarcando := .t.
-oQry := oApp:oServer:Query("SELECT codigo,nombre,precioven FROM ge_"+oApp:cId+"articu WHERE codigo = " + ClipValue2Sql(mcodtar))
+oQry := oApp:oServer:Query("SELECT codart,nompromo,precio_especial FROM ge_"+oApp:cId+"promociones "+;
+                           " WHERE codart = " + ClipValue2Sql(mcodtar) + " AND tipo = 1 AND "+;
+                           " CURDATE() >= fecha_inicio AND CURDATE() <= fecha_fin")
 IF oQry:nRecCount > 0
+   mprecio_of = oQry:precio_especial
+   ELSE 
+   mprecio_of = 0
+ENDIF   
+oQry := oApp:oServer:Query("SELECT codigo,nombre,precioven FROM ge_"+oApp:cId+"articu WHERE codigo = " + ClipValue2Sql(mcodtar))
+IF oQry:nRecCount > 0   
    oSay1:SetText("Codigo:"+STR(oQry:codigo,14))
-   oSay2:SetText(ALLTRIM(oQry:nombre))
-   oSay3:SetText(ALLTRIM("$ "+ALLTRIM(STR(oQry:precioven,10,2))))
+   oSay2:SetText(ALLTRIM(IF(mprecio_of>0,"O F E R T A !! ","")+oQry:nombre))
+   oSay3:SetText(ALLTRIM("$ "+ALLTRIM(STR(IF(mprecio_of>0,mprecio_of,oQry:precioven),10,2))))
    ELSE
    MsgBeep()
    oSay1:SetText("E R R O R      ARTICULO NO ENCONTRADO")

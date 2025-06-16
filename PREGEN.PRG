@@ -494,7 +494,10 @@ FOR i := 1 TO LEN(aCols)
     IF EMPTY(aCols[i,3])
        nError ++
        aCols[i,4] := "No puede estar en cero"
-    ENDIF    
+    ENDIF 
+    IF aCols[i,6] > 0 .and. aCols[i,7] > 0       
+       aCols[i,3] := ROUND(aCols[i,7] / aCols[i,6],2)
+    ENDIF   
 NEXT
 Procesando(.f.)
 IF nError > 0
