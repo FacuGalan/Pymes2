@@ -819,19 +819,22 @@ RETURN .f.
 
 **********************************************************************************************
 STATIC FUNCTION ValidaArtP(oWnd1,oGet,lBuscar)
-LOCAL oQryArt2, lEncontro, oQryArtP, oDlg1, oBrwC, aCor, oBot1,oBot2
+LOCAL oQryArt2, lEncontro, oQryArtP, oDlg1, oBrwC, aCor, oBot1,oBot2, nBultos := 1
 
-    oQryArt2 := oApp:oServer:Query("SELECT a.codigopro AS codigo,a.nombre AS nombre,a.codigo AS codart, i.nombre AS cNomIva, i.tasa AS tasaiva, a.iva AS codiva, "+;
-                                  "a.siniva,a.precossiva FROM ge_"+oApp:cId+"articu a "+;
+    oQryArt2 := oApp:oServer:Query("SELECT a.codigopro AS codigo,a.nombre AS nombre,a.codigo AS codart,"+;
+                                  " i.nombre AS cNomIva, i.tasa AS tasaiva, a.iva AS codiva, "+;
+                                  "a.siniva,a.precossiva, a.uxbulto as uxb, a.pxbulto as pxb FROM ge_"+oApp:cId+"articu a "+;
                                   "LEFT JOIN ge_"+oApp:cId+"ivas i ON a.iva = i.codigo "+;
-                                  "WHERE a.codigopro = " + ClipValue2SQL(oGet[15]:cText)+ " OR a.codigo IN "+;
-                                  " (SELECT codart FROM ge_"+oApp:cId+"codpro WHERE codarp = "+ClipValue2SQL(oGet[15]:cText)+ " AND codpro = "+ ClipValue2SQL(oGet[7]:cText)+")")
+                                  "WHERE a.codigopro = " + ClipValue2SQL(oGet[15]:cText)+;
+                                   " OR a.codigo IN "+;
+                                  " (SELECT codart FROM ge_"+oApp:cId+"codpro WHERE codarp = "+;
+                                  ClipValue2SQL(oGet[15]:cText)+ " AND codpro = "+ ClipValue2SQL(oGet[7]:cText)+")")
 
     IF oQryArt2:RecCount() = 0 
        lEncontro := .f.
        IF lBuscar
           oQryArt2 := oApp:oServer:Query("SELECT a.codigopro AS codigo,a.nombre AS nombre,a.codigo AS codart, i.nombre AS cNomIva, i.tasa AS tasaiva, a.iva AS codiva, "+;
-                                  "a.siniva,a.precossiva FROM ge_"+oApp:cId+"articu a "+;
+                                  "a.siniva,a.precossiva, a.uxbulto as uxb, a.pxbulto as pxb FROM ge_"+oApp:cId+"articu a "+;
                                   "LEFT JOIN ge_"+oApp:cId+"ivas i ON a.iva = i.codigo "+;
                                   "WHERE a.codigopro = " + ClipValue2SQL(oGet[15]:cText))
           BuscarArt(oQryArt2,oWnd1,oGet[15],oGet[18],"true","(a.codigopro IS NOT NULL)")
@@ -865,13 +868,29 @@ LOCAL oQryArt2, lEncontro, oQryArtP, oDlg1, oBrwC, aCor, oBot1,oBot2
                                   "WHERE a.codigo = " + ClipValue2SQL(oQryArtP:codart))
        ENDIF                                     
     ENDIF*/
-    oGet[17]:cText:= oQryArt2:codart
-    oGet[18]:cText:= oQryArt2:nombre
-    nCant:= 1
-    oGet[19]:cText:= 1
-    oGet[20]:cText:= oQryArt2:precossiva
-    oGet[21]:cText:= oQryArt2:precossiva
-    basedet:siniva:= oQryArt2:siniva
+    IF oQryArt2:uxb > 0 .and. oGet[17]:value <> oQryArt2:codart
+       MsgGet("Cantidad de bultos:","Bultos",@nBultos)
+       IF nBultos <= 0
+          nBultos := 1
+       ENDIF   
+       nCant := nBultos * oQryArt2:uxb
+       oGet[17]:cText:= oQryArt2:codart
+       oGet[18]:cText:= oQryArt2:nombre
+       oGet[19]:cText:= nCant
+       oGet[20]:cText:= oQryArt2:precossiva
+       oGet[21]:cText:= oQryArt2:precossiva * nCant
+       basedet:siniva:= oQryArt2:siniva
+       ELSE 
+       IF oGet[17]:value <> oQryArt2:codart
+           nCant := 1
+           oGet[17]:cText:= oQryArt2:codart
+           oGet[18]:cText:= oQryArt2:nombre
+           oGet[19]:cText:= 1
+           oGet[20]:cText:= oQryArt2:precossiva
+           oGet[21]:cText:= oQryArt2:precossiva
+           basedet:siniva:= oQryArt2:siniva
+      ENDIF
+    ENDIF    
     oQryArt2:SetNewFilter(SET_WHERE,"true",.t.)
 RETURN .t.
 
@@ -903,31 +922,47 @@ RETURN .t.
 
 **********************************************************************************************
 STATIC FUNCTION ValidaArt(oDlg1,oGet)   
-    LOCAL oQryArt 
+    LOCAL oQryArt , nBultos := 1
     IF basedet:codart > 0
-        oQryArt := oApp:oServer:Query("SELECT codigo,nombre,iva,codigopro,precossiva,siniva  FROM ge_"+oApp:cId+"articu "+;                                  
+        oQryArt := oApp:oServer:Query("SELECT codigo,nombre,iva,codigopro,precossiva,siniva,uxbulto,pxbulto "+;
+                                  "  FROM ge_"+oApp:cId+"articu "+;                                  
                                   "WHERE codigo = " + ClipValue2SQL(basedet:codart))
         IF oQryArt:RecCount() = 0 
-           oQryArt := oApp:oServer:Query("SELECT codigo,nombre,iva,codigopro,precossiva,siniva FROM ge_"+oApp:cId+"articu limit 100")      
+           oQryArt := oApp:oServer:Query("SELECT codigo,nombre,iva,codigopro,precossiva,siniva,uxbulto,pxbulto "+;
+            " FROM ge_"+oApp:cId+"articu limit 100")      
            BuscarArt(oQryArt,oDlg1,oGet[17],oGet[18])
         ENDIF
         ELSE 
-        oQryArt := oApp:oServer:Query("SELECT codigo,nombre,iva,codigopro,precossiva,siniva FROM ge_"+oApp:cId+"articu limit 100")      
+        oQryArt := oApp:oServer:Query("SELECT codigo,nombre,iva,codigopro,precossiva,siniva,uxbulto,pxbulto "+;
+          " FROM ge_"+oApp:cId+"articu limit 100")      
         BuscarArt(oQryArt,oDlg1,oGet[17],oGet[18])
     ENDIF    
     nIvaArt:= oQryArt:iva
-    nCant:= 1
     IF !EMPTY(oQryArt:codigopro) .and. oQryArt:codigopro <> "0" 
        oGet[15]:cText:= oQryArt:codigopro
     ELSE 
        oGet[15]:cText:= SPACE(30)
     ENDIF
-    oGet[18]:cText:= oQryArt:nombre
-    oGet[19]:cText:= 1
-    oGet[20]:cText:= oQryArt:precossiva
-    oGet[21]:cText:= oQryArt:precossiva
-    basedet:siniva:= oQryArt:siniva
-
+    IF oQryArt:uxbulto > 0
+       MsgGet("Cantidad de bultos:","Bultos",@nBultos)
+       IF nBultos <= 0
+          nBultos := 1
+       ENDIF   
+       nCant := nBultos * oQryArt:uxbulto
+       oGet[17]:cText:= oQryArt:codigo
+       oGet[18]:cText:= oQryArt:nombre
+       oGet[19]:cText:= nCant
+       oGet[20]:cText:= oQryArt:precossiva
+       oGet[21]:cText:= oQryArt:precossiva * nCant
+       basedet:siniva:= oQryArt:siniva
+       ELSE 
+       nCant := 1
+       oGet[18]:cText:= oQryArt:nombre
+       oGet[19]:cText:= 1
+       oGet[20]:cText:= oQryArt:precossiva
+       oGet[21]:cText:= oQryArt:precossiva
+       basedet:siniva:= oQryArt:siniva
+    ENDIF        
     //oQryArt:SetNewFilter(SET_WHERE,"true",.t.)
 RETURN .t.
 

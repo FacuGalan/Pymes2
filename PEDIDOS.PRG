@@ -1421,17 +1421,32 @@ RETURN .T.
 ** Reporte de pedidos 
 STATIC FUNCTION ReporPed()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,oGru,;
-      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(4), oBot1, oBot2, ;
-      mdesde := DATE(), mhasta := DATE(), mtotal := 0, lResu := .t., lFacturados := .f.
+      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(8), oBot1, oBot2, cTodos := "Todos                   ", ;
+      mdesde := DATE(), mhasta := DATE(), mtotal := 0, lResu := .t., lFacturados := .f., oQryVen, oQryCli,;
+      mnomven := SPACE(30),mvendedor := 0, mcliente := 0, mnomcli := SPACE(30)
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
-DEFINE DIALOG oDlg1 TITLE "Reporte de Pedidos Pendientes" FROM 03,15 TO 13,50 Of oApp:oWnd
+oQryVen:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"vendedores")   
+oQryCli:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"clientes")     
+DEFINE DIALOG oDlg1 TITLE "Reporte de Pedidos Pendientes" FROM 03,15 TO 17,65 Of oApp:oWnd
    acor := AcepCanc(oDlg1)    
    @ 07, 01 SAY "Para Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
    @ 22, 01 SAY "Hasta Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
+   @ 37, 01 SAY "Vendedor (0 Todos):" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
+   @ 52, 01 SAY "Cliente (0 Todos):" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
    @ 05, 65 GET oGet[1] VAR mdesde    OF oDlg1 PIXEL
    @ 20, 65 GET oGet[2] VAR mhasta    OF oDlg1 PIXEL VALID(mhasta >= mdesde) 
-   @ 35 ,05 CHECKBOX oGet[3] VAR lResu PROMPT "Resumido" OF oDlg1 PIXEL SIZE 60,12   
-   @ 35 ,70 CHECKBOX oGet[4] VAR lFacturados PROMPT "Incluye Facturados" OF oDlg1 PIXEL SIZE 90,12   
+   @ 35, 65 GET oGet[3] VAR mvendedor OF oDlg1 SIZE 30,12 PIXEL RIGHT;
+                VALID(oGet[3]:value = 0 .or. Buscar(oQryVen,oDlg1,oGet[3],oGet[4]));
+                ACTION (oGet[3]:cText:= 0, Buscar(oQryVen,oDlg1,oGet[3],oGet[4])) BITMAP "BUSC1" 
+   @ 35,100 GET oGet[4] VAR mnomven PICTURE "@!"  OF oDlg1 PIXEL;
+                WHEN((oGet[4]:cText := IF(mvendedor=0,cTodos,oQryVen:nombre)) = SPACE(30)) SIZE 90,12
+   @ 50, 65 GET oGet[7] VAR mcliente OF oDlg1 SIZE 30,12 PIXEL RIGHT;
+                VALID(oGet[7]:value = 0 .or. Buscar(oQryCli,oDlg1,oGet[7],oGet[8]));
+                ACTION (oGet[7]:cText:= 0, Buscar(oQryCli,oDlg1,oGet[7],oGet[8])) BITMAP "BUSC1" 
+   @ 50,100 GET oGet[8] VAR mnomcli PICTURE "@!"  OF oDlg1 PIXEL;
+                WHEN((oGet[8]:cText := IF(mcliente=0,cTodos,oQryCli:nombre)) = SPACE(30)) SIZE 90,12
+   @ 65 ,05 CHECKBOX oGet[5] VAR lResu PROMPT "Resumido" OF oDlg1 PIXEL SIZE 60,12   
+   @ 65 ,70 CHECKBOX oGet[6] VAR lFacturados PROMPT "Incluye Facturados" OF oDlg1 PIXEL SIZE 90,12   
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
@@ -1446,12 +1461,14 @@ CursorWait()
      DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC
 IF lResu
     oQry := oApp:oServer:Query("SELECT SUM(p.cantidad) AS cantidad, SUM(p.punitario * p.cantidad) as importe, "+;                         
-                         " p.detart, p.codart"+;                         
+                         " p.detart, p.codart "+;                         
                          " FROM ge_"+oApp:cId+"pedidos_det p "+;                         
                          " LEFT JOIN ge_"+oApp:cId+"pedidos_encab p1 ON p1.id = p.idpedido "+;
                          " WHERE p1.parafecha >= " + ClipValue2Sql(mdesde) + " AND "+;
                          " p1.parafecha <= "+ ClipValue2Sql(mhasta) +;
                          IF(lFacturados," AND p1.estado IN ('P','F') "," AND p1.estado = 'P' ")+;
+                         IF(mcliente = 0,""," AND p1.codcli = "+str(mcliente))+;
+                         IF(mvendedor = 0,""," AND p1.vendedor = "+ClipValue2Sql(mnomven))+;
                          " GROUP BY p.codart,p.detart ")
     REPORT oRep TITLE IF(!lFacturados,"Pedidos Pendientes","Todos los Pedidos") + ;
                       " del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
@@ -1486,6 +1503,8 @@ IF lResu
                          " WHERE p1.parafecha >= " + ClipValue2Sql(mdesde) + " AND "+;
                          " p1.parafecha <= "+ ClipValue2Sql(mhasta) +;
                          IF(lFacturados," AND p1.estado IN ('P','F') "," AND p1.estado = 'P' ")+;
+                         IF(mcliente = 0,""," AND p1.codcli = "+str(mcliente))+;
+                         IF(mvendedor = 0,""," AND p1.vendedor = "+ClipValue2Sql(mnomven))+;
                          " ORDER BY p1.id,p.codart ")
     REPORT oRep TITLE IF(!lFacturados,"Pedidos Pendientes (Detalle) ","Todos los Pedidos (Detalle) ") + ;
                       " del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;

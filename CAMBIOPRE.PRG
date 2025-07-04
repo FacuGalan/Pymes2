@@ -58,7 +58,7 @@ LOCAL oBar, hHand,cDialog,oBot:=ARRAY(8),oFontTotal, lRta := .f., aTipoDoc, nTip
   oQryComprasDet :=oApp:oServer:Query("SELECT * FROM proped_temp")
   DO WHILE .T.
     lSoloCosto := .f.
-    DEFINE DIALOG oDlg1 RESOURCE "PROCESAPED" OF oWnd1
+    DEFINE DIALOG oDlg1 RESOURCE "PROCESAPED" OF oWnd1 TITLE "Cambio de precios"
     oDlg1:lHelpIcon := .f.
       
 
@@ -544,13 +544,13 @@ ENDIF
 IF n = 16
     oQryComprasDet:porcentaje:= (oQryComprasDet:precioven * 100) / oQryComprasDet:pcosto -100
 ENDIF  
-IF n <> 16 .and. !lSoloCosto
+IF n <> 16 .and. !lSoloCosto .and. n <> 18
     oQryComprasDet:precioven:= INT(oQryComprasDet:pcosto + oQryComprasDet:pcosto * (oQryComprasDet:porcentaje/100))
 ENDIF
 IF n = 18
     oQryComprasDet:porcentajerev:= (oQryComprasDet:reventa * 100) / oQryComprasDet:pcosto -100
 ENDIF  
-IF n <> 18  .and. !lSoloCosto
+IF n <> 18  .and. !lSoloCosto .and. n <> 16
     oQryComprasDet:reventa:= INT(oQryComprasDet:pcosto + oQryComprasDet:pcosto * (oQryComprasDet:porcentajerev/100))
 ENDIF
 

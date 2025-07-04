@@ -55,7 +55,7 @@ LOCAL oBar, hHand,cDialog,oBot:=ARRAY(6),oFontTotal, lRta := .f., aTipoDoc, nTip
   DEFINE FONT oFontTotal NAME "ARIAL" SIZE 12,30
   oQryComprasDet :=oApp:oServer:Query("SELECT * FROM proped_temp")
   DO WHILE .T.
-    DEFINE DIALOG oDlg1 RESOURCE "PROCESAPED" OF oWnd1
+    DEFINE DIALOG oDlg1 RESOURCE "PROCESAPED" OF oWnd1 TITLE "Cambio de precios"
     oDlg1:lHelpIcon := .f.
       
 

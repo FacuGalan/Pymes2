@@ -214,7 +214,7 @@ RETURN nil
 
 //Etiquetas de promos
 STATIC FUNCTION Etiquetas()
-LOCAL oPrn, nRow, nCol, i, j, aUnit, oQryEti, lLogo := .f., x1, oFon1, oFon2, oFon3, oQryAux, lVto := .T.,;
+LOCAL oPrn, nRow, nCol, i, j, aUnit, oQryEti, lLogo := .f., x1, oFon1, oFon2, oFon3, oQryAux, lVto := .T., oBrw,;
       oQryFue  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"fuentes"), nDecimales := 2, MaxFil := 2, MaxCol := 1,;
       nCol1 := 0, nCol2 := 0, nCol3:= 0, ;
       oSay1, oSay2, oSay3, oBot1, oBot2, oDlg1, oDlg2, oDlg3, oFld, oBot10,;
@@ -223,9 +223,13 @@ LOCAL oPrn, nRow, nCol, i, j, aUnit, oQryEti, lLogo := .f., x1, oFon1, oFon2, oF
       nFila,  ;
       mrta := .f., aCor,  aFont, oChe, oChe1, oChe2, oChe3,;
       aMod := {"Modelo 1","Modelo 2","Modelo 3"}, mmod := 1, oCom1,  oFont, oError, ;
-      lSinDecimales := .f.  
+      lSinDecimales := .f., aTabla := {}, nIndi        
 oQryEti := oApp:oServer:Query( "SELECT p.*,a.nombre as nombre, a.precioven as precioven FROM ge_"+oApp:cId+"promociones p "+;
                              "LEFT JOIN ge_"+oApp:cId+"articu a ON p.codart = a.codigo WHERE p.fecha_fin >= CURDATE() ORDER BY p.nompromo")      
+DO WHILE !oQryEti:Eof()
+   AADD(aTabla,{.t.,oQryEti:codart,oQryEti:nombre,oQryEti:precioVen})
+   oQryEti:Skip()
+ENDDO   
 oFon1 := TFont():New(alltrim(oQryFue:cFace1)  ,oQryFue:nWidth1  ,oQryFue:nHeight1 ,.f.,oQryFue:lBold1,;
                    oQryFue:nEscape1,oQryFue:norienta1,oQryFue:nWeight1 ,oQryFue:lItalic1,;
                    oQryFue:lUnder1 ,oQryFue:lStrik1  ,oQryFue:nCharset1,oQryFue:nOutPre1,;
@@ -258,31 +262,32 @@ MaxCol := oQryFue:nMaxCol
 AADD(aText,oFon1:cFaceName + " de " + STR(oFon1:nWeight,5))
 AADD(aText,oFon2:cFaceName + " de " + STR(oFon2:nWeight,5))
 AADD(aText,oFon3:cFaceName + " de " + STR(oFon1:nWeight,5))
-DEFINE DIALOG oDlg1 TITLE "Impresion de Etiquetas de precios de Promos" FROM 05,15 TO 35,135 OF oApp:oWnd ICON oApp:oIco FONT oFont
+DEFINE DIALOG oDlg1 TITLE "Impresion de Etiquetas de precios de Promos" FROM 05,15 TO 35,135 OF oWnd1 ICON oApp:oIco FONT oFont
    oDlg1:lHelpIcon := .f.
    acor := AcepCanc(oDlg1)
       
-   @ 07, 05 SAY "Filas por hoja:"      OF oDlg1 PIXEL SIZE 49,10
-   @ 07, 75 SAY "Columnas por hoja: "  OF oDlg1 PIXEL SIZE 49,10
+   @ 07, 05 SAY "Filas por hoja:"      OF oDlg1 PIXEL SIZE 49,10 RIGHT
+   @ 07, 70 SAY "Columnas por hoja: "  OF oDlg1 PIXEL SIZE 55,10 RIGHT
    
    @ 05, 55 GET oGet1 VAR MaxFil PICTURE "99" OF oDlg1 PIXEL
    @ 05,125 GET oGet2 VAR MaxCol PICTURE "99" OF oDlg1 PIXEL
    @ 25, 55 CHECKBOX oChe1 VAR lLogo   PROMPT "Con Logo" OF oDlg1 PIXEL SIZE 40,10
    @ 37, 55 CHECKBOX oChe3 VAR lSinDecimales    PROMPT "Precios sin decimales" OF oDlg1 PIXEL SIZE 65,10
    
-   @ 50, 05 XBROWSE oBrw DATASOURCE oQryEti;
-              COLUMNS "CodArt","Nombre","PrecioVen";
-              HEADERS "Codigo","Nombre","Precio";
-              SIZES 90,200,80;
-              AUTOSORT OF oDlg1 ;
+   @ 50, 05 XBROWSE oBrw ARRAY aTabla;
+              COLUMNS 1,2,3,4;
+              HEADERS "?","Codigo","Nombre","Precio";
+              SIZES nil,90,200,80;
+              OF oDlg1 ;
      SIZE 190,120 PIXEL 
-   
-   PintaBrw(oBrw,3)
+   //oBrw:aCols[1]:nEditType := EDIT_GET
+   oBrw:aCols[1]:SetCheck(nil,.t.)
+   PintaBrw(oBrw,0)
    oBrw:nFreeze := 2
    oBrw:CreateFromcode()     
-   @ 05, 235 SAY "Fuente Nombre articulo:" OF oDlg1 PIXEL SIZE 60,10
-   @ 65, 235 SAY "Fuente para precio:" OF oDlg1 PIXEL SIZE 60,10
-   @125, 235 SAY "Fuente para codigo:" OF oDlg1 PIXEL SIZE 60,10
+   @ 05, 235 SAY "Fuente Nombre articulo:" OF oDlg1 PIXEL SIZE 65,10 RIGHT
+   @ 65, 235 SAY "Fuente para precio:" OF oDlg1 PIXEL SIZE 65,10 RIGHT
+   @125, 235 SAY "Fuente para codigo:" OF oDlg1 PIXEL SIZE 65,10 RIGHT
    @ 05, 330 SAY aSay[1] PROMPT aText[1] SIZE 120,20 OF oDlg1 PIXEL BORDER COLOR oQryFue:color1
    @ 65, 330 SAY aSay[2] PROMPT aText[2] SIZE 120,20 OF oDlg1 PIXEL BORDER COLOR oQryFue:color2
    @125, 330 SAY aSay[3] PROMPT aText[3] SIZE 120,20 OF oDlg1 PIXEL BORDER COLOR oQryFue:color3
@@ -301,10 +306,11 @@ DEFINE DIALOG oDlg1 TITLE "Impresion de Etiquetas de precios de Promos" FROM 05,
    @195, 320 COMBOBOX oCom1 VAR mmod ITEMS aMod SIZE 100,100 PIXEL ;
          OF oDlg1 ;
          ON CHANGE  refrefont(oQryFue,mmod,oSay1,oSay2,oSay3,oGet1,oGet2)
-   
-   @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir (F9)" OF oDlg1 SIZE 35,12 ;
+   @140 ,200 BUTTON oBot1 PROMPT "&Previsualizar" OF oDlg1 SIZE 40,40 ;
+           ACTION Prev(MaxFil,MaxCol, oSay1, oSay2, oSay3, oQryEti, lLogo,  lVto,IF(lSinDecimales,0,2),aTabla) PIXEL WHEN(oQryEti:nRecCount>0)
+   @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir (F9)" OF oDlg1 SIZE 40,12 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL WHEN(oQryEti:nRecCount>0)
-   @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 35,12 ;
+   @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 40,12 ;
            ACTION ((mrta := .f.), oDlg1:End() ) PIXEL
    oDlg1:bKeyDown = { | nKey, nFlags | IF(nKey==120,oBot1:Click,.f.)}
    oSay1:nClrText := oQryFue:color1
@@ -312,7 +318,7 @@ DEFINE DIALOG oDlg1 TITLE "Impresion de Etiquetas de precios de Promos" FROM 05,
    oSay3:nClrText := oQryFue:color3
 ACTIVATE DIALOG oDlg1 CENTER ON INIT (oSay1:Hide(), oSay2:Hide(), oSay3:Hide())
 IF !mrta
-   cerrar()
+   //cerrar()
    DEACTIVATE FONT oFon1
    DEACTIVATE FONT oFon2
    DEACTIVATE FONT oFon3
@@ -344,80 +350,87 @@ oQryFue:nMaxCol := MaxCol
 
         PRINT oPrn NAME "Previsualizar" PREVIEW
           oPrn:SetPortrait()
-          oPrn:SetPage(9)
-          nRow = oPrn:nVertRes() / MaxFil
-          nCol = oPrn:nHorzRes() / MaxCol
+          oPrn:SetPage(9)                   
           PAGE
           i  := 1
           j  := 1
-          DO WHILE !oQryEti:EOF()            
-              aUnit := oPrn:Units2Pix((i-1)*(29/MaxFil), (j-1)*(21/MaxCol), (i-1)*(29/MaxFil)+(29/MaxFil),(j-1)*(21/MaxCol)+(21/MaxCol)-.3,'CM')
-              oPrn:RoundBox(aUnit[2],aUnit[1],aUnit[4],aUnit[3],50,50)
+          nIndi := 1
+          oQryEti:GoTop()
+          DO WHILE !oQryEti:EOF() 
+              IF !aTabla[nIndi,1]
+                 oQryEti:Skip()
+                 nIndi ++ 
+                 LOOP
+              ENDIF 
+              nIndi ++  
+              nRow := 0.8 + ((i-1) * ((29.7-2.4)/MaxFil))
+              nCol := 0.8 + ((j-1) * ((21.0-1.6)/MaxCol))    
+              aUnit := oPrn:Units2Pix(nRow, nCol, nRow+((29.7-2.4)/MaxFil)-0.05, nCol+((21.0-1.6)/MaxCol)-0.05,'CM')
+              oPrn:RoundBox(aUnit[2],aUnit[1],aUnit[4],aUnit[3],50,50)                      
               oQryAux := oApp:oServer:Query("SELECT medida,entero,unimed,fecmod FROM ge_"+oApp:cId+"articu WHERE codigo = "+STR(oQryEti:codart))
               IF lLogo 
-                 @ (i-1)*(29/MaxFil)+.1, (j-1)*(21/MaxCol)+.1;
-                 PRINT TO oPrn IMAGE '.\LOGO.JPG' SIZE 1.5,1.5 CM 
+                 @ nRow+0.15, nCol+0.15;
+                 PRINT TO oPrn IMAGE '.\LOGO.JPG' SIZE 1.2,1.2 CM 
               ENDIF
-              @ (i-1)*(29/MaxFil)+.1, (j-1)*(21/MaxCol)+.1;
-                 PRINT TO oPrn TEXT "O F E R T A" ;
-                        SIZE (21/MaxCol)-.5,(29/MaxFil)/5 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText
-
-              @ x1, (j-1)*(21/MaxCol)+.1;
-                 PRINT TO oPrn TEXT "Promo: "+ALLTRIM(oQryEti:nompromo) ;
-                        SIZE (21/MaxCol)-.5,(29/MaxFil)/5 CM FONT oFon1 ALIGN "C" LASTROW x1 COLOR aSay[1]:nClrText
-              @ x1, (j-1)*(21/MaxCol)+.1;
-                 PRINT TO oPrn TEXT "Artículo: "+ALLTRIM(oQryEti:nombre) ;
-                        SIZE (21/MaxCol)-.5,(29/MaxFil)/5 CM FONT oFon1 ALIGN "C" LASTROW x1 COLOR aSay[1]:nClrText
+              @ nRow+0.15, nCol+0.15;
+                PRINT TO oPrn TEXT " O F E R T A " ;
+                       SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.2 CM FONT oFon2 ALIGN "TC" LASTROW x1
+              @ x1, nCol+0.15;
+                PRINT TO oPrn TEXT ALLTRIM(oQryEti:nompromo) ;
+                       SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon1 ALIGN "TC" LASTROW x1 COLOR aSay[1]:nClrText
+              @ x1, nCol+0.15;
+                PRINT TO oPrn TEXT ALLTRIM(oQryEti:nombre) ;
+                       SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon1 ALIGN "TC" LASTROW x1 COLOR aSay[1]:nClrText              
               DO CASE 
                   CASE oQryEti:tipo = 1            
-                      @ x1, (j-1)*(21/MaxCol)+.1;
+                      @ x1, nCol+0.15;
                          PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precio_especial,12,nDecimales)) ;
-                                SIZE (21/MaxCol)-.5,(29/MaxFil)/5 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText
-                      @ x1, (j-1)*(21/MaxCol)+.1;
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText
+                      @ x1, nCol+0.15;
                          PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR(oQryEti:precio_especial*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
                                 SPACE(10),"")+ "Cod. " +STR(oQryEti:codart)+;
                                 IF(lVto," - Valido hasta el "+DTOC(oQryEti:fecha_fin),"");
-                                SIZE (21/MaxCol)-.5,(29/MaxFil)/5 CM FONT oFon3 ALIGN "C" LASTROW x1 COLOR aSay[3]:nClrText
-                      @ x1, (j-1)*(21/MaxCol)+.1;
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C" LASTROW x1 COLOR aSay[3]:nClrText
+                      @ x1, nCol+0.15;
                          PRINT TO oPrn TEXT "Precio anterior: " + STR(oQryEti:precioven,12,nDecimales) ;                                
-                                SIZE (21/MaxCol)-.5,(29/MaxFil)/5 CM FONT oFon3 ALIGN "C" COLOR aSay[3]:nClrText
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C" COLOR aSay[3]:nClrText
                   CASE oQryEti:tipo = 2
-                      @ x1, (j-1)*(21/MaxCol)+.1;
+                      @ x1, nCol+0.15;
                          PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven*oQryEti:cantidad_requerida/oQryEti:cantidad_a_pagar,12,nDecimales)) ;
-                                SIZE (21/MaxCol)-.5,(29/MaxFil)/5 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText
-                      @ x1, (j-1)*(21/MaxCol)+.1;
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText
+                      @ x1, nCol+0.15;
                          PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR((oQryEti:precioven*oQryEti:cantidad_requerida/oQryEti:cantidad_a_pagar)*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
                                 SPACE(10),"")+ "Cod. " +STR(oQryEti:codart)+;
                                 IF(lVto," - Valido hasta el "+DTOC(oQryEti:fecha_fin),"");
-                                SIZE (21/MaxCol)-.5,(29/MaxFil)/5 CM FONT oFon3 ALIGN "C" LASTROW x1 COLOR  aSay[3]:nClrText
-                      @ x1, (j-1)*(21/MaxCol)+.1;
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C" LASTROW x1 COLOR  aSay[3]:nClrText
+                      @ x1, nCol+0.15;
                          PRINT TO oPrn TEXT "Lleva " + STR(oQryEti:cantidad_requerida,3) + " paga " + STR(oQryEti:cantidad_a_pagar) ;                                
-                                SIZE (21/MaxCol)-.5,(29/MaxFil)/5 CM FONT oFon3 ALIGN "C" COLOR aSay[3]:nClrText
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C" COLOR aSay[3]:nClrText
                   CASE oQryEti:tipo = 3
-                      @ x1, (j-1)*(21/MaxCol)+.1;
+                      @ x1, nCol+0.15;
                          PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,12,nDecimales)) ;
-                                SIZE (21/MaxCol)-.5,(29/MaxFil)/5 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText
-                      @ x1, (j-1)*(21/MaxCol)+.1;
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText
+                      @ x1, nCol+0.15;
                          PRINT TO oPrn TEXT STR(oQryEti:descuento_a_unidad,3)+"° unidad a $" +;
                                  ALLTRIM(STR(oQryEti:precioven*(oQryEti:descuento_porcentual/100),12,nDecimales)) ;
-                                SIZE (21/MaxCol)-.5,(29/MaxFil)/5 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText          
-                      @ x1, (j-1)*(21/MaxCol)+.1;
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText          
+                      @ x1, nCol+0.15;
                          PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR((oQryEti:precioven)*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
                                 SPACE(10),"")+ "Cod. " +STR(oQryEti:codart)+;
                                 IF(lVto," - Valido hasta el "+DTOC(oQryEti:fecha_fin),"");
-                                SIZE (21/MaxCol)-.5,(29/MaxFil)/5 CM FONT oFon3 ALIGN "C" COLOR aSay[3]:nClrText
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C" COLOR aSay[3]:nClrText
                   CASE oQryEti:tipo = 4                
-                       @ x1, (j-1)*(21/MaxCol)+.1;
+                       @ x1, nCol+0.15;
                          PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precio_unitario,12,nDecimales)) ;
-                                SIZE (21/MaxCol)-.5,(29/MaxFil)/5 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText
-                       @ x1, (j-1)*(21/MaxCol)+.1;
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText
+                       @ x1, nCol+0.15;
                          PRINT TO oPrn TEXT "Llevando mas de " + STR(oQryEti:cantidad_minima,3) + " unidades "  ;                                
-                                SIZE (21/MaxCol)-.5,(29/MaxFil)/5 CM FONT oFon3 ALIGN "C" LASTROW x1 COLOR aSay[3]:nClrText
-                      @ x1, (j-1)*(21/MaxCol)+.1;
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C" LASTROW x1 COLOR aSay[3]:nClrText
+                      @ x1, nCol+0.15;
                          PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR((oQryEti:precio_unitario)*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
                                 SPACE(10),"")+ "Cod. " +STR(oQryEti:codart)+;
                                 IF(lVto," - Valido hasta el "+DTOC(oQryEti:fecha_fin),"");
-                                SIZE (21/MaxCol)-.5,(29/MaxFil)/5 CM FONT oFon3 ALIGN "C" COLOR aSay[3]:nClrText
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C" COLOR aSay[3]:nClrText
               ENDCASE
               oQryEti:Skip()
               j++
@@ -435,6 +448,54 @@ oQryFue:nMaxCol := MaxCol
           ENDPAGE
           Procesando(.f.)
         ENDPRINT
+oQryFue:cFace1   := oSay1:oFont:cFaceName
+oQryFue:cFace2   := oSay2:oFont:cFaceName
+oQryFue:cFace3   := oSay3:oFont:cFaceName
+oQryFue:nHeight1 := oSay1:oFont:nHeight  
+oQryFue:nHeight2 := oSay2:oFont:nHeight  
+oQryFue:nHeight3 := oSay3:oFont:nHeight  
+oQryFue:nwidth1  := oSay1:oFont:nwidth   
+oQryFue:nwidth2  := oSay2:oFont:nwidth   
+oQryFue:nwidth3  := oSay3:oFont:nwidth   
+oQryFue:color1   := oSay1:nClrText       
+oQryFue:color2   := oSay2:nClrText       
+oQryFue:color3   := oSay3:nClrText       
+oQryFue:lBold1   := oSay1:oFont:lBold    
+oQryFue:lBold2   := oSay2:oFont:lBold    
+oQryFue:lBold3   := oSay3:oFont:lBold    
+oQryFue:nEscape1 := oSay1:oFont:nEscapement
+oQryFue:nEscape2 := oSay2:oFont:nEscapement
+oQryFue:nEscape3 := oSay3:oFont:nEscapement
+oQryFue:nOrienta1 := oSay1:oFont:nOrientation
+oQryFue:nOrienta2 := oSay2:oFont:nOrientation
+oQryFue:nOrienta3 := oSay3:oFont:nOrientation
+oQryFue:nWeight1 := oSay1:oFont:nWeight     
+oQryFue:nWeight2 := oSay2:oFont:nWeight     
+oQryFue:nWeight3 := oSay3:oFont:nWeight     
+oQryFue:lItalic1 := oSay1:oFont:lItalic     
+oQryFue:lItalic2 := oSay2:oFont:lItalic     
+oQryFue:lItalic3 := oSay3:oFont:lItalic     
+oQryFue:lUnder1  := oSay1:oFont:lUnderline  
+oQryFue:lUnder2  := oSay2:oFont:lUnderline  
+oQryFue:lUnder3  := oSay3:oFont:lUnderline  
+oQryFue:lStrik1  := oSay1:oFont:lStrikeOut  
+oQryFue:lStrik2  := oSay2:oFont:lStrikeOut  
+oQryFue:lStrik3  := oSay3:oFont:lStrikeOut  
+oQryFue:ncharset1 := oSay1:oFont:nCharset    
+oQryFue:ncharset2 := oSay2:oFont:nCharset    
+oQryFue:ncharset3 := oSay3:oFont:nCharset    
+oQryFue:nOutPre1 := oSay1:oFont:nOutPrecision
+oQryFue:nOutPre2 := oSay2:oFont:nOutPrecision
+oQryFue:nOutPre3 := oSay3:oFont:nOutPrecision
+oQryFue:nClippr1 := oSay1:oFont:nClipPrecision
+oQryFue:nClippr2 := oSay2:oFont:nClipPrecision
+oQryFue:nClippr3 := oSay3:oFont:nClipPrecision
+oQryFue:nQuality1 := oSay1:oFont:nQuality     
+oQryFue:nQuality2 := oSay2:oFont:nQuality     
+oQryFue:nQuality3 := oSay3:oFont:nQuality     
+oQryFue:nMaxFil   := Maxfil
+oQryFue:nMaxCol   := MaxCol
+oQryFue:Save()
 RETURN NIL
 
 
@@ -493,3 +554,137 @@ IF !oApp:oServer:TableExist('ge_'+oApp:cId+"promociones")
 ") ENGINE=INNODB DEFAULT CHARSET=utf8")
 ENDIF
 RETURN nil
+
+
+********************************
+** Previsualizacion
+STATIC FUNCTION Prev(MaxFil,MaxCol, oSay1, oSay2, oSay3, oQryEti,  lLogo,  lVto,nDecimales,aTabla)
+LOCAL oFon1, oFon2, oFon3, oFon4,  nRow, nCol, oPrn , i, j , x1, x2, x3, x4, x5, y , h, oQryAux, oFont5, ;
+      mbarra1, aUnit, nIndi
+oQryEti:GOTOP()
+oFon1 := TFont():New(oSay1:oFont:cFaceName,oSay1:oFont:nWidth,oSay1:oFont:nHeight,.f.,oSay1:oFont:lBold,;
+                   oSay1:oFont:nEscapement,oSay1:oFont:norientation,oSay1:oFont:nWeight,oSay1:oFont:lItalic,;
+                   oSay1:oFont:lUnderline,oSay1:oFont:lStrikeout,oSay1:oFont:nCharset,oSay1:oFont:nOutPrecision,;
+                   oSay1:oFont:nClipprecision,oSay1:oFont:nQuality)
+oFon2 := TFont():New(oSay2:oFont:cFaceName,oSay2:oFont:nWidth,oSay2:oFont:nHeight,.f.,oSay2:oFont:lBold,;
+                   oSay2:oFont:nEscapement,oSay2:oFont:norientation,oSay2:oFont:nWeight,oSay2:oFont:lItalic,;
+                   oSay2:oFont:lUnderline,oSay2:oFont:lStrikeout,oSay2:oFont:nCharset,oSay2:oFont:nOutPrecision,;
+                   oSay2:oFont:nClipprecision,oSay2:oFont:nQuality)
+oFon3 := TFont():New(oSay3:oFont:cFaceName,oSay3:oFont:nWidth,oSay3:oFont:nHeight,.f.,oSay3:oFont:lBold,;
+                   oSay3:oFont:nEscapement,oSay3:oFont:norientation,oSay3:oFont:nWeight,oSay3:oFont:lItalic,;
+                   oSay3:oFont:lUnderline,oSay3:oFont:lStrikeout,oSay3:oFont:nCharset,oSay3:oFont:nOutPrecision,;
+                   oSay3:oFont:nClipprecision,oSay3:oFont:nQuality)
+oFon4 := TFont():New(oSay2:oFont:cFaceName,oSay2:oFont:nWidth*.2,oSay2:oFont:nHeight*.2,.f.,oSay2:oFont:lBold,;
+                   oSay2:oFont:nEscapement,oSay2:oFont:norientation,oSay2:oFont:nWeight,oSay2:oFont:lItalic,;
+                   oSay2:oFont:lUnderline,oSay2:oFont:lStrikeout,oSay2:oFont:nCharset,oSay2:oFont:nOutPrecision,;
+                   oSay2:oFont:nClipprecision,oSay2:oFont:nQuality)
+ACTIVATE FONT oFon1
+ACTIVATE FONT oFon2
+ACTIVATE FONT oFon3
+    PRINT oPrn NAME "Previsualizar" PREVIEW MODAL
+          oPrn:SetPortrait()
+          oPrn:SetPage(9)                   
+          PAGE
+          i  := 1
+          j  := 1
+          nIndi := 1
+          oQryEti:GoTop()
+          DO WHILE !oQryEti:EOF() 
+              IF !aTabla[nIndi,1]
+                 oQryEti:Skip()
+                 nIndi ++ 
+                 LOOP
+              ENDIF 
+              nIndi ++  
+              nRow := 0.8 + ((i-1) * ((29.7-2.4)/MaxFil))
+              nCol := 0.8 + ((j-1) * ((21.0-1.6)/MaxCol))    
+              aUnit := oPrn:Units2Pix(nRow, nCol, nRow+((29.7-2.4)/MaxFil)-0.05, nCol+((21.0-1.6)/MaxCol)-0.05,'CM')
+              oPrn:RoundBox(aUnit[2],aUnit[1],aUnit[4],aUnit[3],50,50)                      
+              oQryAux := oApp:oServer:Query("SELECT medida,entero,unimed,fecmod FROM ge_"+oApp:cId+"articu WHERE codigo = "+STR(oQryEti:codart))
+              IF lLogo 
+                 @ nRow+0.15, nCol+0.15;
+                 PRINT TO oPrn IMAGE '.\LOGO.JPG' SIZE 1.2,1.2 CM 
+              ENDIF
+              @ nRow+0.15, nCol+0.15;
+                PRINT TO oPrn TEXT " O F E R T A " ;
+                       SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.2 CM FONT oFon2 ALIGN "TC" LASTROW x1
+              @ x1, nCol+0.15;
+                PRINT TO oPrn TEXT ALLTRIM(oQryEti:nompromo) ;
+                       SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon1 ALIGN "TC" LASTROW x1
+              @ x1, nCol+0.15;
+                PRINT TO oPrn TEXT ALLTRIM(oQryEti:nombre) ;
+                       SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon1 ALIGN "TC" LASTROW x1
+              DO CASE 
+                  CASE oQryEti:tipo = 1            
+                      @ x1, nCol+0.15;
+                         PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precio_especial,12,nDecimales)) ;
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1
+                      @ x1, nCol+0.15;
+                         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR(oQryEti:precio_especial*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
+                                SPACE(10),"")+ "Cod. " +STR(oQryEti:codart)+;
+                                IF(lVto," - Valido hasta el "+DTOC(oQryEti:fecha_fin),"");
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C" LASTROW x1 
+                      @ x1, nCol+0.15;
+                         PRINT TO oPrn TEXT "Precio anterior: " + STR(oQryEti:precioven,12,nDecimales) ;                                
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C" 
+                  CASE oQryEti:tipo = 2
+                      @ x1, nCol+0.15;
+                         PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven*oQryEti:cantidad_requerida/oQryEti:cantidad_a_pagar,12,nDecimales)) ;
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 
+                      @ x1, nCol+0.15;
+                         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR((oQryEti:precioven*oQryEti:cantidad_requerida/oQryEti:cantidad_a_pagar)*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
+                                SPACE(10),"")+ "Cod. " +STR(oQryEti:codart)+;
+                                IF(lVto," - Valido hasta el "+DTOC(oQryEti:fecha_fin),"");
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C" LASTROW x1 
+                      @ x1, nCol+0.15;
+                         PRINT TO oPrn TEXT "Lleva " + STR(oQryEti:cantidad_requerida,3) + " paga " + STR(oQryEti:cantidad_a_pagar) ;                                
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C" 
+                  CASE oQryEti:tipo = 3
+                      @ x1, nCol+0.15;
+                         PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,12,nDecimales)) ;
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 
+                      @ x1, nCol+0.15;
+                         PRINT TO oPrn TEXT STR(oQryEti:descuento_a_unidad,3)+"° unidad a $" +;
+                                 ALLTRIM(STR(oQryEti:precioven*(oQryEti:descuento_porcentual/100),12,nDecimales)) ;
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 
+                      @ x1, nCol+0.15;
+                         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR((oQryEti:precioven)*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
+                                SPACE(10),"")+ "Cod. " +STR(oQryEti:codart)+;
+                                IF(lVto," - Valido hasta el "+DTOC(oQryEti:fecha_fin),"");
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C" 
+                  CASE oQryEti:tipo = 4                
+                       @ x1, nCol+0.15;
+                         PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precio_unitario,12,nDecimales)) ;
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 
+                       @ x1, nCol+0.15;
+                         PRINT TO oPrn TEXT "Llevando mas de " + STR(oQryEti:cantidad_minima,3) + " unidades "  ;                                
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C" LASTROW x1 
+                      @ x1, nCol+0.15;
+                         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR((oQryEti:precio_unitario)*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
+                                SPACE(10),"")+ "Cod. " +STR(oQryEti:codart)+;
+                                IF(lVto," - Valido hasta el "+DTOC(oQryEti:fecha_fin),"");
+                                SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C" 
+              ENDCASE
+              oQryEti:Skip()
+              j++
+              IF j > MaxCol
+                 j := 1               
+                 i ++               
+              ENDIF
+              IF i > MaxFil .and. !oQryEti:Eof()
+                 ENDPAGE
+                 PAGE
+                 i  := 1
+                 j  := 1
+              ENDIF
+             ENDDO
+          ENDPAGE
+          Procesando(.f.)
+        ENDPRINT
+DEACTIVATE FONT oFon1
+DEACTIVATE FONT oFon2
+DEACTIVATE FONT oFon3
+RELEASE FONT oFon1
+RELEASE FONT oFon2
+RELEASE FONT oFon3
+RETURN NIL

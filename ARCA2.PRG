@@ -329,8 +329,8 @@ METHOD Login(cCertFile, cPrivKeyFile, cService) CLASS WSAFip
 RETURN lSuccess
 
 METHOD BuscarTAExistente(cService) CLASS WSAFip
-   LOCAL cTAFilename := "TA_" + cService + ".xml"
-   LOCAL cTAAlternativeFilename := "TA_" + cService + "*.xml"
+   LOCAL cTAFilename := "TA_" + cService +::cCuitRepresentada + ".xml"
+   LOCAL cTAAlternativeFilename := "TA_" + cService +::cCuitRepresentada+ "*.xml"
    LOCAL cFileName, aFiles := DIRECTORY(cTAAlternativeFilename)
    LOCAL cTA, cExpiration, cExpYear, cExpMonth, cExpDay
    LOCAL lFound := .F.

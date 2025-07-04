@@ -202,8 +202,16 @@ IF filt()
       cPorUti1 := "(a.porcentaje + "+STR(nPorcUn)+")" 
       cPorUti2 := "(a.porcentajerev + "+STR(nPorcUnR)+")" 
       ELSE
-      cPorUti1 := "("+STR(nPorcUn)+")"
-      cPorUti2 := "("+STR(nPorcUnR)+")"
+      IF nPorcUn > 0
+         cPorUti1 := "("+STR(nPorcUn)+")"
+         ELSE
+         cPorUti1 := "(a.porcentaje)"
+      ENDIF   
+      IF nPorcUnR > 0
+         cPorUti2 := "("+STR(nPorcUnR)+")"
+         ELSE
+         cPorUti2 := "(a.porcentajerev)"
+      ENDIF   
    ENDIF 
    /*oApp:oServer:Execute("INSERT INTO articu_temp (codigo, nombre, preciocos, incru,precioven,incruR,reventa, preciocos1,costofin, incru1,precioven1,incruR1,reventa1) "+;
                         "(SELECT a.codigo, a.nombre, a.precossiva, a.porcentaje,a.precioven,a.porcentajerev,a.reventa, a.precossiva,"+ClipValue2Sql(cCostoFin)+","+;
@@ -419,7 +427,8 @@ RETURN .t.
 
 PROCEDURE PREGENLIS()
 LOCAL oGet := ARRAY(3),  oBot := ARRAY(2), lRta := .f., oBrwTmp, aCols, oBrw, cCostoDesc, cCostoFlete,;
-      aCor, base, oError, oFont, oBrwDet, oQryDet , oForm, oQryPro,mcodpro := 0, cNomPro := SPACE(30), i, nError,cCostoFin
+      aCor, base, oError, oFont, oBrwDet, oQryDet , oForm, oQryPro,mcodpro := 0, cNomPro := SPACE(30), i,;
+      nError,cCostoFin, lYaapreto := .f.
 oQryPro := oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"provee")
 aCols := {{SPACE(14),SPACE(30),0.00,SPACE(30),0,0,0}}
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
@@ -466,7 +475,7 @@ DEFINE DIALOG oForm TITLE "Cambio de Precios por Excel " FROM 03,15 TO 35,140
    @ acor[1],acor[2]+60 BUTTON oBot[1] PROMPT "&Borra Errores" OF oForm SIZE 50,10 ;
            ACTION (BorrarErr(oBrwTmp,aCols)) PIXEL
    @ acor[1],acor[2]+60+90 BUTTON oBot[1] PROMPT "&Procesar con UXB" OF oForm SIZE 50,10 ;
-           ACTION (ProcesarUxB(oBrwTmp,aCols,mcodpro)) PIXEL        
+           ACTION (ProcesarUxB(oBrwTmp,aCols,mcodpro), lYaapreto:= .t.) PIXEL WHEN(!lYaapreto)       
    @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oForm SIZE 30,10 ;
            ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL
 ACTIVATE DIALOG oForm CENTER ON INIT oGet[1]:SetFocus()

@@ -546,6 +546,13 @@ cSql := " SELECT * FROM (" +;
        " ge_"+oApp:cId+"stoman "+;       
        " WHERE codart = "+ClipValue2Sql(oQry:codigo)+;
        " AND fecha >= "+ClipValue2Sql(mdesde)+" AND fecha <=  "+ClipValue2Sql(mhasta)+;
+       " UNION "+;
+       " SELECT vd.nrofac as compro, CONCAT('Participa en ',vd.detart) as motivo,"+;
+       " 0 as entrada, vd.cantidad * r.cantidad * IF(LEFT(vd.nrofac,2) = 'NC',-1,1) AS salida,"+;
+       " vd.fecha as fecha, vd.id as id "+;
+       " FROM  ge_"+oApp:cId+"reseta r "+; 
+       " INNER JOIN  ge_"+oApp:cId+"ventas_det vd ON vd.codart = r.codart AND r.codusa = "+ClipValue2Sql(oQry:codigo)+; 
+       " WHERE vd.fecha >= "+ClipValue2Sql(mdesde)+" AND vd.fecha <=  "+ClipValue2Sql(mhasta)+;
        ") res ORDER BY res.fecha" 
 CursorWait()
 oQryRep = oApp:oServer:Query(cSql)
@@ -558,8 +565,9 @@ REPORT oRep TITLE "Reporte Historial de stock "+ALLTRIM(oQry:nombre) + ;
        "Historial Stock" CENTER ;
        FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
        PREVIEW CAPTION  "Historial Stock "+ALLTRIM(oQry:nombre)
-COLUMN TITLE "Fecha"    DATA oQryRep:fecha SIZE 08 FONT 1 
-COLUMN TITLE "Motivo"   DATA oQryRep:motivo SIZE 20 FONT 1
+COLUMN TITLE "Fecha"    DATA oQryRep:fecha SIZE 08 FONT 1
+COLUMN TITLE "Comprobante" DATA oQryRep:compro SIZE 15 FONT 1 
+COLUMN TITLE "Motivo"   DATA oQryRep:motivo SIZE 35 FONT 1
 COLUMN TITLE "Entradas" DATA oQryRep:entrada PICTURE "9999999999.99" SIZE 12 FONT 2 TOTAL
 COLUMN TITLE "Salidas"  DATA oQryRep:salida  PICTURE "9999999999.99" SIZE 12 FONT 2 TOTAL
 

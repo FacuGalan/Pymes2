@@ -19,15 +19,32 @@ STATIC oClock, oDate, oKeyb, lMostrar_novedades
 // Funcion  : Main()
 MEMVAR oApp, nCliente
 FUNCTION Main()
-LOCAL  oBar,oBar2, oQryParmatros, i, oMetro,oFontBarra, oTimer1
+LOCAL  oBar,oBar2, oQryParmatros, i, oMetro,oFontBarra, oTimer1, hWnd, lRunning := .f.
     IF IsExeRunning("BCN.EXE")
-       MsgStop("La Aplicación ya esta en uso en esta PC","Error")
-       QUIT
+       //MsgStop("La Aplicación ya esta en uso en esta PC","Error")
+       lRunning := .t.
+       //QUIT              
     ENDIF 
     lMostrar_novedades:=.f.    
     nCliente := 0
     oApp := TApplication():New()
     oApp:oServer := Conectar()
+    IF lRunning
+       hWnd := FindWindow( NIL, "Sistema de Gestion BCN - "+ALLTRIM(oApp:oServer:Query("SELECT nomb_emp FROM ge_"+oApp:cId+"parametros"):nomb_emp)) // Usa el mismo título
+       IF hWnd = 0
+          hWnd := FindWindow( NIL,"Acceso al Sistema")
+       ENDIF
+       IF hWnd != 0          
+          IF MsgYesNo( "Windows no cerró correctamente el sistema."+chr(10)+;
+                      " ¿Desea volver a ingresar?","Atención!" )
+             PostMessage( hWnd, WM_CLOSE, 0, 0 )
+             // Esperar a que se cierre antes de continuar
+             SysWait(2)
+          ELSE
+             QUIT
+          ENDIF
+       ENDIF
+    ENDIF
     TGet():lDisColors = .F.
     SetGetColorFocus(RGB( 238, 232, 170 ))
     SetDlgGradient( { { 1, RGB( 189, 216, 237 ), RGB( 237, 242, 248 ) } } )
@@ -41,7 +58,6 @@ LOCAL  oBar,oBar2, oQryParmatros, i, oMetro,oFontBarra, oTimer1
      Procesando(.t.)
     oApp:cNombreEquipo := GetHostName()    
     CargarConfiguracion()
-
     // Defino la ventana principal tipo MDI (Ver funcion HAZMENU para ver menu)
     DEFINE BITMAP oApp:oBmp FILE ".\BITMAPS\LOGO.BMP" // Hace un bmp que se llame logo
     DEFINE FONT oFontBarra NAME "CALIBRI" SIZE 13,26 BOLD
@@ -102,6 +118,8 @@ LOCAL  oBar,oBar2, oQryParmatros, i, oMetro,oFontBarra, oTimer1
              IF(lMostrar_novedades,MostrarNovedades(),nil)) 
     RELEASE oApp:oBmp
     oApp:oServer:End()
+    PostQuitMessage( 0 )
+    __QUIT()
 RETURN NIL
 
 // --------------------------------------------------------------------//

@@ -164,12 +164,16 @@ RETURN nil
 *****************************************************************************************************************************
 ****** VALIDO EL ARTICULO Y BUSCO LA RESETA 
 STATIC FUNCTION ValidaArt()
-LOCAL oQryValid:= oApp:oServer:Query("SELECT nombre FROM ge_"+oApp:cId+"articu WHERE codigo = "+ ClipValue2Sql(nCodArtP))
+LOCAL oQryValid:= oApp:oServer:Query("SELECT nombre FROM ge_"+oApp:cId+"articu WHERE produccion AND codigo = "+ ClipValue2Sql(nCodArtP))
 IF oQryValid:RecCount() > 0 
    oGet[02]:cText:= oQryValid:nombre 
-   oQryArtP:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu WHERE codigo = "+ ClipValue2Sql(nCodArtP))
+   oQryArtP:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu WHERE produccion AND codigo = "+ ClipValue2Sql(nCodArtP))
 ELSE
-   Buscar(oQryArtP,oDlg,oGet[01],oGet[02],"TRUE","produccion")
+   Buscar(oQryArtP,oDlg,oGet[01],oGet[02],"TRUE","produccion")   
+ENDIF
+IF oQryArtP:produccion = .f.
+   MsgStop("El articulo no es de produccion","Error")
+   RETURN nil 
 ENDIF
 oApp:oServer:Execute("DELETE FROM reseta_temp")
 oApp:oServer:Execute("INSERT INTO reseta_temp (codart,detart,cantidad,punit,ptotal) "+;

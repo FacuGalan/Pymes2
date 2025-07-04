@@ -302,7 +302,10 @@ IF base:preciocos = 0 .or. base:iva = 0
    msginfo("Campos obligatorios como 'Precio costo' e 'IVA' tienen que estar completos","Atencion!")
    LOOP
 ENDIF
-
+IF base:iva <> 3 .and. base:iva <> 4 .and. base:iva <> 5
+   MsgStop("Tasa de IVA no valida para facturacion","Error")
+   LOOP
+ENDIF
 IF nPrecioven <> base:precioven .OR. nPreciocos <> ROUND(base:preciocos,3)
    oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"campre (codigo,preciocos,precossiva,precioven,reventa,fecmod,usuario,ip) "+;
                         "VALUES ("+ClipValue2Sql(base:codigo)+","+ClipValue2Sql(base:preciocos)+","+;

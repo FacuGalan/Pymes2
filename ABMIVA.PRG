@@ -8,6 +8,9 @@ MEMVAR oApp
 STATIC oQry, oWnd1, oBrw, oDlg, lEdit := .f., cVentana,oError
 PROCEDURE IVAS(cPermisos)
 LOCAL oGet, cBuscar := SPACE(50), oBar, hHand, oFol
+MsgStop("Las tablas de IVA no son modificables"+chr(10)+;
+        "Por cuestiones de compatibilidad con ARCA","Atencion")
+RETURN         
 cVentana := PROCNAME()
 IF ASCAN(oApp:aVentanas,cVentana) > 0
    hHand := ASCAN(oApp:aVentanas,cVentana)

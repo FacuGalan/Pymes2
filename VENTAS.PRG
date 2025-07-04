@@ -690,23 +690,33 @@ LOCAL oGet1, oGet2, oGet3, oGet4, oBot1, oBot2, oDlg1, oFont, mnumfac, ;
       mrta := .f., aCor, base, marchi, mtotal, mdescp := 0, mdeuda := 0,;
       aTipo  := {"Factura","Factur x Rem."}, oRep,;
       aTip1  := {"FC","FR"}, mtipo := 1, mletra := "A", mprefijo := oApp:prefijo,;
-      mnumero := 0,oQryFac, oQryPend,oBrwPend
+      mnumero := 0,oQryFac, oQryPend,oBrwPend, oQryUlt, oBrwB
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5   
 
 IF nTipoDoc = 3   
-    DEFINE DIALOG oDlg1 TITLE "Elejir factura para nota de credito" FROM 03,20 TO 14,60 OF oApp:oWnd FONT oFont
+    oQryUlt := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"ventas_encab WHERE ticomp IN ('FC','FR') ORDER BY fecha DESC,hora DESC LIMIT 30")
+    DEFINE DIALOG oDlg1 TITLE "Elejir factura para nota de credito" FROM 03,20 TO 28,80 FONT oFont
        acor := AcepCanc(oDlg1)
+       @ 01, 05 SAY "Ultmos comprobantes emitidos" OF oDlg1 PIXEL CENTER SIZE 230,10
+       @ 12, 05 XBROWSE oBrwB DATASOURCE oQryUlt;
+                  COLUMNS "ticomp","letra","numcomp","nombre","importe";
+                  HEADERS "Tipo","Letra","Numero Comp","Cliente","Importe";
+                  SIZES 30,30,100,140,80;
+                  AUTOSORT OF oDlg1 ;
+         SIZE 230,90 PIXEL ON CHANGE Llenar(oGet1,oGet2,oGet3,oGet4,oQryUlt)
+       PintaBrw(oBrwB,5)   
+       oBrwB:CreateFromcode()
+       @ 107, 05 SAY "Tipo Docum.:" OF oDlg1 PIXEL RIGHT SIZE 40,10
+       @ 122, 05 SAY "Letra:"       OF oDlg1 PIXEL RIGHT SIZE 40,10
+       @ 137, 05 SAY "Prefijo:"     OF oDlg1 PIXEL RIGHT SIZE 40,10
+       @ 152, 05 SAY "Numero:"      OF oDlg1 PIXEL RIGHT SIZE 40,10
        
-       @ 07, 05 SAY "Tipo Docum.:" OF oDlg1 PIXEL RIGHT SIZE 40,10
-       @ 22, 05 SAY "Letra:"       OF oDlg1 PIXEL RIGHT SIZE 40,10
-       @ 37, 05 SAY "Prefijo:"     OF oDlg1 PIXEL RIGHT SIZE 40,10
-       @ 52, 05 SAY "Numero:"      OF oDlg1 PIXEL RIGHT SIZE 40,10
-       
-       @ 05, 50 COMBOBOX oGet1 VAR mtipo ITEMS aTipo OF oDlg1 SIZE 79,50 PIXEL
-       @ 20, 50 GET      oGet2 VAR mletra PICTURE "@!" OF oDlg1 SIZE 20,10 PIXEL;
-                         VALID(mletra$"ABCX")
-       @ 35, 50 GET      oGet3 VAR mprefijo PICTURE "9999" OF oDlg1 PIXEL RIGHT
-       @ 50, 50 GET      oGet4 VAR mnumero  PICTURE "99999999" OF oDlg1 PIXEL RIGHT
+       @ 105, 50 COMBOBOX oGet1 VAR mtipo ITEMS aTipo OF oDlg1 SIZE 79,50 PIXEL
+       @ 120, 50 GET      oGet2 VAR mletra PICTURE "@!" OF oDlg1 SIZE 20,10 PIXEL;
+                         VALID(mletra$"ABCMX")
+       @ 135, 50 GET      oGet3 VAR mprefijo PICTURE "9999" OF oDlg1 PIXEL RIGHT
+       @ 150, 50 GET      oGet4 VAR mnumero  PICTURE "99999999" OF oDlg1 PIXEL RIGHT
+       oBrwB:bGotFocus := {|| Llenar(oGet1,oGet2,oGet3,oGet4,oQryUlt)}
        
        @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Elegir" OF oDlg1 SIZE 30,10 ;
                ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
@@ -790,6 +800,17 @@ oGet[38]:cText := oBrw:aCols[7]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1
 oGet[21]:cText := oBrw:aCols[9]:nTotal + oGet[38]:value
 oGet[42]:cText := oBrw:aCols[11]:nTotal
 RETURN nil
+
+STATIC FUNCTION Llenar(oGet1,oGet2,oGet3,oGet4,oQryUlt)
+IF oQryUlt:ticomp = "FC"
+   oGet1:Set(1)
+   ELSE
+   oGet1:Set(2)
+ENDIF
+oGet2:cText := oQryUlt:letra 
+oGet3:cText := VAL(LEFT(oQryUlt:numcomp,4))
+oGet4:cText := VAL(RIGHT(oQryUlt:numcomp,8))
+RETURN NIL
 
 ************************************************************************************
 ** Vaciar el formulario despues de grabar o cancelar
@@ -1797,7 +1818,7 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
           "  WHERE a.stockotro = TRUE AND d.ESPROMO IS FALSE " + ;
           "  GROUP BY r.codusa " + ;
           ") AS t ON t.codigo_usado = m.codigo " + ;
-          "SET m.stockact = m.stockact - t.total_a_restar"
+          "SET m.stockact = m.stockact - t.total_a_restar*"+IF(cTipoDoc="NC","-1","1")
 
           oApp:oServer:Execute( cSQL )
       ENDIF
@@ -2413,12 +2434,12 @@ DEFAULT aMetodosPago := {}
                  ENDIF     
                  @ y-0.07, 12 PRINT TO oPrn TEXT STR(IF(!LEFT(cNumComp,1)$"AM",oQryDet1:punit/nIndiceDolar ,oQryDet1:neton/oQryDet1:cantidad/nIndiceDolar),12,2) ;
                       SIZE 2,.5 CM FONT oFont5 ALIGN "TR"
-                 @ y-0.07, 14 PRINT TO oPrn TEXT IF(oQryDet1:descupor > 0,;
+                 @ y-0.07, 14.2 PRINT TO oPrn TEXT IF(oQryDet1:descupor > 0,;
                            ALLTRIM(IF(oQryDet1:descupor = INT(oQryDet1:descupor),;
                                       STR(INT(oQryDet1:descupor),3),;
                                       STR(oQryDet1:descupor,6,2)))+"% "+;
                            ALLTRIM(STR(oQryDet1:descu,12,2))," ") ;
-                      SIZE 1.5,.5 CM FONT oFont5 ALIGN "TR" 
+                      SIZE 1.8,.5 CM FONT oFont5 ALIGN "TR" 
                  @ y-0.07, 15.5 PRINT TO oPrn TEXT STR(oQryDet1:subtot/nIndiceDolar,12,2) ;
                       SIZE 2,.5 CM FONT oFont5 ALIGN "TR"
                  @ y-0.07, 17.7 PRINT TO oPrn TEXT oQryDet1:alicu ;
@@ -4017,12 +4038,12 @@ DEFAULT aMetodosPago := {}
                  ENDIF  
                  @ y-0.07, 12 PRINT TO oPrn TEXT STR(IF(LEFT(cNumComp,1)<>"A",oQryDet1:punit,oQryDet1:neton/oQryDet1:cantidad),12,2) ;
                       SIZE 2,.5 CM FONT oFont5 ALIGN "TR"
-                 @ y-0.07, 14 PRINT TO oPrn TEXT IF(oQryDet1:descupor > 0,;
+                 @ y-0.07, 14.2 PRINT TO oPrn TEXT IF(oQryDet1:descupor > 0,;
                            ALLTRIM(IF(oQryDet1:descupor = INT(oQryDet1:descupor),;
                                       STR(INT(oQryDet1:descupor),3),;
                                       STR(oQryDet1:descupor,6,2)))+"% "+;
                            ALLTRIM(STR(oQryDet1:descu,12,2))," ") ;
-                      SIZE 1.5,.5 CM FONT oFont5 ALIGN "TR" 
+                      SIZE 1.8,.5 CM FONT oFont5 ALIGN "TR" 
                  @ y-0.07, 15.5 PRINT TO oPrn TEXT STR(oQryDet1:subtot,12,2) ;
                       SIZE 2,.5 CM FONT oFont5 ALIGN "TR"
   

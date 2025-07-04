@@ -109,6 +109,10 @@ ACTIVATE DIALOG oForm CENTER ON INIT oGet[2]:SetFocus()
 IF !lRta
    RETURN nil
 ENDIF
+IF base:iva <> 3 .and. base:iva <> 4 .and. base:iva <> 5
+   MsgStop("Tasa de IVA no valida para facturacion","Error")
+   LOOP
+ENDIF   
 IF base:codigo = 0 
    MsgStop("Valores no validos","Error")
    LOOP

@@ -28,7 +28,7 @@ DEFINE DIALOG oDlg1 TITLE "Cuentas corrientes" FROM 03,15 TO 14,70 Of oApp:oWnd
                 VALID(Buscar(oQryCli,oDlg1,oGet[3],oGet[4]));
                 ACTION (oGet[3]:cText:= 0, Buscar(oQryCli,oDlg1,oGet[3],oGet[4])) BITMAP "BUSC1" 
    @ 35,100 GET oGet[4] VAR mnomcli PICTURE "@!"  OF oDlg1 PIXEL WHEN(.F.)
-   @ 50, 65 CHECKBOX oGet[5] VAR lConArt PROMPT "Muestrar Articulos"   OF oDlg1 PIXEL 
+   @ 50, 65 CHECKBOX oGet[5] VAR lConArt PROMPT "Mostrar Articulos"   OF oDlg1 PIXEL 
   
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
