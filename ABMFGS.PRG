@@ -40,6 +40,10 @@ oQry  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"grupos ORDER BY nombr
             TOOLTIP "Exportar a Excel" ;
             ACTION oBrw:ToExcel() WHEN(oQry:RecCount()>0 .and. "E"$cPermisos);
             PROMPT "Exporta" TOP
+         DEFINE BUTTON RESOURCE "ARTI" OF oBar ;
+            TOOLTIP "Consulta en que grupos está un artículo"  ;
+            ACTION (Consultar(), oBrw:Refresh());
+            PROMPT "Consultar" TOP WHEN("M"$cPermisos)
          DEFINE BUTTON RESOURCE "IMPR" OF oBar ;
             TOOLTIP "Imprimir Planilla"  ;
             ACTION oBrw:Report("Reporte de Fragancias, gustos y sabores",.T.,.F.);
@@ -143,7 +147,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Fragancias, gus
                                                                        oBrw1:Refresh())   
    @ 45, 05 XBROWSE oBrw1 DATASOURCE oQryPar ;
            COLUMNS "codart","nomart";
-           HEADERS "Codgio","Detalle del articulo";
+           HEADERS "Codigo","Detalle del articulo";
            SIZES   100,322 OF oForm SIZE 236, 95 AUTOSORT PIXEL   
    oBrw1:CreateFromCode()  
    PintaBrw(oBrw1,0) 
@@ -313,4 +317,50 @@ IF nGrupo <> 0
     ValidaError(oError)
   END TRY    
 ENDIF  
+RETURN nil
+
+
+*******************************************************************************
+STATIC FUNCTION Consultar()
+LOCAL oDlgA,oError,oQryArt,nArticu:=0,cNomArt:=SPACE(30),oGet1,oGet2,;
+      oBot:=ARRAY(2),acor:=ARRAY(4),lRta:=.f., oBrw1
+DO WHILE .T.
+oQryArt:= oApp:oServer:Query("SELECT codigo,nombre,precioven,reventa,stockact,stockmin,stockotro FROM ge_"+oApp:cId+"articu")
+DEFINE DIALOG oDlgA TITLE "Seleccione el articulo a consultar" FROM 05,15 TO 12,70 OF oWnd1
+   @ 12, 05 SAY "Artículo:" OF oDlgA PIXEL SIZE 30,12 RIGHT   
+   @ 10, 40 GET oGet1 VAR nArticu OF oDlgA PIXEL PICTURE "99999999999999" SIZE 45,12 RIGHT;
+               VALID(BuscarArt(oQryArt,oDlgA,oGet1,oGet2));
+               ACTION (oGet1:cText:= 0, BuscarArt(oQryArt,oDlgA,oGet1,oGet2)) BITMAP "BUSC1"
+   @ 10, 90 GET oGet2 VAR cNomArt OF oDlgA PIXEL PICTURE "@!" WHEN(.f.)
+   acor := AcepCanc(oDlgA)
+   @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Consultar" OF oDlgA SIZE 30,10 ;
+           ACTION ((lRta := .t.), oDlgA:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oDlgA SIZE 30,10 ;
+           ACTION ((lRta := .f.), oDlgA:End() ) PIXEL CANCEL  
+    oDlgA:bKeyDown = { | nKey, nFlags | IF(nKey==120,oBot[1]:Click,.f.)} 
+ACTIVATE DIALOG oDlgA CENTER ON INIT oGet1:SetFocus()
+IF !lRta
+   RETURN nil
+ENDIF
+oQryArt:= oApp:oServer:Query("SELECT ge.codigo, ge.nombre FROM ge_"+oApp:cId+"grupos ge "+;
+          " LEFT JOIN ge_"+oApp:cId+"gruposdet g ON ge.codigo = g.codgru WHERE g.codart = "+STR(nArticu))
+IF oQryArt:nRecCount > 0
+   DEFINE DIALOG oDlgA TITLE "Consulta de Fragancias, gustos y sabores";
+         FROM 05,15 TO 22,80 OF oWnd1 
+     @ 05, 05 SAY "Grupos en que participan"  OF oDlgA PIXEL
+     @ 20, 05 XBROWSE oBrw1 DATASOURCE oQryArt ;
+             COLUMNS "codigo","nombre";
+             HEADERS "Codigo","Grupo";
+             SIZES   100,322 OF oDlgA SIZE 236, 95 AUTOSORT PIXEL   
+     oBrw1:CreateFromCode()  
+     PintaBrw(oBrw1,0) 
+     
+     acor := AcepCanc(oDlgA)    
+     @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cerrar" OF oDlgA SIZE 30,10 ;
+             ACTION ((lRta := .f.), oDlgA:End() ) PIXEL CANCEL
+  ACTIVATE DIALOG oDlgA CENTER 
+  ELSE 
+  MsgStop("El articulo no participa en ningun grupo","Atencion")
+ENDIF
+ENDDO
 RETURN nil

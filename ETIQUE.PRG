@@ -206,9 +206,9 @@ IF !lCodBarra
                        SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.2 CM FONT oFon4 ALIGN "TC" LASTROW x1 COLOR aSay[2]:nClrText
         
              @ x1, nCol+0.15;
-                PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"x " + ALLTRIM(oQryAux:unimed) + " $"+;
+                PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + ALLTRIM(oQryAux:unimed) + " $"+;
                        ALLTRIM(STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
-                       " "),"")+ "Cód." +ALLTRIM(STR(oQryEti:codigo))+;
+                       " "),"")+ " Cód." +ALLTRIM(STR(oQryEti:codigo))+;
                        IF(lVto," "+DTOC(oQryAux:fecmod),"");
                        SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.2 CM FONT oFon3 ALIGN "TC" COLOR aSay[3]:nClrText
              oQryEti:Skip()
@@ -259,9 +259,9 @@ IF !lCodBarra
                 PRINT TO oPrn TEXT "Sin imp. $" + ALLTRIM(STR(oQryEti:neto,10,nDecimales)) ;
                        SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.15 CM FONT oFon4 ALIGN "TC" LASTROW x1 COLOR aSay[2]:nClrText
              @ x1, nCol+0.15;
-                PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"x" + ALLTRIM(oQryAux:unimed) + " $" +;
+                PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x" + ALLTRIM(oQryAux:unimed) + " $" +;
                        ALLTRIM(STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
-                       " "),"")+ "Cód." +ALLTRIM(STR(oQryEti:codigo))+;
+                       " "),"")+ " Cód." +ALLTRIM(STR(oQryEti:codigo))+;
                        IF(lVto," "+DTOC(oQryAux:fecmod),"");
                        SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.1 CM FONT oFon3 ALIGN "TC" COLOR aSay[3]:nClrText
              oQryEti:Skip()
@@ -686,8 +686,8 @@ IF !lCodBarra
                  PRINT TO oPrn TEXT "Sin imp. $" + ALLTRIM(STR(oQryEti:neto,10,nDecimales)) ;
                         SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.2 CM FONT oFon4 ALIGN "TC" LASTROW x1
             @ x1, nCol+0.15;
-               PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"x " + ALLTRIM(oQryAux:unimed) + " $" + ;
-                      ALLTRIM(STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales))+ " ","")+ "CÃ³d." +ALLTRIM(STR(oQryEti:codigo))+;
+               PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + ALLTRIM(oQryAux:unimed) + " $" + ;
+                      ALLTRIM(STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales))+ " ","")+ " Cód." +ALLTRIM(STR(oQryEti:codigo))+;
                       IF(lVto," "+DTOC(oQryAux:fecmod),"");
                       SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.2 CM FONT oFon3 ALIGN "TC"
             oQryEti:Skip()
@@ -733,8 +733,8 @@ IF !lCodBarra
                  PRINT TO oPrn TEXT "$ " + ALLTRIM(STR(oQryEti:precioven,12,nDecimales)) ;
                         SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.3 CM FONT oFon2 ALIGN "C" LASTROW x1
               @ x1, nCol+0.15;
-                 PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"x" + ALLTRIM(oQryAux:unimed) + " $" + ;
-                        ALLTRIM(STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales))+ " ","")+ "Cód." +ALLTRIM(STR(oQryEti:codigo))+;
+                 PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x" + ALLTRIM(oQryAux:unimed) + " $" + ;
+                        ALLTRIM(STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales))+ " ","")+ " Cód." +ALLTRIM(STR(oQryEti:codigo))+;
                         IF(lVto," "+DTOC(oQryAux:fecmod),"");
                         SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C"
               oQryEti:Skip()

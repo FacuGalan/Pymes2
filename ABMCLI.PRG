@@ -82,15 +82,15 @@ PROCEDURE Clientes(cPermisos)
       
      DEFINE DIALOG oDlg RESOURCE "ABMS" OF oWnd1
       REDEFINE XBROWSE oBrw DATASOURCE oQry;
-         COLUMNS "codigo","nombre","alias","dni", "CUIT", "Direccion","localidad","Telefono";
-         HEADERS "Codigo","Nombre y Apellido","Alias","DNI", "CUIT", "Direccion","Localidad","Telefono";
-         SIZES 100,290,60,60,90,210,200;
+         COLUMNS "codigo","nombre","alias","dni", "CUIT", "Direccion","localidad","Telefono","fecult";
+         HEADERS "Codigo","Nombre y Apellido","Alias","DNI", "CUIT", "Direccion","Localidad","Telefono","Ultima Compra";
+         SIZES 100,290,60,60,90,210,200,120;
          ID 111 OF oDlg AUTOSORT ON DBLCLICK IF("M"$cPermisos,(Formu( .f.),oBrw:Refresh()),nil)
      
       REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg
       oQry:bOnChangePage := {|| oBrw:Refresh() }
       //oBrw:SetDolphin(oQry,.f.,.t.)
-      PintaBrw(oBrw,7)
+      PintaBrw(oBrw,8)
       oDlg:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar, oBrw,cPermisos,6)}
       oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt(oQry, oGetSeek, oBrw, nKey) }
       // Activo el dialogo y al iniciar muevo a 0,0
@@ -379,7 +379,7 @@ STATIC FUNCTION FILT( )
 LOCAL CWHERE, ;
      VCODIGO := 0, VNOMBRE := SPACE(40), VDIRECCION := SPACE(40), VLOCALIDAD := SPACE(40), ;
      VTELEFONO:= SPACE(40),VMAIL:= SPACE(50), ;
-     VCUIT:= SPACE(13), VDNI := 0, VCONIVA := 15 
+     VCUIT:= SPACE(13), VDNI := 0, VCONIVA := 15, vdesde := CTOD('  /  /    '), vhasta := DATE() 
 LOCAL oGet1, oGet2, oGet3, oGet4, oGet5, oGet6, oGet7, oGet8, oGet9, oGet19,;
       oGet10, oGet11, oGet12, oGet13, oGet14, oGet15, oGet16, oGet17, oGet18,;
       oGet20, oGet22, oBot1, oBot2,oDlg1,base,oError, ;
@@ -401,7 +401,7 @@ LOCAL oGet1, oGet2, oGet3, oGet4, oGet5, oGet6, oGet7, oGet8, oGet9, oGet19,;
       mrta := .f., aCor,cNomVen:=SPACE(30)
 
 DO WHILE .T.
-DEFINE DIALOG oDlg1 TITLE "FILTRADO de Clientes" FROM 05,10 TO 25,80 OF oWnd1
+DEFINE DIALOG oDlg1 TITLE "FILTRADO de Clientes" FROM 05,10 TO 26,80 OF oWnd1
    acor := AcepCanc(oDlg1)
   
    @ 07, 05 SAY "Codigo:"         OF oDlg1 PIXEL SIZE 60,12 RIGHT
@@ -413,6 +413,7 @@ DEFINE DIALOG oDlg1 TITLE "FILTRADO de Clientes" FROM 05,10 TO 25,80 OF oWnd1
    @ 82,125 SAY "D.N.I.:"         OF oDlg1 PIXEL SIZE 60,12 RIGHT
    @ 97, 05 SAY "Condicion IVA:"  OF oDlg1 PIXEL SIZE 60,12 RIGHT
    @112, 05 SAY "Mail:"           OF oDlg1 PIXEL SIZE 60,12 RIGHT
+   @127, 05 SAY "Rango de compra:" OF oDlg1 PIXEL SIZE 60,12 RIGHT
    
    @ 05, 70 GET oGet1 VAR vcodigo PICTURE "99999" OF oDlg1 PIXEL 
    @ 20, 70 GET oGet2 VAR vnombre PICTURE "@!"  OF oDlg1 PIXEL 
@@ -424,6 +425,8 @@ DEFINE DIALOG oDlg1 TITLE "FILTRADO de Clientes" FROM 05,10 TO 25,80 OF oWnd1
    @ 80,200 GET oGet6  VAR vdni      PICTURE "99999999"  OF oDlg1 PIXEL RIGHT
    @ 95, 70 COMBOBOX oGet11 VAR vconiva  ITEMS aTipoIva SIZE 150,80 PIXEL
    @110, 70 GET oGet19 VAR vmail   OF oDlg1 PIXEL PICTURE "@!"
+   @125, 70 GET oGet8 VAR vdesde   OF oDlg1 PIXEL PICTURE "@D"
+   @125,170 GET oGet9 VAR vhasta   OF oDlg1 PIXEL PICTURE "@D"
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Filtrar" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
@@ -441,7 +444,9 @@ cWhere = " 1=1 " + IF(EMPTY(vCodigo)," AND codigo > 1"," and codigo > 1 and codi
       + "" + IF(EMPTY(VMAIL),""," and TRIM(MAIL) like '%" + ALLTRIM(VMAIL) + "%'") ;
       + "" + IF(EMPTY(VCUIT),""," and TRIM(CUIT) like '%" + ALLTRIM(VCUIT) + "%'") ;
       + "" + IF(EMPTY(VDNI),""," and DNI =" + ClipValue2SQL(VDNI) + "") ;   
-      + "" + IF(Vconiva=15,""," and coniva =" + ClipValue2SQL(Vconiva) + "") 
+      + "" + IF(Vconiva=15,""," and coniva =" + ClipValue2SQL(Vconiva) + "");
+      + "" + IF(EMPTY(vdesde),""," and fecult >=" + ClipValue2SQL(vdesde) + ""); 
+      + "" + IF(EMPTY(vhasta),""," and fecult <=" + ClipValue2SQL(vhasta) + "")
 
    EXIT
 ENDDO

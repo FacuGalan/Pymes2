@@ -171,6 +171,7 @@ IF nKey >= 32 .AND. nKey <= 122
    ELSE
    cText := ALLTRIM(oG:cText)
 ENDIF
+cText := STRTRAN(cText,"a.","a ")
 cText := STRTRAN(cText,"'","")
 cText := STRTRAN(cText,"%","")
 cText := STRTRAN(cText," ","%' and "+cNombre+" like '%") 

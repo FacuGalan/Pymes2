@@ -10,7 +10,7 @@ STATIC oWnd1, nTipoEmp, nTipoFac, nTipoDoc, cVentana, oGet, oQryArt, oQryCli, oQ
        oBrw, oSay1, oDlg,cNumComp,lReventa,nConIva,oQryPun,nDescArt,nDescArt1,nLista,;
        nEfecti, nTarjet, nCheque, nCtaCte, nMPago, nCuotas, nPuntoVta, cLetra,nLisPre,cObserva,nPorIva,;
        cDetArt, nDescuGen, nCodIva, nTotal, nForPag, nRubro, nDeuda,oQryChe,mpagado,manticipo,dFecha,nTransfe,cVendedor,;
-       oQryLisPre,aFormaNom,aFormaInc,nFormaPago
+       oQryLisPre,aFormaNom,aFormaInc,nFormaPago, nUltimoCli
 
 PROCEDURE FACREM() 
 LOCAL oBot := ARRAY(7), hHand , aTipoIva, aTipoDoc, nCodCli:=0, cNomCli:=SPACE(30), cDireccion:=SPACE(30), cLocalidad:=SPACE(30),;
@@ -73,7 +73,7 @@ oApp:oServer:Execute("";
     +"PRIMARY KEY (`NUMREM`)) ENGINE=INNODB DEFAULT CHARSET=utf8")
 
 oApp:oServer:NextResult()
-
+nUltimoCli := 0
 IF oApp:usua_es_vendedor
    cVendedor:= oApp:usuario
 ELSE 
@@ -687,7 +687,10 @@ RETURN nil
 ******* MOSTRAR REMITOS A FACTURAR
 STATIC FUNCTION BuscaRemitos(nCodCli,oGet)
 LOCAL oDlg1,oBrwRem,oQryRem,oBot1,oBot2,acor:=ARRAY(4),mRta:=.f., cRemitos := ""
-
+oGet[23]:cText := SPACE(100)
+oQryDet:ZAP()
+oBrw:Refresh()
+oBrw:Maketotals()
 oApp:oServer:NextResult()
 oApp:oServer:Execute("TRUNCATE remitos_temp")
 oApp:oServer:NextResult()
@@ -855,6 +858,7 @@ oGet[20]:Refresh()
 oGet[21]:Refresh()
 oGet[08]:cText := 1
 oGet[08]:SetFocus()
+nUltimoCli := 0
 RETURN nil
 
 ************************************************************************************
@@ -879,6 +883,13 @@ IF lVerCli
   oGet[11]:ctext := oQryCli:localidad
   oGet[12]:cText := oQryCli:cuit
   oGet[22]:cText := oQryCli:dni
+  IF oGet[08]:value <> nUltimoCli
+     oGet[23]:cText := SPACE(100)
+     oQryDet:Zap()
+     oBrw:Refresh()
+     oBrw:Maketotals()
+     nUltimoCli := oGet[08]:value
+  ENDIF   
   oGet[37]:cText := oQryCli:iibb  * IF(oApp:percep_iibb,1,0)
   oGet[13]:Set(oQryCli:coniva)
   oGet[09]:Refresh()

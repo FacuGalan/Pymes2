@@ -206,7 +206,7 @@ RETURN
 ** Ventas por articulo
 PROCEDURE RepVen2()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
-      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(11), oBot1 := ARRAY(5), oBot2,;
+      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(13), oBot1 := ARRAY(5), oBot2,;
       oQryMar, oQryRub, oQryPro, oQryDep, oQryEmp, i, aRub, aMar, aPro, aDep, aEmp, oBrwMar, oBrwRub, oBrwPro, oBrwDep, oBrwEmp, cSql,;
       cMarca, cRubro, cProvee, cDepto, cEmpresa, oGru, mdesde := DATE(), mhasta := DATE(), lResu := .f., lProv := .f., nTipo := 3,;
       aTipo := {"Sistema","Demo","Ambos"}, oQryCli, nCliente := 0, cNomCli := "Todos"+SPACE(30), lPorFactura := .f.,;
@@ -214,12 +214,19 @@ LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
       cTodos := "TODOS                  ", oQryVen,;
       aOrden := {"Departamento","Rubro","Marca","Proveedor"}, nOrden := 1, ;
       aOrdenTabla := {"deptos","rubros","marcas","provee"},aOrdenCampo := {"depto","rubro","marca","prov"},;      
-      mvendedor := 0, aVendedores := {"TODOS                  "}, cVendedor := "TODOS                  " 
+      mvendedor := 0, aVendedores := {"TODOS                  "}, cVendedor := "TODOS                  ",;
+      oQryPun, nCaja := 1, aCaja := {"0 TODAS LAS CAJAS"}, aCajaNr := {0}
 oQryCli:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"clientes")     
 oQryMar:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"marcas  ORDER BY nombre")
 oQryPro:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"provee  ORDER BY nombre")
 oQryDep:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"deptos  ORDER BY nombre")  
 oQryEmp:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"empresas  ORDER BY nombre")  
+oQryPun:= oApp:oServer:Query( "SELECT caja,nombre FROM ge_"+oApp:cId+"punto")  
+DO WHILE !oQryPun:Eof()
+   AADD(aCaja,STR(oQryPun:caja,4)+" "+oQryPun:Nombre)
+   AADD(aCajaNr,oQryPun:caja)
+   oQryPun:Skip()
+ENDDO
 IF oApp:usua_es_vendedor 
    oQryVen:= oApp:oServer:Query("SELECT usuario FROM ge_"+oApp:cId+"usuarios")
    oQryVen:GoTop()
@@ -360,6 +367,7 @@ DEFINE DIALOG oDlg1 TITLE "Ventas por articulo" FROM 03,15 TO 30,153
    @ 155,200 COMBOBOX oGet[8] VAR nTipo1 ITEMS aTipo1 OF oDlg1 SIZE 90,30 PIXEL 
    @ 112,300 SAY "Orden:" OF oDlg1 PIXEL SIZE 30,10 RIGHT
    @ 110,332 COMBOBOX oGet[11] VAR nOrden ITEMS aOrden OF oDlg1 SIZE 90,30 PIXEL WHEN(!lRanking .and. !lProv .and. !lPorFactura) 
+   @ 140,332 COMBOBOX oGet[12] VAR nCaja ITEMS aCaja OF oDlg1 SIZE 90,30 PIXEL WHEN(!lRanking .and. !lProv .and. !lPorFactura) 
    @ acor[1],acor[2] BUTTON oBot1[5] PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
@@ -439,6 +447,7 @@ IF n = 0
 ENDIF
 EXIT
 ENDDO
+nCaja := aCajaNr[nCaja]
 IF ((cVendedor <> "TODOS") .and. !lPorFactura) .or. lProv
    oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS ventas_encab_report AS (SELECT * FROM ge_"+oApp:cId+"ventas_encab LIMIT 0)")
    oApp:oServer:Execute("TRUNCATE ventas_encab_report")
@@ -472,6 +481,11 @@ IF !lProv .and. !lPorFactura
             cSql := cSql + ;        
             "LEFT JOIN ventas_encab_report ve "+;
             " ON ve.ticomp = LEFT(v.nrofac,2) AND ve.letra = SUBSTR(v.nrofac,3,1) AND RIGHT(v.nrofac,13) = ve.numcomp "
+    ENDIF
+    IF(nCaja <> 0)
+            cSql := cSql + ;        
+            " LEFT JOIN (SELECT ticomp,letra,numcomp, caja FROM ge_"+oApp:cId+"concfact GROUP BY ticomp,letra,numcomp) cf "+;
+            " ON cf.ticomp = LEFT(v.nrofac,2) AND cf.letra = SUBSTR(v.nrofac,3,1) AND RIGHT(v.nrofac,13) = cf.numcomp "
     ENDIF        
     cSql := cSql + ;        
             "WHERE v.fecha >= " + ClipValue2Sql(mdesde) +;
@@ -483,6 +497,9 @@ IF !lProv .and. !lPorFactura
     cSql := cSql + " AND a.marca IN " + cMarca + " AND a.rubro IN " + cRubro + ;
             " AND a.prov IN " + cProvee + " AND a.depto IN "+cDepto + " AND a.empresa IN "+cEmpresa
     cSql := cSql + " AND "+IF(nTipo1 = 3," TRUE ",IF(nTipo1 = 1," SUBSTR(v.nrofac,3,1) <> 'X' "," SUBSTR(v.nrofac,3,1) = 'X' "))
+    IF nCaja <> 0 
+       cSql := cSql + " AND cf.caja = " + STR(nCaja)
+    ENDIF    
     IF lResu
        IF lRanking
           cSql := cSql + "GROUP BY v.codart"

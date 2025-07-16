@@ -507,9 +507,10 @@ RETURN .T.
 ** Cambiar pendientes
 STATIC FUNCTION CambiaCant(n,nPorc,nPUnit,cNombre,lPedido)
 LOCAL base := oQryDet:GetRowObj(),nPrecio2,nDescuento,nPrecio1,nIvaPes,nSubTotal,nTotalcIva,;
-      oQryIva,nCodIva1,nIvaCalc,nII:=base:impint/base:cantidad,oQryPrecio,oQryArt, ;
+      oQryIva,nCodIva1,nIvaCalc,nII,oQryPrecio,oQryArt, ;
       nCantIni := n, nPunitIni := nPunit
 DEFAULT n := base:cantidad,nPorc:= base:descup,nPUnit:= base:punit, cNombre:= base:detart,lPedido:=.f.
+nII := IF(!empty(base:cantidad),base:impint/base:cantidad,0)
 IF nCantIni <> nil
    IF !ValidarCantidad(oQryDet:codart, nCantIni-oQryDet:cantidad)
       RETURN nil 

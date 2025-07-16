@@ -121,8 +121,8 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Promociones";
    @127,305 SAY "Precio unitario:"       OF oForm PIXEL SIZE 70,12 RIGHT
   
    @ 05, 80 GET oGet[1] VAR base:codart PICTURE "99999999999999" RIGHT OF oForm SIZE 60,12 PIXEL;
-                VALID(Buscar(oQryArt,oForm,oGet[01],oGet[02]));
-                ACTION (oGet[01]:cText:= 0, Buscar(oQryArt,oForm,oGet[01],oGet[02])) BITMAP "BUSC1" WHEN(lAlta)
+                VALID(BuscarArt(oQryArt,oForm,oGet[1],oGet[2],'0','nosale'));
+                ACTION (oGet[01]:cText:= 0, BuscarArt(oQryArt,oForm,oGet[01],oGet[02],'0','nosale')) BITMAP "BUSC1" WHEN(lAlta)
    @ 20, 80 GET oGet[2] VAR cNombre    PICTURE "@!" OF oForm PIXEL WHEN(.F.)  
    @ 35, 80 GET oGet[3] VAR base:nompromo PICTURE "@!"    OF oForm PIXEL VALID(base:nompromo<>SPACE(30))     
    @ 50, 80 COMBOBOX oGet[4] VAR base:tipo ITEMS aTipo OF oForm PIXEL SIZE 70,12
