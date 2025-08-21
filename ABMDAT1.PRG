@@ -8,7 +8,7 @@ STATIC oDlg1
 FUNCTION Punto()
 LOCAL oGet1, oGet2, oGet3, oGet4, oGet5, oGet6, oGet7, oGet8, oGet9, oGet10,;
       oGet11, oGet12, oGet13, oGet14, oGet15, oGet16, oGet17, oGet18, oGet19, oGet20, ;
-      oGet21, oGet22, oGet23, oGet24, oGet25, oGet26, oGet27, oGet28, oGet29, oGet30, oGet31, oGet32,;
+      oGet21, oGet22, oGet23, oGet24, oGet25, oGet26, oGet27, oGet28, oGet29, oGet30, oGet31, oGet32, oGet33,;
       oBot1, oBot2, oBot3, oDlg1, base, hHand, oQry, oError, aCor, mrta := .f.,;
       aCobrar := {"Cobro Salon","Cobro distribucion","Cobro ambos"}, oFont,;
       aTipos :={"Facturacion electronica","Facturacion con control. fiscal"}, aTipoC:={"Codigo interno","Codigo de barras"},;
@@ -28,7 +28,7 @@ ENDIF
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 
 DO WHILE .T.
-DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 36,75 OF oApp:oWnd ICON oApp:oIco FONT oFont
+DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 38,75 OF oApp:oWnd ICON oApp:oIco FONT oFont
    acor := AcepCanc(oDlg1)   
    
    @ 07, 05 SAY "Ultima Fact. A:"      OF oDlg1 PIXEL SIZE 55,12 RIGHT
@@ -54,12 +54,13 @@ DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 36,75 OF oApp
 
    @172, 10 SAY "Limite Efectivo en caja:" OF oDlg1 PIXEL SIZE 55,20 RIGHT
    
-   @172,170 SAY "Clave:" OF oDlg1 PIXEL SIZE 20,20 RIGHT
+   @172,170 SAY "Clave:" OF oDlg1 PIXEL SIZE 20,12 RIGHT
 
-   @187, 60 SAY "Desde:" OF oDlg1 PIXEL SIZE 35,20 RIGHT
-   @187,160 SAY "Hasta:" OF oDlg1 PIXEL SIZE 35,20 RIGHT
-   @202, 60 SAY "Desde:" OF oDlg1 PIXEL SIZE 35,20 RIGHT
-   @202,160 SAY "Hasta:" OF oDlg1 PIXEL SIZE 35,20 RIGHT
+   @187, 60 SAY "Desde:" OF oDlg1 PIXEL SIZE 35,12 RIGHT
+   @187,160 SAY "Hasta:" OF oDlg1 PIXEL SIZE 35,12 RIGHT
+   @202, 60 SAY "Desde:" OF oDlg1 PIXEL SIZE 35,12 RIGHT
+   @202,160 SAY "Hasta:" OF oDlg1 PIXEL SIZE 35,12 RIGHT
+   @217, 05 SAY "Limite Facturacion:" OF oDlg1 PIXEL SIZE 55,12 RIGHT
    
    @ 05, 65 GET oGet1 VAR base:facturaa PICTURE "99999999" OF oDlg1 PIXEL RIGHT WHEN(.F.)
    @ 05,150 GET oGet2 VAR base:facturab PICTURE "99999999" OF oDlg1 PIXEL RIGHT WHEN(.F.)
@@ -102,7 +103,9 @@ DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 36,75 OF oApp
    @185, 95 GET oGet29 VAR base:desdehora1 OF oDlg1 PIXEL PICTURE "99:99:99" WHEN(base:cierrexhora)
    @185,195 GET oGet30 VAR base:hastahora1 OF oDlg1 PIXEL PICTURE "99:99:99" WHEN(base:cierrexhora)  
    @200, 95 GET oGet31 VAR base:desdehora2 OF oDlg1 PIXEL PICTURE "99:99:99" WHEN(base:cierrexhora)
-   @200,195 GET oGet32 VAR base:hastahora2 OF oDlg1 PIXEL PICTURE "99:99:99" WHEN(base:cierrexhora)  
+   @200,195 GET oGet32 VAR base:hastahora2 OF oDlg1 PIXEL PICTURE "99:99:99" WHEN(base:cierrexhora) 
+   @215, 65 GET oGet33 VAR base:limitefacturacion OF oDlg1 PIXEL PICTURE "999999999.99" RIGHT
+   oGet33:cToolTip := "Este limite impide que facture por encima de ese importe, dejar en 0 para omitir"
    
    
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Grabar" OF oDlg1 SIZE 30,10 ;

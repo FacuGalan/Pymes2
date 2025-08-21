@@ -197,7 +197,7 @@ IF oQry:id = 0
    RETURN nil
 ENDIF
 mrta := MsgNoYes("Seguro de eliminar"+CHR(10)+;
-                 "el registro cÃ³digo NÂ°:"+STR(nNum),"Atencion")
+                 "el registro código N°:"+STR(nNum),"Atencion")
 IF !mrta
    RETURN nil
 ENDIF
@@ -215,7 +215,7 @@ RETURN nil
 //Etiquetas de promos
 STATIC FUNCTION Etiquetas()
 LOCAL oPrn, nRow, nCol, i, j, aUnit, oQryEti, lLogo := .f., x1, oFon1, oFon2, oFon3, oQryAux, lVto := .T., oBrw,;
-      oQryFue  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"fuentes"), nDecimales := 2, MaxFil := 2, MaxCol := 1,;
+      oQryFue  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"fuentesp"), nDecimales := 2, MaxFil := 2, MaxCol := 1,;
       nCol1 := 0, nCol2 := 0, nCol3:= 0, ;
       oSay1, oSay2, oSay3, oBot1, oBot2, oDlg1, oDlg2, oDlg3, oFld, oBot10,;
       oBot01,oBot02,oBot03,oBot04,oBot05,oBot06, oBot07, oBot08, oBot09, oLbx,;
@@ -299,7 +299,7 @@ DEFINE DIALOG oDlg1 TITLE "Impresion de Etiquetas de precios de Promos" FROM 05,
          FONT oFon2 PIXEL
    @ 80, 280 BUTTON oBot02 PROMPT "Elegir letra" OF oDlg1 SIZE 40,10  PIXEL;
         ACTION (oSay2:SelFont(oQryFue:color2), oSay2:Refresh(),aText[2]:=oSay2:oFont:cFaceName + " de " + STR(oSay2:oFont:nWeight,5),aSay[2]:nClrText := oSay2:nClrText,aSay[2]:Refresh())
-   @125, 320 SAY oSay3 PROMPT IF(oQryEti:nRecCount>0,"CÃ³digo: "+STR(oQryEti:codart),"CÃ³digo: 9999999") SIZE 200,55 FONT oFon3;
+   @125, 320 SAY oSay3 PROMPT IF(oQryEti:nRecCount>0,"Código: "+STR(oQryEti:codart),"Código: 9999999") SIZE 200,55 FONT oFon3;
          OF oDlg1 PIXEL
    @140, 280 BUTTON oBot03 PROMPT "Elegir letra" OF oDlg1 SIZE 40,10  PIXEL;
         ACTION (oSay3:SelFont(oQryFue:color3), oSay3:Refresh(),aText[3]:=oSay3:oFont:cFaceName + " de " + STR(oSay3:oFont:nWeight,5),aSay[3]:nClrText := oSay3:nClrText, aSay[3]:Refresh())
@@ -411,7 +411,7 @@ oQryFue:nMaxCol := MaxCol
                          PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,12,nDecimales)) ;
                                 SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText
                       @ x1, nCol+0.15;
-                         PRINT TO oPrn TEXT STR(oQryEti:descuento_a_unidad,3)+"Â° unidad a $" +;
+                         PRINT TO oPrn TEXT STR(oQryEti:descuento_a_unidad,3)+"° unidad a $" +;
                                  ALLTRIM(STR(oQryEti:precioven*(oQryEti:descuento_porcentual/100),12,nDecimales)) ;
                                 SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText          
                       @ x1, nCol+0.15;
@@ -553,6 +553,9 @@ IF !oApp:oServer:TableExist('ge_'+oApp:cId+"promociones")
   "FOREIGN KEY (codart) REFERENCES ge_"+oApp:cId+"articu(codigo)"+;
 ") ENGINE=INNODB DEFAULT CHARSET=utf8")
 ENDIF
+IF !oApp:oServer:TableExist('ge_'+oApp:cId+"fuentesp")
+   oApp:oServer:Execute("CREATE TABLE ge_"+oApp:cId+"fuentesp AS  SELECT * FROM ge_"+oApp:cId+"fuentes")
+ENDIF
 RETURN nil
 
 
@@ -644,7 +647,7 @@ ACTIVATE FONT oFon3
                          PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven,12,nDecimales)) ;
                                 SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 
                       @ x1, nCol+0.15;
-                         PRINT TO oPrn TEXT STR(oQryEti:descuento_a_unidad,3)+"Â° unidad a $" +;
+                         PRINT TO oPrn TEXT STR(oQryEti:descuento_a_unidad,3)+"° unidad a $" +;
                                  ALLTRIM(STR(oQryEti:precioven*(oQryEti:descuento_porcentual/100),12,nDecimales)) ;
                                 SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 
                       @ x1, nCol+0.15;

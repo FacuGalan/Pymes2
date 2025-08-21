@@ -76,8 +76,9 @@ RETURN
 *************************************
 ** Agregar un registro nuevo
 STATIC FUNCTION Formu (lAlta)
-LOCAL oGet := ARRAY(14), oBot := ARRAY(3), oForm, lRta := .F., aCor, base, oError, oQry,;
-	    cNomVen:=SPACE(50),aComision:={"Cobrado","Facturado"},aComTot:={"Neto","Total"}
+LOCAL oGet := ARRAY(16), oBot := ARRAY(3), oForm, lRta := .F., aCor, base, oError, oQry,;
+	    cNomVen:=SPACE(50),aComision:={"Cobrado","Facturado"},aComTot:={"Neto","Total"},;
+      aListaPre := {"Precio Venta (Lista 1)","Precio Reventa (Lista 2)","Selecciona Lista Especial"}
 
 
 IF lAlta
@@ -86,6 +87,8 @@ IF lAlta
    base:codigo := oApp:oServer:GetAutoIncrement("ge_"+oApp:cId+"vendedores")
    base:condfac := 1
    base:condtot := 1
+   base:permitealta := .f.
+   base:listapre := 1
    ELSE
    oQry:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"vendedores WHERE codigo = " + ClipValue2Sql(oQryBrw:codigo))
    base := oQry:GetRowObj()
@@ -95,7 +98,7 @@ ENDIF
 
 DO WHILE .T.
 DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Vendedor";
-       FROM 05,15 TO 33,85 OF oWnd1 FONT oApp:oFont
+       FROM 05,15 TO 35,85 OF oWnd1 FONT oApp:oFont
    
    @ 07, 05 SAY "Codigo:"         OF oForm PIXEL SIZE 40,20 RIGHT
    @ 22, 05 SAY "Nombre:"         OF oForm PIXEL SIZE 40,20 RIGHT
@@ -126,6 +129,8 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Vendedor";
    @170, 50 GET oGet[12] VAR base:user   OF oForm PIXEL 
    @170,120 GET oGet[13] VAR base:pass   OF oForm PIXEL 
    @170,190 CHECKBOX oGet[14] VAR base:permitedesc SIZE 95,12 PROMPT "Carga descuentos"   OF oForm PIXEL 
+   @185, 50 CHECKBOX oGet[15] VAR base:permitealta SIZE 55,12 PROMPT "Permite Alta Clientes" OF oForm PIXEL 
+   @185,125 COMBOBOX oGet[16] VAR base:listapre SIZE 90,12 OF oForm PIXEL ITEMS aListaPre
 
    acor := AcepCanc(oForm)
    @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Grabar" OF oForm SIZE 30,10 ;

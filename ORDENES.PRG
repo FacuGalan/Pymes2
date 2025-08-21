@@ -133,8 +133,8 @@ ENDIF
 oQryCon:GoTop()
 DO WHILE !oQryCon:eof()
 	IF oQryCon:codcon = 7
-		   oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"provee SET saldo = saldo + "+ClipValue2Sql(oQryCon:importe)+;
-		                        " WHERE codigo = "+ClipValue2Sql(oQry:codpro))
+		   /*oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"provee SET saldo = saldo + "+ClipValue2Sql(oQryCon:importe)+;
+		                        " WHERE codigo = "+ClipValue2Sql(oQry:codpro))*/
      nAnti := oQryCon:importe  
 	ELSE 
     nTotPag:= nTotPag + oQryCon:importe 
@@ -142,10 +142,12 @@ DO WHILE !oQryCon:eof()
 	oQryCon:Skip()
 ENDDO
 nTotFac := oApp:oServer:Query("SELECT SUM(importe) AS total FROM ge_"+oApp:cId+"ordfac WHERE numero = " + ClipValue2Sql(oQry:numero)):total
-IF nTotPag > nTotFac
+/*IF nTotPag > nTotFac
       oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"provee SET saldo = saldo - "+ClipValue2Sql(nTotPag-nTotFac+nAnti)+" "+;
                            "WHERE codigo = "+ClipValue2Sql(oQry:codpro))
-ENDIF
+ENDIF*/
+oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"provee SET saldo = saldo - "+ClipValue2Sql(nTotPag-nTotFac)+" "+;
+                           "WHERE codigo = "+ClipValue2Sql(oQry:codpro))
 oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"cheter SET estado = 'C', orden = 0, codpro = 0 WHERE orden = "+ ClipValue2Sql(oQry:numero))
 oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"chepro WHERE orden = "+ ClipValue2Sql(oQry:numero))
 oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"ordpag WHERE numero = " + ClipValue2Sql(oQry:numero))

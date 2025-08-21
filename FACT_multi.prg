@@ -9,7 +9,7 @@ static oDlg, oDlg1, nMesa := 1, oFont, oFontBot, oBrwDet, oQryDet, oQryDep, oQry
        nPagado, nVuelto, cNomArt, nDescu, lConsulta, oQryPag, nAntes,;
        nUltDep, nPriDep, nUltArt, nPriArt, fDepto, nCantidad, dFecha, nCliente, cCliente, nTotal, cVentana, ;
        lMaxi:=.t., nPrecio, lReemplaza, nCondicion, oQryPun, nDescuTot, nRecarTot, oQry2, oQry3, oQry5,;
-       oQryPendi, oBrwPendi, nLista, oQryPar, nLisPre, aFormaNom, aFormaInc, nFormaPago, oGetDep1, oGetDep2,;
+       oQryPendi, oBrwPendi, nLista, oQryPar, nLisPre, aFormaNom, aFormaInc, aFormaTip, nFormaPago, oGetDep1, oGetDep2,;
        oGetDep3 , cPermi, lSaleX
 
 //----------------------------------------------------------------//
@@ -157,13 +157,15 @@ lReemplaza:=.t.
    lConsulta:=.f.
    nLista:= oApp:oServer:Query("SELECT lispre FROM ge_"+oApp:cId+"clientes WHERE codigo = "+ClipValue2Sql(nCliente)):lispre
    nLisPre := 0
-   oQryFormas:= oApp:oServer:Query("SELECT nombre,incremento FROM ge_"+oApp:cId+"forpag ORDER BY codigo")
+   oQryFormas:= oApp:oServer:Query("SELECT nombre,incremento,tipo FROM ge_"+oApp:cId+"forpag ORDER BY codigo")
     aFormaNom:={}
     aFormaInc:={}
+    aFormaTip:={}
     oQryFormas:GoTop()
     DO WHILE !oQryFormas:eof()
       AADD(aFormaNom,oQryFormas:nombre)
       AADD(aFormaInc,oQryFormas:incremento)
+      AADD(aFormaTip,oQryFormas:tipo)
       oQryFormas:Skip()
     ENDDO
     nFormaPago:=1 
@@ -554,6 +556,7 @@ RETURN nil
 STATIC FUNCTION ActualizarDet()
 LOCAL cPunit:= "(IF(l.precio IS NOT NULL AND l.precio >0,l.precio,"+IF(nLista=1,"a.precioven","a.reventa")+") * (1+("+ClipValue2Sql(aFormaInc[nFormaPago])+"/100)))",oQryCli
 CrearTemporales()
+oApp:oServer:Execute("TRUNCATE formapag_temp")
 oQryCli:=oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"clientes WHERE codigo = "+ClipValue2Sql(nCliente))
 oApp:oServer:Execute("UPDATE VENTAS_DET_H1 v LEFT JOIN ge_"+oApp:cId+"ivas i  ON i.codigo = v.codiva "+;
                      "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+;
@@ -2334,7 +2337,8 @@ WHERE
         (prom.tipo = 2 AND p.CANTIDAD >= prom.cantidad_requerida) OR
         (prom.tipo = 3 AND p.CANTIDAD >= prom.descuento_a_unidad) OR
         (prom.tipo = 4 AND p.CANTIDAD BETWEEN prom.cantidad_minima AND prom.cantidad_maxima)
-    ) GROUP BY prom.CODART, prom.TIPO)
+    ) 
+    GROUP BY prom.CODART, prom.TIPO)
 ENDTEXT
 cText := STRTRAN(cText,'ge_000001promociones','ge_'+oApp:cId+'promociones')
 oQryTem := oApp:oServer:Query(cText)

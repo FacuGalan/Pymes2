@@ -7,7 +7,7 @@
 MEMVAR oApp
 STATIC oFont
 PROCEDURE DatEmp()
-LOCAL hHand, oGet := ARRAY(49), oBot := ARRAY(3), oForm, lRta := .f., aCor, base, oError, oQry, lProx:= .f.,oDlg1,oFld,;
+LOCAL hHand, oGet := ARRAY(50), oBot := ARRAY(3), oForm, lRta := .f., aCor, base, oError, oQry, lProx:= .f.,oDlg1,oFld,;
       oBrw, oQryP,;
       oCheck:= ARRAY(3),;
       aConIva := {;
@@ -120,6 +120,8 @@ REDEFINE FOLDEREX oFld ID 100 OF oDlg1 ;/*PAGES son dialogos de recurso*/
      oGet[47]:cToolTip:= "Pedir para cargar bultos al momento de vender en facturacion NO POS"
      REDEFINE CHECKBOX oGet[48] VAR base:usareparto    OF oFld:aDialogs[2] ID 4015
      oGet[48]:cToolTip:= "Usar repartidores para asignar facturas a hoja de ruta"
+     REDEFINE CHECKBOX oGet[50] VAR base:imprimedescuimp    OF oFld:aDialogs[2] ID 4016
+     oGet[50]:cToolTip:= "Si no esta tildado, solo imprime el % de descuento, no el importe"
 
 //PESTAÑA 3 ---- DATOS DE PAGO A PROVEEDORES
      

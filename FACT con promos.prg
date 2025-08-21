@@ -624,8 +624,21 @@ IF oApp:usar_limite_cred .and. oQryCliAux:limite <> 0
     ENDIF 
   ENDIF
 ENDIF
+IF oQryPun:limitefacturacion > 0 .AND. nTotal > oQryPun:limitefacturacion
+   MsgStop("El importe a Facturar Supera el permitido","Solicite amplicacion") 
+   RETURN nil 
+ENDIF 
 CrearTemporales()
-lFisc:= MsgYesNo("¿Desea emitir el tiquet fiscal?","Atencion!")
+lFisc := MsgYesNoCancel("¿Desea emitir el tiquet fiscal?","Atencion!")
+IF lFisc == 6
+   lFisc := .t.
+   ELSE 
+   IF lFisc == 7 
+      lFisc := .f.
+      ELSE 
+      RETURN nil 
+   ENDIF    
+ENDIF
 IF lFisc
    IF oQryPun:tipofac = 1
       oTabIva := oApp:oServer:Query("SELECT codiva, SUM(stotal) AS neto,SUM(iva) AS iva FROM VENTAS_DET_H1 "+;

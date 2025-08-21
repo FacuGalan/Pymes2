@@ -262,7 +262,7 @@ ENDIF
   COLUMN TITLE "Codigo"          DATA oQry:codigo             SIZE 10 FONT 1
   COLUMN TITLE "Descripción del Producto"       DATA oQry:nombre             SIZE 60 FONT 1
   IF aListas[1]
-    COLUMN TITLE "Precio Unitario" DATA oQry:precioven SIZE 14 FONT 2 PICTURE "9999999999.99"
+    COLUMN TITLE "Lista 1" DATA oQry:precioven SIZE 14 FONT 2 PICTURE "9999999999.99"
   ENDIF  
   IF aListas[2]     
      COLUMN TITLE "Lista 2"        DATA oQry:reventa  SIZE 14 FONT 2 PICTURE "9999999999.99"

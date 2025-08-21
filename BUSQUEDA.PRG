@@ -155,9 +155,11 @@ NEXT i
 RETURN nil
 
 FUNCTION FiltraArt(base, oG, oLbx, nKey, cCampoFiltro)
-LOCAL cFiltro, cText, cNombre := if('a.'$base:cQuery,'a.nombre','nombre'),;
-      cCodigo := if('a.'$base:cQuery,'a.codigo','codigo')
-DEFAULT cCampoFiltro := ''      
+LOCAL cFiltro, cText, cNombre := if('a.'$base:cQuery,'a.nombre','nombre')
+LOCAL cCodigo := if('a.'$base:cQuery,'a.codigo','codigo')
+//LOCAL cAlias := if(base:FieldPos('alias')>0,'alias','')
+LOCAL cAlias := if(AScan( base:aStructure, {| aField | aField[ MYSQL_FS_NAME ] == 'alias'  } ) > 0,'alias','')
+DEFAULT cCampoFiltro := '' 
 oG:Assign()
 IF nKey = 38 .or. nKey = 40
    oLbx:SetFocus()
@@ -176,10 +178,19 @@ cText := STRTRAN(cText,"'","")
 cText := STRTRAN(cText,"%","")
 cText := STRTRAN(cText," ","%' and "+cNombre+" like '%") 
 IF !EMPTY(cCampoFiltro)
-   cFiltro := cCampoFiltro  + " AND ( "+cNombre+" LIKE '%"+ cText +"%' OR " +;
-              cCodigo + " LIKE '%"+ cText +"%')"          
+   IF !EMPTY(cAlias)
+      cFiltro := cCampoFiltro  + " AND ( "+cNombre+" LIKE '%"+ cText +"%' OR " +;
+                cCodigo + " LIKE '%"+ cText +"%' OR " +cAlias+" LIKE '%"+ cText +"%')"
+      ELSE
+      cFiltro := cCampoFiltro  + " AND ( "+cNombre+" LIKE '%"+ cText +"%' OR " +;
+                cCodigo + " LIKE '%"+ cText +"%')"          
+   ENDIF
    ELSE 
-   cFiltro := cNombre+" LIKE '%"+ cText +"%' OR " + cCodigo + " LIKE '%"+ cText +"%'"
+   IF !EMPTY(cAlias)
+      cFiltro := cNombre+" LIKE '%"+ cText +"%' OR " + cCodigo + " LIKE '%"+ cText +"%' OR " + cAlias + " LIKE '%"+ cText +"%'"
+      ELSE
+      cFiltro := cNombre+" LIKE '%"+ cText +"%' OR " + cCodigo + " LIKE '%"+ cText +"%'"
+   ENDIF
 ENDIF
 base:SetNewFilter(SET_WHERE,cFiltro,.t.)
 // Se refresca el listbox

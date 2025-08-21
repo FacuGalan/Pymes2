@@ -209,7 +209,7 @@ oQryPar:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros")
                    "("+; 
                    "SELECT codart, SUM(cantidad) as suma "+;
                    "FROM ge_"+oApp:cId+"ventas_det "+;
-                   "WHERE punit > 0 "+;
+                   "WHERE  nrofac = "+Clipvalue2sql(cOrigenNC)+" AND punit > 0 "+;
                    "GROUP BY codart "+;
                    ") v ON a.codigo = v.codart "+;
                    "SET a.stockact = a.stockact - (v.suma * "+IF(cTipoDoc="NC","-1","1")+") WHERE a.stockotro IS FALSE")          
@@ -219,7 +219,7 @@ oQryPar:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros")
           "  FROM ge_"+oApp:cId+"ventas_det d " + ;
           "  JOIN ge_"+oApp:cId+"articu a ON a.codigo = d.codart " + ;
           "  JOIN ge_"+oApp:cId+"reseta r ON r.codart = d.codart " + ;
-          "  WHERE a.stockotro = TRUE AND d.punit > 0 " + ;
+          "  WHERE a.stockotro = TRUE AND d.punit > 0 AND d.nrofac = "+Clipvalue2sql(cOrigenNC)+" " + ;
           "  GROUP BY r.codusa " + ;
           ") AS t ON t.codigo_usado = m.codigo " + ;
           "SET m.stockact = m.stockact + t.total_a_restar "

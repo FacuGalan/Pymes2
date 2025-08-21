@@ -627,11 +627,18 @@ ELSE
               "v.fecha AS fecha, "+;
               "v.descu  AS descu, "+;
               "v.descup AS descup, "+;
-              "v.cantidad*v.pcosto* IF(LEFT(v.nrofac,2)='NC',-1,1) AS costo "+;
+              "v.cantidad*v.pcosto* IF(LEFT(v.nrofac,2)='NC',-1,1) AS costo, "+;
+              "cf.observa as formapag "+;
               " FROM ventas_det_report v "
     cSql := cSql + ;              
               "LEFT JOIN ge_"+oApp:cId+"clientes c ON c.codigo = v.codcli "+; 
               "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+; 
+              "LEFT JOIN (SELECT CONCAT(ticomp,letra, numcomp) AS compro, "+;
+                               " GROUP_CONCAT(observa) AS observa "+;
+                               "FROM ge_"+oApp:cId+"concfact WHERE fecha>="+ClipValue2Sql(mdesde)+" AND "+;
+                               " fecha <= "+ClipValue2Sql(mhasta)+;
+                               " GROUP BY CONCAT(ticomp,letra, numcomp) ) cf "+;
+                          " ON cf.compro = v.nrofac "+;  
               "WHERE v.fecha >= " + ClipValue2Sql(mdesde) +;
               "  AND v.fecha <= " + ClipValue2Sql(mhasta)+;
               " AND a.marca IN " + cMarca + " AND a.rubro IN " + cRubro+;
@@ -652,7 +659,7 @@ ELSE
              "Detalle de Factura" CENTER ;
              FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
              PREVIEW CAPTION  "Articulos por fecha"
-      GROUP oGru ON oQry:nrofac HEADER oQry:nrofac+" "+DTOC(oQry:fecha) + " "+oQry:nomcli FOOTER "Totales Factura"  FONT 3       
+      GROUP oGru ON oQry:nrofac HEADER oQry:nrofac+" "+DTOC(oQry:fecha) + " "+oQry:nomcli + " "+oQry:formapag FOOTER "Totales Factura"  FONT 3       
 
       COLUMN TITLE "Articulo" DATA oQry:detart   SIZE 30 FONT 1
       COLUMN TITLE "Codigo"   DATA oQry:codart   SIZE 12 FONT 1

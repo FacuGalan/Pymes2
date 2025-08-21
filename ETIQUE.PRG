@@ -251,13 +251,13 @@ IF !lCodBarra
                        SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.2 CM FONT oFon2 ALIGN "TC" LASTROW x1
              @ x1, nCol+0.15;
                 PRINT TO oPrn TEXT ALLTRIM(oQryEti:nombre) ;
-                       SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon1 ALIGN "TC" LASTROW x1 COLOR aSay[1]:nClrText
+                       SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.3 CM FONT oFon1 ALIGN "TC" LASTROW x1 COLOR aSay[1]:nClrText
              @ x1, nCol+0.15;
                 PRINT TO oPrn TEXT "$ " + ALLTRIM(STR(oQryEti:precioven,12,nDecimales)) ;
                        SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.3 CM FONT oFon2 ALIGN "TC" LASTROW x1 COLOR aSay[2]:nClrText
              @ x1, nCol+0.15;
                 PRINT TO oPrn TEXT "Sin imp. $" + ALLTRIM(STR(oQryEti:neto,10,nDecimales)) ;
-                       SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.15 CM FONT oFon4 ALIGN "TC" LASTROW x1 COLOR aSay[2]:nClrText
+                       SIZE ((21.0-1.6)/MaxCol)-0.3,((29.7-2.4)/MaxFil)*0.10 CM FONT oFon4 ALIGN "TC" LASTROW x1 COLOR aSay[2]:nClrText
              @ x1, nCol+0.15;
                 PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x" + ALLTRIM(oQryAux:unimed) + " $" +;
                        ALLTRIM(STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;

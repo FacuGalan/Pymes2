@@ -71,7 +71,7 @@ ENDMENU
             ACTION (FILT(),oBrw:Refresh()) MENU oPop2;
             PROMPT "Filtrar" TOP     
          DEFINE BUTTON RESOURCE "PRECIO" OF oBar ;
-            TOOLTIP "Ver hisotrial de precios"  ;
+            TOOLTIP "Ver historial de precios"  ;
             ACTION (Historial(),oBrw:Refresh());
             PROMPT "Historial" TOP WHEN(oQryBrw:RecCount()>0 .and. "M"$cPermisos)    
          DEFINE BUTTON RESOURCE "IMPOR" OF oBar ;
@@ -306,6 +306,14 @@ IF base:iva <> 3 .and. base:iva <> 4 .and. base:iva <> 5
    MsgStop("Tasa de IVA no valida para facturacion","Error")
    LOOP
 ENDIF
+IF !lAlta
+   IF mstock <> oApp:oServer:Query("SELECT stockact FROM ge_"+oApp:cId+"articu WHERE codigo = "+ClipValue2SQL(base:codigo)):stockact
+      MsgStop("El stock fue modificado en otra terminal"+CHR(10)+"No se actualizaran los datos. Reintente","Actualice")
+      oQryBrw:Refresh()
+      oBrw:Refresh()
+      RETURN nil 
+   ENDIF
+ENDIF  
 IF nPrecioven <> base:precioven .OR. nPreciocos <> ROUND(base:preciocos,3)
    oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"campre (codigo,preciocos,precossiva,precioven,reventa,fecmod,usuario,ip) "+;
                         "VALUES ("+ClipValue2Sql(base:codigo)+","+ClipValue2Sql(base:preciocos)+","+;
@@ -318,15 +326,7 @@ ENDIF
 IF !oApp:utilfija
    base:porcentaje := (base:precioven * 100) / base:preciocos - 100
    base:porcentajerev := (base:reventa * 100) / base:preciocos - 100
-ENDIF   
-IF !lAlta
-   IF mstock <> oApp:oServer:Query("SELECT stockact FROM ge_"+oApp:cId+"articu WHERE codigo = "+ClipValue2SQL(base:codigo)):stockact
-      MsgStop("El stock fue modificado en otra terminal"+CHR(10)+"No se actualizaran los datos. Reintente","Actualice")
-      oQryBrw:Refresh()
-      oBrw:Refresh()
-      RETURN nil 
-   ENDIF
-ENDIF   
+ENDIF    
 base:usuario:= oApp:usuario
 base:ip     := oApp:cIp
 base:nombre := STRTRAN(base:nombre,"'","´")
@@ -335,13 +335,13 @@ TRY
   oApp:oServer:BeginTransaction()
   oQry:Save()
   IF lAlta .and. base:stockact <> 0
-     oApp:oServer:Insert("ge_"+oApp:cId+"stoman",{"codart","entradas","salidas","fecha","motivo","costo"},;
-                           {base:codigo,base:stockact,0,DATE(),1,base:precossiva})
+     oApp:oServer:Insert("ge_"+oApp:cId+"stoman",{"codart","entradas","salidas","fecha","motivo","costo","usuario"},;
+                           {base:codigo,base:stockact,0,DATE(),1,base:precossiva,oApp:usuario})
   ENDIF
   IF !lAlta .and. base:stockact <> mstock   
-     oApp:oServer:Insert("ge_"+oApp:cId+"stoman",{"codart","entradas","salidas","fecha","motivo","costo"},;
+     oApp:oServer:Insert("ge_"+oApp:cId+"stoman",{"codart","entradas","salidas","fecha","motivo","costo","usuario"},;
                            {base:codigo,if(mstock < base:stockact, base:stockact - mstock,0),;
-                            if(mstock > base:stockact, mstock - base:stockact,0),DATE(),1,base:precossiva}) 
+                            if(mstock > base:stockact, mstock - base:stockact,0),DATE(),1,base:precossiva,oApp:usuario}) 
   ENDIF  
   oApp:oServer:CommitTransaction()
   IF !lAlta .AND. lActualizaGrupo 
@@ -1604,7 +1604,7 @@ oQry := oApp:oServer:Query("SELECT a.nombre, r.codart,r.codusa,m.nombre AS mater
                    " m.preciocos* r.cantidad AS precio FROM ge_"+oApp:cId+"reseta r "+;
                    " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = r.codart "+; 
                    " LEFT JOIN ge_"+oApp:cId+"articu m ON m.codigo = r.codusa "+; 
-                   IF(lTipoArt == nil,""," WHERE a.nosale = "+ClipValue2SQL(lTipoArt))+;
+                   IF(lTipoArt == nil,""," WHERE a.nosale = "+ClipValue2SQL(!lTipoArt))+;
                    " ORDER BY r.codart, r.codusa"  )
 IF oQry:nRecCount = 0
    MsgStop("No hay datos para listar","Error")

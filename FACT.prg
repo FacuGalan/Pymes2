@@ -9,7 +9,7 @@ static oDlg, oDlg1, nMesa := 1, oFont, oFontBot, oBrwDet, oQryDet, oQryDep, oQry
        nPagado, nVuelto, cNomArt, nDescu, lConsulta, oQryPag, nAntes,;
        nUltDep, nPriDep, nUltArt, nPriArt, fDepto, nCantidad, dFecha, nCliente, cCliente, nTotal, cVentana, ;
        lMaxi:=.t., nPrecio, lReemplaza, nCondicion, oQryPun, nDescuTot, nRecarTot, oQry2, oQry3, oQry5,;
-       nLista, oQryPar, nLisPre, aFormaNom, aFormaInc, nFormaPago, oGetDep1, oGetDep2, oGetDep3 , cPermi,;
+       nLista, oQryPar, nLisPre, aFormaNom, aFormaInc, aFormaTip, nFormaPago, oGetDep1, oGetDep2, oGetDep3 , cPermi,;
        mvendedor
 
 //----------------------------------------------------------------//
@@ -82,13 +82,15 @@ lReemplaza:=.t.
    lConsulta:=.f.
    nLista:= oApp:oServer:Query("SELECT lispre FROM ge_"+oApp:cId+"clientes WHERE codigo = "+ClipValue2Sql(nCliente)):lispre
    nLisPre := 0
-   oQryFormas:= oApp:oServer:Query("SELECT nombre,incremento FROM ge_"+oApp:cId+"forpag ORDER BY codigo")
+   oQryFormas:= oApp:oServer:Query("SELECT nombre,incremento,tipo FROM ge_"+oApp:cId+"forpag ORDER BY codigo")
     aFormaNom:={}
     aFormaInc:={}
+    aFormaTip:={}
     oQryFormas:GoTop()
     DO WHILE !oQryFormas:eof()
       AADD(aFormaNom,oQryFormas:nombre)
       AADD(aFormaInc,oQryFormas:incremento)
+      AADD(aFormaTip,oQryFormas:tipo)
       oQryFormas:Skip()
     ENDDO
     nFormaPago:=1 
@@ -441,6 +443,7 @@ RETURN nil
 STATIC FUNCTION ActualizarDet()
 LOCAL cPunit:= "(IF(l.precio IS NOT NULL AND l.precio >0,l.precio,"+IF(nLista=1,"a.precioven","a.reventa")+") * (1+("+ClipValue2Sql(aFormaInc[nFormaPago])+"/100)))",oQryCli
 CrearTemporales()
+oApp:oServer:Execute("TRUNCATE formapag_temp")
 oQryCli:=oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"clientes WHERE codigo = "+ClipValue2Sql(nCliente))
 oApp:oServer:Execute("UPDATE VENTAS_DET_H1 v LEFT JOIN ge_"+oApp:cId+"ivas i  ON i.codigo = v.codiva "+;
                      "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+;
@@ -470,7 +473,7 @@ RETURN .T.
 ***** DAR DE ALTA UN ARTICULO CON LOS DATOS ESENCIALES
 STATIC FUNCTION AltaArt()
 LOCAL oForm,oGet1:=ARRAY(40),oBot1:=ARRAY(2),base,oQry,cProve:=SPACE(30),;
-      cIvaNom:=SPACE(30),cRub:=SPACE(30),lRta:=.f.,oError,oQryValida
+      cIvaNom:=SPACE(30),cRub:=SPACE(30),lRta:=.f., oError, oQryValida, nStockAct
 oQryValida:= oApp:oServer:Query("SELECT permisos FROM ge_"+oApp:cId+"menu_nuevo WHERE usuario = "+ClipValue2Sql(oApp:usuario)+" "+;
                                 "AND modulo = 'ARTIC'")
 IF !"A"$oQryValida:permisos
@@ -529,13 +532,18 @@ IF oQry:lAppend
    base:depto := 1
    base:empresa := 1
    base:marca := 1
+   ELSE 
+   nStockAct := oApp:oServer:Query("SELECT stockact FROM ge_"+oApp:cId+"articu WHERE codigo = "+ClipValue2Sql(base:codigo)):stockact
 ENDIF   
 oQry:oRow := base
 TRY
   oApp:oServer:BeginTransaction()
   IF oQry:lAppend     
+     oApp:oServer:Insert("ge_"+oApp:cId+"stoman",{"codart","entradas","salidas","fecha","motivo","costo","usuario"},;
+                           {base:codigo,base:stockact,0,DATE(),1,base:precossiva,oApp:usuario})
      oQry:Save()
   ELSE 
+
      oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"articu SET nombre = "+ClipValue2Sql(base:nombre)+","+;
                                              "nomregi = "+ClipValue2Sql(base:nomregi)+","+;
                                              "precossiva = "+ClipValue2Sql(base:precossiva)+","+;
@@ -547,6 +555,11 @@ TRY
                                              "pesable = "+ClipValue2Sql(base:pesable)+","+;
                                              "stockact = "+ClipValue2Sql(base:stockact)+" "+;
                           "WHERE codigo = "+ClipValue2Sql(base:codigo))
+     IF base:stockact <> nStockAct
+        oApp:oServer:Insert("ge_"+oApp:cId+"stoman",{"codart","entradas","salidas","fecha","motivo","costo","usuario"},;
+                           {base:codigo,if(nStockAct < base:stockact, base:stockact - nStockAct,0),;
+                            if(nStockAct > base:stockact, nStockAct - base:stockact,0),DATE(),1,base:precossiva,oApp:usuario}) 
+     ENDIF   
   ENDIF
   oQry:Refresh()
   oApp:oServer:CommitTransaction()
@@ -634,8 +647,21 @@ IF oApp:usar_limite_cred .and. oQryCliAux:limite <> 0
     ENDIF 
   ENDIF
 ENDIF
+IF oQryPun:limitefacturacion > 0 .AND. nTotal > oQryPun:limitefacturacion
+   MsgStop("El importe a Facturar Supera el permitido","Solicite amplicacion") 
+   RETURN nil 
+ENDIF   
 CrearTemporales()
-lFisc:= MsgYesNo("¿Desea emitir el tiquet fiscal?","Atencion!")
+lFisc := MsgYesNoCancel(AnsiToOem("¿Desea emitir el ticket fiscal?"),"Atencion!")
+IF lFisc == 6
+   lFisc := .t.
+   ELSE 
+   IF lFisc == 7 
+      lFisc := .f.
+      ELSE 
+      RETURN nil 
+   ENDIF    
+ENDIF
 IF lFisc
    IF oQryPun:tipofac = 1
       oTabIva := oApp:oServer:Query("SELECT codiva, SUM(stotal) AS neto,SUM(iva) AS iva FROM VENTAS_DET_H1 "+;
@@ -1304,10 +1330,11 @@ RETURN nil
 *********************************************************************************************************
 **********APLICA DESCUENTOS A LA MESA
 STATIC FUNCTION CargaDescu()
-LOCAL acor:=ARRAY(4),oDlgD,oGet1:=ARRAY(3),oBot1,oBot2,lRta:=.f.,nDescTemp:=0,nOpcion:=1,;
-      aTipos:={"Descuento","Recargo"}, lSoloPuntual := .f., nDescuPun, oFont
+LOCAL acor:=ARRAY(4),oDlgD,oGet1:=ARRAY(5),oBot1,oBot2,lRta:=.f.,nDescTemp:=0,nOpcion:=1,;
+      aTipos:={"Descuento","Recargo"}, lSoloPuntual := .f., nDescuPun, oFont, nImpoDes := 0, ;
+      nTipoDes := 1, aTipoDes := {"Porcentual","Importe"}
 DEFINE FONT oFont   NAME "ARIAL" SIZE 0,-10
-DEFINE DIALOG oDlgD TITLE "Aplicar descuentos a la venta" OF oDlg1 FROM 05,15 TO 13,55 FONT oFont
+DEFINE DIALOG oDlgD TITLE "Aplicar descuentos a la venta" OF oDlg1 FROM 05,15 TO 16,55 FONT oFont
   acor := AcepCanc(oDlgD)
   
 
@@ -1315,6 +1342,10 @@ DEFINE DIALOG oDlgD TITLE "Aplicar descuentos a la venta" OF oDlg1 FROM 05,15 TO
    @ 10, 50 GET oGet1[1] VAR nDescTemp OF oDlgD PIXEL PICTURE "999.99" RIGHT
    @ 10, 80 COMBOBOX oGet1[2] VAR nOpcion ITEMS aTipos OF oDlgD PIXEL SIZE 40,12
    @ 25, 05 CHECKBOX oGet1[3] VAR lSoloPuntual PROMPT "Aplicar solo a articulo seleccionado" SIZE 90,12 PIXEL
+   @ 40, 05 COMBOBOX oGet1[4] VAR nTipoDes ITEMS aTipoDes OF oDlgD PIXEL SIZE 40,12 WHEN(oGet1[3]:lChecked)
+   @ 40, 85 GET oGet1[5] VAR nImpoDes PICTURE "99999999.99" RIGHT OF oDlgD PIXEL ;
+        WHEN(oGet1[3]:lChecked .AND. oGet1[4]:nAt=2) VALID(nImpoDes >= 0)
+
 
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Aceptar" OF oDlgD SIZE 30,10 ;
            ACTION ((lRta := .t.), oDlgD:End() ) PIXEL
@@ -1326,6 +1357,10 @@ RELEASE oFont
 IF !lRta
    RETURN .f.
 ENDIF
+IF nImpoDes > oQryDet:punit 
+   MsgStop("No puede descontar mas que el total","Error")
+   RETURN .f.
+ENDIF   
 IF !lSoloPuntual
     IF nOpcion = 1
        nDescu:= nDescTemp
@@ -1357,36 +1392,65 @@ IF !lSoloPuntual
        oApp:oServer:CommitTransaction()
     ENDIF 
     ELSE 
-    IF nOpcion = 1
-       nDescuPun:= nDescTemp
-    ELSE
-       nDescuPun:= -nDescTemp
-    ENDIF 
-    CrearTemporales()
-    oApp:oServer:BeginTransaction()
-    oApp:oServer:Execute("UPDATE VENTAS_DET_H1 v LEFT JOIN ge_"+oApp:cId+"ivas i  ON i.codigo = v.codiva "+;
-                         "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+;
-                         "SET v.descuento = (v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100),"+;
-                             "v.iva =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100)))-(((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100)))/(1+i.tasa/100)),"+;
-                             "v.stotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100)))/(1+i.tasa/100),"+;
-                             "v.ptotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100))),"+;
-                             "v.neto =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100)))/(1+i.tasa/100)"+;
-                             " WHERE v.id = " + STR(oQryDet:id))
-    IF oApp:oServer:Query("SELECT * FROM VENTAS_DET_H1 WHERE pcosto > (ptotal/cantidad)+1 AND id = " + STR(oQryDet:id) ):nRecCount > 0
-       IF oQryPun:validacosto = 1
-          lRta:=MsgYesNo("El descuento aplicado deja por debajo,"+CHR(10)+;
-                  "del costo a producto ¿Desea continuar?","Atencion")
-          IF !lRta
-             oApp:oServer:RollBack()
-          ENDIF
-       ENDIF
-       IF oQryPun:validacosto = 2
-          MsgStop("No puede aplicar decuento seleccionado porque el "+CHR(10)+;
-                 "precio deja por debajo del costo a productos","Atencion")
-          oApp:oServer:RollBack()
-       ENDIF
-       oApp:oServer:CommitTransaction()
-    ENDIF 
+    IF nTipoDes = 1
+        IF nOpcion = 1
+           nDescuPun:= nDescTemp
+        ELSE
+           nDescuPun:= -nDescTemp
+        ENDIF 
+        CrearTemporales()
+        oApp:oServer:BeginTransaction()
+        oApp:oServer:Execute("UPDATE VENTAS_DET_H1 v LEFT JOIN ge_"+oApp:cId+"ivas i  ON i.codigo = v.codiva "+;
+                             "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+;
+                             "SET v.descuento = (v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100),"+;
+                                 "v.iva =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100)))-(((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100)))/(1+i.tasa/100)),"+;
+                                 "v.stotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100)))/(1+i.tasa/100),"+;
+                                 "v.ptotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100))),"+;
+                                 "v.neto =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescuPun)+"/100)))/(1+i.tasa/100)"+;
+                                 " WHERE v.id = " + STR(oQryDet:id))
+        IF oApp:oServer:Query("SELECT * FROM VENTAS_DET_H1 WHERE pcosto > (ptotal/cantidad)+1 AND id = " + STR(oQryDet:id) ):nRecCount > 0
+           IF oQryPun:validacosto = 1
+              lRta:=MsgYesNo("El descuento aplicado deja por debajo,"+CHR(10)+;
+                      "del costo a producto ¿Desea continuar?","Atencion")
+              IF !lRta
+                 oApp:oServer:RollBack()
+              ENDIF
+           ENDIF
+           IF oQryPun:validacosto = 2
+              MsgStop("No puede aplicar decuento seleccionado porque el "+CHR(10)+;
+                     "precio deja por debajo del costo a productos","Atencion")
+              oApp:oServer:RollBack()
+           ENDIF
+           oApp:oServer:CommitTransaction()
+        ENDIF 
+        ELSE 
+        CrearTemporales()
+        oApp:oServer:BeginTransaction()
+        oApp:oServer:Execute("UPDATE VENTAS_DET_H1 v LEFT JOIN ge_"+oApp:cId+"ivas i  ON i.codigo = v.codiva "+;
+                             "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+;
+                             "SET v.punit = v.punit - "+ClipValue2Sql(nImpoDes)+","+;
+                                 "v.neto =  ((v.cantidad * v.punit) /(1+i.tasa/100)),"+;
+                                 "v.ptotal = (v.cantidad * v.punit),"+;
+                                 "v.stotal = v.neto ,"+;
+                                 "v.iva =   v.ptotal - v.neto ,"+;
+                                 "v.descuento = 0"+;
+                                 " WHERE v.id = " + STR(oQryDet:id))
+        IF oApp:oServer:Query("SELECT * FROM VENTAS_DET_H1 WHERE pcosto > (ptotal/cantidad)+1 AND id = " + STR(oQryDet:id) ):nRecCount > 0
+           IF oQryPun:validacosto = 1
+              lRta:=MsgYesNo("El descuento aplicado deja por debajo,"+CHR(10)+;
+                      "del costo a producto ¿Desea continuar?","Atencion")
+              IF !lRta
+                 oApp:oServer:RollBack()
+              ENDIF
+           ENDIF
+           IF oQryPun:validacosto = 2
+              MsgStop("No puede aplicar decuento seleccionado porque el "+CHR(10)+;
+                     "precio deja por debajo del costo a productos","Atencion")
+              oApp:oServer:RollBack()
+           ENDIF
+           oApp:oServer:CommitTransaction()
+        ENDIF 
+     ENDIF   
 ENDIF
 oQryDet:Refresh()
 oBrwDet:Refresh()
@@ -2164,7 +2228,8 @@ WHERE
         (prom.tipo = 2 AND p.CANTIDAD >= prom.cantidad_requerida) OR
         (prom.tipo = 3 AND p.CANTIDAD >= prom.descuento_a_unidad) OR
         (prom.tipo = 4 AND p.CANTIDAD BETWEEN prom.cantidad_minima AND prom.cantidad_maxima)
-    ) GROUP BY prom.CODART, prom.TIPO)
+    ) 
+    GROUP BY prom.CODART, prom.TIPO)
 ENDTEXT
 cText := STRTRAN(cText,'ge_000001promociones','ge_'+oApp:cId+'promociones')
 oQryTem := oApp:oServer:Query(cText)
@@ -2219,3 +2284,8 @@ oGet[02]:Refresh()
 oGet[03]:Refresh()
 nTotal := ROUND(oBrwDet:aCols[9]:nTotal,2)
 RETURN nil
+
+static function MsgYesNoCancel( cMsg, cTitle )
+
+return MessageBox( GetActiveWindow(), cMsg, cTitle, ;
+                   nOR( MB_ICONQUESTION, MB_YESNOCANCEL ) )

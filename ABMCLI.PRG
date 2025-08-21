@@ -68,10 +68,10 @@ PROCEDURE Clientes(cPermisos)
         TOOLTIP "Ficha de Seguimiento"  ;
         ACTION (Fich(), oBrw:Refresh());
         PROMPT "Ficha" TOP WHEN("A"$cPermisos  .or. "M"$cPermisos)
-      DEFINE BUTTON RESOURCE "BACKU" OF oBar ;
+      /*DEFINE BUTTON RESOURCE "BACKU" OF oBar ;
         TOOLTIP "Importar Registros"  ;
         ACTION (Importar(), oBrw:Refresh());
-        PROMPT "Importar" TOP WHEN("A"$cPermisos)
+        PROMPT "Importar" TOP WHEN("A"$cPermisos)*/
       // Este boton cierra la aplicacion
       DEFINE BUTTON RESOURCE "SALE" OF oBar;
         TOOLTIP "Cerrar Ventana" ;
@@ -169,7 +169,7 @@ DEFINE DIALOG oDlg1 TITLE IF(lAlta,"Alta","Modificacion") + " de Clientes" FROM 
    @ 82, 05 SAY "Fecha nac:"        OF oDlg1 PIXEL SIZE 50,12 RIGHT
    @ 82, 95 SAY "Fecha ingreso:"    OF oDlg1 PIXEL SIZE 50,12 RIGHT
    @ 97, 05 SAY "Fecha ult. op.:"   OF oDlg1 PIXEL SIZE 50,12 RIGHT
-   @ 97, 95 SAY "Limite de cedito:" OF oDlg1 PIXEL SIZE 50,12 RIGHT
+   @ 97, 95 SAY "Limite credito:"   OF oDlg1 PIXEL SIZE 50,12 RIGHT
    @112, 05 SAY "Descto. general:"  OF oDlg1 PIXEL SIZE 50,12 RIGHT   
    @127, 05 SAY "C.U.I.T.:"         OF oDlg1 PIXEL SIZE 50,12 RIGHT
    @127, 95 SAY "D.N.I.:"           OF oDlg1 PIXEL SIZE 50,12 RIGHT

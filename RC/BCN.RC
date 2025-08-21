@@ -1373,18 +1373,18 @@ FONT 8, "Tahoma"
   CONTROL "Cancelar", 138, "Button", WS_TABSTOP, 320, 80, 50, 14
 }
 
-PARAMETROS DIALOG DISCARDABLE 6, 18, 314, 278
+PARAMETROS DIALOG DISCARDABLE 6, 18, 314, 290
 STYLE WS_POPUP|DS_MODALFRAME|WS_CAPTION|WS_SYSMENU|WS_VISIBLE
 CAPTION "Datos de configuracion"
 FONT 8, "Tahoma"
 {
-  CONTROL "Aceptar", 201, "Button", WS_TABSTOP, 48, 260, 50, 18
-  CONTROL "Cancelar", 202, "Button", WS_TABSTOP, 216, 260, 50, 18
-  CONTROL "", 100, "TFOLDEREX", WS_TABSTOP, 0, 0, 312, 232
-  CONTROL "En el caso de tener dudas sobre la configuracion, deje el mouse quieto sobre el parametro a configurar para ver la ayuda", 4001, "Static", SS_CENTER|WS_GROUP, 4, 236, 308, 20
+  CONTROL "Aceptar", 201, "Button", WS_TABSTOP, 48, 272, 50, 18
+  CONTROL "Cancelar", 202, "Button", WS_TABSTOP, 216, 272, 50, 18
+  CONTROL "", 100, "TFOLDEREX", WS_TABSTOP, 0, 0, 312, 244
+  CONTROL "En el caso de tener dudas sobre la configuracion, deje el mouse quieto sobre el parametro a configurar para ver la ayuda", 4001, "Static", SS_CENTER|WS_GROUP, 4, 248, 308, 20
 }
 
-PARVENTA DIALOG DISCARDABLE 15, 19, 305, 209
+PARVENTA DIALOG DISCARDABLE 15, 19, 305, 221
 STYLE WS_CHILD
 FONT 8, "MS Sans Serif"
 {
@@ -1420,6 +1420,7 @@ FONT 8, "MS Sans Serif"
   CONTROL "Art. eventual u$s", 4012, "Button", BS_AUTOCHECKBOX|WS_TABSTOP, 212, 192, 88, 12
   CONTROL "Usa bultos en ventas", 4014, "Button", BS_AUTOCHECKBOX|WS_TABSTOP, 208, 112, 92, 12
   CONTROL "Usa repartos c/hoja ruta", 4015, "Button", BS_AUTOCHECKBOX|WS_TABSTOP, 208, 128, 96, 12
+  CONTROL "Imprimir importe descuento y %", 4016, "Button", BS_AUTOCHECKBOX|WS_TABSTOP, 8, 208, 136, 12
 }
 
 PARPROV DIALOG DISCARDABLE 15, 19, 305, 193
@@ -1952,3 +1953,4 @@ FONT 8, "Tahoma"
   CONTROL "", 501, "ComboBox", WS_BORDER|CBS_DROPDOWNLIST|WS_VSCROLL|WS_TABSTOP, 456, 296, 60, 40
   CONTROL "", 502, "Edit", ES_RIGHT|ES_AUTOHSCROLL|WS_BORDER|WS_TABSTOP, 476, 312, 40, 12
 }
+

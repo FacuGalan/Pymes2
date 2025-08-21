@@ -12,7 +12,7 @@ STATIC oWnd1, nTipoEmp, nTipoFac, nTipoDoc, cVentana, oGet, oQryArt, oQryCli, oQ
        oBrw, oSay1,oSay3,cRemitos, oDlg,nCodCli,nTarjeta,nefectivo,oQryPun,nDescArt,nDescArt1,nLista,nConIva,;
        nEfecti, nTarjet, nTransfe, nCheque, nCtaCte, nMPago, nCuotas, nPuntoVta, cLetra,nLisPre,cObserva,nPorIva,cNumComp,;
        cDetArt, nDescuGen, nCodIva, nTotal, nForPag, nRubro, nDeuda,oQryChe,mpagado,manticipo,dFecha,cVendedor,nTipoCli,;
-       nBorrarPend,lUsoPedido,oQryLisPre,aFormaNom,aFormaInc,nFormaPago, lAcopio, nBorrarPresu,lPedidoUsado,;
+       nBorrarPend,lUsoPedido,oQryLisPre,aFormaNom,aFormaInc,aFormaTip,nFormaPago, lAcopio, nBorrarPresu,lPedidoUsado,;
        lFacturaM , lFacturaD, cOrigenNC
 
 PROCEDURE Ventas() 
@@ -71,16 +71,16 @@ oApp:oServer:Execute("";
     +"`CODART` bigint(14) NOT NULL,";  
     +"`DETART` VARCHAR(500) NOT NULL,";
     +"`CANTIDAD` DECIMAL(8,3) DEFAULT '0',";
-    +"`PUNIT` DECIMAL(12,3) DEFAULT '0.00', ";
-    +"`NETO`  DECIMAL(12,3) DEFAULT '0.00', ";
-    +"`DESCUENTO`  DECIMAL(12,3) DEFAULT '0.00', ";
+    +"`PUNIT` DECIMAL(13,3) DEFAULT '0.00', ";
+    +"`NETO`  DECIMAL(13,3) DEFAULT '0.00', ";
+    +"`DESCUENTO`  DECIMAL(13,3) DEFAULT '0.00', ";
     +"`DESCUP`  DECIMAL(5,2) DEFAULT '0.00', ";
-    +"`STOTAL`  DECIMAL(12,3) DEFAULT '0.00', ";
-    +"`IVA` DECIMAL(12,3) DEFAULT '0.00', ";
+    +"`STOTAL`  DECIMAL(13,3) DEFAULT '0.00', ";
+    +"`IVA` DECIMAL(13,3) DEFAULT '0.00', ";
     +"`CODIVA` INT(2) DEFAULT '0', ";
-    +"`PTOTAL` DECIMAL(12,3) DEFAULT '0.00',";
-    +"`PCOSTO` DECIMAL(12,3) DEFAULT '0.00',";
-    +"`IMPINT` DECIMAL(12,3) DEFAULT '0.00',";
+    +"`PTOTAL` DECIMAL(13,3) DEFAULT '0.00',";
+    +"`PCOSTO` DECIMAL(13,3) DEFAULT '0.00',";
+    +"`IMPINT` DECIMAL(13,3) DEFAULT '0.00',";
     +"`BULTOS` DECIMAL(6,1) DEFAULT '0.0',";
     +"`ESPROMO` TINYINT(1) DEFAULT '0' NOT NULL, ";
     +"PRIMARY KEY (`id`)) ENGINE=INNODB DEFAULT CHARSET=utf8")
@@ -112,13 +112,15 @@ oApp:oServer:Execute("";
 oApp:oServer:Execute("INSERT INTO precios_temp (formapag,incremento,importe) "+;
                      "(SELECT nombre,incremento,0 FROM ge_"+oApp:cId+"forpag )")
 */
-oQryFormas:= oApp:oServer:Query("SELECT nombre,incremento FROM ge_"+oApp:cId+"forpag ORDER BY codigo")
+oQryFormas:= oApp:oServer:Query("SELECT nombre,incremento,tipo FROM ge_"+oApp:cId+"forpag ORDER BY codigo")
 aFormaNom:={}
 aFormaInc:={}
+aFormaTip:={}
 oQryFormas:GoTop()
 DO WHILE !oQryFormas:eof()
   AADD(aFormaNom,oQryFormas:nombre)
   AADD(aFormaInc,oQryFormas:incremento)
+  AADD(aFormaTip,oQryFormas:tipo)
   oQryFormas:Skip()
 ENDDO
 nFormaPago:=1
@@ -248,9 +250,9 @@ ENDIF
     oGet[14]:bGotFocus :={|| oGet[14]:SelectAll()}
     REDEFINE GET oGet[15] VAR cDetArt   ID 192  OF oDlg PICTURE "@!" WHEN(.F.)
     REDEFINE GET oGet[16] VAR nCantidad ID 193  OF oDlg PICTURE "999999.999"  VALID(nCantidad>0) WHEN(nTiArt=1)
-    REDEFINE GET oGet[17] VAR nPunit    ID 194  OF oDlg PICTURE "99999999.999" WHEN(nTiArt=1 .and. oApp:modifica_precios)
+    REDEFINE GET oGet[17] VAR nPunit    ID 194  OF oDlg PICTURE "999999999.999" WHEN(nTiArt=1 .and. oApp:modifica_precios)
     REDEFINE GET oGet[33] VAR nDescArt  ID 4003 OF oDlg PICTURE "999.99" WHEN(nTiArt=1 .and. oApp:modifica_descu)
-    REDEFINE GET oGet[18] VAR nPtotal   ID 195  OF oDlg PICTURE "99999999.999" ;
+    REDEFINE GET oGet[18] VAR nPtotal   ID 195  OF oDlg PICTURE "999999999.999" ;
             WHEN((oGet[18]:cText := nCantidad*nPunit-(nCantidad*nPunit)*(nDescArt/100)) = "-9" .and. nTiArt=1) 
     REDEFINE SAY oSay[1] ID 4027          
     REDEFINE GET oGet[45] VAR nBultos    ID 4025  OF oDlg PICTURE "9999.9"  WHEN(nTiArt=1)
@@ -259,10 +261,10 @@ ENDIF
     //Datos del articulo ocacional
     REDEFINE GET oGet[25] VAR cDetArt   ID 302  OF oDlg PICTURE "@S35" WHEN(nTiArt=2)
     REDEFINE GET oGet[26] VAR nCantidad ID 304  OF oDlg PICTURE "999999.999"  VALID(nCantidad>0) WHEN(nTiArt=2)
-    REDEFINE GET oGet[27] VAR nPunit    ID 305  OF oDlg PICTURE "99999999.999" WHEN(nTiArt=2);
+    REDEFINE GET oGet[27] VAR nPunit    ID 305  OF oDlg PICTURE "999999999.999" WHEN(nTiArt=2);
                  VALID((oGet[28]:cText := nCantidad*nPunit-(nCantidad*nPunit)*(nDescArt1/100)) <> "xxx" )
     REDEFINE GET oGet[34] VAR nDescArt1  ID 4004 OF oDlg PICTURE "999.99" WHEN(nTiArt=2 .and. oApp:modifica_descu)
-    REDEFINE GET oGet[28] VAR nPtotal   ID 306  OF oDlg PICTURE "99999999.999" WHEN(.f.)
+    REDEFINE GET oGet[28] VAR nPtotal   ID 306  OF oDlg PICTURE "999999999.999" WHEN(.f.)
     REDEFINE GET oGet[30] VAR nPorIva   ID 303  OF oDlg PICTURE "999.99" WHEN(nTiArt=2); 
              VALID((oQryIvaT:Seek(nPorIva,3) > 0) .and. ((nCodIva:=oQryIvaT:codigo) >0 ))
     REDEFINE GET oGet[46] VAR nBultos    ID 4026  OF oDlg PICTURE "9999.9" WHEN(nTiArt=2)      
@@ -270,13 +272,13 @@ ENDIF
 
     //ingresos brutos 
     REDEFINE GET oGet[37] VAR nIngBruP  ID 4013 OF oDlg PICTURE "999.99" 
-    REDEFINE GET oGet[38] VAR nIngBru   ID 4014 OF oDlg PICTURE "999999999.99" WHEN(.F.)
+    REDEFINE GET oGet[38] VAR nIngBru   ID 4014 OF oDlg PICTURE "99999999999.99" WHEN(.F.)
     //neto y IVA y total
-    REDEFINE GET oGet[19] VAR nNeto  ID 198 OF oDlg PICTURE "99999999.99" WHEN(.F.)
-    REDEFINE GET oGet[20] VAR nIVA   ID 199 OF oDlg PICTURE "99999999.99" WHEN(.F.)
+    REDEFINE GET oGet[19] VAR nNeto  ID 198 OF oDlg PICTURE "9999999999.99" WHEN(.F.)
+    REDEFINE GET oGet[20] VAR nIVA   ID 199 OF oDlg PICTURE "9999999999.99" WHEN(.F.)
     REDEFINE GET oGet[21] VAR nTotal ID 200 OF oDlg COLOR CLR_RED , CLR_YELLOW READONLY;
-           PICTURE "999999999.99" FONT oFontTotal WHEN(.F.)
-    REDEFINE GET oGet[42] VAR nImpInt ID 4019 OF oDlg PICTURE "99999999.99" WHEN(.F.)    
+           PICTURE "99999999999.99" FONT oFontTotal WHEN(.F.)
+    REDEFINE GET oGet[42] VAR nImpInt ID 4019 OF oDlg PICTURE "9999999999.99" WHEN(.F.)    
     //GRILLA ---------------------------------------------------------------      
     
     REDEFINE XBROWSE oBrw DATASOURCE oQryDet;
@@ -816,35 +818,37 @@ RETURN NIL
 ************************************************************************************
 ** Vaciar el formulario despues de grabar o cancelar
 STATIC FUNCTION LimpiarForm()
-oQryDet:Zap()
-oBrw:Refresh()
-oBrw:Maketotals()
-oGet[19]:cText := oBrw:aCols[7]:nTotal 
-oGet[20]:cText := oBrw:aCols[8]:nTotal      
-oGet[38]:cText := oBrw:aCols[7]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
-oGet[21]:cText := oBrw:aCols[9]:nTotal + oGet[38]:value
-oGet[42]:cText := oBrw:aCols[11]:nTotal
-oGet[19]:Refresh()
-oGet[20]:Refresh()
-oGet[21]:Refresh()
-oGet[08]:cText := 0
-oGet[09]:cText := SPACE(30)
-oGet[10]:cText := SPACE(30)
-oGet[11]:cText := SPACE(30)
-oGet[12]:cText := SPACE(13)
-oGet[23]:cText := SPACE(255)
-oGet[13]:nAt := 5    
-oGet[02]:Select(1)
-oGet[02]:SetFocus()
-lFacturaD := .f.
-oGet[48]:Refresh()
-nBorrarPend:=0
-lUsoPedido := .f.
-lAcopio := IF(FILE('.\ACOPIO.INI'),.T.,.f.)
-lPedidoUsado := .f.
-oGet[44]:Refresh()
-nPuntoVta := oQryPun:caja
-cOrigenNC := ''
+IF oQryDet <> nil  
+  oQryDet:Zap()
+  oBrw:Refresh()
+  oBrw:Maketotals()
+  oGet[19]:cText := oBrw:aCols[7]:nTotal 
+  oGet[20]:cText := oBrw:aCols[8]:nTotal      
+  oGet[38]:cText := oBrw:aCols[7]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
+  oGet[21]:cText := oBrw:aCols[9]:nTotal + oGet[38]:value
+  oGet[42]:cText := oBrw:aCols[11]:nTotal
+  oGet[19]:Refresh()
+  oGet[20]:Refresh()
+  oGet[21]:Refresh()
+  oGet[08]:cText := 0
+  oGet[09]:cText := SPACE(30)
+  oGet[10]:cText := SPACE(30)
+  oGet[11]:cText := SPACE(30)
+  oGet[12]:cText := SPACE(13)
+  oGet[23]:cText := SPACE(255)
+  oGet[13]:nAt := 5    
+  oGet[02]:Select(1)
+  oGet[02]:SetFocus()
+  lFacturaD := .f.
+  oGet[48]:Refresh()
+  nBorrarPend:=0
+  lUsoPedido := .f.
+  lAcopio := IF(FILE('.\ACOPIO.INI'),.T.,.f.)
+  lPedidoUsado := .f.
+  oGet[44]:Refresh()
+  nPuntoVta := oQryPun:caja
+  cOrigenNC := ''
+ENDIF
 RETURN nil
 
 
@@ -1792,7 +1796,7 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
                    "("+; 
                    "SELECT codart, SUM(cantidad) as suma "+;
                    "FROM ventas_det_H "+;
-                   "WHERE ESPROMO IS FALSE "+;
+                   "WHERE ESPROMO IS FALSE AND codart > 0 "+;
                    "GROUP BY codart "+;
                    ") v ON a.codigo = v.codart "+;
                    "SET a.stockact = a.stockact - (v.suma * "+IF(cTipoDoc="NC","-1","1")+") WHERE a.stockotro IS FALSE")
@@ -1946,16 +1950,16 @@ CASE nTipoDoc = 5
   TRY
   oApp:oServer:BeginTransaction()                     
   oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"remitos "+;
-                        " (codart,detart,cantidad,fecha,codcli,nrorem,codiva,facturado,incrp,importe,iva,neto,neton,tipo,auto,vendedor) "+;
+                        " (codart,detart,cantidad,fecha,codcli,nrorem,codiva,facturado,incrp,importe,iva,neto,neton,tipo,auto,vendedor,usuario) "+;
                         " (SELECT codart,detart,cantidad,"+ClipValue2Sql(oGet[1]:value)+","+ClipValue2Sql(oGet[8]:value)+","+;
                         + ClipValue2Sql(cTipoDoc+cNumComp)+",codiva,FALSE,descup,0,0,0,0, "+;
-                        "'I',bultos,"+ClipValue2Sql(cVendedor)+" "+;
+                        "'I',bultos,"+ClipValue2Sql(cVendedor)+","+ClipValue2Sql(oApp:usuario)+;
                         "   FROM ventas_det_H WHERE codart > 0)")
   oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"remitos "+;
-                        " (codart,detart,cantidad,fecha,codcli,nrorem,codiva,facturado,incrp,importe,iva,neto,neton,tipo,auto,vendedor) "+;
+                        " (codart,detart,cantidad,fecha,codcli,nrorem,codiva,facturado,incrp,importe,iva,neto,neton,tipo,auto,vendedor,usuario) "+;
                         " (SELECT codart,detart,cantidad,"+ClipValue2Sql(oGet[1]:value)+","+ClipValue2Sql(oGet[8]:value)+","+;
                         + ClipValue2Sql(cTipoDoc+cNumComp)+",codiva,FALSE,descup,ptotal,iva,stotal,neto, "+;
-                        "'I',bultos,"+ClipValue2Sql(cVendedor)+" "+;
+                        "'I',bultos,"+ClipValue2Sql(cVendedor)+","+ClipValue2Sql(oApp:usuario)+;
                         "   FROM ventas_det_H WHERE codart = 0)")
   //Actualizo pedidos
   /*IF lUsoPedido
@@ -2425,7 +2429,7 @@ DEFAULT aMetodosPago := {}
                  ENDIF         
                  @ y-0.07, 03.5 PRINT TO oPrn TEXT ALLTRIM(oQryDet1:detart) ;
                       SIZE 6.5,2.5 CM FONT oFont5 LASTROW nRow ALIGN "TL"
-                 @ y-0.07, 10 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,08,2) ;
+                 @ y-0.07, 10 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,10,2) ;
                       SIZE 2,.5 CM FONT oFont5 ALIGN "TR"
                  IF oApp:usabultosventa
                     @ y-0.07, 12.05 PRINT TO oPrn TEXT;
@@ -2439,7 +2443,7 @@ DEFAULT aMetodosPago := {}
                            ALLTRIM(IF(oQryDet1:descupor = INT(oQryDet1:descupor),;
                                       STR(INT(oQryDet1:descupor),3),;
                                       STR(oQryDet1:descupor,6,2)))+"% "+;
-                           ALLTRIM(STR(oQryDet1:descu,12,2))," ") ;
+                           IF(oQryPar1:imprimedescuimp, ALLTRIM(STR(oQryDet1:descu,12,2)),"")," ") ;
                       SIZE 1.8,.5 CM FONT oFont5 ALIGN "TR" 
                  @ y-0.07, 15.5 PRINT TO oPrn TEXT STR(oQryDet1:subtot/nIndiceDolar,12,2) ;
                       SIZE 2,.5 CM FONT oFont5 ALIGN "TR"
@@ -4029,7 +4033,7 @@ DEFAULT aMetodosPago := {}
                  ENDIF     
                  @ y-.07, 03.5 PRINT TO oPrn TEXT ALLTRIM(oQryDet1:detart) ;
                       SIZE 6.5,2.5 CM FONT oFont5 LASTROW nRow ALIGN "TL"
-                 @ y-0.07, 10 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,08,2) ;
+                 @ y-0.07, 10 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,10,2) ;
                       SIZE 2,.5 CM FONT oFont5 ALIGN "TR"
                  IF oApp:usabultosventa
                     @ y-0.07, 12.05 PRINT TO oPrn TEXT;
@@ -4043,7 +4047,7 @@ DEFAULT aMetodosPago := {}
                            ALLTRIM(IF(oQryDet1:descupor = INT(oQryDet1:descupor),;
                                       STR(INT(oQryDet1:descupor),3),;
                                       STR(oQryDet1:descupor,6,2)))+"% "+;
-                           ALLTRIM(STR(oQryDet1:descu,12,2))," ") ;
+                           IF(oQryPar:imprimedescuimp,ALLTRIM(STR(oQryDet1:descu,12,2)),"")," ") ;
                       SIZE 1.8,.5 CM FONT oFont5 ALIGN "TR" 
                  @ y-0.07, 15.5 PRINT TO oPrn TEXT STR(oQryDet1:subtot,12,2) ;
                       SIZE 2,.5 CM FONT oFont5 ALIGN "TR"
@@ -5029,7 +5033,8 @@ WHERE
         (prom.tipo = 2 AND p.CANTIDAD >= prom.cantidad_requerida) OR
         (prom.tipo = 3 AND p.CANTIDAD >= prom.descuento_a_unidad) OR
         (prom.tipo = 4 AND p.CANTIDAD BETWEEN prom.cantidad_minima AND prom.cantidad_maxima)
-    ) GROUP BY prom.CODART, prom.TIPO)
+    )     
+    GROUP BY prom.CODART, prom.TIPO)
 ENDTEXT
 
 cText := STRTRAN(cText,'ge_000001promociones','ge_'+oApp:cId+'promociones')

@@ -84,7 +84,7 @@ RETURN
 ** Formulario de altas y modificaciones
 STATIC FUNCTION Formu ()
 LOCAL oGet := ARRAY(4), oBot := ARRAY(2), oForm, lRta := .f., aCor, base, oQryCon,oQryFac,;
-      oBrw1,oBrw2, oQryOrden, nTotPag:=0, nTotFac:=0,oQry 
+      oBrw1,oBrw2, oQryOrden, nTotPag:=0, nTotFac:=0,oQry , nTotAnt := 0
 
 oQry   := oApp:oServer:Query( "SELECT p.*, c.codigo AS codcli, c.nombre AS nomcli FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"clientes c ON c.codigo = p.cliente "+;
                                 "WHERE p.numero = "+ClipValue2Sql(oQryBrw:numero))
@@ -119,7 +119,8 @@ ACTIVATE DIALOG oForm CENTER ON INIT oBot[1]:SetFocus()
 IF !lRta
    RETURN nil
 ENDIF
-
+nTotFac := 0
+nTotAnt := 0
 TRY
 oApp:oServer:BeginTransaction()
 oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"ventas_cuota v LEFT JOIN ge_"+oApp:cId+"pagfac p ON v.tipo = p.ticomp AND "+;
@@ -132,29 +133,16 @@ IF oQry:iddepo > 0
 ENDIF
 oQryCon:GoTop()
 DO WHILE !oQryCon:eof()
-	IF oQryCon:codcon = 7
-		IF !oQry:demo 
-		   oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET saldo = saldo + "+ClipValue2Sql(oQryCon:importe)+;
-		                        " WHERE codigo = "+ClipValue2Sql(oQry:codcli))
-		ELSE
-		   oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET saldod = saldod + "+ClipValue2Sql(oQryCon:importe)+;
-		                        " WHERE codigo = "+ClipValue2Sql(oQry:codcli))
-		ENDIF
-	ELSE 
-    nTotPag:= nTotPag + oQryCon:importe 
+	IF oQryCon:codcon = 7			   
+     nTotAnt := nTotAnt + oQryCon:importe                       	
+	   ELSE 
+     nTotPag:= nTotPag + oQryCon:importe 
   ENDIF
 	oQryCon:Skip()
 ENDDO
 nTotFac := oApp:oServer:Query("SELECT SUM(importe) AS total FROM ge_"+oApp:cId+"pagfac WHERE numero = " + ClipValue2Sql(oQry:numero)):total
-IF nTotPag > nTotFac
-   IF !oQry:demo
-      oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET saldo = saldo - "+ClipValue2Sql(nTotPag-nTotFac)+" "+;
-                           "WHERE codigo = "+ClipValue2Sql(oQry:codcli))
-   ELSE
-      oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET saldod = saldod - "+ClipValue2Sql(nTotPag-nTotFac)+" "+;
-                           "WHERE codigo = "+ClipValue2Sql(oQry:codcli)) 
-   ENDIF
-ENDIF
+oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET saldo = saldo - "+ClipValue2Sql(nTotPag-nTotFac)+" "+;
+                           "WHERE codigo = "+ClipValue2Sql(oQry:codcli))   
 oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"cheter WHERE recibo = "+ ClipValue2Sql(oQry:numero))
 oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"pagos  WHERE numero = " + ClipValue2Sql(oQry:numero))
 oApp:oServer:Execute("DELETE FROM pagos_temp  WHERE numero = " + ClipValue2Sql(oQry:numero))
@@ -166,18 +154,6 @@ END TRY
 oQryBrw:Refresh() 
 
 RETURN nil
-
-****************************************************************************************************************************
-**** CAMBIAR TEXTO DEL BOTON 
-STATIC FUNCTION CambiarBoton(oBot,nFiltro)
-IF nFiltro = 1
-   oBot:cCaption:= "Sist"
-   oBot:cTooltip:= "mostrar DEMO"
-ELSE 
-   oBot:cCaption:= "Demo"
-   oBot:cTooltip:= "mostrar SISTEMA"
-ENDIF
-RETURN nil 
 
 *************************************
 ** Cerrar el archivo abierto

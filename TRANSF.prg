@@ -96,16 +96,17 @@ DO WHILE .T.
   oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"articu SET stockact = stockact + "+ClipValue2Sql(nHacer)+" "+;
                        "WHERE codigo = " + ClipValue2Sql(oQryArtP:codigo))
   //Agrego al movimiento de stock el ingreso
-  oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"stoman (codart,entradas,salidas,fecha,motivo,costo) VALUES "+;
+  oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"stoman (codart,entradas,salidas,fecha,motivo,costo,usuario) VALUES "+;
                        "("+ClipValue2Sql(oQryArtP:codigo)+","+;
                        ClipValue2Sql(nHacer)+","+;
                        "0,"+;
                        "CURDATE(),"+;
                        "9,"+;
-                       ClipValue2Sql(oQryArtP:preciocos)+;
+                       ClipValue2Sql(oQryArtP:preciocos)+","+;
+                       ClipValue2Sql(oApp:usuario)+;
                        ")") 
-  oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"stoman (codart,entradas,salidas,fecha,motivo,costo) "+;
-                       "(SELECT codart,0,cantidad,CURDATE(),9,punit FROM reseta_temp1) ")  
+  oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"stoman (codart,entradas,salidas,fecha,motivo,costo,usuario) "+;
+                       "(SELECT codart,0,cantidad,CURDATE(),9,punit,"+ClipValue2Sql(oApp:usuario)+" FROM reseta_temp1) ")  
   IF !oApp:oServer:TableExist("ge_"+oApp:cId+"produccion")
       oApp:oServer:Execute("";
       + "CREATE TABLE ge_"+oApp:cId+"produccion";
@@ -116,12 +117,13 @@ DO WHILE .T.
       +"`DETALLE` VARCHAR(100) NOT NULL,";   
       +"`CANTIDAD` DECIMAL(10,3) DEFAULT '0',";
       +"`PRECIO` DECIMAL(10,2) DEFAULT '0.00', ";
-      +"`CODPRO` BIGINT(14) NOT NULL DEFAULT 0,";  
+      +"`CODPRO` BIGINT(14) NOT NULL DEFAULT 0,";
+      +"`USUARIO` VARCHAR(15) NULL DEFAULT 'MIGRA',";  
       +"PRIMARY KEY (`ID`)) ENGINE=INNODB DEFAULT CHARSET=utf8")
   ENDIF    
-  oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"produccion (fecha,codart,detart, detalle,cantidad,precio,codpro) "+;
+  oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"produccion (fecha,codart,detart, detalle,cantidad,precio,codpro,usuario) "+;
                        "(SELECT curdate(),codart,detart,'Produccion "+ALLTRIM(cNomArt)+" x "+;
-                       ALLTRIM(STR(nHacer,12,2))+"',cantidad,punit,"+ClipValue2Sql(nCodArtP)+" FROM reseta_temp1) ")  
+                       ALLTRIM(STR(nHacer,12,2))+"',cantidad,punit,"+ClipValue2Sql(nCodArtP)+","+ClipValue2Sql(oApp:usuario)+" FROM reseta_temp1) ")  
   oApp:oServer:CommitTransaction()
 CATCH oError
     ValidaError(oError)
@@ -213,7 +215,7 @@ RETURN .t.
 
 **********************************************
 ** Reporte de Movimientos produccion
-STATIC FUNCTION ReporteProd()
+STATIC FUNCTION ReporteProdAnt()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
       acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(6), oBot1, oBot2,;
       cSql, oGru, mdesde := DATE(), mhasta := DATE(), lResu := .f.
@@ -274,8 +276,9 @@ IF !lResu
                             SIZE 10 FONT 2 TOTAL                             
 ENDIF
 IF !lResu
-   COLUMN TITLE "Para"   DATA oQry:detalle SIZE 40 
-   COLUMN TITLE "Cod"    DATA oQry:codpro SIZE 20 
+   COLUMN TITLE "Para"    DATA oQry:detalle SIZE 40 
+   COLUMN TITLE "Cod"     DATA oQry:codpro SIZE 20 
+   COLUMN TITLE "Usuario" DATA oQry:usuario SIZE 10 
 ENDIF   
 // Digo que el titulo lo escriba con al letra 2
 oRep:oTitle:aFont[1] := {|| 3 }
@@ -304,3 +307,273 @@ oBrw2:Maketotals()
 oGet[4]:cText:= oBrw2:aCols[5]:nTotal
 oGet[4]:Refresh()
 RETURN nil
+
+**********************************************
+** Reporte de Movimientos produccion
+STATIC FUNCTION ReporteProd()
+LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
+      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(13), oBot1 := ARRAY(5), oBot2,;
+      oQryMar, oQryRub, oQryPro, oQryDep, oQryEmp, i, aRub, aMar, aPro, aDep, aEmp, oBrwMar, oBrwRub, oBrwPro, oBrwDep, oBrwEmp, cSql,;
+      cMarca, cRubro, cProvee, cDepto, cEmpresa, oGru, mdesde := DATE(), mhasta := DATE(), lResu := .f., lProv := .f., nTipo := 3,;
+      oQryCli, nCliente := 0, cNomCli := "Todos"+SPACE(30), lPorFactura := .f.,;
+      n, cTodos := "TODOS                  ", oQryVen
+      
+oQryMar:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"marcas  ORDER BY nombre")
+oQryPro:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"provee  ORDER BY nombre")
+oQryDep:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"deptos  ORDER BY nombre")  
+oQryEmp:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"empresas  ORDER BY nombre")  
+oQryRub:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"rubros  ORDER BY nombre")
+aMar   := {}
+DO WHILE !oQryMar:Eof()
+   AADD(aMar,{.t.,oQryMar:Nombre, oQryMar:codigo})
+   oQryMar:Skip()
+ENDDO     
+aRub   := {}
+DO WHILE !oQryRub:Eof()
+   AADD(aRub,{.t.,oQryRub:Nombre, oQryRub:codigo})
+   oQryRub:Skip()
+ENDDO
+aPro   := {}
+DO WHILE !oQryPro:Eof()
+   AADD(aPro,{.t.,oQryPro:Nombre, oQryPro:codigo})
+   oQryPro:Skip()
+ENDDO
+aDep   := {}
+DO WHILE !oQryDep:Eof()
+   AADD(aDep,{.t.,oQryDep:Nombre, oQryDep:codigo})
+   oQryDep:Skip()
+ENDDO
+aEmp   := {}
+DO WHILE !oQryEmp:Eof()
+   AADD(aEmp,{.t.,oQryEmp:Nombre, oQryEmp:codigo})
+   oQryEmp:Skip()
+ENDDO
+DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
+DO WHILE .T.
+    DEFINE DIALOG oDlg1 TITLE "Produccion de articulo" FROM 03,15 TO 24,153
+       acor := AcepCanc(oDlg1)    
+       @ 05, 05 SAY "Marcas a Incluir" OF oDlg1 PIXEL
+       @ 05, 80 BUTTON oBot1[1] PROMPT "Inc" ACTION Cambiar(@aMar,oBrwMar) PIXEL SIZE 20,10 OF oDlg1
+       @ 20, 05 XBROWSE oBrwMar SIZE 100,80 pixel OF oDlg1 ARRAY aMar ;
+          HEADERS "Incluir", "Marca","Codigo";
+          COLUMNS 1, 2 ,3;
+          CELL LINES NOBORDER 
+       WITH OBJECT oBrwMar
+          :nEdittYPEs := 1
+          :aCols[ 1 ]:SetCheck()
+          :aCols[ 2 ]:SetOrder()
+          :CreateFromCode()
+       END  
+       PintaBrw(oBrwMar,0)
+
+       @ 05, 110 SAY "Rubros a Incluir" OF oDlg1 PIXEL
+       @ 05, 190 BUTTON oBot1[2] PROMPT "Inc" ACTION Cambiar(@aRub,oBrwRub) PIXEL SIZE 20,10 OF oDlg1
+       @ 20, 110 XBROWSE oBrwRub SIZE 100,80 pixel OF oDlg1 ARRAY aRub ;
+          HEADERS "Incluir", "Rubro","Codigo";
+          COLUMNS 1, 2 ,3;
+          CELL LINES NOBORDER  
+       WITH OBJECT oBrwRub
+          :nEdittYPEs := 1
+          :aCols[ 1 ]:SetCheck()
+          :aCols[ 2 ]:SetOrder()
+          :CreateFromCode()
+       END  
+       PintaBrw(oBrwRub,0)
+
+       @ 05, 215 SAY "Proveedores a Incluir" OF oDlg1 PIXEL
+       @ 05, 295 BUTTON oBot1[3] PROMPT "Inc" ACTION Cambiar(@aPro,oBrwPro) PIXEL SIZE 20,10 OF oDlg1
+       @ 20, 215 XBROWSE oBrwPro SIZE 100,80 pixel OF oDlg1 ARRAY aPro ;
+          HEADERS "Incluir", "Proveedor","Codigo";
+          COLUMNS 1, 2 ,3;
+          CELL LINES NOBORDER 
+       WITH OBJECT oBrwPro
+          :nEdittYPEs := 1
+          :aCols[ 1 ]:SetCheck()
+          :aCols[ 2 ]:SetOrder()
+          :CreateFromCode()
+       END  
+       PintaBrw(oBrwPro,0)
+
+       @ 05, 320 SAY "Departamentos a Incluir" OF oDlg1 PIXEL
+       @ 05, 400 BUTTON oBot1[4] PROMPT "Inc" ACTION Cambiar(@aDep,oBrwDep) PIXEL SIZE 20,10 OF oDlg1
+       @ 20, 320 XBROWSE oBrwDep SIZE 100,80 pixel OF oDlg1 ARRAY aDep ;
+          HEADERS "Incluir", "Depto","Codigo";
+          COLUMNS 1, 2 ,3;
+          CELL LINES NOBORDER  
+       WITH OBJECT oBrwDep
+          :nEdittYPEs := 1
+          :aCols[ 1 ]:SetCheck()
+          :aCols[ 2 ]:SetOrder()
+          :CreateFromCode()
+       END  
+       PintaBrw(oBrwDep,0) 
+
+       @ 05, 425 SAY "Empresas a Incluir" OF oDlg1 PIXEL
+       @ 05, 505 BUTTON oBot1[5] PROMPT "Inc" ACTION Cambiar(@aEmp,oBrwEmp) PIXEL SIZE 20,10 OF oDlg1
+       @ 20, 425 XBROWSE oBrwEmp SIZE 100,80 pixel OF oDlg1 ARRAY aEmp ;
+          HEADERS "Incluir", "Empresa","Codigo";
+          COLUMNS 1, 2 ,3;
+          CELL LINES NOBORDER 
+       WITH OBJECT oBrwEmp
+          :nEdittYPEs := 1
+          :aCols[ 1 ]:SetCheck()
+          :aCols[ 2 ]:SetOrder()
+          :CreateFromCode()
+       END  
+       PintaBrw(oBrwEmp,0)    
+       
+       @ 112, 05 SAY "Desde fecha" OF oDlg1 PIXEL SIZE 60,10 RIGHT
+       @ 127, 05 SAY "Hasta fecha" OF oDlg1 PIXEL SIZE 60,10 RIGHT   
+       @ 110, 70 GET oGet[1] VAR mdesde    OF oDlg1 PIXEL
+       @ 125, 70 GET oGet[2] VAR mhasta    OF oDlg1 PIXEL VALID(mhasta >= mdesde)   
+       @ 110,145 CHECKBOX oGet[3] VAR lResu PROMPT "Mostrar solo resumen"  SIZE 110,10 PIXEL OF oDlg1 
+
+       @ acor[1],acor[2] BUTTON oBot1[5] PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
+               ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
+       @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
+               ACTION ((mrta := .f.), oDlg1:End() ) PIXEL
+    ACTIVATE DIALOG oDlg1 CENTER ON INIT(oGet[1]:SetFocus())
+    IF !mrta
+       oQryMar:End()
+       oQryRub:End()
+       oQryPro:End()
+       oQryDep:End() 
+       RETURN nil
+    ENDIF
+    cMarca := "("
+    n := 0
+    FOR i := 1 TO LEN(aMar)
+        IF aMar[i,1]
+           cMarca := cMarca + IF(cMarca=="(","",",") + STR(aMar[i,3])  
+           n++
+        ENDIF
+    NEXT i
+    cMarca := cMarca + ")"
+    IF n = 0 
+       MsgInfo("Marque al menos una Marca","Atencion")
+       LOOP
+    ENDIF
+    cRubro := "("
+    n := 0
+    FOR i := 1 TO LEN(aRub)
+        IF aRub[i,1]
+           cRubro := cRubro + IF(cRubro=="(","",",") + STR(aRub[i,3])  
+           n++
+        ENDIF
+    NEXT i
+    cRubro := cRubro + ")"
+    IF n = 0 
+       MsgInfo("Marque al menos un Rubro","Atencion")
+       LOOP
+    ENDIF
+    cProvee := "("
+    n := 0
+    FOR i := 1 TO LEN(aPro)
+        IF aPro[i,1]
+           cProvee := cProvee + IF(cProvee=="(","",",") + STR(aPro[i,3])  
+           n++
+        ENDIF
+    NEXT i
+    cProvee := cProvee + ")"
+    IF n = 0 
+       MsgInfo("Marque al menos un Proveedor","Atencion")
+       LOOP
+    ENDIF
+    cDepto := "("
+    n := 0
+    FOR i := 1 TO LEN(aDep)
+        IF aDep[i,1]
+           cDepto := cDepto + IF(cDepto=="(","",",") + STR(aDep[i,3])  
+           n++
+        ENDIF
+    NEXT i
+    cDepto := cDepto + ")"
+    IF n = 0 
+       MsgInfo("Marque al menos un Departamento","Atencion")
+       LOOP
+    ENDIF
+    cEmpresa := "("
+    n := 0
+    FOR i := 1 TO LEN(aEmp)
+        IF aEmp[i,1]
+           cEmpresa := cEmpresa + IF(cEmpresa=="(","",",") + STR(aEmp[i,3])  
+           n++
+        ENDIF
+    NEXT i
+    cEmpresa := cEmpresa + ")"
+    IF n = 0 
+       MsgInfo("Marque al menos una Empresa","Atencion")
+       LOOP
+    ENDIF
+    oQryMar:End()
+    oQryRub:End()
+    oQryPro:End()
+    oQryDep:End() 
+    EXIT
+ENDDO
+IF !lResu
+   cSql := "SELECT p.* FROM ge_"+oApp:cId+"produccion p "+;
+           "LEFT JOIN ge_"+oApp:cId+"articu a ON p.codart = a.codigo "
+   ELSE
+   cSql := "SELECT p.codart as codart, p.detart as detart, SUM(p.cantidad) AS cantidad,  SUM(p.cantidad * p.precio) as precio "+;
+           "  FROM ge_"+oApp:cId+"produccion p "   +;
+           "LEFT JOIN ge_"+oApp:cId+"articu a ON p.codart = a.codigo "
+ENDIF
+cSql := cSql + " WHERE a.marca IN " + cMarca + " AND a.rubro IN " + cRubro + ;
+            " AND a.prov IN " + cProvee + " AND a.depto IN "+cDepto + " AND a.empresa IN "+cEmpresa
+IF lResu
+   cSql := cSql + " GROUP BY p.codart ORDER BY p.detart"
+   ELSE
+   cSql := cSql + " ORDER BY p.fecha"
+ENDIF   
+CursorWait()
+oQry = oApp:oServer:Query(cSql)
+     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
+     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
+     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC   
+REPORT oRep TITLE "Movimientos de stock por produccion del " + ;
+                  DTOC(mdesde) + " al " + DTOC(mhasta) ;
+       FONT  oFont1,oFont2,oFont3 HEADER OemToAnsi(oApp:nomb_emp) , ;
+       "Produccion" CENTER ;
+       FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
+       PREVIEW CAPTION  "Produccion"
+IF !lResu   
+   COLUMN TITLE "Fecha"     DATA oQry:fecha    PICTURE "@D"   SIZE 9 FONT 1      
+ENDIF   
+COLUMN TITLE "Mat.Prima" DATA oQry:detart   SIZE 30 FONT 1
+COLUMN TITLE "Codigo"    DATA oQry:codart   SIZE 13 FONT 1
+COLUMN TITLE "Cantidad"  DATA oQry:cantidad PICTURE "9999999.99" ;
+                            SIZE 10 FONT 2 TOTAL
+IF !lResu                            
+   COLUMN TITLE "Costo"     DATA oQry:precio PICTURE "9999999999.99" ;
+                            SIZE 10 FONT 1
+   COLUMN TITLE "Total"     DATA oQry:precio*oQry:cantidad PICTURE "9999999999.99" ;
+                            SIZE 10 FONT 2 TOTAL
+   ELSE
+   COLUMN TITLE "Total"     DATA oQry:precio PICTURE "9999999999.99" ;
+                            SIZE 10 FONT 2 TOTAL                             
+ENDIF
+IF !lResu
+   COLUMN TITLE "Para"    DATA oQry:detalle SIZE 40 
+   COLUMN TITLE "Cod"     DATA oQry:codpro SIZE 20 
+   COLUMN TITLE "Usuario" DATA oQry:usuario SIZE 10 
+ENDIF   
+// Digo que el titulo lo escriba con al letra 2
+oRep:oTitle:aFont[1] := {|| 3 }
+oRep:bInit := {|| oQry:GoTop() }
+oRep:bSkip := {|| oQry:Skip() }
+END REPORT
+// Activo el reporte
+ACTIVATE REPORT oRep WHILE !oQry:EOF() ON INIT CursorArrow();
+                ON STARTGROUP oRep:NewLine() ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.BMP",.5,.5);
+                ON POSTGROUP oRep:NewLine()
+oQry:End()
+RETURN NIL            
+
+STATIC FUNCTION Cambiar(Arr,oBr)
+LOCAL i
+FOR i := 1 TO LEN(Arr)
+    Arr[i,1] := !Arr[i,1]
+NEXT i
+oBr:Refresh()
+RETURN nil  

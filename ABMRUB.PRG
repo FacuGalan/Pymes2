@@ -3,12 +3,12 @@
 #include "Tdolphin.ch"
 
 *************************************************
-** ABM DE MARCAS
+** ABM DE RUBROS
 *************************************************
 MEMVAR oApp
 STATIC oQry, oWnd1, oBrw, oDlg, cVentana, oQryDep
 PROCEDURE RUBROS(cPermisos)
-LOCAL oBar, hHand
+LOCAL oBar, hHand, oGetSeek, cSeek := SPACE(50)
 cVentana := PROCNAME()
 IF ASCAN(oApp:aVentanas,cVentana) > 0
    hHand := ASCAN(oApp:aVentanas,cVentana)
@@ -57,13 +57,14 @@ oQryDep:= oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"deptos")
               HEADERS "Codigo","Nombre";
               SIZES 50,350;
               ID 111 OF oDlg AUTOSORT ON DBLCLICK IF("M"$cPermisos,(Formu( .f.),oBrw:Refresh()),nil)
-     REDEFINE SAY oBrw:oSeek PROMPT "" ID 113 OF oDlg
+     REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg
+     oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt(oQry, oGetSeek, oBrw, nKey) }
      oQry:bOnChangePage := {|| oBrw:Refresh() }
      //oBrw:SetDolphin(oQry,.f.,.t.)
      PintaBrw(oBrw,2) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
       oBrw:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar, oBrw,cPermisos,5)}
      // Activo el dialogo y al iniciar muevo a 0,0
-     ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT oDlg:Move(0,0) VALID(oWnd1:End())
+     ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT (oGetSeek:SetFocus(),oDlg:Move(0,0)) VALID(oWnd1:End())
    ACTIVATE WINDOW oWnd1 ON INIT Incrusta( oWnd1, oDlg, .T.) VALID(cerrar())
 RETURN
 

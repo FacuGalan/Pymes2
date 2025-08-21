@@ -10,7 +10,7 @@ STATIC oWnd1, nTipoEmp, nTipoFac, nTipoDoc, cVentana, oGet, oQryArt, oQryCli, oQ
        oBrw, oSay1, oDlg,cNumComp,lReventa,nConIva,oQryPun,nDescArt,nDescArt1,nLista,;
        nEfecti, nTarjet, nCheque, nCtaCte, nMPago, nCuotas, nPuntoVta, cLetra,nLisPre,cObserva,nPorIva,;
        cDetArt, nDescuGen, nCodIva, nTotal, nForPag, nRubro, nDeuda,oQryChe,mpagado,manticipo,dFecha,nTransfe,cVendedor,;
-       oQryLisPre,aFormaNom,aFormaInc,nFormaPago, nUltimoCli
+       oQryLisPre,aFormaNom,aFormaInc,aFormaTip,nFormaPago, nUltimoCli
 
 PROCEDURE FACREM() 
 LOCAL oBot := ARRAY(7), hHand , aTipoIva, aTipoDoc, nCodCli:=0, cNomCli:=SPACE(30), cDireccion:=SPACE(30), cLocalidad:=SPACE(30),;
@@ -133,13 +133,15 @@ IF oApp:cierre_turno
   ENDIF
 ENDIF 
 
-oQryFormas:= oApp:oServer:Query("SELECT nombre,incremento FROM ge_"+oApp:cId+"forpag ORDER BY codigo")
+oQryFormas:= oApp:oServer:Query("SELECT nombre,incremento,tipo FROM ge_"+oApp:cId+"forpag ORDER BY codigo")
 aFormaNom:={}
 aFormaInc:={}
+aFormaTip:={}
 oQryFormas:GoTop()
 DO WHILE !oQryFormas:eof()
   AADD(aFormaNom,oQryFormas:nombre)
   AADD(aFormaInc,oQryFormas:incremento)
+  AADD(aFormaTip,oQryFormas:tipo)
   oQryFormas:Skip()
 ENDDO
 nFormaPago:=1
@@ -1665,7 +1667,8 @@ WHERE
         (prom.tipo = 2 AND p.CANTIDAD >= prom.cantidad_requerida) OR
         (prom.tipo = 3 AND p.CANTIDAD >= prom.descuento_a_unidad) OR
         (prom.tipo = 4 AND p.CANTIDAD BETWEEN prom.cantidad_minima AND prom.cantidad_maxima)
-    ) GROUP BY prom.CODART, prom.TIPO)
+    ) 
+    GROUP BY prom.CODART, prom.TIPO)
 ENDTEXT
 cText := STRTRAN(cText,'ge_000001promociones','ge_'+oApp:cId+'promociones')
 oQryTem := oApp:oServer:Query(cText)

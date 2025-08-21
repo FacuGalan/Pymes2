@@ -48,7 +48,7 @@ AADD(oApp:aVentanas,cVentana)
             ACTION Reporte();
             PROMPT "Listado" TOP WHEN("R"$cPermisos)
          DEFINE BUTTON RESOURCE "REPORT" OF oBar ;
-            TOOLTIP "Historial de movimeintos de stock"  ;
+            TOOLTIP "Historial de movimientos de stock"  ;
             ACTION Reporte2();
             PROMPT "Historial" TOP WHEN("R"$cPermisos)   
          DEFINE BUTTON RESOURCE "STOC" OF oBar ;
@@ -134,8 +134,8 @@ TRY
    oApp:oServer:BeginTransaction()       
    base:stockact := base:stockact + nEntradas - nSalidas
    base:save()
-   oApp:oServer:Insert("ge_"+oApp:cId+"stoman",{"codart","entradas","salidas","fecha","motivo","costo"},;
-                           {base:codigo,nEntradas,nSalidas,DATE(),1,base:precossiva})
+   oApp:oServer:Insert("ge_"+oApp:cId+"stoman",{"codart","entradas","salidas","fecha","motivo","costo","usuario"},;
+                           {base:codigo,nEntradas,nSalidas,DATE(),1,base:precossiva,oApp:usuario})
    oApp:oServer:CommitTransaction() 
 CATCH oError
  MsgInfo(oError:description)
@@ -210,7 +210,7 @@ DEFINE DIALOG oForm TITLE "Salida de stock" FROM 05,15 TO 27,80 OF oWnd1 FONT oF
                                                                        oBrw1:Refresh())   
    @ 35, 05 XBROWSE oBrw1 DATASOURCE oQryPar ;
            COLUMNS "codart","nomart","cantidad","costo";
-           HEADERS "Codgio","Detalle del articulo","Cantidad","Costo";
+           HEADERS "Codigo","Detalle del articulo","Cantidad","Costo";
            SIZES   90,290,90 OF oForm SIZE 236, 95 AUTOSORT PIXEL FASTEDIT
    oBrw1:aCols[3]:nEditType := 1        
    oBrw1:CreateFromCode()  
@@ -230,8 +230,8 @@ IF !lRta
 ENDIF
 TRY
   oApp:oServer:BeginTransaction()  
-  oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"stoman (codart,salidas,fecha,motivo,costo) "+;
-                       "SELECT codart,cantidad,"+ClipValue2Sql(dFecha)+","+ClipValue2Sql(nMotivo)+",costo FROM transi_desper") 
+  oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"stoman (codart,salidas,fecha,motivo,costo,usuario) "+;
+                       "SELECT codart,cantidad,"+ClipValue2Sql(dFecha)+","+ClipValue2Sql(nMotivo)+",costo,"+ClipValue2Sql(oApp:usuario)+" FROM transi_desper") 
   oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"articu a "+; 
                "INNER JOIN "+; 
                "("+; 
@@ -352,9 +352,13 @@ FOR i := 1 TO LEN(aMar)
     ENDIF
 NEXT i
 cMarca := cMarca + ")"
+IF cMarca = "()"
+   MsgStop("Debe elegir al menos un motivo","Error")
+   RETURN nil 
+ENDIF   
 IF !lResu
 cSql := "SELECT c.codart AS codart, a.nombre AS detart,"+;
-        "c.entradas , c.salidas, c.fecha AS fecha,c.motivo, c.entradas*c.costo as costoe, c.salidas * c.costo as costos "+;
+        "c.entradas , c.salidas, c.fecha AS fecha,c.motivo, c.entradas*c.costo as costoe, c.salidas * c.costo as costos,c.usuario as usuario "+;
         "FROM ge_"+oApp:cId+"stoman c "
    ELSE
 cSql := "SELECT c.codart AS codart, a.nombre AS detart, c.motivo, "+;
@@ -398,6 +402,9 @@ COLUMN TITLE "Costo Sal."  DATA oQry:costos PICTURE "9999999999.99" ;
                             SIZE 10 FONT 2 TOTAL
 COLUMN TITLE "Motivo"   DATA aMotivos[IF(oQry:motivo=0,1,oQry:motivo)] ;
                          SIZE 15 
+IF !lResu   
+   COLUMN TITLE "Usuario"     DATA oQry:usuario    SIZE 9 FONT 1      
+ENDIF   
 // Digo que el titulo lo escriba con al letra 2
 oRep:oTitle:aFont[1] := {|| 3 }
 oRep:bInit := {|| oQry:GoTop() }
@@ -512,20 +519,21 @@ ENDIF
 
 cSql := " SELECT * FROM (" +;
        "SELECT concat(cd.tipocomp,cd.letra,cd.numfac) as compro, 'Compra' as motivo, "+;
-       " (cd.cantidad * IF(cd.tipocomp='NC',-1,1)) as entrada, 0 as salida, c.fecfac as fecha, cd.renglon as id FROM "+;
+       " (cd.cantidad * IF(cd.tipocomp='NC',-1,1)) as entrada, 0 as salida, c.fecfac as fecha, cd.renglon as id, c.usuario as usuario  FROM "+;
        " ge_"+oApp:cId+"compras c LEFT JOIN ge_"+oApp:cId+"compradet cd "+;
        " ON cd.tipocomp = c.tipocomp and cd.letra = c.letra and cd.numfac = c.numfac and c.codpro = cd.codpro "+;
        " WHERE cd.codart = "+ClipValue2Sql(oQry:codigo)+;
        " AND c.fecfac >= "+ClipValue2Sql(mdesde)+" AND c.fecfac <=  "+ClipValue2Sql(mhasta)+;       
        " UNION "+;
-       "SELECT nrofac as compro, 'Venta' as motivo, 0 as entrada, "+;
-       " (cantidad * IF(LEFT(nrofac,2)='NC',-1,1)) as salida, fecha, id FROM "+;
-       " ge_"+oApp:cId+"ventas_det "+;       
-       " WHERE codart = "+ClipValue2Sql(oQry:codigo)+;
-       " AND fecha >= "+ClipValue2Sql(mdesde)+" AND fecha <=  "+ClipValue2Sql(mhasta)+;
+       "SELECT vd.nrofac as compro, 'Venta' as motivo, 0 as entrada, "+;
+       " (vd.cantidad * IF(LEFT(vd.nrofac,2)='NC',-1,1)) as salida, vd.fecha, vd.id, v.usuario as usuario FROM "+;
+       " ge_"+oApp:cId+"ventas_det vd "+;       
+       " LEFT JOIN ge_"+oApp:cId+"ventas_encab v ON CONCAT(v.ticomp,v.letra,v.numcomp) = vd.nrofac "+;       
+       " WHERE vd.codart = "+ClipValue2Sql(oQry:codigo)+;
+       " AND vd.fecha >= "+ClipValue2Sql(mdesde)+" AND vd.fecha <=  "+ClipValue2Sql(mhasta)+;
        " UNION "+;
        "SELECT nrorem as compro, 'Venta x Remito' as motivo, 0 as entrada, "+;
-       " cantidad  as salida, fecha , id FROM "+;
+       " cantidad  as salida, fecha , id, usuario as usuario FROM "+;
        " ge_"+oApp:cId+"remitos "+;       
        " WHERE NOT facturado AND codart = "+ClipValue2Sql(oQry:codigo)+;
        " AND fecha >= "+ClipValue2Sql(mdesde)+" AND fecha <=  "+ClipValue2Sql(mhasta)+;
@@ -542,16 +550,17 @@ cSql := " SELECT * FROM (" +;
         "WHEN motivo  = 8  THEN 'Transf.Interna Salida'  "+;
         "WHEN motivo  = 9  THEN 'Produccion'  "+;
         "END as motivo,"+;
-       " entradas as entrada, salidas as salida, fecha, id FROM "+;
+       " entradas as entrada, salidas as salida, fecha, id, usuario FROM "+;
        " ge_"+oApp:cId+"stoman "+;       
        " WHERE codart = "+ClipValue2Sql(oQry:codigo)+;
        " AND fecha >= "+ClipValue2Sql(mdesde)+" AND fecha <=  "+ClipValue2Sql(mhasta)+;
        " UNION "+;
        " SELECT vd.nrofac as compro, CONCAT('Participa en ',vd.detart) as motivo,"+;
        " 0 as entrada, vd.cantidad * r.cantidad * IF(LEFT(vd.nrofac,2) = 'NC',-1,1) AS salida,"+;
-       " vd.fecha as fecha, vd.id as id "+;
+       " vd.fecha as fecha, vd.id as id, v.usuario as usuario "+;
        " FROM  ge_"+oApp:cId+"reseta r "+; 
        " INNER JOIN  ge_"+oApp:cId+"ventas_det vd ON vd.codart = r.codart AND r.codusa = "+ClipValue2Sql(oQry:codigo)+; 
+       " INNER JOIN ge_"+oApp:cId+"ventas_encab v ON CONCAT(v.ticomp,v.letra,v.numcomp) = vd.nrofac "+;
        " WHERE vd.fecha >= "+ClipValue2Sql(mdesde)+" AND vd.fecha <=  "+ClipValue2Sql(mhasta)+;
        ") res ORDER BY res.fecha" 
 CursorWait()
@@ -570,6 +579,7 @@ COLUMN TITLE "Comprobante" DATA oQryRep:compro SIZE 15 FONT 1
 COLUMN TITLE "Motivo"   DATA oQryRep:motivo SIZE 35 FONT 1
 COLUMN TITLE "Entradas" DATA oQryRep:entrada PICTURE "9999999999.99" SIZE 12 FONT 2 TOTAL
 COLUMN TITLE "Salidas"  DATA oQryRep:salida  PICTURE "9999999999.99" SIZE 12 FONT 2 TOTAL
+COLUMN TITLE "Usuario"  DATA IF(empty(oQryRep:usuario),'MIGRA',oQryRep:usuario) SIZE 10 FONT 1 
 
 // Digo que el titulo lo escriba con al letra 2
 oRep:oTitle:aFont[1] := {|| 3 }

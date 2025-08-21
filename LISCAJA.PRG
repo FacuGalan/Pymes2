@@ -55,11 +55,7 @@ AADD(oApp:aVentanas,cVentana)
          DEFINE BUTTON RESOURCE "IMPR" OF oBar ;
             TOOLTIP "Imprimir Planilla"  ;
             ACTION oBrw:Report("Reporte de Cierres",.T.,.F.);
-            PROMPT "Reporte" TOP WHEN(oQry:RecCount()>0 .and. "R"$cPermisos) 
-         DEFINE BUTTON RESOURCE "CIETUR" OF oBar ;
-            TOOLTIP "Reporte Resultado"  ;
-            ACTION ReporteResultado();
-            PROMPT "Resultado" TOP WHEN(oQry:RecCount()>0 .and. "M"$cPermisos)       
+            PROMPT "Reporte" TOP WHEN(oQry:RecCount()>0 .and. "R"$cPermisos)    
          // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;
             TOOLTIP "Cerrar Ventana" ;
