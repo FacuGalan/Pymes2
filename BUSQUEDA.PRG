@@ -72,9 +72,10 @@ ENDIF
 RETURN .t.
 
 
-FUNCTION buscarArt(base, oWnd, oGet1, oGet2, uValor, cCampoFiltro,uValor2, cCampoFiltro2)
+FUNCTION buscarArt(base, oWnd, oGet1, oGet2, uValor, cCampoFiltro,uValor2, cCampoFiltro2,lViejo)
 LOCAL oDlg1, oBot1:=ARRAY(1), cFiltro,cFiltro2, oLbx, n := VAL(oGet1:cText), oQr1, oQryPun,nRows,;
       oGetSeek, cSeek := SPACE(50), aSizes, i
+DEFAULT lViejo:=.t.
 IF uValor <> nil
    cFiltro := cCampoFiltro + " = "+uValor
    ELSE
@@ -128,7 +129,9 @@ IF base:nRecCount > 0
               ID 111 OF oDlg1 AUTOSORT ON DBLCLICK oDlg1:End()             
      REDEFINE GET oGetSeek VAR cSeek ID 102 OF oDlg1
      base:bOnChangePage := {|| oLbx:Refresh() }
-     oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt(base, oGetSeek, oLbx, nKey, cFiltro+" AND "+cFiltro2) }
+     //oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt(base, oGetSeek, oLbx, nKey, cFiltro+" AND "+cFiltro2) }
+     oGetSeek:bKeyDown := { |nKey,nFlag| IF(lViejo,FiltraArt(base, oGetSeek, oLbx, nKey, cFiltro+" AND "+cFiltro2) ,;
+                                                   FiltraArt_nuevo(base, oGetSeek, oLbx, nKey,cFiltro,cFiltro2)) }
      oLbx:bKeyDown := {|nKey| IF(nKey==13,oDlg1:End(),.t.) }
      PintaBrw(oLbx,0)
      oLbx:nMarqueeStyle := MARQSTYLE_HIGHLROWMS
@@ -154,12 +157,19 @@ FOR i:= 1 TO base:FCount()
 NEXT i     
 RETURN nil
 
-FUNCTION FiltraArt(base, oG, oLbx, nKey, cCampoFiltro)
-LOCAL cFiltro, cText, cNombre := if('a.'$base:cQuery,'a.nombre','nombre')
-LOCAL cCodigo := if('a.'$base:cQuery,'a.codigo','codigo')
-//LOCAL cAlias := if(base:FieldPos('alias')>0,'alias','')
-LOCAL cAlias := if(AScan( base:aStructure, {| aField | aField[ MYSQL_FS_NAME ] == 'alias'  } ) > 0,'alias','')
+FUNCTION FiltraArt(base, oG, oLbx, nKey, cCampoFiltro,cAlias)
+LOCAL cFiltro, cText, cNombre := if('a.'$base:cQuery,'a.nombre','nombre'),;
+      cCodigo := if('a.'$base:cQuery,'a.codigo','codigo')
+DEFAULT cCampoFiltro := '',cAlias:=''
+IF LEN(cAlias) > 0
+    cNombre := ALLTRIM(cAlias)+'.nombre'
+    cCodigo := ALLTRIM(cAlias)+'.codigo'
+ENDIF
+/*
+      cCodigo := if('a.'$base:cQuery,'a.codigo','codigo'),;
+      cAlias := if(base:FieldPos('alias')>0,'alias','')
 DEFAULT cCampoFiltro := '' 
+*/
 oG:Assign()
 IF nKey = 38 .or. nKey = 40
    oLbx:SetFocus()
@@ -178,6 +188,9 @@ cText := STRTRAN(cText,"'","")
 cText := STRTRAN(cText,"%","")
 cText := STRTRAN(cText," ","%' and "+cNombre+" like '%") 
 IF !EMPTY(cCampoFiltro)
+   cFiltro := cCampoFiltro  + " AND ( "+cNombre+" LIKE '%"+ cText +"%' OR " +;
+              cCodigo + " LIKE '%"+ cText +"%')" 
+              /*
    IF !EMPTY(cAlias)
       cFiltro := cCampoFiltro  + " AND ( "+cNombre+" LIKE '%"+ cText +"%' OR " +;
                 cCodigo + " LIKE '%"+ cText +"%' OR " +cAlias+" LIKE '%"+ cText +"%')"
@@ -185,14 +198,53 @@ IF !EMPTY(cCampoFiltro)
       cFiltro := cCampoFiltro  + " AND ( "+cNombre+" LIKE '%"+ cText +"%' OR " +;
                 cCodigo + " LIKE '%"+ cText +"%')"          
    ENDIF
+   */
    ELSE 
+   cFiltro := cNombre+" LIKE '%"+ cText +"%' OR " + cCodigo + " LIKE '%"+ cText +"%'"
+   /*
    IF !EMPTY(cAlias)
       cFiltro := cNombre+" LIKE '%"+ cText +"%' OR " + cCodigo + " LIKE '%"+ cText +"%' OR " + cAlias + " LIKE '%"+ cText +"%'"
       ELSE
       cFiltro := cNombre+" LIKE '%"+ cText +"%' OR " + cCodigo + " LIKE '%"+ cText +"%'"
    ENDIF
+   */
 ENDIF
 base:SetNewFilter(SET_WHERE,cFiltro,.t.)
+// Se refresca el listbox
+oLbx:refresh()
+RETURN .T. 
+
+FUNCTION FiltraArt_nuevo(base, oG, oLbx, nKey,cFiltro1,cFiltro2)
+LOCAL cFiltro, cText,cText2,i, lSimple := !"JOIN"$base:cQuery, oErr
+oG:Assign()
+IF nKey = 38 .or. nKey = 40
+   oLbx:SetFocus()
+   RETURN nil 
+ENDIF
+IF nKey >= 32 .AND. nKey <= 122 
+   IF nKey >= 96 .and. nKey <= 105
+      nKey := nKey - 48
+   ENDIF
+   cText := LEFT(oG:cText,oG:nPos-1) + CHR(nKey)
+   ELSE
+   cText := ALLTRIM(oG:cText)
+ENDIF
+cText := STRTRAN(cText,"'","")
+cText := STRTRAN(cText,"%","")
+cFiltro:= '(FALSE'
+cText2:= cText
+FOR i := 1 TO LEN(base:aStructure)
+   cText := STRTRAN(cText2," ","%'^and^"+IF(!lSimple,"a.","")+base:FieldName(i)+"^like^'%")
+   cFiltro := cFiltro+"^OR^"+IF(!lSimple,"a.","")+base:FieldName(i)+"^LIKE^'%"+ cText +"%'^"
+NEXT i
+cFiltro := STRTRAN(cFiltro,"^"," ")
+cFiltro := cFiltro+")"+" AND "+cFiltro1+" AND "+cFiltro2
+
+TRY 
+   base:SetNewFilter(SET_WHERE,cFiltro,.t.)
+CATCH oErr
+   //MsgInfo(base:cQuery)   
+END
 // Se refresca el listbox
 oLbx:refresh()
 RETURN .T. 

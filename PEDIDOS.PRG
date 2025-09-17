@@ -395,7 +395,7 @@ oQryLisPre:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre")
        HEADERS "Codigo","Detalle Articulo","Cantidad","Faltantes","Disponibles","Precio U","Neto","% Desc","Dto./Rec.","Sub Total","IVA","Total","Tasa";
        FOOTERS ;
        SIZES 75,350,65,65,65,65,65,65,65,65,65,70,60,66;
-    ID 197 OF oDlg2 AUTOSORT
+    ID 197 OF oDlg2 AUTOSORT WHEN(oQryDet:RecCount()>0)
     PintaBrw(oBrw,0)
     
     oBrw:bKeyDown := { |nKey| IF (nKey == VK_DELETE,(EliminarItem(base),lUsoBorrar := .t.,;
@@ -732,7 +732,7 @@ LOCAL nNro:=0,oQryLis1
 DEFAULT lVerCli := .T.
 
 IF lVerCli
-  BuscarArt(oQryCli,oDlg2,oGet[08],oGet[09])
+  BuscarArt(oQryCli,oDlg2,oGet[08],oGet[09], , , , ,.f.)
   oGet[10]:cText := oQryCli:direccion
   oGet[11]:ctext := oQryCli:localidad
   oGet[12]:cText := oQryCli:cuit
@@ -1497,7 +1497,7 @@ IF lResu
     oQry := oApp:oServer:Query("SELECT p1.id,p.cantidad,p.detart,p.codart,p1.parafecha,"+;
                          "c.nombre,c.codigo as codcli, c.direccion as direccion, "+;
                          " c.localidad as localidad, p1.vendedor as vendedor, "+;
-                         " p1.observa,p.cantidad*p.punitario*(1+p.descup/100) as importe "+;                         
+                         " p1.observa,p.punitario * p.cantidad * (1-p.descup/100) as importe "+;                         
                          " FROM ge_"+oApp:cId+"pedidos_encab p1 "+;
                          " LEFT JOIN ge_"+oApp:cId+"clientes c ON c.codigo = p1.codcli "+;
                          " LEFT JOIN ge_"+oApp:cId+"pedidos_det p ON p.idpedido = p1.id "+;
@@ -1837,7 +1837,7 @@ CursorWait()
      DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
      DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC
 IF lResu
-    oQry := oApp:oServer:Query("SELECT SUM(p.cantidad) AS cantidad, SUM(p.punitario * p.cantidad*(1+p.descup/100)) as importe, "+;                         
+    oQry := oApp:oServer:Query("SELECT SUM(p.cantidad) AS cantidad, SUM(p.punitario * p.cantidad*(1-p.descup/100)) as importe, "+;                         
                          " p.detart, p.codart"+;                         
                          " FROM ge_"+oApp:cId+"pedidos_det p "+;                         
                          " LEFT JOIN ge_"+oApp:cId+"pedidos_encab p1 ON p1.id = p.idpedido "+;
@@ -1871,7 +1871,7 @@ IF lResu
     oQry:End()
     ELSE
     oQry := oApp:oServer:Query("SELECT p1.id,p.cantidad,p.detart,p.codart,p1.parafecha,"+;
-                         "c.nombre,c.codigo as codcli, p1.observa,p.cantidad*p.punitario*(1+p.descup/100) as importe "+;                         
+                         "c.nombre,c.codigo as codcli, p1.observa,p.cantidad*p.punitario*(1-p.descup/100) as importe "+;                         
                          " FROM ge_"+oApp:cId+"pedidos_encab p1 "+;
                          " LEFT JOIN ge_"+oApp:cId+"clientes c ON c.codigo = p1.codcli "+;
                          " LEFT JOIN ge_"+oApp:cId+"pedidos_det p ON p.idpedido = p1.id "+;

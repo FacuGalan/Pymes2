@@ -172,7 +172,7 @@ ENDIF
    REDEFINE BTNBMP oBot[39] ID 310 OF oDlg1 2007 CENTER; //GRABA
                    PROMPT "&Grabar [F12]";
                    ACTION(Grabar(),oGet[02]:SetFocus());
-                   WHEN((ROUND(nPagado,2) >= ROUND(nTotal,2)) .and. nTotal > 0) 
+                   WHEN((ROUND(nPagado,2) >= ROUND(nTotal,2)) .and. nTotal > 0 .and. oApp:oServer:Query("SELECT codforma FROM formapag_temp"):RecCount() > 0) 
    REDEFINE BTNBMP oBot[19] ID 4004 OF oDlg1 2007 CENTER; //GRABA
                    PROMPT "&Vales" WHEN(oApp:usavales)
    oBot[19]:bAction = { | nRow, nCol | Vales( nRow, nCol, oBot[19],.t.,oDlg1) }
@@ -271,7 +271,7 @@ ENDIF
                                                                              oApp:oServer:Query("SELECT reventa FROM ge_"+oApp:cId+"articu WHERE nosale is false and codigo = "+ClipValue2Sql(oGet[2]:cText);
                                                                                     ):reventa)*nCantidad) <> "xxx")) 
 
-   REDEFINE COMBOBOX oGet[10] VAR nFormaPago ID 4002 OF oDlg ITEMS aFormaNom ON CHANGE (ActualizarDet(),oGet[02]:SetFocus())
+   REDEFINE COMBOBOX oGet[10] VAR nFormaPago ID 4002 OF oDlg ITEMS aFormaNom ON CHANGE (ActualizarDet(),oBot[39]:Refresh(),oGet[02]:SetFocus())
    REDEFINE GET oGet[08] VAR nDescuTot ID 17 OF oDlg1 PICTURE "99999999.99" FONT oFont3 WHEN(.F.)
    REDEFINE GET oGet[09] VAR nRecarTot ID 18 OF oDlg1 PICTURE "99999999.99" FONT oFont3 WHEN(.F.)
    REDEFINE GET oGet[04] VAR nPagado   ID 13 OF oDlg1 PICTURE "99999999.99" FONT oFont3 WHEN(.F.)
@@ -463,7 +463,10 @@ oApp:oServer:Execute("UPDATE VENTAS_DET_H1 v LEFT JOIN ge_"+oApp:cId+"ivas i  ON
                          "v.stotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100),"+;
                          "v.ptotal = ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100))),"+;
                          "v.neto =  ((v.cantidad * v.punit) - ((v.cantidad * v.punit) * ("+ClipValue2Sql(nDescu)+"/100)))/(1+i.tasa/100) WHERE v.codart < 0")
-
+nPagado:=0
+nVuelto:=0
+oGet[04]:Refresh()
+oGet[05]:Refresh()
 oQryDet:Refresh()
 oBrwDet:Refresh()
 oBrwDet:MakeTotals()

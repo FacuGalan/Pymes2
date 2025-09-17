@@ -18,7 +18,9 @@ PROCEDURE Clientes(cPermisos)
       RETURN
    ENDIF
    AADD(oApp:aVentanas,cVentana)
-   oQry  := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"clientes WHERE CODIGO > 1 ORDER BY NOMBRE ")
+   oQry  := oApp:oServer:Query("SELECT c.*,v.nombre AS nomven FROM ge_"+oApp:cId+"clientes c "+;
+                               "LEFT JOIN ge_"+oApp:cId+"vendedores v ON c.vendedor = v.codigo "+;
+                               "WHERE c.CODIGO > 1 ORDER BY c.NOMBRE ")
    // Defino el dialogo tomado del recurso ABM
    oApp:oIco:Refresh()
     DEFINE WINDOW oWnd1 MDICHILD TITLE "A/B/M de Clientes" ;
@@ -82,9 +84,9 @@ PROCEDURE Clientes(cPermisos)
       
      DEFINE DIALOG oDlg RESOURCE "ABMS" OF oWnd1
       REDEFINE XBROWSE oBrw DATASOURCE oQry;
-         COLUMNS "codigo","nombre","alias","dni", "CUIT", "Direccion","localidad","Telefono","fecult";
-         HEADERS "Codigo","Nombre y Apellido","Alias","DNI", "CUIT", "Direccion","Localidad","Telefono","Ultima Compra";
-         SIZES 100,290,60,60,90,210,200,120;
+         COLUMNS "codigo","nombre","alias","dni", "CUIT", "Direccion","localidad","Telefono","fecult","nomven";
+         HEADERS "Codigo","Nombre y Apellido","Alias","DNI", "CUIT", "Direccion","Localidad","Telefono","Ultima Compra","Vendedor";
+         SIZES 100,290,60,60,90,210,200,120,290;
          ID 111 OF oDlg AUTOSORT ON DBLCLICK IF("M"$cPermisos,(Formu( .f.),oBrw:Refresh()),nil)
      
       REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg
@@ -92,7 +94,7 @@ PROCEDURE Clientes(cPermisos)
       //oBrw:SetDolphin(oQry,.f.,.t.)
       PintaBrw(oBrw,8)
       oDlg:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar, oBrw,cPermisos,6)}
-      oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt(oQry, oGetSeek, oBrw, nKey) }
+      oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt(oQry, oGetSeek, oBrw, nKey,"c.codigo > 1",'c') }
       // Activo el dialogo y al iniciar muevo a 0,0
       ACTIVATE DIALOG oDlg NOWAIT ON INIT (oGetSeek:SetFocus(),oDlg:Move(0,0)) VALID( oWnd1:End() )
       ACTIVATE WINDOW oWnd1 ON INIT Incrusta( oWnd1, oDlg, .T.) VALID(cerrar(oQry))
@@ -105,7 +107,7 @@ RETURN
 STATIC FUNCTION Formu (lAlta)
 LOCAL oGet:=ARRAY(27), oBot1, oBot2, oBot3, oDlg1,base,oError, ;
       aListas:={"Lista 1","Lista 2"},cLisPre:="SIN LISTA ESPECIAL"+SPACE(31),;
-      oQryLisPre:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre"),;
+      oQryLisPre:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre"),oQry1,;
       aEstado := {"Activo","Inactivo"}, nEstado, nCuit := 0, cObserva := "",;
       atipoiva  := {;
 "1 IVA Responsable Inscripto",;
@@ -129,7 +131,8 @@ LOCAL oGet:=ARRAY(27), oBot1, oBot2, oBot3, oDlg1,base,oError, ;
 
 
 IF lAlta
-   base := oQry:GetBlankRow()
+   oQry1:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"clientes LIMIT 0") 
+   base := oQry1:GetBlankRow()
    base:codigo := oApp:oServer:GetAutoIncrement("ge_"+oApp:cId+"clientes") 
    base:coniva:=5
    base:fecing:=DATE()
@@ -138,9 +141,10 @@ IF lAlta
    base:lispre:=1
    nEstado := 1
    ELSE
-   base := oQry:GetRowObj()   
+   oQry1:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"clientes WHERE codigo = " + ClipValue2Sql(oQry:codigo))
+   base := oQry1:GetRowObj()   
    nEstado := IF(base:zona = "2",2,1)
-   oQry:lAppend := .f.   
+   oQry1:lAppend := .f.   
    oQryVen:GoTop()
    IF oQryVen:Seek(base:vendedor,1) > 0
       cNomVen:= oQryVen:nombre
@@ -263,10 +267,10 @@ base:usuario:= oApp:usuario
 base:ip     := oApp:cIp
 base:fecmod := DATE()
 
-oQry:oRow := base
+oQry1:oRow := base
 TRY
   oApp:oServer:BeginTransaction()
-  oQry:Save()
+  oQry1:Save()
   oQry:Refresh()
   IF !EMPTY(cObserva)
      oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"cliobs WHERE fecha is null AND codcli = "+STR(base:codigo))
@@ -361,9 +365,9 @@ IF !mrta
 ENDIF
 TRY
   oApp:oServer:BeginTransaction()
-  oQry:Delete()
+  oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"clientes WHERE codigo = "+ClipValue2SQL(oQry:codigo))
   oApp:oServer:CommitTransaction()
-  oQry:Refresh(.t.)
+  oQry:Refresh(.f.)
 
 CATCH oError
   MsgStop("Error al borrar"+CHR(10)+oError:description,"Error")
@@ -436,17 +440,17 @@ IF !mRta
    RETURN nil
 ENDIF    
 
-cWhere = " 1=1 " + IF(EMPTY(vCodigo)," AND codigo > 1"," and codigo > 1 and codigo =" + ClipValue2SQL(VCodigo) + "") ;
-      + "" + IF(EMPTY(VNOMBRE),"","  and TRIM(NOMBRE) like '%" + ALLTRIM(VNOMBRE) + "%'") ;
-      + "" + IF(EMPTY(VDIRECCION),""," and TRIM(DIRECCION) like '%" + ALLTRIM(VDIRECCION) + "%'") ;
-      + "" + IF(EMPTY(VLOCALIDAD),""," and TRIM(LOCALIDAD) like '%" + ALLTRIM(VLOCALIDAD) + "%'") ;
-      + "" + IF(EMPTY(VTELEFONO),""," and TRIM(TELEFONO) like '%" + ALLTRIM(VTELEFONO) + "%'") ;
-      + "" + IF(EMPTY(VMAIL),""," and TRIM(MAIL) like '%" + ALLTRIM(VMAIL) + "%'") ;
-      + "" + IF(EMPTY(VCUIT),""," and TRIM(CUIT) like '%" + ALLTRIM(VCUIT) + "%'") ;
-      + "" + IF(EMPTY(VDNI),""," and DNI =" + ClipValue2SQL(VDNI) + "") ;   
-      + "" + IF(Vconiva=15,""," and coniva =" + ClipValue2SQL(Vconiva) + "");
-      + "" + IF(EMPTY(vdesde),""," and fecult >=" + ClipValue2SQL(vdesde) + ""); 
-      + "" + IF(EMPTY(vhasta),""," and fecult <=" + ClipValue2SQL(vhasta) + "")
+cWhere = " 1=1 " + IF(EMPTY(vCodigo)," AND c.codigo > 1"," and c.codigo > 1 and c.codigo =" + ClipValue2SQL(VCodigo) + "") ;
+      + "" + IF(EMPTY(VNOMBRE),"","  and TRIM(c.NOMBRE) like '%" + ALLTRIM(VNOMBRE) + "%'") ;
+      + "" + IF(EMPTY(VDIRECCION),""," and TRIM(c.DIRECCION) like '%" + ALLTRIM(VDIRECCION) + "%'") ;
+      + "" + IF(EMPTY(VLOCALIDAD),""," and TRIM(c.LOCALIDAD) like '%" + ALLTRIM(VLOCALIDAD) + "%'") ;
+      + "" + IF(EMPTY(VTELEFONO),""," and TRIM(c.TELEFONO) like '%" + ALLTRIM(VTELEFONO) + "%'") ;
+      + "" + IF(EMPTY(VMAIL),""," and TRIM(c.MAIL) like '%" + ALLTRIM(VMAIL) + "%'") ;
+      + "" + IF(EMPTY(VCUIT),""," and TRIM(c.CUIT) like '%" + ALLTRIM(VCUIT) + "%'") ;
+      + "" + IF(EMPTY(VDNI),""," and c.DNI =" + ClipValue2SQL(VDNI) + "") ;   
+      + "" + IF(Vconiva=15,""," and c.coniva =" + ClipValue2SQL(Vconiva) + "");
+      + "" + IF(EMPTY(vdesde),""," and c.fecult >=" + ClipValue2SQL(vdesde) + ""); 
+      + "" + IF(EMPTY(vhasta),""," and c.fecult <=" + ClipValue2SQL(vhasta) + "")
 
    EXIT
 ENDDO

@@ -9,26 +9,30 @@
 MEMVAR oApp
 STATIC oWnd1, lAcopio
 PROCEDURE RemitarFactura() 
-LOCAL oGet1, oGet2, oGet3, oGet4, oBot1, oBot2, oDlg1, oFont, mnumfac, ;
+LOCAL oGet1, oGet2, oGet3, oGet4, oBot1, oBot2, oBot3, oDlg1, oFont, mnumfac, ;
       mrta := .f., aCor, base, marchi, mtotal, mdescp := 0, mdeuda := 0,;
       aTipo  := {"Factura","Nota de Credito"}, oQry,;
       aTip1  := {"FC","NC","ND","FR"}, mtipo := 1, mletra := IF(oApp:tipo_iva=1,"A","C"), mprefijo := oApp:prefijo,;
       mnumero := 0
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5      
-DEFINE DIALOG oDlg1 TITLE "Remitar Factura" FROM 03,20 TO 17,70 OF oApp:oWnd FONT oFont
+DEFINE DIALOG oDlg1 TITLE "Remitar Factura" FROM 03,20 TO 19,70 OF oApp:oWnd FONT oFont
    acor := AcepCanc(oDlg1)
+
+   @ 05, 50 BUTTON oBot3 PROMPT "Buscar" OF oDlg1 PIXEL SIZE 30,12;
+           ACTION(BuscarFactura(@mletra,@mprefijo,@mnumero,oDlg1,@mtipo),oGet1:Refresh(),oGet2:Refresh(),oGet3:Refresh(),oGet4:Refresh(),oBot1:SetFocus())
+
    
-   @ 07, 05 SAY "Tipo Docum.:" OF oDlg1 PIXEL RIGHT SIZE 40,10
-   @ 22, 05 SAY "Letra:"       OF oDlg1 PIXEL RIGHT SIZE 40,10
-   @ 37, 05 SAY "Prefijo:"     OF oDlg1 PIXEL RIGHT SIZE 40,10
-   @ 52, 05 SAY "Numero:"      OF oDlg1 PIXEL RIGHT SIZE 40,10
+   @ 22, 05 SAY "Tipo Docum.:" OF oDlg1 PIXEL RIGHT SIZE 40,10
+   @ 37, 05 SAY "Letra:"       OF oDlg1 PIXEL RIGHT SIZE 40,10
+   @ 52, 05 SAY "Prefijo:"     OF oDlg1 PIXEL RIGHT SIZE 40,10
+   @ 67, 05 SAY "Numero:"      OF oDlg1 PIXEL RIGHT SIZE 40,10
    
-   @ 05, 50 COMBOBOX oGet1 VAR mtipo ITEMS aTipo OF oDlg1 SIZE 79,50 PIXEL
-   @ 20, 50 GET      oGet2 VAR mletra PICTURE "@!" OF oDlg1 SIZE 20,10 PIXEL;
+   @ 22, 50 COMBOBOX oGet1 VAR mtipo ITEMS aTipo OF oDlg1 SIZE 79,50 PIXEL
+   @ 35, 50 GET      oGet2 VAR mletra PICTURE "@!" OF oDlg1 SIZE 20,10 PIXEL;
                      VALID(mletra$"ABCX")
-   @ 35, 50 GET      oGet3 VAR mprefijo PICTURE "9999" OF oDlg1 PIXEL RIGHT
-   @ 50, 50 GET      oGet4 VAR mnumero  PICTURE "99999999" OF oDlg1 PIXEL RIGHT
-   @ 65, 05 SAY "Este proceso permite hacer remitos de Facturas ya realizadas. Los remitos no descontarán stock. "+;
+   @ 50, 50 GET      oGet3 VAR mprefijo PICTURE "9999" OF oDlg1 PIXEL RIGHT
+   @ 65, 50 GET      oGet4 VAR mnumero  PICTURE "99999999" OF oDlg1 PIXEL RIGHT
+   @ 80, 05 SAY "Este proceso permite hacer remitos de Facturas ya realizadas. Los remitos no descontarán stock. "+;
                 "Podrá controlar las unidades que lleva remitadas hasta el momento de la factura seleccionada. ";
                  OF oDlg1 PIXEL SIZE 190,40
    
@@ -171,5 +175,5 @@ CATCH oError
    ValidaError(oError)
 END TRY
 oQryDet := oApp:oServer:Query("SELECT *, 0 as bultos, 0 as promo FROM ge_"+oApp:cId+"remitos WHERE nrorem="+ClipValue2Sql(cTipoDoc+cNumComp))
-PrintRemito(oQryDet,,, cNumComp,oQry:codcli)
+PrintRemito(oQryDet,,, cNumComp,oQry:codcli,cFactura)
 RETURN nil 

@@ -325,6 +325,10 @@ nNro := 0
 && URLs de autenticacion y negocio. Cambiarlas por las de producción al implementarlas en el cliente(abajo)
 
 
+IF !EMPTY(cNotaCre)
+   nComprAsoc:= VAL(RIGHT(cNotaCre,8))
+ENDIF 
+
 IF oApp:lDemo
     //URLWSAA := "https://wsaahomo.afip.gov.ar/ws/services/LoginCms"
     //URLWSW := "https://wswhomo.afip.gov.ar/wsfev1/service.asmx"

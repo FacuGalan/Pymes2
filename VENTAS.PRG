@@ -286,7 +286,7 @@ ENDIF
        HEADERS "Codigo","Detalle Articulo","Cantidad","Precio U","Neto","Dto./Rec.","Sub Total","IVA","Total","Tasa","Imp.","Dto %","Neto Un","Bultos";
        FOOTERS ;
        SIZES 80,270,55,55,55,55,55,55,55,55,55,40,40;
-    ID 197 OF oDlg AUTOSORT
+    ID 197 OF oDlg AUTOSORT WHEN(oQryDet:RecCount()>0)
     oBrw:nFreeze := 3
     PintaBrw(oBrw,0)
     
@@ -1452,6 +1452,16 @@ ENDIF
 EXIT 
 ENDDO
 
+IF !EMPTY(cOrigenNC)
+    cNotaCre:= cOrigenNC
+ENDIF
+/*
+IF EMPTY(cNotaCre)
+ IF !EMPTY(cOrigenNC) .AND. cTipoDoc = 'NC'
+    cNotaCre := cOrigenNC
+ ENDIF
+ENDIF   
+*/
 oTabIva := oApp:oServer:Query("SELECT codiva, SUM(stotal) AS neto,SUM(iva) AS iva FROM ventas_det_H GROUP BY codiva")
 DO WHILE !oTabIva:Eof()
    AADD(aTablaIva,{oTabIva:codiva,oTabIva:neto,oTabIva:iva})
@@ -1746,11 +1756,7 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
          nPuntosAcu := nPuntosAcu + INT(nTotal/oApp:pesos_x_punto)
          nPuntos :=  INT(nTotal/oApp:pesos_x_punto)
       ENDIF
-      IF EMPTY(cNotaCre)
-         IF !EMPTY(cOrigenNC) .AND. cTipoDoc = 'NC'
-            cNotaCre := cOrigenNC
-         ENDIF
-      ENDIF      
+         
       oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ventas_encab (ticomp,letra,numcomp,codcli,coniva,fecha,neto,iva,iibb,importe,tipopag,observa,"+;
                                                      "nombre,cuit,dni,direccion,localidad,percep,cae,fecvto,tipfor,usuario,fecmod,ip,vendedor,condven,"+;
                                                      "formapag,sobretasa,acopio,endolares,cotiza,hora,puntos,puntosacu) VALUES "+;
@@ -1758,7 +1764,7 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
                             ClipValue2Sql(nCliente)+","+ClipValue2Sql(nConIva)+","+;
                             ClipValue2Sql(oGet[1]:value)+","+ClipValue2Sql(oBrw:aCols[7]:nTotal)+","+ClipValue2Sql(oBrw:aCols[8]:nTotal)+","+;
                             ClipValue2SQL(oGet[38]:cText)+","+ClipValue2Sql(nTotal)+","+IF(nCtaCte>0,"2","1")+","+;
-                            ClipValue2Sql(IF(EMPTY(cNotaCre),"",cNotaCre+" - ")+ALLTRIM(oGet[23]:cText)+IF(nDescuGen>0," Descuento: %"+ALLTRIM(STR(nDescuGen,5,2)),""))+","+;
+                            ClipValue2Sql(IF(EMPTY(cNotaCre),"",cNotaCre+" ")+ALLTRIM(oGet[23]:cText)+IF(nDescuGen>0," Descuento: %"+ALLTRIM(STR(nDescuGen,5,2)),""))+","+;
                             ClipValue2Sql(oGet[9]:cText)+","+ClipValue2Sql(oGet[12]:cText)+","+ClipValue2Sql(oGet[22]:cText)+","+;
                             ClipValue2Sql(oGet[10]:cText)+","+ClipValue2Sql(oGet[11]:cText)+","+ClipValue2SQL(oGet[37]:cText)+","+;
                             ClipValue2Sql(cCae)+","+ClipValue2Sql(dFecVtoC)+","+ClipValue2Sql(STRTRAN(STR(nTipFor,2)," ","0"))+","+;
@@ -2868,7 +2874,7 @@ DEFAULT aMetodosPago := {}
                          ENDIF
                          @ nRow1, 00.00 PRINT TO oPrn TEXT ALLTRIM(oQryDet1:detart);
                               SIZE 3.5,.5 CM FONT oFont LASTROW nRow ALIGN "L"
-                         @ nRow1, 03.60 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,06,2);
+                         @ nRow1, 03.60 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,07,2);
                               SIZE .9,.5 CM FONT oFont  ALIGN "R"
                          @ nRow1, 04.66 PRINT TO oPrn TEXT STR(IF(LEFT(cNumComp,1)<>"A",oQryDet1:punit,oQryDet1:neton/oQryDet1:cantidad),12,2) ;
                               SIZE 1,.5   CM FONT oFont ALIGN "R"
@@ -3495,7 +3501,7 @@ RETURN nil
 
 *******************************************
 ** Impresion de Remito
-FUNCTION PrintRemito(oQryDet,oGet,oBrw, cNumComp, nCodCli)
+FUNCTION PrintRemito(oQryDet,oGet,oBrw, cNumComp, nCodCli,cFactRemitada)
 LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                 "IVA no Responsable","IVA Sujeto Exento",;
                 "Consumidor Final","Responsable Monotributo",;
@@ -3507,7 +3513,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
       i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, config, oQryCli, lRta, cCodigopro , nBultos,;
       oQryP :=  oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip)),;
       lComan :=.f., cDomicilioFiscal, nRow1
-
+DEFAULT cFactRemitada:=''
     IF nCodcli = nil
        nCodcli := oGet[08]:value       
     ENDIF
@@ -3720,6 +3726,10 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
            NEXT       
            IF oGet <> nil
               @ y, 1 PRINT TO oPrn TEXT oGet[23]:cText ;
+                    SIZE 18,3 CM FONT oFont ALIGN "L" LASTROW y
+           ENDIF
+           IF LEN(cFactRemitada) > 0
+              @ y, 1 PRINT TO oPrn TEXT "Factura remitada: "+ALLTRIM(cFactRemitada);
                     SIZE 18,3 CM FONT oFont ALIGN "L" LASTROW y
            ENDIF
            IF oApp:usabultosventa
@@ -4267,7 +4277,7 @@ DEFAULT aMetodosPago := {}
                          ENDIF
                          @ nRow1, 00 PRINT TO oPrn TEXT ALLTRIM(oQryDet1:detart);
                               SIZE 2.9,.5 CM FONT oFont LASTROW nRow ALIGN "L"
-                         @ nRow1, 03 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,06,1);
+                         @ nRow1, 03 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,07,1);
                               SIZE 0.7,.5 CM FONT oFont  ALIGN "R"
                          @ nRow1, 3.8 PRINT TO oPrn TEXT STR(oQryDet1:importe,9,2);
                               SIZE 1,.5 CM FONT oFont LASTROW nRow ALIGN "R" 
@@ -4374,12 +4384,12 @@ DEFAULT aMetodosPago := {}
                      nRow1 := nRow + .5                     
                      @ nRow1, 00.00 PRINT TO oPrn TEXT "Descripcion";
                                   SIZE 3.5,.5 CM FONT oFont LASTROW nRow ALIGN "L"
-                     @ nRow1, 03.60 PRINT TO oPrn TEXT "Cant";
-                                  SIZE .9,.5 CM FONT oFont LASTROW nRow ALIGN "R"
-                     @ nRow1, 04.65 PRINT TO oPrn TEXT "Unit";
+                     @ nRow1, 03.40 PRINT TO oPrn TEXT "Cant";
                                   SIZE 1,.5 CM FONT oFont LASTROW nRow ALIGN "R"
+                     @ nRow1, 04.45 PRINT TO oPrn TEXT "Unit";
+                                  SIZE 1.2,.5 CM FONT oFont LASTROW nRow ALIGN "R"
                      @ nRow1, 05.70 PRINT TO oPrn TEXT "Total";
-                                  SIZE 1.4,.5 CM FONT oFont LASTROW nRow ALIGN "C"
+                                  SIZE 1.5,.5 CM FONT oFont LASTROW nRow ALIGN "R"
                      oQryDet1:GoTop()  
                      oPrn:CmLine( nRow,0, nRow,9 )               
                      nRow := nRow + .2  
@@ -4393,13 +4403,13 @@ DEFAULT aMetodosPago := {}
                             nRow1 := nRow1 + .1
                          ENDIF
                          @ nRow1, 00.00 PRINT TO oPrn TEXT ALLTRIM(oQryDet1:detart);
-                              SIZE 3.5,.5 CM FONT oFont LASTROW nRow ALIGN "L"
-                         @ nRow1, 03.60 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,06,2);
-                              SIZE .9,.5 CM FONT oFont  ALIGN "R"
-                         @ nRow1, 04.65 PRINT TO oPrn TEXT STR(oQryDet1:importe/oQryDet1:cantidad,9,2);
-                              SIZE 1,.5   CM FONT oFont ALIGN "R"
-                         @ nRow1, 05.70 PRINT TO oPrn TEXT STR(oQryDet1:importe,9,2);
-                              SIZE 1.3,.5 CM FONT oFont LASTROW nRow ALIGN "R"                     
+                              SIZE 3.5,.8 CM FONT oFont LASTROW nRow ALIGN "L"
+                         @ nRow1, 03.40 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,07,2);
+                              SIZE 1,.5 CM FONT oFont  ALIGN "R"
+                         @ nRow1, 04.45 PRINT TO oPrn TEXT STR(oQryDet1:importe/oQryDet1:cantidad,9,2);
+                              SIZE 1.2,.5   CM FONT oFont ALIGN "R"
+                         @ nRow1, 05.70 PRINT TO oPrn TEXT STR(oQryDet1:importe,12,2);
+                              SIZE 1.5,.5 CM FONT oFont ALIGN "R"                     
                          nDesFac := nDesFac + oQryDet1:descu     
                          oQryDet1:Skip()                     
                      NEXT

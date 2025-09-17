@@ -1259,3 +1259,81 @@ ENDDO
 // Eliminar espacios múltiples y limpiar
 cClean := AllTrim(cClean)
 RETURN cClean
+
+*******************************************************************************************
+******* MOSTRAR REMITOS A FACTURAR (CAMBIO FACU)
+FUNCTION BuscarFactura(mletra,mprefijo,mnumero,oPadre,mtipo,lNotaCred)
+LOCAL oDlg1,oBrwRem,oQryRem,oBot1,oBot2,acor:=ARRAY(4),mRta:=.f., cRemitos := "",cFiltro:=''
+DEFAULT mtipo:=0,lNotaCred:=.f.
+
+
+IF lNotaCred
+    cFiltro:=' AND LEFT(v.numcomp,4) = '+ClipValue2Sql(STRTRAN(STR(mprefijo,4),' ','0'))
+ENDIF
+oApp:oServer:Execute("";
+    + "CREATE TEMPORARY TABLE IF NOT EXISTS facturas_temp_reimprimir ";
+    +"( `numero` VARCHAR(13) NOT NULL, ";
+    +"`tipo` VARCHAR(2),";
+    +"`letra` VARCHAR(1),";
+    +"`FECHA` DATE NOT NULL,";  
+    +"`cliente` VARCHAR(200),";
+    +"`orden` INT(10) NOT NULL AUTO_INCREMENT,";
+    +"`IMPORTE` DECIMAL(12,2) DEFAULT '0.00', ";
+    +"PRIMARY KEY (`orden`)) ENGINE=INNODB DEFAULT CHARSET=utf8")
+oApp:oServer:NextResult()
+oApp:oServer:Execute("TRUNCATE facturas_temp_reimprimir")
+oApp:oServer:NextResult()
+oApp:oServer:Execute("INSERT INTO facturas_temp_reimprimir (tipo,letra,numero,fecha,importe,cliente) "+;
+                     "(SELECT v.ticomp,v.letra,v.numcomp,v.fecha,v.importe,c.nombre "+;
+                     "FROM ge_"+oApp:cId+"ventas_encab v "+;
+                     "LEFT JOIN ge_"+oApp:cId+"clientes c ON c.codigo = v.codcli "+;
+                     "WHERE v.fecha >= CURDATE() - INTERVAL 30 DAY AND v.ticomp = 'FC' "+cFiltro+")")
+
+oQryRem:= oApp:oServer:Query("SELECT * FROM facturas_temp_reimprimir ORDER BY orden DESC")
+
+IF oQryRem:nRecCount() = 0
+    MsgStop("No se encontraron facturas en los ultimos 30 días","Imposible continuar")
+    RETURN nil
+ENDIF
+
+DEFINE DIALOG oDlg1 TITLE "Facturas encontradas" OF oPadre FROM 05,15 TO 29,105
+    oDlg1:lHelpIcon:=.f.
+
+@ 05,05 XBROWSE oBrwRem DATASOURCE oQryRem;
+                 COLUMNS "tipo","letra","numero","fecha","importe","cliente";    
+                 HEADERS "Tipo","Letra","Numero","Fecha","Importe","Cliente";
+                 SIZES 40,40,90,70,100,270;
+         OF oDlg1 SIZE 340,150 PIXEL 
+oQryRem:bOnChangePage := {|| oBrwRem:Refresh() }
+/*oBrwRem:aCols[1]:SetCheck(nil,.f.)   
+oBrwRem:aCols[1]:bLDClickData := {|| CambiaChek(oQryRem,oBrwRem)}
+oBrwRem:aCols[1]:bKeyDown := {|nKey, nFlags| IF(nKey==13,nil,CambiaChek(oQryRem,oBrwRem))}
+oBrwRem:aCols[1]:nEditType := 1
+oBrwRem:aCols[1]:bEditValue:= {|| IF(oQryRem:tilde,.t.,.f.) }*/
+oBrwRem:CreateFromcode()
+PintaBrw(oBrwRem,0)
+
+oBrwRem:bKeyDown = { | nKey, nFlags | IF(nKey==13,oBot1:Click,.f.) }
+
+acor := AcepCanc(oDlg1)
+@ acor[1],acor[2] BUTTON oBot1 PROMPT "&Aceptar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .t.), oDlg1:End() ) PIXEL DEFAULT 
+@ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .f.), oDlg1:End() ) PIXEL CANCEL
+ACTIVATE DIALOG oDlg1 CENTER ON INIT oBrwRem:SetFocus()
+
+IF !mRta
+  RETURN nil 
+ENDIF
+
+mletra:= oQryRem:letra
+mprefijo:= VAL(LEFT(oQryRem:numero,4))
+mnumero:= VAL(RIGHT(oQryRem:numero,8))
+IF oQryRem:tipo = 'FC'
+    mtipo:= 1
+ELSEIF oQryRem:tipo = 'NC'
+    mtipo:= 2
+ELSE 
+    mtipo:= 3
+ENDIF
+RETURN nil

@@ -9,7 +9,7 @@
 *************************************************
 MEMVAR oApp
 STATIC oQryBrw,oQry, oQry2, oQry3, oQry4, oQry5, oQry6, oQry7 ,;
-       oWnd1, oBrw, oDlg, cVentana,oBrw1, oQryArt,oQryPun , lTipoArt
+       oWnd1, oBrw, oDlg, cVentana,oBrw1, oQryArt,oQryPun , lTipoArt, nActivos,cWhere
 PROCEDURE Artic(cPermisos)
 LOCAL oBar, hHand, oGetSeek, cSeek := SPACE(50), oPop2
 cVentana := PROCNAME()
@@ -22,13 +22,16 @@ ENDIF
 lTipoArt := nil
 AADD(oApp:aVentanas,cVentana)
 
-oQryBrw:= oApp:oServer:Query("SELECT codigo,codigopro,nombre,stockact,Preciocos,Precioven,reventa,fecmod,observa,nosale"+;
-                                " FROM ge_"+oApp:cId+"articu "+;
-                                "ORDER BY nombre")
+nActivos:= 1
+cWhere:=''
+oQryBrw:= oApp:oServer:Query("SELECT a.codigo,a.codigopro,a.nombre,a.stockact,a.Preciocos,a.Precioven,a.reventa,a.fecmod,a.observa,a.nosale,p.nombre AS nompro "+;
+                             "FROM ge_"+oApp:cId+"articu a "+;
+                             "LEFT JOIN ge_"+oApp:cId+"provee p ON a.prov = p.codigo "+;
+                             "ORDER BY a.nombre")
 MENU oPop2 POPUP
-     MENUITEM "Todos los productos"  ACTION FiltrarVen(nil)
-     MENUITEM "Solo Vendibles"       ACTION FiltrarVen(.t.)
-     MENUITEM "Solo No vendibles"    ACTION FiltrarVen(.f.)
+     MENUITEM "Todos los productos"  ACTION (FiltrarVen(nil),oGetSeek:SetFocus())
+     MENUITEM "Solo Vendibles"       ACTION (FiltrarVen(.t.),oGetSeek:SetFocus())
+     MENUITEM "Solo No vendibles"    ACTION (FiltrarVen(.f.),oGetSeek:SetFocus())
 ENDMENU
 
    oQry2  := oApp:oServer:Query( "SELECT codigo,nombre,alias FROM ge_"+oApp:cId+"provee ORDER BY codigo")
@@ -44,55 +47,55 @@ ENDMENU
          DEFINE BUTTONBAR oBar  SIZE 60,60 OF oWnd1 2010
          DEFINE BUTTON RESOURCE "ALTA" OF oBar ;
             TOOLTIP "Agregar Registro"  ;
-            ACTION (Formu( .t. ),oBrw:Refresh());
+            ACTION (Formu( .t. ),oBrw:Refresh(),oGetSeek:SetFocus());
             PROMPT "Alta" TOP WHEN("A"$cPermisos)
          DEFINE BUTTON RESOURCE "MODI" OF oBar ;
             TOOLTIP "Modificar Registro"  ;
-            ACTION (Formu( .f. ,oQryBrw:codigo),oBrw:Refresh());
+            ACTION (Formu( .f. ,oQryBrw:codigo),oBrw:Refresh(),oGetSeek:SetFocus());
             PROMPT "Modifica" TOP WHEN(oQryBrw:RecCount()>0 .and. "M"$cPermisos) 
          DEFINE BUTTON RESOURCE "BAJA" OF oBar ;
             TOOLTIP "Eliminar Registro"  ;
-            ACTION (Baja( ),oBrw:Refresh());
+            ACTION (Baja( ),oBrw:Refresh(),oGetSeek:SetFocus());
             PROMPT "Baja" TOP WHEN(oQryBrw:RecCount()>0 .and. "B"$cPermisos)
          DEFINE BUTTON RESOURCE "DUPL" OF oBar ;
             TOOLTIP "Duplicar Registro"  ;
-            ACTION (Duplicar( ),oBrw:Refresh());
+            ACTION (Duplicar( ),oBrw:Refresh(),oGetSeek:SetFocus());
             PROMPT "Duplicar" TOP WHEN(oQryBrw:RecCount()>0 .AND. "A"$cPermisos)
          DEFINE BUTTON RESOURCE "EXCE" OF oBar ;
             TOOLTIP "Exportar a Excel" ;
-            ACTION oBrw:ToExcel() WHEN(oQryBrw:RecCount()>0 .AND. "E"$cPermisos);
+            ACTION (oBrw:ToExcel(),oGetSeek:SetFocus()) WHEN(oQryBrw:RecCount()>0 .AND. "E"$cPermisos);
             PROMPT "Exporta" TOP
          DEFINE BUTTON RESOURCE "IMPR" OF oBar ;
             TOOLTIP "Imprimir Planilla"  ;
-            ACTION oBrw:Report("Reporte de Articulos",.T.,.F.);
+            ACTION (oBrw:Report("Reporte de Articulos",.T.,.F.),oGetSeek:SetFocus());
             PROMPT "Reporte" TOP WHEN(oQryBrw:RecCount()>0 .AND. "R"$cPermisos)
          DEFINE BUTTON RESOURCE "FILT" OF oBar ;
             TOOLTIP "Filtrar Articulos"  ;
-            ACTION (FILT(),oBrw:Refresh()) MENU oPop2;
+            ACTION (FILT(),oBrw:Refresh(),oGetSeek:SetFocus()) MENU oPop2;
             PROMPT "Filtrar" TOP     
          DEFINE BUTTON RESOURCE "PRECIO" OF oBar ;
             TOOLTIP "Ver historial de precios"  ;
-            ACTION (Historial(),oBrw:Refresh());
+            ACTION (Historial(),oBrw:Refresh(),oGetSeek:SetFocus());
             PROMPT "Historial" TOP WHEN(oQryBrw:RecCount()>0 .and. "M"$cPermisos)    
          DEFINE BUTTON RESOURCE "IMPOR" OF oBar ;
             TOOLTIP "Importar Registros"  ;
-            ACTION (Importar(), oBrw:Refresh());
+            ACTION (Importar(), oBrw:Refresh(),oGetSeek:SetFocus());
             PROMPT "Importar" TOP WHEN("A"$cPermisos)    
          DEFINE BUTTON RESOURCE "ARTI" OF oBar ;
             TOOLTIP "Cambiar el Codigo / Codigo de barras"  ;
-            ACTION (Cambiar(), oBrw:Refresh());
+            ACTION (Cambiar(), oBrw:Refresh(),oGetSeek:SetFocus());
             PROMPT "Cambiar" TOP WHEN(oQryBrw:RecCount()>0 .and. "M"$cPermisos)     
          DEFINE BUTTON RESOURCE "CODBAR1" OF oBar ;
             TOOLTIP "Buscar por codigo"  ;
-            ACTION (BuscarxCod(), oBrw:Refresh());
+            ACTION (BuscarxCod(), oBrw:Refresh(),oGetSeek:SetFocus());
             PROMPT "Buscar" TOP WHEN(oQryBrw:RecCount()>0 .and. "M"$cPermisos)    
          DEFINE BUTTON RESOURCE "POS" OF oBar ;
             TOOLTIP "Ver el historial de ventas"  ;
-            ACTION (HistorialVentas());
+            ACTION (HistorialVentas(),oGetSeek:SetFocus());
             PROMPT "Hist.Ventas" TOP  WHEN(oQryBrw:RecCount()>0 .and. "A"$cPermisos)     
          DEFINE BUTTON RESOURCE "PROD" OF oBar ;
             TOOLTIP "Reporte de Recetas"  ;
-            ACTION (RepRecetas());
+            ACTION (RepRecetas(),oGetSeek:SetFocus());
             PROMPT "Lista Rec." TOP WHEN("R"$cPermisos)
          // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;
@@ -104,18 +107,18 @@ ENDMENU
      DEFINE DIALOG oDlg RESOURCE "ABMS" OF oWnd1
      IF "M"$cPermisos
          REDEFINE XBROWSE oBrw DATASOURCE oQryBrw;
-                  COLUMNS "Codigo","codigopro","nombre","stockact","Preciocos","Precioven","reventa","fecmod","Observa";
-                  HEADERS "Código art.","Cód.Prov.","Nombre","Stock","Precio costo","P. Venta 1","P. Venta 2","Fecha Cambio","Observaciones";
-                  SIZES 90,70,230,60,70,75,75,70,200;
-                  ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,Formu( .f.,oQryBrw:codigo),nil))
+                  COLUMNS "Codigo","codigopro","nombre","stockact","Preciocos","Precioven","reventa","fecmod","nompro","Observa";
+                  HEADERS "Código art.","Cód.Prov.","Nombre","Stock","Precio costo","P. Venta 1","P. Venta 2","Fecha Cambio","Proveedor","Observaciones";
+                  SIZES 90,70,230,60,70,75,75,70,200,200;
+                  ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu( .f.,oQryBrw:codigo),oGetSeek:SetFocus()),nil))
          REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg
          PintaBrw(oBrw,9) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
      ELSE
          REDEFINE XBROWSE oBrw DATASOURCE oQryBrw;
-                  COLUMNS "Codigo","codigopro","nombre","Preciocos","Precioven","reventa","fecmod","observa";
-                  HEADERS "Código art","Cód.Prov.","Nombre","Precio costo","P. Venta 1","P. Venta 2","Fecha Cambio","Observaciones";
-                  SIZES 90,70,350,70,70,70,70,200;
-                  ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,Formu( .f.,oQryBrw:codigo),nil))
+                  COLUMNS "Codigo","codigopro","nombre","Preciocos","Precioven","reventa","fecmod","nompro","observa";
+                  HEADERS "Código art","Cód.Prov.","Nombre","Precio costo","P. Venta 1","P. Venta 2","Fecha Cambio","Proveedor","Observaciones";
+                  SIZES 90,70,350,70,70,70,70,200,200;
+                  ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu( .f.,oQryBrw:codigo),oGetSeek:SetFocus()),nil))
          REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg
          PintaBrw(oBrw,8) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
      ENDIF
@@ -126,8 +129,8 @@ ENDMENU
      
      oQryBrw:bOnChangePage := {|| oBrw:Refresh() }
      //oBrw:aCols[3]:SetOrder()
-     oBrw:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar, oBrw,cPermisos,8)}
-     oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt(oQryBrw, oGetSeek, oBrw, nKey) }
+     oBrw:bKeyDown := {|nKey,nFlags| (Acelerador2(nKey,oBar, oBrw,cPermisos,8),oGetSeek:SetFocus())}
+     oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt2(oQryBrw, oGetSeek, oBrw, nKey,cWhere) }
      //oBrw:SetDolphin(oQry,.f.,.t.)
      // Activo el dialogo y al iniciar muevo a 0,0
      ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT (oGetSeek:SetFocus(),oDlg:Move(0,0),FiltrarVen(.t.)) VALID(oWnd1:End())
@@ -888,7 +891,7 @@ LOCAL vMarca,cMarc:=SPACE(30),vRubro,cRub:=SPACE(30),vempresa,cEmp:=SPACE(30),;
       vprecioven,vpresugeri,vprecossiva,vpreciopro,vporcentaje,vfecmodd:="  /  /    ",vfecmodh:="  /  /    ",;
       vfecultcomd:="  /  /    ",vfecultcomh:="  /  /    ",oSay1,oSay2,;
       vneto,vimpint,vflete,vunimed,vobserva,cIvaNom:=SPACE(30),;
-      oFilt, acor:=ARRAY(4), oBot:=ARRAY(3), lRta:=.f., oGet:=ARRAY(53), cWhere,;
+      oFilt, acor:=ARRAY(4), oBot:=ARRAY(3), lRta:=.f., oGet:=ARRAY(53),;
       vpesable:=.f.,vcombustible:=.f.,vmprima:=.f.,vproduccion:=.f.,;
       vmedida,ventero,vuxbulto,vpxbulto,vsiniva:=.f.,vcodigopro:=SPACE(30), vstockotro := .f.
 
@@ -985,55 +988,59 @@ DEFINE DIALOG oFilt TITLE "Filtrado de Articulo" RESOURCE "ABMART1" OF oWnd1
 ACTIVATE DIALOG oFilt CENTER ON INIT oGet[01]:SetFocus()
 
 IF !lRta
+   nActivos:= 1
+   cWhere:=""
    oQryBrw:SetNewFilter(SET_WHERE,"1=1",.t.)
    oBrw:Refresh()
    RETURN nil
 ENDIF
 
-cWhere = " 1=1 " + IF(EMPTY(vCodigo),""," and CODIGO =" + ClipValue2SQL(VCodigo) + "") ;
-            + "" + IF(EMPTY(VNOMBRE),"","  and TRIM(NOMBRE) like '%" + ALLTRIM(VNOMBRE) + "%'") ;
-            + "" + IF(EMPTY(Vnomregi),"","  and TRIM(nomregi) like '%" + ALLTRIM(Vnomregi) + "%'") ;
-            + "" + IF(EMPTY(vcodigopro),"","  and TRIM(codigopro) like '%" + ALLTRIM(vcodigopro) + "%'") ;
-            + "" + IF(!vnosale," and nosale IS FALSE "," and nosale IS TRUE ");
-            + "" + IF(!vpesable,""," and pesable = TRUE ");
-            + "" + IF(!vcombustible,""," and combustible = TRUE");
-            + "" + IF(!vmprima,""," and mprima = TRUE ");
-            + "" + IF(!vproduccion,""," and produccion = TRUE ");
-            + "" + IF(!vstockotro,""," and stockotro = TRUE ");
-            + "" + IF(!vsiniva,""," and siniva = TRUE ");
-            + "" + IF(EMPTY(vProv),""," and prov =" + ClipValue2SQL(vProv) + "") ;
-            + "" + IF(EMPTY(vMarca),""," and marca =" + ClipValue2SQL(vMarca) + "") ;
-            + "" + IF(EMPTY(vRubro),""," and rubro =" + ClipValue2SQL(vRubro) + "") ;
-            + "" + IF(EMPTY(vempresa),""," and empresa =" + ClipValue2SQL(vempresa) + "") ;
-            + "" + IF(EMPTY(vdepto),""," and depto =" + ClipValue2SQL(vdepto) + "") ;
-            + "" + IF(EMPTY(vStockmin),""," and stockmin =" + ClipValue2SQL(vstockmin) + "") ; 
-            + "" + IF(EMPTY(vmedida),""," and medida =" + ClipValue2SQL(vmedida) + "") ;
-            + "" + IF(EMPTY(ventero),""," and entero =" + ClipValue2SQL(ventero) + "") ;
-            + "" + IF(EMPTY(vuxbulto),""," and uxbulto =" + ClipValue2SQL(vuxbulto) + "") ;
-            + "" + IF(EMPTY(vpxbulto),""," and pxbulto =" + ClipValue2SQL(vpxbulto) + "") ;
-            + "" + IF(EMPTY(vStockact),""," and stockact =" + ClipValue2SQL(vstockact) + "") ;
-            + "" + IF(EMPTY(vstockide),""," and stockide =" + ClipValue2SQL(vstockide) + "") ;
-            + "" + IF(EMPTY(vunimed),"","  and TRIM(unimed) like '%" + ALLTRIM(vunimed) + "%'");
-            + "" + IF(EMPTY(vpreciocos),""," and preciocos =" + ClipValue2SQL(vpreciocos) + "") ;
-            + "" + IF(EMPTY(vporcentaje),""," and porcentaje =" + ClipValue2SQL(vporcentaje) + "") ;
-            + "" + IF(EMPTY(vprecossiva),""," and precossiva =" + ClipValue2SQL(vprecossiva) + "") ;
-            + "" + IF(EMPTY(vneto),""," and neto =" + ClipValue2SQL(vneto) + "") ;
-            + "" + IF(EMPTY(vimpint),""," and impint =" + ClipValue2SQL(vimpint) + "") ;
-            + "" + IF(EMPTY(vflete),""," and flete =" + ClipValue2SQL(vflete) + "") ;
-            + "" + IF(EMPTY(viva),""," and iva =" + ClipValue2SQL(viva) + "") ;
-            + "" + IF(EMPTY(vdesc1),""," and desc1 =" + ClipValue2SQL(vdesc1) + "") ;
-            + "" + IF(EMPTY(vdesc2),""," and desc2 =" + ClipValue2SQL(vdesc2) + "") ;
-            + "" + IF(EMPTY(vdesc3),""," and desc3 =" + ClipValue2SQL(vdesc3) + "") ;
-            + "" + IF(EMPTY(vdesc4),""," and desc4 =" + ClipValue2SQL(vdesc4) + "") ;
-            + "" + IF(EMPTY(vdesc5),""," and desc5 =" + ClipValue2SQL(vdesc5) + "") ;            
-            + "" + IF(EMPTY(vprecioven),""," and precioven =" + ClipValue2SQL(vprecioven) + "") ;
-            + "" + IF(EMPTY(vpreciopro),""," and porcentajeven =" + ClipValue2SQL(vpreciopro) + "") ; 
-            + "" + IF(EMPTY(vreventa),""," and reventa =" + ClipValue2SQL(vreventa) + "") ; 
-            + "" + IF(vfecultcomd="  /  /    ",""," and fecultcom >" + ClipValue2SQL(CTOD(vfecultcomd)) + "") ;
-            + "" + IF(vfecultcomh="  /  /    ",""," and fecultcom <" + ClipValue2SQL(CTOD(vfecultcomh)) + "") ;
-            + "" + IF(vfecmodd="  /  /    ",""," and fecmod >" + ClipValue2SQL(CTOD(vfecmodd)) + "") ;
-            + "" + IF(vfecmodh="  /  /    ",""," and fecmod <" + ClipValue2SQL(CTOD(vfecmodh)) + "") ;
-            + "" + IF(EMPTY(vobserva),"","  and TRIM(observa) like '%" + ALLTRIM(vobserva) + "%'") ;
+nActivos:= IF(!vnosale,2,3)
+
+cWhere = " 1=1 " + IF(EMPTY(vCodigo),""," and a.CODIGO =" + ClipValue2SQL(VCodigo) + "") ;
+            + "" + IF(EMPTY(VNOMBRE),"","  and TRIM(a.NOMBRE) like '%" + ALLTRIM(VNOMBRE) + "%'") ;
+            + "" + IF(EMPTY(Vnomregi),"","  and TRIM(a.nomregi) like '%" + ALLTRIM(Vnomregi) + "%'") ;
+            + "" + IF(EMPTY(vcodigopro),"","  and TRIM(a.codigopro) like '%" + ALLTRIM(vcodigopro) + "%'") ;
+            + "" + IF(!vnosale," and a.nosale IS FALSE "," and a.nosale IS TRUE ");
+            + "" + IF(!vpesable,""," and a.pesable = TRUE ");
+            + "" + IF(!vcombustible,""," and a.combustible = TRUE");
+            + "" + IF(!vmprima,""," and a.mprima = TRUE ");
+            + "" + IF(!vproduccion,""," and a.produccion = TRUE ");
+            + "" + IF(!vstockotro,""," and a.stockotro = TRUE ");
+            + "" + IF(!vsiniva,""," and a.siniva = TRUE ");
+            + "" + IF(EMPTY(vProv),""," and a.prov =" + ClipValue2SQL(vProv) + "") ;
+            + "" + IF(EMPTY(vMarca),""," and a.marca =" + ClipValue2SQL(vMarca) + "") ;
+            + "" + IF(EMPTY(vRubro),""," and a.rubro =" + ClipValue2SQL(vRubro) + "") ;
+            + "" + IF(EMPTY(vempresa),""," and a.empresa =" + ClipValue2SQL(vempresa) + "") ;
+            + "" + IF(EMPTY(vdepto),""," and a.depto =" + ClipValue2SQL(vdepto) + "") ;
+            + "" + IF(EMPTY(vStockmin),""," and a.stockmin =" + ClipValue2SQL(vstockmin) + "") ; 
+            + "" + IF(EMPTY(vmedida),""," and a.medida =" + ClipValue2SQL(vmedida) + "") ;
+            + "" + IF(EMPTY(ventero),""," and a.entero =" + ClipValue2SQL(ventero) + "") ;
+            + "" + IF(EMPTY(vuxbulto),""," and a.uxbulto =" + ClipValue2SQL(vuxbulto) + "") ;
+            + "" + IF(EMPTY(vpxbulto),""," and a.pxbulto =" + ClipValue2SQL(vpxbulto) + "") ;
+            + "" + IF(EMPTY(vStockact),""," and a.stockact =" + ClipValue2SQL(vstockact) + "") ;
+            + "" + IF(EMPTY(vstockide),""," and a.stockide =" + ClipValue2SQL(vstockide) + "") ;
+            + "" + IF(EMPTY(vunimed),"","  and a.TRIM(unimed) like '%" + ALLTRIM(vunimed) + "%'");
+            + "" + IF(EMPTY(vpreciocos),""," and a.preciocos =" + ClipValue2SQL(vpreciocos) + "") ;
+            + "" + IF(EMPTY(vporcentaje),""," and a.porcentaje =" + ClipValue2SQL(vporcentaje) + "") ;
+            + "" + IF(EMPTY(vprecossiva),""," and a.precossiva =" + ClipValue2SQL(vprecossiva) + "") ;
+            + "" + IF(EMPTY(vneto),""," and a.neto =" + ClipValue2SQL(vneto) + "") ;
+            + "" + IF(EMPTY(vimpint),""," and a.impint =" + ClipValue2SQL(vimpint) + "") ;
+            + "" + IF(EMPTY(vflete),""," and a.flete =" + ClipValue2SQL(vflete) + "") ;
+            + "" + IF(EMPTY(viva),""," and a.iva =" + ClipValue2SQL(viva) + "") ;
+            + "" + IF(EMPTY(vdesc1),""," and a.desc1 =" + ClipValue2SQL(vdesc1) + "") ;
+            + "" + IF(EMPTY(vdesc2),""," and a.desc2 =" + ClipValue2SQL(vdesc2) + "") ;
+            + "" + IF(EMPTY(vdesc3),""," and a.desc3 =" + ClipValue2SQL(vdesc3) + "") ;
+            + "" + IF(EMPTY(vdesc4),""," and a.desc4 =" + ClipValue2SQL(vdesc4) + "") ;
+            + "" + IF(EMPTY(vdesc5),""," and a.desc5 =" + ClipValue2SQL(vdesc5) + "") ;            
+            + "" + IF(EMPTY(vprecioven),""," and a.precioven =" + ClipValue2SQL(vprecioven) + "") ;
+            + "" + IF(EMPTY(vpreciopro),""," and a.porcentajeven =" + ClipValue2SQL(vpreciopro) + "") ; 
+            + "" + IF(EMPTY(vreventa),""," and a.reventa =" + ClipValue2SQL(vreventa) + "") ; 
+            + "" + IF(vfecultcomd="  /  /    ",""," and a.fecultcom >" + ClipValue2SQL(CTOD(vfecultcomd)) + "") ;
+            + "" + IF(vfecultcomh="  /  /    ",""," and a.fecultcom <" + ClipValue2SQL(CTOD(vfecultcomh)) + "") ;
+            + "" + IF(vfecmodd="  /  /    ",""," and a.fecmod >" + ClipValue2SQL(CTOD(vfecmodd)) + "") ;
+            + "" + IF(vfecmodh="  /  /    ",""," and a.fecmod <" + ClipValue2SQL(CTOD(vfecmodh)) + "") ;
+            + "" + IF(EMPTY(vobserva),"","  and TRIM(a.observa) like '%" + ALLTRIM(vobserva) + "%'") ;
 
             
 EXIT
@@ -1046,15 +1053,18 @@ RETURN nil
 STATIC FUNCTION FiltrarVen(lTipo)
 lTipoArt := lTipo
 IF lTipo = nil 
+   nActivos:=1
    oQryBrw:SetNewFilter(SET_WHERE,"",.t.)
    oWnd1:cTitle("A/B/M de Articulos: TODOS los articulos")
 ENDIF
 IF lTipo = .t. 
-   oQryBrw:SetNewFilter(SET_WHERE,"NOSALE IS FALSE",.t.)
+   nActivos:=2
+   oQryBrw:SetNewFilter(SET_WHERE,"a.NOSALE IS FALSE",.t.)
    oWnd1:cTitle("A/B/M de Articulos: Solo articulos vendibles")
 ENDIF
 IF lTipo = .f. 
-   oQryBrw:SetNewFilter(SET_WHERE,"NOSALE IS TRUE",.t.)
+   nActivos:=3
+   oQryBrw:SetNewFilter(SET_WHERE,"a.NOSALE IS TRUE",.t.)
    oWnd1:cTitle("A/B/M de Articulos: Solo articulos NO VENDIBLES")
 ENDIF
 oBrw:Refresh()
@@ -1429,7 +1439,7 @@ TRY
   oApp:oServer:BeginTransaction()
   oApp:oServer:Execute(cSql)
   oApp:oServer:CommitTransaction()
-  oQryBrw:Refresh(.t.)
+  oQryBrw:Refresh(.f.)
 CATCH cError
   MsgStop("Error al Importar"+CHR(10)+cError:description,"Error")
   oApp:oServer:RollBack()
@@ -1450,7 +1460,7 @@ IF nDePro > 1
       oApp:oServer:BeginTransaction()
       oApp:oServer:Execute(cSql)
       oApp:oServer:CommitTransaction()
-      oQryBrw:Refresh(.t.)
+      oQryBrw:Refresh(.f.)
     CATCH cError
       MsgStop("Error al Importar"+CHR(10)+cError:description,"Error")
       oApp:oServer:RollBack()
@@ -1639,3 +1649,50 @@ RELEASE FONT oFont1
 RELEASE FONT oFont2
 
 RETURN NIL
+
+FUNCTION FiltraArt2(base, oG, oLbx, nKey, cCampoFiltro,cAlias)
+LOCAL cFiltro, cText, cNombre := if('a.'$base:cQuery,'a.nombre','nombre'),;
+      cCodigo := if('a.'$base:cQuery,'a.codigo','codigo')
+DEFAULT cCampoFiltro := '',cAlias:=''
+IF LEN(cAlias) > 0
+    cNombre := ALLTRIM(cAlias)+'.nombre'
+    cCodigo := ALLTRIM(cAlias)+'.codigo'
+ENDIF
+/*
+      cCodigo := if('a.'$base:cQuery,'a.codigo','codigo'),;
+      cAlias := if(base:FieldPos('alias')>0,'alias','')
+DEFAULT cCampoFiltro := '' 
+*/
+oG:Assign()
+IF nKey = 38 .or. nKey = 40
+   oLbx:SetFocus()
+   RETURN nil 
+ENDIF
+IF nKey >= 32 .AND. nKey <= 122 
+   IF nKey >= 96 .and. nKey <= 105
+      nKey := nKey - 48
+   ENDIF
+   cText := LEFT(oG:cText,oG:nPos-1) + CHR(nKey)
+   ELSE
+   cText := ALLTRIM(oG:cText)
+ENDIF
+cText := STRTRAN(cText,"a.","a ")
+cText := STRTRAN(cText,"'","")
+cText := STRTRAN(cText,"%","")
+cText := STRTRAN(cText," ","%' and "+cNombre+" like '%") 
+cFiltro:= '('
+IF !EMPTY(cCampoFiltro)
+   cFiltro := cFiltro + cCampoFiltro  + " AND ( "+cNombre+" LIKE '%"+ cText +"%' OR " +;
+              cCodigo + " LIKE '%"+ cText +"%' OR " +;
+             "a.CODIGOPRO LIKE '%"+ cText +"%')" 
+   ELSE 
+   cFiltro := cFiltro + cNombre+" LIKE '%"+ cText +"%' OR " + cCodigo + " LIKE '%"+ cText +"%' OR " +;
+               "a.CODIGOPRO LIKE '%"+ cText +"%'" 
+
+ENDIF
+cFiltro := cFiltro+") "+IF(nActivos=1,"",IF(nActivos=2," AND nosale = FALSE "," AND nosale = TRUE"))
+
+base:SetNewFilter(SET_WHERE,cFiltro,.t.)
+// Se refresca el listbox
+oLbx:refresh()
+RETURN .T.

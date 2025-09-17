@@ -62,6 +62,7 @@ oApp:oServer:Execute("";
     +"`IMPINT` DECIMAL(12,3) DEFAULT '0.00',";
     +"`BULTOS` DECIMAL(6,1) DEFAULT '0.0',";
     +"`ESPROMO` TINYINT(1) DEFAULT '0' NOT NULL, ";
+    +"`DEREMITO` TINYINT(1) DEFAULT '0' NOT NULL, ";
     +"PRIMARY KEY (`id`)) ENGINE=INNODB DEFAULT CHARSET=utf8")
     //+"`COSTO` DECIMAL(10,2) DEFAULT '0.00', PRIMARY KEY (`id`)) ENGINE=INNODB DEFAULT CHARSET=utf8")
 oApp:oServer:Execute("";
@@ -243,10 +244,10 @@ nFormaPago:=1
     oBrw:aCols[3]:nEditType := EDIT_GET 
     oBrw:aCols[13]:lAutoSave := .t.
     oBrw:aCols[13]:nEditType := EDIT_GET 
-    oBrw:aCols[3]:bOnPostEdit := {|oCol, xVal, nKey | CambiaCant(xval,,)} 
+    oBrw:aCols[3]:bOnPostEdit := {|oCol, xVal, nKey | IF(oQryDet:DEREMITO,MsgStop("No se puede modificar los valores del remito","Atencion!"),CambiaCant(xval,,))} 
     oBrw:aCols[4]:lAutoSave := .t.
     oBrw:aCols[4]:nEditType := EDIT_GET 
-    oBrw:aCols[4]:bOnPostEdit := {|oCol, xVal, nKey | CambiaCant(,,xval)} 
+    oBrw:aCols[4]:bOnPostEdit := {|oCol, xVal, nKey | IF(oQryDet:DEREMITO,MsgStop("No se puede modificar los valores del remito","Atencion!"),CambiaCant(,,xval))} 
     
     //BOTONES ---------------------------------------------------------------
     //Elige remitos
@@ -759,7 +760,7 @@ oApp:oServer:Execute("INSERT INTO VENTAS_DET_H3 (codart,detart,cantidad,ptotal,n
 */
 ** ATENCION!!! CADA CHOCLO ES PRECIO VENTA CALCULADO == "+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+",1)
 
-oApp:oServer:Execute("INSERT INTO VENTAS_DET_H3 (codart,detart,cantidad,punit,ptotal,neto,iva,codiva,descuento,stotal,costo,descup,bultos) "+;
+oApp:oServer:Execute("INSERT INTO VENTAS_DET_H3 (codart,detart,cantidad,punit,ptotal,neto,iva,codiva,descuento,stotal,costo,descup,bultos,DEREMITO) "+;
                       "(SELECT r.codart,r.detart,SUM(r.cantidad),"+;
                       "(("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
                       ",1))) ,"+; //punitario
@@ -782,7 +783,8 @@ oApp:oServer:Execute("INSERT INTO VENTAS_DET_H3 (codart,detart,cantidad,punit,pt
                       " (("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
                       ",1)+"+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
                       ",1)*r.incrp*-1/100)*r.cantidad) / (1+i.tasa/100) ),a.preciocos,r.incrp, "+; //subtotal
-                      "auto "+; //bultos
+                      "auto, "+; //bultos
+                      "TRUE "+;// VIENE DE UN REMITO (PARA NO DESCONTAR STOCK)
                       "FROM ge_"+oApp:cId+"remitos r LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = r.codart "+;
                       "LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = r.codiva "+;
                       "WHERE (r.nrorem IN (SELECT numrem FROM remitos_temp WHERE tilde = 1)) AND (r.codart > 0) "+;
@@ -948,7 +950,7 @@ LOCAL cLetra, oGet1 := ARRAY(20), oBot := ARRAY(4), oForm, lRta := .f., oBrw2, o
       oQryTar, aTarjetas, oError,oDlg2, nCodPro:=0,nCodBan:=0,cObserva1:=SPACE(255),nNumeroOrd:=0,nNumDep:=0,nOpcion:=1, lFisc,;
       oQryCondVen:=oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"cond_venta"),oComb:=ARRAY(2),;
       oQryFormaPag:=oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"forpag"), nPunLocal,;
-      nPuntos := 0, nPuntosAcu := 0
+      nPuntos := 0, nPuntosAcu := 0,cSQL
 
 cLetra := IF(nTipoEmp=1 .or. nTipoEmp=2,IF(oGet[13]:nAt = 1 .or. oGet[13]:nAt = 2 .or. oGet[13]:nAt = 6,"A","B"),"C")
 // Validar que el DATOS CLIENTE
@@ -1346,6 +1348,32 @@ cTipoDoc := IF(nTipoDoc=1,"FR",IF(nTipoDoc=2,"ND","NC"))
                                          ClipValue2SQL(DATE())+","+;
                                          ClipValue2SQL(oApp:cIp)+")")
       ENDIF  
+
+      // DESCUENTO STOCK DE LOS ARTICULOS AGREGADOS QUE NO VIENEN DE REMITO Y NO SON PROMO
+
+      oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"articu a "+; 
+                   "INNER JOIN "+; 
+                   "("+; 
+                   "SELECT codart, SUM(cantidad) as suma "+;
+                   "FROM VENTAS_DET_H3 "+;
+                   "WHERE ESPROMO IS FALSE AND codart > 0 AND DEREMITO IS FALSE "+;
+                   "GROUP BY codart "+;
+                   ") v ON a.codigo = v.codart "+;
+                   "SET a.stockact = a.stockact - (v.suma * "+IF(cTipoDoc="NC","-1","1")+") WHERE a.stockotro IS FALSE")
+
+      cSQL := "UPDATE ge_"+oApp:cId+"articu m " + ;
+      "JOIN ( " + ;
+      "  SELECT r.codusa AS codigo_usado, SUM(d.cantidad * r.cantidad) AS total_a_restar " + ;
+      "  FROM VENTAS_DET_H3 d " + ;
+      "  JOIN ge_"+oApp:cId+"articu a ON a.codigo = d.codart " + ;
+      "  JOIN ge_"+oApp:cId+"reseta r ON r.codart = d.codart " + ;
+      "  WHERE a.stockotro = TRUE AND d.ESPROMO IS FALSE AND DEREMITO IS FALSE " + ;
+      "  GROUP BY r.codusa " + ;
+      ") AS t ON t.codigo_usado = m.codigo " + ;
+      "SET m.stockact = m.stockact - t.total_a_restar*"+IF(cTipoDoc="NC","-1","1")
+
+      oApp:oServer:Execute( cSQL )
+
       //3 - FACTURA ------------------------------------------------------------------------
       IF nCtaCte <= 0  
          oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET saldo = "+ClipValue2Sql(ABS(nCtaCte)) + ", FECULT = CURDATE() WHERE codigo = " +ClipValue2Sql(nCliente))
