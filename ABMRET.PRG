@@ -68,8 +68,8 @@ RETURN
 ** Formulario de altas y modificaciones
 STATIC FUNCTION Formu (lAlta)
 LOCAL oGet := ARRAY(4), oBot := ARRAY(2), oForm, lRta := .f., aCor, base,;
-      aTipos:={"Excentos","Retencion I.V.A","Otros impuestos nacionales",;
-               "Ingresos brutos","Impuestos internos","No grabado"}
+      aTipos:={"Exentos","Retencion I.V.A","Otros impuestos nacionales",;
+               "Ingresos brutos","Impuestos internos","No gravado"}
 
 IF lAlta
    base := oQry:GetBlankRow()

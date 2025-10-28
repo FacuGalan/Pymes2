@@ -29,9 +29,10 @@ validarqueexista()
 cDialog:= "ABMS"
 oQryPar:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros LIMIT 1")
 oQryBrw:= oApp:oServer:Query("SELECT p.nuevo, p.id,p.CODCLI,p.CLIENTE,p.FECHA,p.PARAFECHA,p.Observa,"+;
-                             "p.VENDEDOR,p.ESTADO,ROUND(SUM(pd.cantidad * pd.punitario * (1-pd.descup/100)),2) as total "+;
-                             " FROM ge_"+oApp:cId+"pedidos_encab p "+;
+                             "p.VENDEDOR,p.ESTADO,ROUND(SUM(pd.cantidad * pd.punitario * (1-pd.descup/100)),2) as total, "+;
+                             "CONCAT(c.direccion,' ',IF(c.localidad is null,'',c.localidad)) AS direccion FROM ge_"+oApp:cId+"pedidos_encab p "+;
                              "LEFT JOIN ge_"+oApp:cId+"pedidos_det pd ON pd.idpedido = p.id "+;
+                             "LEFT JOIN ge_"+oApp:cId+"clientes c ON p.codcli = c.codigo "+;
                              " WHERE p.estado = 'P' GROUP BY p.id")
 
   DEFINE WINDOW oWnd1 MDICHILD TITLE "Generacion de pedidos" ;
@@ -78,9 +79,9 @@ oQryBrw:= oApp:oServer:Query("SELECT p.nuevo, p.id,p.CODCLI,p.CLIENTE,p.FECHA,p.
    oWnd1:bResized := { || Incrusta( oWnd1, oDlg, .t.) }
      DEFINE DIALOG oDlg RESOURCE cDialog OF oWnd1
      REDEFINE XBROWSE oBrwG DATASOURCE oQryBrw;
-              COLUMNS "nuevo","id","CODCLI","CLIENTE","FECHA","PARAFECHA","total","VENDEDOR","ESTADO","observa";
-              HEADERS "","Nro Pedido","Código Cliente","Nombre","Fecha","Para Fecha","Total","Vendedor","Estado","Observaciones";
-              SIZES 40,70,65,270,90,90,200,100,100,100;
+              COLUMNS "nuevo","id","CODCLI","CLIENTE","direccion","FECHA","PARAFECHA","total","VENDEDOR","ESTADO","observa";
+              HEADERS "","Nro Pedido","Código Cliente","Nombre","Direccion","Fecha","Para Fecha","Total","Vendedor","Estado","Observaciones";
+              SIZES 30,65,60,250,110,90,90,200,100,100,100;
               FOOTERS;
               ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu(cPermisos,.f.),oBrwG:Refresh()),.T.))
      REDEFINE SAY oBrwG:oSeek PROMPT "" ID 113 OF oDlg
@@ -95,9 +96,9 @@ oQryBrw:= oApp:oServer:Query("SELECT p.nuevo, p.id,p.CODCLI,p.CLIENTE,p.FECHA,p.
      oBrwG:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar,cPermisos)}
      oBrwG:cSeek := ""
      oBrwG:oSeek:SetText("")
-     oBrwG:aCols[7]:nFooterTypE := AGGR_SUM
+     oBrwG:aCols[9]:nFooterTypE := AGGR_SUM
      oBrwG:Maketotals()
-     PintaBrw(oBrwG,10) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
+     PintaBrw(oBrwG,11) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
      // Activo el dialogo y al iniciar muevo a 0,0
      ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT oDlg:Move(0,0) VALID(oWnd1:End())
    ACTIVATE WINDOW oWnd1 ON INIT Incrusta( oWnd1, oDlg, .T.) VALID(cerrar())
@@ -828,7 +829,7 @@ RETURN .t.
 **********************************************************************************************
 STATIC FUNCTION ValidaArtP()
 LOCAL oQryPrecio,nPrecioven:=0
-    oQryArt:= oApp:oServer:Query("SELECT codigo,nombre,stockact,precioven,iva,fecmod,reventa,preciocos,endolares,marca,stockmin,impint "+;
+    oQryArt:= oApp:oServer:Query("SELECT codigo,nombre,stockact,precioven,iva,fecmod,reventa,preciocos,endolares,marca,stockmin,impint,stockotro "+;
                              "FROM ge_"+oApp:cId+"articu WHERE codigopro = "+ClipValue2Sql(oGet[39]:cText)) 
     
 

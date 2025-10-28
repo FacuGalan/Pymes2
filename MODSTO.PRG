@@ -6,7 +6,7 @@
 ** Modificacion manual de stock
 *************************************************
 MEMVAR oApp
-STATIC oQry, oWnd1, oBrw, oDlg, lEdit := .f., cVentana, oError
+STATIC oQry, oWnd1, oBrw, oDlg, lEdit := .f., cVentana, lVtoStock, oError
 PROCEDURE MODSTOCK(cPermisos)
 LOCAL oGet, cBuscar := SPACE(50), oBar, hHand, oFol, oMen, nOpt := 1,oGetSeek, cSeek := SPACE(50)
 cVentana := PROCNAME()
@@ -17,12 +17,10 @@ IF ASCAN(oApp:aVentanas,cVentana) > 0
    RETURN
 ENDIF
 AADD(oApp:aVentanas,cVentana)
-
+lVtoStock := oApp:oServer:Query( "SELECT lVtoStock FROM ge_"+oApp:cId+"parametros"):lVtoStock
    CursorWait()
    oQry  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"articu ORDER BY codigo")
   
-
-   
    // Defino el dialogo tomado del recurso ABMCAJA
    DEFINE WINDOW oWnd1 MDICHILD TITLE "Modific. manual de stock" ;
           OF oApp:oWnd NOZOOM ICON oApp:oIco
@@ -55,7 +53,12 @@ AADD(oApp:aVentanas,cVentana)
             TOOLTIP "Reporte de stock comprometido"  ;
             ACTION ReporteCom();
             PROMPT "Stock Comp." TOP WHEN("R"$cPermisos)        
-         
+         IF lVtoStock
+            DEFINE BUTTON RESOURCE "VENT1" OF oBar ;
+              TOOLTIP "Control de Vencimientos"  ;
+              ACTION ControlVto();
+              PROMPT "Control Vto" TOP WHEN("M"$cPermisos)        
+         ENDIF
          // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;
             TOOLTIP "Cerrar Ventana" ;
@@ -82,8 +85,8 @@ RETURN
 *****************************************************************************
 *****************************************************************************
 STATIC FUNCTION Formu ()
-LOCAL oGet := ARRAY(4), oBot := ARRAY(2), oForm, lRta := .F., aCor, base, nEntradas:= 0,;
-      nSalidas:= 0, nStock
+LOCAL oGet := ARRAY(5), oBot := ARRAY(2), oForm, lRta := .F., aCor, base, nEntradas:= 0,;
+      nSalidas:= 0, nStock,  dFecha := CTOD('  /  /    ')
      
       
    base := oQry:GetRowObj()
@@ -98,17 +101,20 @@ IF oApp:oServer:Query("SELECT stockact FROM ge_"+oApp:cId+"articu WHERE codigo =
 ENDIF
 
 
-DEFINE DIALOG oForm TITLE "Modificación manual de stock";
-   FROM 05,10 TO 17,50 OF oWnd1
+DEFINE DIALOG oForm TITLE "Modificación manual de stock" FROM 05,10 TO 17,IF(lVtoStock,70,50) OF oWnd1
    acor := AcepCanc(oForm)
    
-   @ 07, 20 SAY "Stock actual:" OF oForm PIXEL SIZE 40,20 RIGHT
-   @ 22, 20 SAY "Entradas:"     OF oForm PIXEL SIZE 40,20 RIGHT
-   @ 37, 20 SAY "Salidas:"      OF oForm PIXEL SIZE 40,20 RIGHT
-   @ 52, 20 SAY "Nuevo stock:"  OF oForm PIXEL SIZE 40,20 RIGHT
+   @ 07, 20 SAY "Stock actual:" OF oForm PIXEL SIZE 40,12 RIGHT
+   @ 22, 20 SAY "Entradas:"     OF oForm PIXEL SIZE 40,12 RIGHT
+   @ 37, 20 SAY "Salidas:"      OF oForm PIXEL SIZE 40,12 RIGHT
+   @ 52, 20 SAY "Nuevo stock:"  OF oForm PIXEL SIZE 40,12 RIGHT
  ******************************************************************
    @ 05, 70 GET oGet[1] VAR base:stockact OF oForm PIXEL PICTURE "9999999.999" RIGHT WHEN(.F.)
    @ 20, 70 GET oGet[2] VAR nEntradas OF oForm PIXEL PICTURE "999999.999" RIGHT
+   IF lVtoStock
+      @ 22,120 SAY "Vto:" OF oForm PIXEL SIZE 15,12 RIGHT
+      @ 20,140 GET oGet[5] VAR dFecha OF oForm PIXEL WHEN (nEntradas > 0)
+   ENDIF
    @ 35, 70 GET oGet[3] VAR nSalidas  OF oForm  PIXEL RIGHT PICTURE "999999.999"
    @ 50, 70 GET oGet[4] VAR nStock    OF oForm  PIXEL RIGHT  PICTURE "9999999.999";
      WHEN(( oGet[4]:cText := base:stockact - nSalidas + nEntradas) = "-9999999999")   
@@ -119,7 +125,6 @@ DEFINE DIALOG oForm TITLE "Modificación manual de stock";
            ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL
 
 ACTIVATE DIALOG oForm CENTER ON INIT oGet[1]:SetFocus()
-
 
 IF !lRta
    RETURN nil
@@ -136,6 +141,14 @@ TRY
    base:save()
    oApp:oServer:Insert("ge_"+oApp:cId+"stoman",{"codart","entradas","salidas","fecha","motivo","costo","usuario"},;
                            {base:codigo,nEntradas,nSalidas,DATE(),1,base:precossiva,oApp:usuario})
+   IF lVtoStock .and. nEntradas > 0 .and. !EMPTY(dFecha)
+      oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"stocklotes (codart,cantidad,restan,fechavto) VALUES "+;
+                          "("+STR(base:codigo)+","+;
+                          STR(nEntradas)+","+;
+                          STR(nEntradas)+","+;
+                          ClipValue2Sql(dFecha)+;
+                          ")") 
+   ENDIF
    oApp:oServer:CommitTransaction() 
 CATCH oError
  MsgInfo(oError:description)
@@ -529,7 +542,7 @@ cSql := " SELECT * FROM (" +;
        " (vd.cantidad * IF(LEFT(vd.nrofac,2)='NC',-1,1)) as salida, vd.fecha, vd.id, v.usuario as usuario FROM "+;
        " ge_"+oApp:cId+"ventas_det vd "+;       
        " LEFT JOIN ge_"+oApp:cId+"ventas_encab v ON CONCAT(v.ticomp,v.letra,v.numcomp) = vd.nrofac "+;       
-       " WHERE vd.codart = "+ClipValue2Sql(oQry:codigo)+;
+       " WHERE vd.punit > 0 AND vd.codart = "+ClipValue2Sql(oQry:codigo)+;
        " AND vd.fecha >= "+ClipValue2Sql(mdesde)+" AND vd.fecha <=  "+ClipValue2Sql(mhasta)+;
        " UNION "+;
        "SELECT nrorem as compro, 'Venta x Remito' as motivo, 0 as entrada, "+;
@@ -561,7 +574,9 @@ cSql := " SELECT * FROM (" +;
        " FROM  ge_"+oApp:cId+"reseta r "+; 
        " INNER JOIN  ge_"+oApp:cId+"ventas_det vd ON vd.codart = r.codart AND r.codusa = "+ClipValue2Sql(oQry:codigo)+; 
        " INNER JOIN ge_"+oApp:cId+"ventas_encab v ON CONCAT(v.ticomp,v.letra,v.numcomp) = vd.nrofac "+;
-       " WHERE vd.fecha >= "+ClipValue2Sql(mdesde)+" AND vd.fecha <=  "+ClipValue2Sql(mhasta)+;
+       " INNER JOIN ge_"+oApp:cId+"articu a ON a.codigo = vd.codart "+;
+       " WHERE vd.punit > 0 AND vd.fecha >= "+ClipValue2Sql(mdesde)+;
+       " AND vd.fecha <=  "+ClipValue2Sql(mhasta)+ " AND  a.stockotro IS TRUE "+;
        ") res ORDER BY res.fecha" 
 CursorWait()
 oQryRep = oApp:oServer:Query(cSql)
@@ -591,3 +606,149 @@ ACTIVATE REPORT oRep WHILE !oQryRep:EOF() ON INIT CursorArrow();
                 ON STARTGROUP oRep:NewLine() ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.BMP",.5,.5)
 oQryRep:End()
 RETURN NIL
+
+
+*********************************************************
+** Control de vencimientos 
+STATIC FUNCTION ControlVto()
+LOCAL oBot := ARRAY(6), oQryLot, oForm, lRta := .f., aCor, base, oError,;
+      oBrw1, oFont
+
+oQryLot:= oApp:oServer:Query("SELECT s.*, a.nombre FROM ge_"+oApp:cId+"stocklotes s "+;
+          " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = s.codart "+;
+          " WHERE s.fechavto >= CURDATE() or (s.fechavto < CURDATE() AND s.restan > 0)  ORDER BY s.fechavto ")
+DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
+
+DEFINE DIALOG oForm TITLE "Modificacion de lotes de stock";
+       FROM 05,15 TO 34,110 OF oWnd1 FONT oFont
+   @ 50,350 BUTTON oBot[3] PROMPT "Agr."  SIZE 20,12 OF oForm PIXEL ACTION(Modificar(oForm,oQryLot,.t.),oQryLot:Refresh(),;
+                                                                       oBrw1:Refresh())   
+   @ 70,350 BUTTON oBot[3] PROMPT "Mod."  SIZE 20,12 OF oForm PIXEL ACTION(Modificar(oForm,oQryLot),oQryLot:Refresh(),;
+                                                                       oBrw1:Refresh())   
+   @ 90,350 BUTTON oBot[4] PROMPT "Eli."  SIZE 20,12 OF oForm PIXEL ACTION(Eliminar(oForm,oQryLot),oQryLot:Refresh(),;
+                                                                       oBrw1:Refresh())   
+   @ 05, 05 XBROWSE oBrw1 DATASOURCE oQryLot ;
+           COLUMNS "id","codart","nombre","cantidad","restan","fechavto";
+           HEADERS "#","Codigo","Detalle del articulo","Origen","Restan","Vencimiento";
+           SIZES   40,100,250,70,70,80 OF oForm SIZE 340,190 AUTOSORT PIXEL   
+   oBrw1:CreateFromCode()  
+   oBrw1:nFreeze:= 3
+   PintaBrw(oBrw1,0) 
+   
+   acor := AcepCanc(oForm)
+   @ acor[1],080 BUTTON oBot[1] PROMPT "&Salir" OF oForm SIZE 40,10 ;
+           ACTION ((lRta := .t.), oForm:End() ) PIXEL   
+   @ acor[1],200 BUTTON oBot[5] PROMPT "Imprimir" OF oForm SIZE 40,12 ;
+            ACTION (oBrw1:Report("Lotes de Stock ",.T.,.F.),oForm:End()) PIXEL
+   @ acor[1],320 BUTTON oBot[6] PROMPT "Exportar" OF oForm SIZE 40,12 ;
+            ACTION (oBrw1:ToExcel(),oForm:End()) PIXEL   
+ACTIVATE DIALOG oForm CENTER 
+
+RETURN nil
+
+STATIC FUNCTION Modificar(oForm,oQryLot,lAlta)
+LOCAL oDlgA, oError, oQryArt, base, oGet1, oGet2, oGet3, oGet4, oGet5, oBot := ARRAY(2), lRta := .F. , aCor,;
+      cNomArt := SPACE(35), oQryArt1
+
+DEFAULT lAlta := .f.
+IF lAlta
+   oQryArt:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"stocklotes LIMIT 0 ")  
+   base := oQryArt:GetBlankRow()
+   base:id := oApp:oServer:GetAutoIncrement("ge_"+oApp:cId+"stocklotes")
+   oQryArt1:= oApp:oServer:Query("SELECT a.codigo AS codigo,a.nombre AS nombre,m.nombre AS Marca, "+;
+                              "r.nombre AS Rubro FROM ge_"+oApp:cId+"articu a "+;
+                              "LEFT JOIN ge_"+oApp:cId+"marcas m ON m.codigo = a.marca "+;
+                              "LEFT JOIN ge_"+oApp:cId+"rubros r ON r.codigo = a.rubro ")
+   ELSE 
+   oQryArt:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"stocklotes WHERE id = "+str(oQryLot:id)) 
+   oQryArt:lAppend:= .f.
+   base := oQryArt:GetRowObj()
+ENDIF
+DO WHILE .t.
+  DEFINE DIALOG oDlgA TITLE IF(lAlta,"Crear","Modificar")+" lote Stock" FROM 05,15 TO 17,90 OF oForm   
+     @ 12, 05 SAY "Artículo:"          OF oDlgA PIXEL SIZE 60,12 RIGHT   
+     @ 27, 05 SAY "Cantidad Origen:"   OF oDlgA PIXEL SIZE 60,12 RIGHT
+     @ 42, 05 SAY "Cantidad Restan:"   OF oDlgA PIXEL SIZE 60,12 RIGHT
+     @ 57, 05 SAY "Fecha Vencimiento:" OF oDlgA PIXEL SIZE 60,12 RIGHT
+     IF !lAlta
+        @ 10, 70 GET oGet1 VAR oQryLot:nombre OF oDlgA PIXEL WHEN(.F.) SIZE 120,12
+        ELSE
+        @ 10, 70 GET oGet1 VAR base:codart OF oDlgA PIXEL PICTURE "99999999999999" SIZE 45,12 RIGHT;
+                 VALID(BuscarArt(oQryArt1,oDlgA,oGet1,oGet5));
+                 ACTION (oGet1:cText:= 0, BuscarArt(oQryArt1,oDlgA,oGet1,oGet5)) BITMAP "BUSC1"
+        @ 10,120 GET oGet5 VAR cNomArt OF oDlgA PIXEL PICTURE "@!" WHEN(.f.)
+     ENDIF     
+     @ 25, 70 GET oGet2 VAR base:cantidad OF oDlgA PIXEL PICTURE "999999999.999" RIGHT WHEN(lAlta)
+     @ 40, 70 GET oGet3 VAR base:restan   OF oDlgA PIXEL PICTURE "999999999.999" RIGHT VALID(base:restan <= base:cantidad)
+     @ 55, 70 GET oGet4 VAR base:fechavto OF oDlgA PIXEL 
+     acor := AcepCanc(oDlgA)
+     @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Grabar" OF oDlgA SIZE 30,10 ;
+             ACTION ((lRta := .t.), oDlgA:End() ) PIXEL
+     @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oDlgA SIZE 30,10 ;
+             ACTION ((lRta := .f.), oDlgA:End() ) PIXEL CANCEL  
+  ACTIVATE DIALOG oDlgA CENTER 
+  IF !lRta
+     RETURN nil
+  ENDIF
+  IF EMPTY(base:fechavto) .or. base:cantidad <= 0
+     MsgStop("Valores no validos")
+     LOOP
+  ENDIF
+  EXIT
+ENDDO   
+IF lAlta
+   oQryArt:GetBlankRow()
+ENDIF
+TRY
+  oApp:oServer:BeginTransaction()   
+  oQryArt:oRow := base
+  oQryArt:Save()
+  oApp:oServer:CommitTransaction()
+CATCH oError
+    ValidaError(oError)
+END TRY
+RETURN nil
+
+STATIC FUNCTION Eliminar(oForm,oQryLot)
+LOCAL lRta := .f.
+lRta := MsgNoYes("Seguro de eliminar el lote?")
+IF lRta
+   oApp:oServer:BeginTransaction() 
+   oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"stocklotes WHERE id = "+STR(oQryLot:id))
+   oApp:oServer:CommitTransaction()
+ENDIF
+return nil 
+
+
+FUNCTION AvisoStock()
+LOCAL oQry, oDlg, oSay, oBot, aNueva, i,j, cVentana, oFont, oBrw1, lVtoStock
+lVtoStock := oApp:oServer:Query( "SELECT lVtoStock FROM ge_"+oApp:cId+"parametros"):lVtoStock
+IF !lVtoStock .or. !oApp:usua_es_supervisor
+   RETURN nil 
+ENDIF   
+oQry := oApp:oServer:Query("SELECT s.*, a.nombre FROM ge_"+oApp:cId+"stocklotes s "+;
+                          " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = s.codart "+;
+                          " WHERE s.fechavto <= CURDATE() AND s.restan > 0")
+
+IF oQry:nRecCount > 0
+   AADD(oApp:aVentanas,cVentana)
+   DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-13.5
+   DEFINE DIALOG oDlg TITLE "Alertas Stock" FROM 09,15 TO 28,135 OF oApp:oWnd
+   oDlg:lHelpIcon := .f.
+   //Reproduzco un sonido que esta guardado en el archivo ringin.wav
+   SndPlaySound("ringin.wav",1)
+   @ 01,001 BITMAP FILE "BITMAPS\ALERT.PNG" SIZE 65,140 ADJUST PIXEL OF oDlg NOBORDER
+   @ 01,080 XBROWSE oBrw1 DATASOURCE oQry SIZE 325,140 OF oDlg PIXEL ;
+       COLUMNS "id","fechavto","nombre","restan";
+       HEADERS "id","Fecha","Producto","Restantes";
+       SIZES   40,75,350,60   
+   PintaBrw(oBrw1,4)
+   oBrw1:nFreeze := 4 
+   oBrw1:CreateFromCode()
+   @01,408 GROUP TO 140,468  PIXEL OF oDlg 
+   @10,423 BUTTON oBot PROMPT "&Salir" OF oDlg SIZE 30,10 ACTION oDlg:End() PIXEL
+   @25,423 BUTTON oBot PROMPT "&Ir a Stock" OF oDlg SIZE 30,10 ACTION (oDlg:End(),MODSTOCK("ABMRE")) PIXEL WHEN(oQry:nRecCount>0)
+   ACTIVATE DIALOG oDlg CENTER ON INIT DlgOnTop( .t.,oDlg:hWnd )
+   RELEASE oFont 
+ENDIF
+RETURN nil

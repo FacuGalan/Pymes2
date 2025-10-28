@@ -400,28 +400,40 @@ STATIC FUNCTION LisStockAFecha(mfecha,lNoVendibles,nFiltro, nTipoArt,nOrden2,aOr
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, cSql, oError
 cSql := "SELECT * FROM ("+;
         "SELECT res.codigo,res.nombre, SUM(res.stockact) AS stockact, SUM(res.entradas) AS entradas, "+;
-        " SUM(res.salidas) AS salidas FROM ( "+;
-        "SELECT codigo, nombre, stockact, 0 AS entradas, 0 AS salidas FROM ge_"+oApp:cId+"articu "+;
+        " SUM(res.salidas) AS salidas, SUM(res.costo) as costo FROM ( "+;
+        "SELECT codigo, nombre, stockact, 0 AS entradas, 0 AS salidas, preciocos as costo FROM ge_"+oApp:cId+"articu "+;
         "UNION ALL "+;
         "SELECT s.codart AS codigo, a.nombre, 0 AS stockact, SUM(s.entradas) AS entradas, "+;
-        "SUM(s.salidas) AS salidas FROM ge_"+oApp:cId+"stoman s "+;
+        "SUM(s.salidas) AS salidas, 0 as costo FROM ge_"+oApp:cId+"stoman s "+;
         "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = s.codart "+;
         " WHERE s.fecha > "+ClipValue2Sql(mfecha)+" AND s.codart > 0 GROUP BY s.codart "+;
         "UNION ALL "+;
         "SELECT s.codart AS codigo, a.nombre,0 AS stockact, SUM(s.cantidad*IF(s.tipocomp='NC',-1,1)) AS entradas, "+;
-        " 0 AS salidas FROM ge_"+oApp:cId+"compradet s "+;
+        " 0 AS salidas , 0 as costo FROM ge_"+oApp:cId+"compradet s "+;
         "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = s.codart "+;
         "LEFT JOIN ge_"+oApp:cId+"compras c ON s.codpro = c.codpro "+;
         " AND CONCAT(s.tipocomp,s.letra,s.numfac) = CONCAT(c.tipocomp,c.letra,c.numfac) "+;
         "WHERE c.fecfac > "+ClipValue2Sql(mfecha)+" AND s.codart > 0 GROUP BY s.codart "+;
         "UNION ALL  "+;
         "SELECT s.codart AS codigo, a.nombre,0 AS stockact, 0 AS entradas, "+;
-        "SUM(s.cantidad) AS salidas FROM ge_"+oApp:cId+"emp_consumoint s "+;
+        "SUM(s.cantidad) AS salidas, 0 as costo FROM ge_"+oApp:cId+"emp_consumoint s "+;
         "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = s.codart "+;
         "WHERE s.fecha > "+ClipValue2Sql(mfecha)+" AND s.codart > 0 GROUP BY s.codart "+;
         "UNION ALL  "+;
+        "SELECT r.codart AS codigo, r.detart AS nombre,0 AS stockact, 0 AS entradas, "+;
+        "SUM(r.cantidad) AS salidas, 0 as costo FROM ge_"+oApp:cId+"remitos r "+;
+        "WHERE r.fecha > "+ClipValue2Sql(mfecha)+" AND r.codart > 0 AND NOT r.facturado GROUP BY r.codart "+;
+        " UNION ALL "+;
+       " SELECT r.codusa as codigo, a.nombre as nombre, 0 AS stockact,"+;
+       " 0 as entradas, vd.cantidad * r.cantidad * IF(LEFT(vd.nrofac,2) = 'NC',-1,1) AS salidas, 0 as costo "+;
+       " FROM  ge_"+oApp:cId+"reseta r "+; 
+       " INNER JOIN  ge_"+oApp:cId+"articu a ON a.codigo = r.codusa "+; 
+       " INNER JOIN  ge_"+oApp:cId+"ventas_det vd ON vd.codart = r.codart "+; 
+       " WHERE vd.fecha > "+ClipValue2Sql(mfecha)+;
+       " AND vd.codart IS NOT NULL "+;
+        "UNION ALL  "+;        
         "SELECT s.codart AS codigo, a.nombre,0 AS stockact, 0 AS entradas, "+;
-        "SUM(s.cantidad*IF(LEFT(s.nrofac,2)='NC',-1,1)) AS salidas FROM ge_"+oApp:cId+"ventas_det s "+;
+        "SUM(s.cantidad*IF(LEFT(s.nrofac,2)='NC',-1,1)) AS salidas, 0 as costo FROM ge_"+oApp:cId+"ventas_det s "+;
         "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = s.codart "+;
         "WHERE s.fecha > "+ClipValue2Sql(mfecha)+" AND s.codart > 0 GROUP BY s.codart) res "+;
         " GROUP BY res.codigo) res2 LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = res2.codigo  WHERE 1=1  "
@@ -457,6 +469,8 @@ COLUMN TITLE "Salidas posteriores"    DATA oQry:salidas   ;
               SIZE 15 FONT 2 PICTURE "99999999.999"
 COLUMN TITLE "Stock Ahora"    DATA oQry:stockact   ;
               SIZE 15 FONT 2 PICTURE "99999999.999"
+COLUMN TITLE "Valorizacion"    DATA oQry:costo * oQry:stockact   ;
+              SIZE 15 FONT 2 PICTURE "99999999999.99" TOTAL
 
 oRep:oTitle:aFont[1] := {|| 3 }
 oRep:bInit := {|| oQry:GoTop() }

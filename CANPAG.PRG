@@ -169,6 +169,3 @@ FOR i := 1 TO LEN(oApp:aVentanas)
 NEXT i
 oApp:aVentanas := ACLONE(aNueva)
 RETURN .t.
-
- 
-

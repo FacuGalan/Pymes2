@@ -9,17 +9,21 @@ FUNCTION Punto()
 LOCAL oGet1, oGet2, oGet3, oGet4, oGet5, oGet6, oGet7, oGet8, oGet9, oGet10,;
       oGet11, oGet12, oGet13, oGet14, oGet15, oGet16, oGet17, oGet18, oGet19, oGet20, ;
       oGet21, oGet22, oGet23, oGet24, oGet25, oGet26, oGet27, oGet28, oGet29, oGet30, oGet31, oGet32, oGet33,;
+      oGet34, oGet35, oGet36,;
       oBot1, oBot2, oBot3, oDlg1, base, hHand, oQry, oError, aCor, mrta := .f.,;
       aCobrar := {"Cobro Salon","Cobro distribucion","Cobro ambos"}, oFont,;
       aTipos :={"Facturacion electronica","Facturacion con control. fiscal"}, aTipoC:={"Codigo interno","Codigo de barras"},;
       aStock :={"Avisar falta de stock","Prohibir falta de stock","No controlar stock"},;
       aCosto :={"No controlar costo","Avisar venta debajo de costo","Prohibir venta debajo de costo"},;
       aMayo  :={"Mayorista","Minorista"},;
-      oGru, oGetC, oGetT, aImp := aGetPrinters(), nImp, nCosto 
+      aListaPos := {"Elije Libre","Asigna Lista 1","Asigna Lista 2"},;
+      oGru, oGetC, oGetT, aImp := aGetPrinters(), nImp, nCosto,;
+      oQryPun := oApp:oServer:Query( "SELECT caja as codigo, nombre FROM ge_"+oApp:cId+"punto WHERE caja <> "+str(oApp:prefijo)) 
 
 oQry:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = " + ClipValue2Sql(oApp:cIp))
 base:=oQry:GetRowObj() 
-nCosto := base:validacosto + 1     
+nCosto := base:validacosto + 1  
+base:lispreclientepos := base:lispreclientepos + 1   
 IF oQry:nRecCount = 0
    MsgStop("Esta terminal no es un punto de venta habilitado!!")
    oQry:End()
@@ -28,7 +32,7 @@ ENDIF
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 
 DO WHILE .T.
-DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 38,75 OF oApp:oWnd ICON oApp:oIco FONT oFont
+DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 40,75 OF oApp:oWnd ICON oApp:oIco FONT oFont
    acor := AcepCanc(oDlg1)   
    
    @ 07, 05 SAY "Ultima Fact. A:"      OF oDlg1 PIXEL SIZE 55,12 RIGHT
@@ -61,6 +65,7 @@ DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 38,75 OF oApp
    @202, 60 SAY "Desde:" OF oDlg1 PIXEL SIZE 35,12 RIGHT
    @202,160 SAY "Hasta:" OF oDlg1 PIXEL SIZE 35,12 RIGHT
    @217, 05 SAY "Limite Facturacion:" OF oDlg1 PIXEL SIZE 55,12 RIGHT
+   @232,120 SAY "A caja:" OF oDlg1 PIXEL SIZE 35,12 RIGHT
    
    @ 05, 65 GET oGet1 VAR base:facturaa PICTURE "99999999" OF oDlg1 PIXEL RIGHT WHEN(.F.)
    @ 05,150 GET oGet2 VAR base:facturab PICTURE "99999999" OF oDlg1 PIXEL RIGHT WHEN(.F.)
@@ -106,8 +111,13 @@ DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 38,75 OF oApp
    @200,195 GET oGet32 VAR base:hastahora2 OF oDlg1 PIXEL PICTURE "99:99:99" WHEN(base:cierrexhora) 
    @215, 65 GET oGet33 VAR base:limitefacturacion OF oDlg1 PIXEL PICTURE "999999999.99" RIGHT
    oGet33:cToolTip := "Este limite impide que facture por encima de ese importe, dejar en 0 para omitir"
-   
-   
+   @215,150 COMBOBOX oGet34 VAR base:lispreclientepos ITEMS aListaPos OF oDlg1 PIXEL SIZE 85,12
+   oGet34:cToolTip := "Para alta de clientes en POS que lista de precios permite asignar?"
+   @230, 05 CHECKBOX oGet35 VAR base:transfiereefec PROMPT "Transfiere efectivo al cierre" OF oDlg1 PIXEL SIZE 95,12
+   oGet35:cToolTip := "Transferir el importe resultante de efectivo a la caja indicada al cierre del turno"
+   @230, 155 GET oGet36 VAR base:transfierecaja OF oDlg1 PICTURE "9999" WHEN(base:transfiereefec) RIGHT PIXEL SIZE 30,12;
+            VALID(Buscar(oQryPun,oDlg1,oGet36,,,,,, 'caja'));
+            ACTION ((oGet36:cText := 0,Buscar(oQryPun,oDlg1,oGet36,,,,,, 'caja'))) BITMAP "BUSC1" 
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Grabar" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
@@ -123,6 +133,7 @@ base:preguntaimpr := IF(base:imprimeTic,base:preguntaimpr,.f.)
 oApp:usavales := base:usavales
 oApp:sonarpedidos := base:sonarpedidos
 base:validacosto := nCosto - 1
+base:lispreclientepos := base:lispreclientepos - 1
 
 oQry:oRow := base
 TRY

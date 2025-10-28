@@ -7,7 +7,7 @@
 MEMVAR oApp
 STATIC oWnd1, oBrw, oDlg, cVentana,oQry, oQryBrw,nIvaArt, nCant,oQryIvaDet,oBrwIvas,oBrwRet,lIncluido, ;
        oQryComprasDet, oQryCue, oQryPro, oQryArt,  oQryIva, oQryTip, oQryRet, oQryCom, oGet, oBot, base, baseDet,;
-       oQry2,oQry3,oQry4,oQry5,oQry6,oQry7,nCodpro,cNumRe1,cNumRe2,oBrwDet,lPaga, lUsoPedido
+       oQry2,oQry3,oQry4,oQry5,oQry6,oQry7,nCodpro,cNumRe1,cNumRe2,oBrwDet,lPaga, lUsoPedido, lNoComputarIVA
 PROCEDURE Compras(cPermisos) 
 LOCAL oBar, hHand
 cVentana := PROCNAME()
@@ -98,11 +98,12 @@ RETURN
 
 
 STATIC FUNCTION Formu(lAlta)
-LOCAL oGet:=ARRAY(46),oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTipoComp, nBultos:=0,;
+LOCAL oGet:=ARRAY(48),oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTipoComp, nBultos:=0,;
       cNomPro,  cCuit, cConIva, cNomCue, nDeuda, nCodArt, cDetArt, nCantidad, oError, i, lAgenda := .f.,;
       nPunit, nPTotal, cNomRet1, cNomRet2, cNomRet3, cNomRet4, cNomRet5, oDlg1, oQryDoc,nRenglon,;
       nSaldoIni:=0, nImporteIni:=0,oQryCodigos,nMaximo,nOrden, lPuedeCobrar, oQryPedPen, cInPed, cNumCompAnt,;
-      dCierrecompras := oApp:oServer:Query( "SELECT cierrecompra FROM ge_"+oApp:cId+"parametros"):cierrecompra
+      dCierrecompras := oApp:oServer:Query( "SELECT cierrecompra FROM ge_"+oApp:cId+"parametros"):cierrecompra,;
+      lVtoStock := oApp:oServer:Query( "SELECT lVtoStock FROM ge_"+oApp:cId+"parametros"):lVtoStock
 lUsoPedido := {} 
 lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHERE (usuario="+;
         ClipValue2SQL(oApp:usuario)+ " AND modulo = 'ORDPAG' AND permisos = 'ABMRE') ORDER BY codigo"):nRecCount > 0
@@ -131,6 +132,7 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
     +"`CANTIDAD` DECIMAL(12,3) DEFAULT '0',";
     +"`CODIVA` DECIMAL(2) DEFAULT '0.00',";
     +"`CODIGOPRO` VARCHAR(30) NOT NULL DEFAULT '                             0',";
+    +"`FECHAVTO` DATE NOT NULL DEFAULT '0000-00-00',";
     +" PRIMARY KEY (RENGLON)) ENGINE=INNODB DEFAULT CHARSET=utf8")   
   oApp:oServer:NextResult()
   oApp:oServer:Execute("TRUNCATE comprasdet_H")
@@ -178,6 +180,7 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
         
   aTipoDoc:={"Factura","Nota de credito","Nota de debito","Presupuesto","Remito"}
   lPaga:=.f.
+  lNoComputarIVA:=.f.
   DEFINE FONT oFontTotal NAME "ARIAL" SIZE 12,30
   IF lAlta
     oQry    := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"compras LIMIT 0")
@@ -201,6 +204,7 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
     cNumRe1:=LEFT(base:numfac,4)
     cNumRe2:=RIGHT(base:numfac,8)
     cNumCompAnt := base:numfac
+    lNoComputarIVA:= base:lNoComputaIVA
     DO CASE
        CASE base:tipocomp = "FC"
            nTipoComp = 1
@@ -245,7 +249,10 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
     oDlg1:lHelpIcon := .f.
     REDEFINE COMBOBOX oGet[01] VAR nTipoComp ITEMS aTipoDoc ID 110 OF oDlg1 WHEN(lAlta)      
     REDEFINE GET oGet[02] VAR base:letra   ID 111  OF oDlg1 VALID( base:letra $ "ABCRMXE") WHEN(lAlta)
-    oGet[2]:bLostFocus := {|| IF(oGet[2]:cText = 'X',(base:imputaiva:=.f.,oGet[14]:Refresh()),(base:imputaiva:=.t.,oGet[14]:Refresh()))}
+    
+    oGet[2]:bLostFocus := {|| (IF(oGet[2]:cText = 'X',(base:imputaiva:=.f.,oGet[14]:Refresh()),(base:imputaiva:=.t.,oGet[14]:Refresh())),;
+                               IF(oGet[2]:cText $ 'XBC',(lNoComputarIVA:=.T.,oGet[22]:Refresh()),(lNoComputarIVA:=.F.,oGet[22]:Refresh())))}
+
     REDEFINE GET oGet[03] VAR cNumRe1      ID 500 OF oDlg1 PICTURE "9999" ;
                 VALID((oGet[03]:cText:= STRTRAN(STR(VAL(oGet[03]:cText),4)," ","0")) <> "xxx")
     oGet[03]:bGotFocus:={|| oGet[03]:SelectAll()}
@@ -270,6 +277,9 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
     REDEFINE CHECKBOX oGet[14] VAR base:imputaiva   ID 123 OF oDlg1 
     REDEFINE CHECKBOX oGet[45] VAR lPaga   ID 4026 OF oDlg1  WHEN(lPuedeCobrar .and. lAlta)
     REDEFINE GET oGet[16] VAR base:observa    ID 125 OF oDlg1 PICTURE "@!"
+
+    REDEFINE CHECKBOX oGet[22] VAR lNoComputarIVA   ID 4027 OF oDlg1 WHEN(oQryComprasDet:RecCount() = 0)
+
     REDEFINE GET oGet[17] VAR baseDet:codart  ID 126 OF oDlg1; 
                  VALID(basedet:codart = 0 .OR. ValidaArt(oDlg1,oGet));
                  ACTION (oGet[17]:cText:= 0, ValidaArt(oDlg1,oGet)) BITMAP "BUSC1" PICTURE "99999999999999"
@@ -283,6 +293,9 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
     REDEFINE GET oGet[20] VAR basedet:punit  ID 129 OF oDlg1 PICTURE "999999999.99" WHEN(.F.)
     REDEFINE GET oGet[21] VAR basedet:total  ID 130 OF oDlg1 PICTURE "999999999.99" WHEN(.F.)
 
+    REDEFINE GET oGet[47] VAR basedet:fechavto  ID 4019 OF oDlg1 
+    REDEFINE SAY oGet[48] ID 4000 OF oDlg1 
+
     REDEFINE BUTTON oBot[1] ID 131 OF oDlg1 ACTION(oQryComprasDet:lAppend:=.t.,AgregarItem(oGet,nTipoComp),oBrwDet:MakeTotals(),;
                                                                oQryComprasDet:GetBlankRow(),;
                                                                CalcTot(oGet,.T.),oBot[1]:oJump := oGet[17]);
@@ -291,10 +304,10 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
 
     //GRILLA ---------------------------------------------------------------      
     REDEFINE XBROWSE oBrwDet DATASOURCE oQryComprasDet;
-       COLUMNS "CODART","DETART","CANTIDAD","PUNIT","DESC1","DESC2","DESC3","DESC4","DESC5","NETO_UNIT","NETO","IVA","TOTAL";
-       HEADERS "Codigo","Articulo","Cantidad","P. Unit","Desc. 1","Desc. 2","Desc. 3","Desc. 4","Desc. 5","Net. Un.","Neto","I.V.A","Total";
+       COLUMNS "CODART","DETART","CANTIDAD","PUNIT","DESC1","DESC2","DESC3","DESC4","DESC5","NETO_UNIT","NETO","IVA","TOTAL","FECHAVTO";
+       HEADERS "Codigo","Articulo","Cantidad","P. Unit","Desc. 1","Desc. 2","Desc. 3","Desc. 4","Desc. 5","Net. Un.","Neto","I.V.A","Total","Vto Stock";
        FOOTERS ;
-       SIZES 50,260,60,55,45,45,45,45,45,60,60,60,80;
+       SIZES 50,260,60,55,45,45,45,45,45,60,60,60,80,80;
        ID 132 OF oDlg1 WHEN(oQryComprasDet:nRecCount > 0)
     PintaBrw(oBrwDet,0)
 
@@ -319,6 +332,14 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
     oBrwDet:aCols[9]:lAutoSave := .t.
     oBrwDet:aCols[9]:nEditType := EDIT_GET 
     oBrwDet:aCols[9]:bOnPostEdit := {|oCol, xVal, nKey | CambiaCant(,,oGet,,,,,xval)}
+    IF !lVtoStock .OR. !lAlta
+       oBrwDet:aCols[14]:Hide()
+       ELSE       
+       oBrwDet:aCols[14]:nEditType := EDIT_GET 
+       oBrwDet:aCols[14]:lAutoSave := .T.
+       oBrwDet:aCols[14]:bOnPostEdit := {|oCol, xVal, nKey | CambiaFec(xval)}
+    ENDIF  
+
 
     oDlg1:bKeyDown = { | nKey, nFlags | IF(nKey==120,(oGet[17]:nLastkey:=11,oBot[3]:Click),.t.) }
     oBrwDet:bKeyDown := { |nKey| IF (nKey == VK_DELETE,(oQryComprasDet:lAppend := .f., oQryComprasDet:Delete(),;
@@ -381,7 +402,8 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
 
     REDEFINE BUTTON oBot[7] ID 4011 OF oDlg1 ACTION(BuscaPedidos(base,oGet)) WHEN(lAlta .and. base:codpro > 0)    
     //ACTiVACION   ---------------------------------------------------------------
-    ACTIVATE DIALOG oDlg1 CENTER ON INIT IF(!lAlta,ValidaPro(oGet,lAlta,oDlg1),.f.) 
+    ACTIVATE DIALOG oDlg1 CENTER ON INIT ;
+    IF(!lAlta,(ValidaPro(oGet,lAlta,oDlg1),oGet[47]:Hide(),oGet[48]:Hide()),IF(!lVtoStock,(oGet[47]:Hide(),oGet[48]:Hide()),nil)) 
 
 IF !lRta
    RETURN nil
@@ -413,7 +435,7 @@ IF nSaldoIni = nImporteIni
 ENDIF
 
 base:numfac:=cNumRe1+"-"+cNumRe2
-
+base:lNoComputaIVA := lNoComputarIVA
 IF lAlta
    oQry:GetBlankRow()
    IF lPaga
@@ -587,6 +609,10 @@ TRY
                  " VALUES ("+ClipValue2Sql(base:fecvto)+",'08:00','08:30','Vence FC "+base:numfac+" "+alltrim(cNomPro)+"',"+;
                  ClipValue2Sql(oApp:usuario)+",0,1)") 
   ENDIF
+  IF lAlta .and. lVtoStock 
+     oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"stocklotes (codart,cantidad,restan,fechavto) "+;
+                          "(SELECT codart,cantidad,cantidad,fechavto FROM comprasdet_H WHERE fechavto >= CURDATE())") 
+  ENDIF
   oApp:oServer:CommitTransaction()
 CATCH oError
     MsgStop("Error al grabar"+CHR(10)+oError:description,"Error")
@@ -609,7 +635,7 @@ RETURN nil
 ** Actualizar precios de articulo 
 STATIC FUNCTION ActualizaPrecios(oGet1,oWnd)
 LOCAL base1 := oQryComprasDet:GetRowObj(), oForm,oGet:=ARRAY(46),oQryAux,baseArt,oBot:=ARRAY(2),lRta:=.f.,;
-      nNeto:=0,cIvaNom:=SPACE(15),oError
+      nNeto:=0,cIvaNom:=SPACE(15),oError, nPrecio
 
 
 oQryAux:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu WHERE codigo = " + ClipValue2Sql(base1:codart))
@@ -618,7 +644,7 @@ oQry3:GoTop()
 IF oQry3:Seek(baseArt:iva,1) > 0
   cIvaNom := STR(oQry3:tasa,6,2) + "%"
 ENDIF
-
+nPrecio:=base1:punit
 DO WHILE .T.
 DEFINE DIALOG oForm TITLE "Actualizar precios de " RESOURCE "PRECIOCOMP" OF oWnd
  oForm:lHelpIcon := .f.
@@ -669,23 +695,38 @@ baseArt:usuario:= oApp:usuario
 baseArt:fecmod := DATE()
 baseArt:ip     := oApp:cIp
 
-ActualizarGrupo(baseArt)
 
-base1:total := base1:cantidad * baseArt:precossiva
+ActualizarGrupo(baseArt)
+base1:desc1    := baseArt:desc1
+base1:desc2    := baseArt:desc2
+base1:desc3    := baseArt:desc3
+base1:desc4    := baseArt:desc4
+base1:desc5    := baseArt:desc5
+IF base1:siniva 
+   base1:total := base1:cantidad * nNeto
+   ELSE 
+   base1:total := base1:cantidad * nNeto * (1+oApp:oServer:Query("SELECT tasa FROM ge_"+oApp:cId+"ivas WHERE codigo = "+ClipValue2Sql(base1:codiva)):tasa/100)
+ENDIF   
 base1:codiva := oApp:oServer:Query("SELECT iva FROM ge_"+oApp:cId+"articu WHERE codigo = "+ClipValue2Sql(base1:codart)):iva
 IF base1:siniva
- base1:neto:= base1:total
- base1:iva := base1:total * oApp:oServer:Query("SELECT tasa FROM ge_"+oApp:cId+"ivas WHERE codigo = "+ClipValue2Sql(base1:codiva)):tasa/100
- base1:total := base1:neto + base1:iva 
-ELSE
- base1:neto:= base1:total / (1+ oApp:oServer:Query("SELECT tasa FROM ge_"+oApp:cId+"ivas WHERE codigo = "+ClipValue2Sql(basedet:codiva)):tasa/100)
- base1:iva := base1:total - base1:neto 
+   base1:neto:= base1:total
+   base1:iva := base1:total * oApp:oServer:Query("SELECT tasa FROM ge_"+oApp:cId+"ivas WHERE codigo = "+ClipValue2Sql(base1:codiva)):tasa/100
+   base1:total := base1:neto + base1:iva  
+   ELSE
+   base1:neto:= base1:total / (1+ oApp:oServer:Query("SELECT tasa FROM ge_"+oApp:cId+"ivas WHERE codigo = "+ClipValue2Sql(basedet:codiva)):tasa/100)
+   base1:iva := base1:total - base1:neto 
 ENDIF
 
 base1:punit    := baseArt:precossiva
-
-oQryComprasDet:lAppend:= .f.
+IF lNoComputarIVA
+   //base1:neto := base1:cantidad * base1:punit
+   base1:total := base1:neto
+   base1:iva  := 0
+   //base1:total := base1:cantidad * base1:punit
+ENDIF
+base1:neto_unit:= base1:neto / base1:cantidad
 oQryComprasDet:oRow := base1
+oQryComprasDet:lAppend:= .f.
 oQryAux:oRow := baseArt
 TRY
   oApp:oServer:BeginTransaction()  
@@ -722,13 +763,7 @@ CATCH oError
 END TRY
 EXIT
 ENDDO
-
-oQryComprasDet:Refresh()
-oBrwDet:Refresh()
-oBrwDet:Maketotals()
 CalcTot(oGet1,.T.)
-
-
 RETURN nil
 
 
@@ -757,10 +792,20 @@ oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"articu SET precossiva = "+ClipValue2
                      "WHERE codigo IN (SELECT codart FROM ge_"+oApp:cId+"gruposdet WHERE codgru = "+ClipValue2Sql(nGrupo)+")")
 RETURN nil
 
+
+STATIC FUNCTION CambiaFec(xval)
+LOCAL base1 := oQryComprasDet:GetRowObj()
+base1:fechavto := xval 
+oQryComprasDet:lAppend:= .f.
+oQryComprasDet:oRow := base1
+oQryComprasDet:Save()
+oBrwDet:Refresh()
+RETURN nil
+
 *****************************************
 ** Cambiar pendientes
 STATIC FUNCTION CambiaCant(n,nPUnit,oGet,nDesc1,nDesc2,nDesc3,nDesc4,nDesc5)
-LOCAL base1 := oQryComprasDet:GetRowObj()
+LOCAL base1 := oQryComprasDet:GetRowObj(), lCant := n
 DEFAULT n := base1:cantidad,nPUnit:= base1:punit,nDesc1:=base1:desc1,nDesc2:=base1:desc2,nDesc3:=base1:desc3,nDesc4:=base1:desc4,nDesc5:=base1:desc5
 
 base1:codiva := oApp:oServer:Query("SELECT iva FROM ge_"+oApp:cId+"articu WHERE codigo = "+ClipValue2Sql(base1:codart)):iva
@@ -790,13 +835,19 @@ base1:desc4:= nDesc4
 base1:desc5:= nDesc5
 base1:cantidad := n 
 base1:punit    := nPUnit
+IF lNoComputarIVA
+   base1:neto := base1:neto_unit*n
+   base1:iva  := 0
+   base1:total := base1:neto_unit*n
+ENDIF
 oQryComprasDet:lAppend:= .f.
 oQryComprasDet:oRow := base1
 oQryComprasDet:Save()
-oQryComprasDet:Refresh()
-oBrwDet:Refresh()
-oBrwDet:Maketotals()
-CalcTot(oGet,.T.)
+//oQryComprasDet:Refresh()
+//oBrwDet:Refresh()
+//oBrwDet:Maketotals()
+
+CalcTot(oGet,.T.,IF(lCant==nil,nil,{oBrwDet:aCols[11],oBrwDet:aCols[12],oBrwDet:aCols[13]}))
 
 RETURN nil
 
@@ -896,11 +947,11 @@ RETURN .t.
 
 **********************************************************************************************
 ***** CALCULAR IMPORTE FINAL
-STATIC FUNCTION CalcTot(oGet,lCalcular)
+STATIC FUNCTION CalcTot(oGet,lCalcular, aCols)
 IF lCalcular
   oQryComprasDet:Refresh()
   oBrwDet:Refresh()
-  oBrwDet:MakeTotals()
+  oBrwDet:MakeTotals(aCols)
   oApp:oServer:NextResult()
   oApp:oServer:Execute("TRUNCATE ivas_temp")
   oApp:oServer:NextResult()
@@ -916,7 +967,9 @@ oBrwRet:MakeTotals()
 oBrwIvas:MakeTotals()
 oGet[42]:cText:= (oBrwIvas:aCols[3]:nTotal + oBrwIvas:aCols[4]:nTotal +  oBrwRet:aCols[3]:nTotal + base:nograbado) *;
                  IF( oGet[1]:nAt = 5,0,1) 
-                       
+IF lNoComputarIVA
+   oGet[42]:cText := oBrwRet:aCols[3]:nTotal + base:nograbado + oBrwDet:aCols[13]:nTotal 
+ENDIF
 oGet[42]:Refresh()
 RETURN .t.
 
@@ -1003,7 +1056,11 @@ LOCAL oQryDoc,oQryArt
      basedet:iva := basedet:neto * oApp:oServer:Query("SELECT tasa FROM ge_"+oApp:cId+"ivas WHERE codigo = "+ClipValue2Sql(basedet:codiva)):tasa/100
      basedet:total := basedet:neto + basedet:iva
      basedet:neto_unit:= basedet:neto / basedet:cantidad
-   
+     IF lNoComputarIVA
+        basedet:total := basedet:neto_unit * basedet:cantidad//basedet:neto
+        basedet:neto:= basedet:total//basedet:neto
+        basedet:iva:=0
+     ENDIF
 
    oQryComprasDet:lAppend:= .t.
    oQryComprasDet:oRow := basedet 
@@ -1013,7 +1070,9 @@ LOCAL oQryDoc,oQryArt
    oBrwDet:GoBottom()
   ENDIF 
    oGet[15]:cText:= SPACE(30)
-   oGet[17]:SetFocus()
+   oGet[17]:SetFocus()   
+   oGet[47]:cText:= CTOD('  /  /    ')
+   CambiaCant(basedet:cantidad,,oGet)
 RETURN .T.
 
                             
@@ -1101,16 +1160,17 @@ IF !mrta
 ENDIF
 TRY
   oApp:oServer:BeginTransaction()
-  oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"compras WHERE tipocomp = " + ClipValue2Sql(oQryBrw:tipocomp)+" "+;
-                       "AND letra = " + ClipValue2Sql(oQryBrw:letra)+" "+;
-                       "AND numfac = " + ClipValue2Sql(oQryBrw:numfac)+" "+;
-                       "AND codpro = " + ClipValue2Sql(oQryBrw:codpro))
-   oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"compradet c LEFT JOIN ge_"+oApp:cId+"articu a ON c.codart = a.codigo "+;
+  Auditar(1," "+oQryBrw:tipocomp+oQryBrw:letra+" "+oQryBrw:numfac+ " $"+STR(oQryBrw:importe,12,2)+" "+oQryBrw:nompro)
+  oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"compradet c LEFT JOIN ge_"+oApp:cId+"articu a ON c.codart = a.codigo "+;
                        "SET a.stockact = a.stockact - IF(c.tipocomp='NC',c.cantidad*(-1),c.cantidad) " +;
                        "WHERE c.tipocomp = " + ClipValue2Sql(oQryBrw:tipocomp)+" "+;
                        "AND c.letra = " + ClipValue2Sql(oQryBrw:letra)+" "+;
                        "AND c.codpro = " + ClipValue2Sql(oQryBrw:codpro)+" "+;
                        "AND c.numfac = " + ClipValue2Sql(oQryBrw:numfac))
+  oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"compras WHERE tipocomp = " + ClipValue2Sql(oQryBrw:tipocomp)+" "+;
+                       "AND letra = " + ClipValue2Sql(oQryBrw:letra)+" "+;
+                       "AND numfac = " + ClipValue2Sql(oQryBrw:numfac)+" "+;
+                       "AND codpro = " + ClipValue2Sql(oQryBrw:codpro))   
    oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"compradet WHERE tipocomp = " + ClipValue2Sql(oQryBrw:tipocomp)+" "+;
                        "AND letra = " + ClipValue2Sql(oQryBrw:letra)+" "+;
                        "AND codpro = " + ClipValue2Sql(oQryBrw:codpro)+" "+;
@@ -1118,7 +1178,7 @@ TRY
    oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"compivadet WHERE tipocomp = " + ClipValue2Sql(oQryBrw:tipocomp)+" "+;
                        "AND letra = " + ClipValue2Sql(oQryBrw:letra)+" "+;
                        "AND codpro = " + ClipValue2Sql(oQryBrw:codpro)+" "+;
-                       "AND numfac = " + ClipValue2Sql(oQryBrw:numfac))                    
+                       "AND numfac = " + ClipValue2Sql(oQryBrw:numfac))        
   oApp:oServer:CommitTransaction()
   oQryBrw:Refresh(.f.)
 CATCH oError

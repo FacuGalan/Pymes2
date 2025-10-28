@@ -6,7 +6,7 @@
 ** ABM Listas de precios especiales
 *************************************************
 MEMVAR oApp
-STATIC oQry, oWnd1, oBrw, oDlg, cVentana,nPorc,nLisBase
+STATIC oQry, oWnd1, oBrw, oDlg, cVentana,nPorc,nLisBase, lFiltra
 PROCEDURE ABMLISPRE(cPermisos)
 LOCAL oBar, hHand
 cVentana := PROCNAME()
@@ -47,7 +47,11 @@ oQry  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"lispre ORDER BY nombr
          DEFINE BUTTON RESOURCE "IMPR" OF oBar ;
             TOOLTIP "Imprimir Lista de Precios"  ;
             ACTION ListaPre();
-            PROMPT "Listas" TOP WHEN("R"$cPermisos)   
+            PROMPT "Listas" TOP WHEN("R"$cPermisos) 
+         DEFINE BUTTON RESOURCE "IMPR" OF oBar ;
+            TOOLTIP "Imprimir Listas Totales"  ;
+            ACTION ListaPreTot();
+            PROMPT "Listas Comp." TOP WHEN("R"$cPermisos)   
          DEFINE BUTTON RESOURCE "PROMO" OF oBar ;
             TOOLTIP "Promociones"  ;
             ACTION (oWnd1:End(),Promociones(cPermisos));
@@ -81,15 +85,16 @@ RETURN
 ***************************************
 ** Formulario de altas y modificaciones
 STATIC FUNCTION Formu ( lAlta)
-LOCAL oGet := ARRAY(9), oBot := ARRAY(6),oQryPar,oQryEnt,oQryPro, oForm, lRta := .f., aCor, base, oError,;
+LOCAL oGet := ARRAY(9), oBot := ARRAY(7),oQryPar,oQryEnt,oQryPro, oForm, lRta := .f., aCor, base, oError,;
       oBrw1,oBrw2,oFont,aListas:={"Lista 1","Lista 2","Precio de costo"}, oGetSeek, cSeek := SPACE(60)
-
+lFiltra := .f.
 oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS `transi_lispre` ("+;
                            "`codigo` BIGINT(13) NOT NULL,"+;
                            "`nombre` VARCHAR(200),"+;
                            "`numpre` INT(1),"+;
                            "`porc` DECIMAL(5,2),"+;
-                           "`precio` DECIMAL(12,2),"+;
+                           "`precio` DECIMAL(12,3),"+;
+                           "`nosale` TINYINT(1) DEFAULT 0,"+;
                            "PRIMARY KEY (codigo,nombre)) ENGINE=INNODB DEFAULT CHARSET=latin1")
 oApp:oServer:NextResult()
 oApp:oServer:Execute("TRUNCATE transi_lispre ")
@@ -103,8 +108,8 @@ IF lAlta
    ELSE
    oQryPro:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre WHERE codigo = " +ClipValue2Sql(oQry:codigo))
    base := oQryPro:GetRowObj()
-   oApp:oServer:Execute("INSERT INTO transi_lispre (codigo,nombre,numpre,porc,precio) "+;
-                     "SELECT p.codart,a.nombre,p.numpre,p.porc,p.precio FROM ge_"+oApp:cId+"lispredet p LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = p.codart "+;
+   oApp:oServer:Execute("INSERT INTO transi_lispre (codigo,nombre,numpre,porc,precio,nosale) "+;
+                     "SELECT p.codart,a.nombre,p.numpre,p.porc,p.precio,a.nosale FROM ge_"+oApp:cId+"lispredet p LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = p.codart "+;
                      "WHERE p.codlis = " + ClipValue2Sql(oQry:codigo))
    oApp:oServer:NextResult()
 ENDIF
@@ -135,12 +140,16 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de lista de precio
    @ 35,160 BUTTON oBot[4] PROMPT "+ +" SIZE 20,12 OF oForm PIXEL ACTION(AgregaArtGen(oForm),oQryPar:Refresh(),;
                                                                        oBrw1:Refresh())
 
-   @ 35,200 BUTTON oBot[4] PROMPT "Actualizar" SIZE 40,12 OF oForm PIXEL ACTION(ActualizarPre(base:codigo),oQryPar:Refresh(),;
+   @ 35,185 BUTTON oBot[4] PROMPT "Actualizar" SIZE 35,12 OF oForm PIXEL ACTION(ActualizarPre(base:codigo),oQryPar:Refresh(),;
                                                                        oBrw1:Refresh())
+   @ 35,225 BUTTON oBot[7] PROMPT "Redondear" SIZE 35,12 OF oForm PIXEL ACTION(Redondear(),oQryPar:Refresh(),;
+                                                                       oBrw1:Refresh())
+   @ 05, 70 CHECKBOX oGet[4] VAR lFiltra PROMPT "Solo Vendibles" PIXEL SIZE 80,12 OF oForm ;
+            ON CHANGE FiltrarVendibles(oGet[4], oQryPar,oBrw1)
    @ 60, 05 XBROWSE oBrw1 DATASOURCE oQryPar ;
-           COLUMNS "codigo","nombre","porc","precio","numpre";
-           HEADERS "Codigo","Detalle del articulo","% Incr.","Precio","Base";
-           SIZES   50,290,50,60,100 OF oForm SIZE 250,120 AUTOSORT PIXEL
+           COLUMNS "codigo","nombre","porc","precio","numpre","nosale";
+           HEADERS "Codigo","Detalle del articulo","% Incr.","Precio","Base","Obs.";
+           SIZES   50,290,50,60,100,70 OF oForm SIZE 250,120 AUTOSORT PIXEL
    @187, 05 SAY "Filtrar:" SIZE 20,15 OF oForm PIXEL 
    @185, 30 GET oGetSeek VAR cSeek OF oForm PIXEL     
    oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt(oQryPar, oGetSeek, oBrw1, nKey) }      
@@ -153,7 +162,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de lista de precio
    oBrw1:aCols[5]:bStrData := {|| IF(oQryPar:RecCount()>0,IF(oQryPar:numpre=1,'Lista 1',IF(oQryPar:numpre=2,'Lista 2','Precio costo')),nil)}
 
    oBrw1:bKeyDown := { |nKey| IF (nKey == VK_DELETE,(BorrarArt(oQryPar:codigo),oQryPar:Refresh(),oBrw1:Refresh()),)}
-
+   oBrw1:aCols[6]:bEditValue:= {|| IF(oQryPar:nosale,'Inactivo',' ') }  
    acor := AcepCanc(oForm)
    @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Grabar (F9)" OF oForm SIZE 30,10 ;
            ACTION ((lRta := .t.), oForm:End() ) PIXEL
@@ -188,6 +197,18 @@ END TRY
 EXIT
 ENDDO
 RETURN nil
+
+***********************************
+** Filtrar Vendibles
+STATIC FUNCTION FiltrarVendibles(oGet, oQryPar,oBrw1)
+IF oGet:lChecked
+   oQryPar:SetNewFilter(SET_WHERE,"nosale IS FALSE",.t.)
+   ELSE 
+   oQryPar:SetNewFilter(SET_WHERE,"TRUE",.t.)
+ENDIF 
+oQryPar:Refresh()
+oBrw1:Refresh()
+RETURN nil   
 
 ************************************************************************************************************
 ************ ACTUALIZAR PRECIOS DE LOS ARTICULOS 
@@ -428,3 +449,128 @@ CATCH oError
 END TRY
 oBrw:Refresh()
 RETURN nil 
+
+
+****************************************************
+** Lista de precios completa 
+STATIC FUNCTION ListaPreTot()
+LOCAL cSql , oQry 
+Procesando(.t.)
+oQry := oApp:oServer:Query("SELECT "+;
+                           " GROUP_CONCAT( "+;
+                           " DISTINCT CONCAT( "+;
+                           "    'MAX(CASE WHEN LD.codlis = ', "+;
+                           "    LC.codigo, "+;
+                           "    ' THEN LD.precio END) AS `', "+;
+                           "    LC.nombre, "+;
+                           "    '`'"+;
+                           " ) "+;
+                           " ) as cSql "+;
+                          "FROM ge_"+oApp:cId+"lispre LC")
+cSql := oQry:cSql 
+oQry :=  oApp:oServer:Query(" SELECT "+;
+                            " A.codigo, "+;
+                            " A.nombre, "+;
+                            " A.precioven as Lista_1,  "+;                             
+                            " A.reventa  as Lista_2, "+;
+                            " A.stockact  as Stock, "+;
+                            " M.nombre  as Marca,"+;
+                            " R.nombre  as Rubro,"+;
+                            " P.nombre  as Proveedor,"+;
+                            cSql +;
+                          " FROM "+;
+                          "     ge_"+oApp:cId+"articu A "+;
+                          " LEFT JOIN "+;
+                          "     ge_"+oApp:cId+"marcas M ON M.codigo = A.marca "+;
+                          " LEFT JOIN "+;
+                          "     ge_"+oApp:cId+"rubros R ON R.codigo = A.rubro "+;
+                          " LEFT JOIN "+;
+                          "     ge_"+oApp:cId+"provee P ON P.codigo = A.prov "+;
+                          " LEFT JOIN "+;
+                          "     ge_"+oApp:cId+"lispredet LD ON A.codigo = LD.codart "+;
+                          " GROUP BY "+;
+                          "     A.codigo, A.nombre, A.precioven, A.stockact, A.reventa "+;
+                          " ORDER BY "+;
+                          "     A.codigo ")
+Procesando(.f.)
+Show(oQry)
+RETURN nil 
+
+
+*************************************************
+** Visualizar consulta
+*************************************************
+STATIC function Show(oQryRes)
+
+   local oDlg, oFont, oBrw, aCor, i, t
+
+
+   DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-12
+   DEFINE DIALOG oDlg SIZE 950,500 PIXEL TRUEPIXEL  FONT oFont ;
+      TITLE "RESULTADO DEL REPORTE PERSONALIZADO"
+   oDlg:lHelpIcon := .f.
+   @  40,05 XBROWSE oBrw SIZE -20,-20 PIXEL OF oDlg ;
+      DATASOURCE oQryRes AUTOCOLS CELL LINES NOBORDER FOOTERS
+
+   XbrSetupBar( oBrw,oDlg )
+
+   WITH OBJECT oBrw
+      :CreateFromCode()
+      :MakeTotals()
+   END
+   PintaBrw(oBrw,0)
+   ACTIVATE DIALOG oDlg CENTERED
+   RELEASE FONT oFont
+return nil
+
+STATIC function XbrSetupBar( oBrw,oDlg )   
+      local oBtn
+      @ 05,05 BTNBMP oBtn RESOURCE "EXCE" SIZE 36,36 PIXEL OF oDlg NOBORDER ;
+        ACTION oBrw:ToExcel() TOOLTIP "Exportar a Excel"
+      @ 05,45 BTNBMP oBtn RESOURCE "REPORT" SIZE 36,36 PIXEL OF oDlg NOBORDER ;
+        ACTION oBrw:Report() TOOLTIP "Reporte impreso"  
+      @ 05,85 BTNBMP oBtn RESOURCE "SALE" SIZE 36,36 PIXEL OF oDlg NOBORDER ;
+        ACTION oDlg:End() TOOLTIP "Salir"      
+return nil
+
+
+*******************************************
+** Redondear precios
+STATIC FUNCTION Redondear()
+LOCAL i := 0
+LOCAL oBot := ARRAY(2), oForm, lRta := .F., aCor, base, oError, oQry, oGet := ARRAY(1),;
+      nRedondeo := 2,;
+      aRedondeo := {"Sin Redondear","Entero","Multiplo de 10","Multiplo de 50","Multiplo de 100"}
+
+
+DEFINE DIALOG oForm TITLE "Redondear Listas de precios";
+       FROM 05,15 TO 12,60 OF oDlg FONT oApp:oFont
+   
+   @ 07, 05 SAY "Redondear?:"   OF oForm PIXEL SIZE 40,12 RIGHT
+   @ 05, 50 COMBOBOX oGet[1] VAR nRedondeo ITEMS aRedondeo OF oForm PIXEL SIZE 55,12   
+  
+   acor := AcepCanc(oForm)
+   @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Procesar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .t.), oForm:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL
+
+ACTIVATE DIALOG oForm CENTER
+IF !lRta 
+   RETURN nil 
+ENDIF 
+DO CASE 
+       CASE nRedondeo = 1
+       CASE nRedondeo = 2
+            oApp:oServer:Execute("UPDATE transi_lispre SET precio = ROUND(precio,0)") 
+       CASE nRedondeo = 3
+            oApp:oServer:Execute("UPDATE transi_lispre SET precio = ROUND(precio,-1)") 
+            oApp:oServer:Execute("UPDATE transi_lispre SET precio = 10 WHERE precio = 0") 
+       CASE nRedondeo = 4
+            oApp:oServer:Execute("UPDATE transi_lispre SET precio = ROUND(precio / 50) * 50") 
+            oApp:oServer:Execute("UPDATE transi_lispre SET precio = 50 WHERE precio = 0")             
+       CASE nRedondeo = 5
+            oApp:oServer:Execute("UPDATE transi_lispre SET precio = ROUND(precio,-2)") 
+            oApp:oServer:Execute("UPDATE transi_lispre SET precio = 100 WHERE precio = 0") 
+ENDCASE
+RETURN .t.

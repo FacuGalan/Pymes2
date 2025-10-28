@@ -386,10 +386,11 @@ RETURN nil
 
 
 STATIC FUNCTION ReImpr()
-LOCAL oQryDet
-oQryDet := oApp:oServer:Query("SELECT codart,detart,cantidad,auto as bultos FROM ge_"+oApp:cId+;
+LOCAL oQryDet, cFacRemitada
+oQryDet := oApp:oServer:Query("SELECT codart,detart,cantidad,auto as bultos, factura FROM ge_"+oApp:cId+;
 	       "remitos WHERE nrorem = "+ClipValue2SQL(oQry:nrorem))
-PrintRemito(oQryDet,,, RIGHT(oQry:nrorem,13),oQry:codcli)
+cFacRemitada := IF(EMPTY(oQryDet:factura),"",oQryDet:factura)
+PrintRemito(oQryDet,,, RIGHT(oQry:nrorem,13),oQry:codcli,cFacRemitada)
 RETURN NIL
 
 

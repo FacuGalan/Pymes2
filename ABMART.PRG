@@ -11,7 +11,7 @@ MEMVAR oApp
 STATIC oQryBrw,oQry, oQry2, oQry3, oQry4, oQry5, oQry6, oQry7 ,;
        oWnd1, oBrw, oDlg, cVentana,oBrw1, oQryArt,oQryPun , lTipoArt, nActivos,cWhere
 PROCEDURE Artic(cPermisos)
-LOCAL oBar, hHand, oGetSeek, cSeek := SPACE(50), oPop2
+LOCAL oBar, hHand, oGetSeek, cSeek := SPACE(50), oPop2, oPop3
 cVentana := PROCNAME()
 IF ASCAN(oApp:aVentanas,cVentana) > 0
    hHand := ASCAN(oApp:aVentanas,cVentana)
@@ -24,7 +24,7 @@ AADD(oApp:aVentanas,cVentana)
 
 nActivos:= 1
 cWhere:=''
-oQryBrw:= oApp:oServer:Query("SELECT a.codigo,a.codigopro,a.nombre,a.stockact,a.Preciocos,a.Precioven,a.reventa,a.fecmod,a.observa,a.nosale,p.nombre AS nompro "+;
+oQryBrw:= oApp:oServer:Query("SELECT a.codigo,a.codigopro,a.nombre,a.stockact,a.Preciocos,a.Precioven,a.reventa,a.fecmod,LEFT(a.observa,50) AS observa,a.nosale,p.nombre AS nompro "+;
                              "FROM ge_"+oApp:cId+"articu a "+;
                              "LEFT JOIN ge_"+oApp:cId+"provee p ON a.prov = p.codigo "+;
                              "ORDER BY a.nombre")
@@ -32,6 +32,15 @@ MENU oPop2 POPUP
      MENUITEM "Todos los productos"  ACTION (FiltrarVen(nil),oGetSeek:SetFocus())
      MENUITEM "Solo Vendibles"       ACTION (FiltrarVen(.t.),oGetSeek:SetFocus())
      MENUITEM "Solo No vendibles"    ACTION (FiltrarVen(.f.),oGetSeek:SetFocus())
+ENDMENU
+
+MENU oPop3 POPUP
+     IF "M"$cPermisos         
+        MENUITEM "Historial de precios"   ACTION (Historial(),oGetSeek:SetFocus())
+     ENDIF   
+     IF "A"$cPermisos
+        MENUITEM "Historial de ventas"    ACTION (HistorialVentas(),oGetSeek:SetFocus())
+     ENDIF   
 ENDMENU
 
    oQry2  := oApp:oServer:Query( "SELECT codigo,nombre,alias FROM ge_"+oApp:cId+"provee ORDER BY codigo")
@@ -76,11 +85,15 @@ ENDMENU
          DEFINE BUTTON RESOURCE "PRECIO" OF oBar ;
             TOOLTIP "Ver historial de precios"  ;
             ACTION (Historial(),oBrw:Refresh(),oGetSeek:SetFocus());
-            PROMPT "Historial" TOP WHEN(oQryBrw:RecCount()>0 .and. "M"$cPermisos)    
-         DEFINE BUTTON RESOURCE "IMPOR" OF oBar ;
-            TOOLTIP "Importar Registros"  ;
-            ACTION (Importar(), oBrw:Refresh(),oGetSeek:SetFocus());
-            PROMPT "Importar" TOP WHEN("A"$cPermisos)    
+            PROMPT "Historial" TOP WHEN(oQryBrw:RecCount()>0 .and. "M"$cPermisos)  MENU oPop3   
+         DEFINE BUTTON RESOURCE "BACKU" OF oBar ;
+            TOOLTIP "Importar Articulos"  ;
+            ACTION Importar();
+            PROMPT "Importar" TOP WHEN("A"$cPermisos)
+         DEFINE BUTTON RESOURCE "CONFIRMA" OF oBar ;
+            TOOLTIP "Info del producto, participacion en listas, grupos, recetas"  ;
+            ACTION Info();
+            PROMPT "Info" TOP WHEN("M"$cPermisos)    
          DEFINE BUTTON RESOURCE "ARTI" OF oBar ;
             TOOLTIP "Cambiar el Codigo / Codigo de barras"  ;
             ACTION (Cambiar(), oBrw:Refresh(),oGetSeek:SetFocus());
@@ -89,14 +102,10 @@ ENDMENU
             TOOLTIP "Buscar por codigo"  ;
             ACTION (BuscarxCod(), oBrw:Refresh(),oGetSeek:SetFocus());
             PROMPT "Buscar" TOP WHEN(oQryBrw:RecCount()>0 .and. "M"$cPermisos)    
-         DEFINE BUTTON RESOURCE "POS" OF oBar ;
-            TOOLTIP "Ver el historial de ventas"  ;
-            ACTION (HistorialVentas(),oGetSeek:SetFocus());
-            PROMPT "Hist.Ventas" TOP  WHEN(oQryBrw:RecCount()>0 .and. "A"$cPermisos)     
          DEFINE BUTTON RESOURCE "PROD" OF oBar ;
             TOOLTIP "Reporte de Recetas"  ;
             ACTION (RepRecetas(),oGetSeek:SetFocus());
-            PROMPT "Lista Rec." TOP WHEN("R"$cPermisos)
+            PROMPT "Lista Rec." TOP WHEN("R"$cPermisos)         
          // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;
             TOOLTIP "Cerrar Ventana" ;
@@ -129,8 +138,9 @@ ENDMENU
      
      oQryBrw:bOnChangePage := {|| oBrw:Refresh() }
      //oBrw:aCols[3]:SetOrder()
-     oBrw:bKeyDown := {|nKey,nFlags| (Acelerador2(nKey,oBar, oBrw,cPermisos,8),oGetSeek:SetFocus())}
+     oBrw:bKeyDown := {|nKey,nFlags| (Acelerador2(nKey,oBar, oBrw,cPermisos,8),IF(nKey>32,oGetSeek:SetFocus(),nil))}
      oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt2(oQryBrw, oGetSeek, oBrw, nKey,cWhere) }
+     oBrw:aCols[ 9 ]:cSortOrder := LEFT(oQryBrw:observa,10)
      //oBrw:SetDolphin(oQry,.f.,.t.)
      // Activo el dialogo y al iniciar muevo a 0,0
      ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT (oGetSeek:SetFocus(),oDlg:Move(0,0),FiltrarVen(.t.)) VALID(oWnd1:End())
@@ -142,7 +152,7 @@ RETURN
 *************************************
 ** Agregar un registro nuevo
 STATIC FUNCTION Formu (lAlta,nCodArt)
-LOCAL oGet := ARRAY(53), oBot := ARRAY(8), oForm, lRta := .F., aCor, base, cProve:=SPACE(30), nNeto,;
+LOCAL oGet := ARRAY(54), oBot := ARRAY(8), oForm, lRta := .F., aCor, base, cProve:=SPACE(30), nNeto,;
       cIvaNom:=SPACE(30), cMarc:=SPACE(30), cRub:=SPACE(30), cDept:=SPACE(30), cEmp:=SPACE(30), nIva,oError,nPrecioven:=0,nPreciocos:=0,;
       nova1,nova2,oSay:=ARRAY(8),oGru:=ARRAY(2), mstock := 0, lActualizaGrupo := .f.
 IF !lAlta .and. nCodArt = 0
@@ -288,6 +298,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Articulo" RESOU
   REDEFINE GET oGet[33] VAR base:stockide   ID 134 OF oForm PICTURE "99999999.99"
   REDEFINE CHECKBOX oGet[53] VAR base:stockotro  ID 4005 OF oForm WHEN(!base:produccion)
   REDEFINE BUTTON oBot[8] ID 4015 OF oForm ACTION (Reseta(base,oForm,.f.)) WHEN (base:stockotro)
+  REDEFINE GET oGet[54] VAR base:condicioncompra   ID 4020 OF oForm 
 
   REDEFINE GET oGet[36] VAR base:observa    ID 136 OF oForm 
 
@@ -597,7 +608,7 @@ RETURN .t.
 ***********************************************************************************
 ******** Duplicar registro
 STATIC FUNCTION Duplicar()
-LOCAL oGet := ARRAY(53), oBot := ARRAY(8), oForm, lRta := .F., aCor, base, cProve:=SPACE(30), nNeto,;
+LOCAL oGet := ARRAY(54), oBot := ARRAY(8), oForm, lRta := .F., aCor, base, cProve:=SPACE(30), nNeto,;
       cIvaNom:=SPACE(30), cMarc:=SPACE(30), cRub:=SPACE(30), cDept:=SPACE(30), cEmp:=SPACE(30), nIva,oError,nPrecioven:=0,;
       nova1,nova2,oSay:=ARRAY(8),oGru:=ARRAY(2)
  
@@ -736,6 +747,8 @@ REDEFINE GET oGet[01] VAR base:codigo PICTURE "99999999999999" ID 100 OF oForm
   REDEFINE GET oGet[33] VAR base:stockide   ID 134 OF oForm PICTURE "99999999.99"
   REDEFINE CHECKBOX oGet[53] VAR base:stockotro  ID 4005 OF oForm WHEN(.f.)
   REDEFINE BUTTON oBot[8] ID 4015 OF oForm ACTION (Reseta(base,oForm,.f.)) WHEN (.f.)
+
+  REDEFINE GET oGet[54] VAR base:condicioncompra   ID 4020 OF oForm 
 
   REDEFINE GET oGet[36] VAR base:observa    ID 136 OF oForm PICTURE "@!"
 
@@ -1529,6 +1542,8 @@ TRY
        " WHERE codart = "+ClipValue2Sql(oQryBrw:codigo))
    oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"stoman SET codart = "+ClipValue2SQL(nCodNue)+;
        " WHERE codart = "+ClipValue2Sql(oQryBrw:codigo))
+   oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"pedidos_det SET codart = "+ClipValue2SQL(nCodNue)+;
+       " WHERE codart = "+ClipValue2Sql(oQryBrw:codigo))
    oApp:oServer:CommitTransaction()
 CATCH oError
    MsgStop("Error al Cambiar"+CHR(10)+oError:description,"Error")
@@ -1696,3 +1711,35 @@ base:SetNewFilter(SET_WHERE,cFiltro,.t.)
 // Se refresca el listbox
 oLbx:refresh()
 RETURN .T.
+
+
+STATIC FUNCTION Info()
+LOCAL aTabla, oQryInfo, oDlg, oBot , oFont
+oQryInfo := oApp:oServer:Query(""+;
+"SELECT 'Está en lista de precio' AS concepto, l.nombre AS detalle FROM ge_"+oApp:cId+"lispredet ld  "+;
+"LEFT JOIN ge_"+oApp:cId+"lispre l ON ld.codlis = l.codigo WHERE ld.codart = "+ClipValue2Sql(oQryBrw:codigo)+" "+;
+"UNION ALL  "+;
+"SELECT 'Participa en receta / Stock otro' AS concepto, a.nombre AS detalle FROM ge_"+oApp:cId+"reseta r  "+;
+"LEFT JOIN ge_"+oApp:cId+"articu a ON r.codart = a.codigo WHERE r.codusa = "+ClipValue2Sql(oQryBrw:codigo)+" "+;
+"UNION ALL "+;
+"SELECT 'Participa en grupo precios' AS concepto, l.nombre AS detalle FROM ge_"+oApp:cId+"gruposdet ld  "+;
+"LEFT JOIN ge_"+oApp:cId+"grupos l ON ld.codgru = l.codigo WHERE ld.codart = "+ClipValue2Sql(oQryBrw:codigo)+" "+;
+IF(oApp:oServer:TableExist("ge_"+oApp:cId+"promociones"),;
+"UNION ALL "+;
+"SELECT 'Aplica en promocion' AS concepto, nompromo AS detalle FROM ge_"+oApp:cId+"promociones  "+;
+"WHERE codart = "+ClipValue2Sql(oQryBrw:codigo)+" ","")) 
+DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-13.5
+DEFINE DIALOG oDlg TITLE "Info del Producto" FROM 09,15 TO 28,135 OF oApp:oWnd
+   oDlg:lHelpIcon := .f.
+   @ 01,001 BITMAP RESOURCE "CONFIRMA" SIZE 65,140 ADJUST PIXEL OF oDlg NOBORDER
+   @ 01,080 XBROWSE oBrw1 DATASOURCE oQryInfo SIZE 325,140 OF oDlg PIXEL ;
+       COLUMNS "concepto","detalle";
+       HEADERS "Concepto","Detalle";
+       SIZES   350,350
+   PintaBrw(oBrw1,2)
+   oBrw1:nFreeze := 2 
+   oBrw1:CreateFromCode()
+   @01,408 GROUP TO 140,468  PIXEL OF oDlg 
+   @10,423 BUTTON oBot PROMPT "&Salir" OF oDlg SIZE 30,10 ACTION oDlg:End() PIXEL   
+ACTIVATE DIALOG oDlg CENTER 
+RETURN nil

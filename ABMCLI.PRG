@@ -105,7 +105,7 @@ RETURN
 *************************************
 ** Agregar un registro nuevo
 STATIC FUNCTION Formu (lAlta)
-LOCAL oGet:=ARRAY(27), oBot1, oBot2, oBot3, oDlg1,base,oError, ;
+LOCAL oGet:=ARRAY(28), oBot1, oBot2, oBot3, oDlg1,base,oError, ;
       aListas:={"Lista 1","Lista 2"},cLisPre:="SIN LISTA ESPECIAL"+SPACE(31),;
       oQryLisPre:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre"),oQry1,;
       aEstado := {"Activo","Inactivo"}, nEstado, nCuit := 0, cObserva := "",;
@@ -234,7 +234,7 @@ DEFINE DIALOG oDlg1 TITLE IF(lAlta,"Alta","Modificacion") + " de Clientes" FROM 
            ACTION (DevolverAnt(base,oDlg1),oDlg1:End() ) PIXEL 
       ENDIF
    ENDIF
-
+   @200,250 CHECKBOX oGet[28] VAR base:excluyepromo PROMPT "Excluir de promos" OF oDlg1 PIXEL SIZE 70,12
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Grabar" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;

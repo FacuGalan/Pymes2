@@ -10,10 +10,10 @@ STATIC oWnd1, nTipoEmp, nTipoFac, nTipoDoc, cVentana, oGet, oQryArt, oQryCli, oQ
        oBrw, oSay1, oDlg,cNumComp,lReventa,nConIva,oQryPun,nDescArt,nDescArt1,nLista,;
        nEfecti, nTarjet, nCheque, nCtaCte, nMPago, nCuotas, nPuntoVta, cLetra,nLisPre,cObserva,nPorIva,;
        cDetArt, nDescuGen, nCodIva, nTotal, nForPag, nRubro, nDeuda,oQryChe,mpagado,manticipo,dFecha,nTransfe,cVendedor,;
-       oQryLisPre,aFormaNom,aFormaInc,aFormaTip,nFormaPago, nUltimoCli
+       oQryLisPre,aFormaNom,aFormaInc,aFormaTip,nFormaPago, nUltimoCli,nCodCli
 
 PROCEDURE FACREM() 
-LOCAL oBot := ARRAY(7), hHand , aTipoIva, aTipoDoc, nCodCli:=0, cNomCli:=SPACE(30), cDireccion:=SPACE(30), cLocalidad:=SPACE(30),;
+LOCAL oBot := ARRAY(7), hHand , aTipoIva, aTipoDoc, cNomCli:=SPACE(30), cDireccion:=SPACE(30), cLocalidad:=SPACE(30),;
       cCUIT:=SPACE(13), nCodArt:=0, nCantidad:=0, nPunit:=0, nPtotal:=0, nTipoCli:=0, nNeto:=0, ;
       nIVA:=0, dFecha, dFecIni, dFecFin,  oFontLetra, oFontTotal,aVendedores,oQryUsua,cLisPre:="SIN LISTA ESPECIAL"+SPACE(31),;
       nDNI := 0, nTiArt,oQryIvaT, cRubNom := SPACE(30),nIngBru:=0,nIngBruP:=0,cCodArtP := SPACE(30), oQryFormas
@@ -36,11 +36,11 @@ aTipoiva  := {;
 "7 Sujeto no Categorizado",;
 "8 Proveedor del Exterior",;
 "9 Cliente del Exterior",;
-"10  IVA Liberado – Ley Nº 19.640",;
-"11  IVA Responsable Inscripto – Agente de Percepción",;
-"12  Pequeño Contribuyente Eventual",;
+"10  IVA Liberado â€“ Ley NÂº 19.640",;
+"11  IVA Responsable Inscripto â€“ Agente de PercepciÃ³n",;
+"12  PequeÃ±o Contribuyente Eventual",;
 "13  Monotributista Social",;
-"14  Pequeño Contribuyente Eventual Social",;
+"14  PequeÃ±o Contribuyente Eventual Social",;
 "15  IVA NO Alcanzado"}
   
   
@@ -75,6 +75,7 @@ oApp:oServer:Execute("";
 
 oApp:oServer:NextResult()
 nUltimoCli := 0
+nCodCli:=0
 IF oApp:usua_es_vendedor
    cVendedor:= oApp:usuario
 ELSE 
@@ -92,7 +93,7 @@ ENDDO
 oQryDet :=oApp:oServer:Query("SELECT * FROM VENTAS_DET_H3")
 oQryDet:ZAP()
 
-aTipoDoc := {"Factura","Nota de Débito","Nota de Crédito"}
+aTipoDoc := {"Factura","Nota de DÃ©bito","Nota de CrÃ©dito"}
 nTipoDoc := 1 
 oQryRub :=oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"rubros")
 oQryPar := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros")
@@ -320,7 +321,7 @@ RETURN .t.
 
 **********************************************************************************************
 STATIC FUNCTION ValidaArtP()
-    oQryArt:= oApp:oServer:Query("SELECT codigo,nombre,stockact,precioven,iva,fecmod,reventa,preciocos,endolares,marca "+;
+oQryArt:= oApp:oServer:Query("SELECT codigo,nombre,stockact,precioven,iva,fecmod,reventa,preciocos,endolares,marca "+;
                              "FROM ge_"+oApp:cId+"articu WHERE codigopro = "+ClipValue2Sql(oGet[39]:cText)) 
     
 
@@ -361,7 +362,7 @@ LOCAL oQryIva, nTotalcIva, nIvaPes, nCodIva1, nSubTotal, nDescuento,;
 IF nTiArt = 1
    /*IF oQryPun:pidestock = 1 .and. oQryArt:stockact-oGet[16]:value < 0
       lRta:=MsgYesNo("El articulo que esta facturando esta fuera de stock,"+CHR(10)+;
-              "verifique su disponibilidad ¿Desea continuar?"+CHR(10)+;
+              "verifique su disponibilidad Â¿Desea continuar?"+CHR(10)+;
               "Stock actual: "+ALLTRIM(STR(oQryArt:stockact)),"Atencion")
       IF !lRta 
          RETURN .f.
@@ -465,7 +466,7 @@ oQryAux := oApp:oServer:Query("SELECT* FROM ge_"+oApp:cId+"articu WHERE codigo =
   //Valido que tenga stock el producto cuando no es stock de otro
    IF oQryPun:pidestock = 1 .and. oQryAux:stockact-nCanti < 0 .and. !oQryAux:stockotro
       lRta:=MsgYesNo("El articulo que esta facturando esta fuera de stock,"+CHR(10)+;
-              "verifique su disponibilidad ¿Desea continuar?"+CHR(10)+;
+              "verifique su disponibilidad Â¿Desea continuar?"+CHR(10)+;
               "Stock actual: "+ALLTRIM(STR(oQryAux:stockact)),"Atencion")
       IF !lRta 
          RETURN .f.
@@ -482,7 +483,7 @@ oQryAux := oApp:oServer:Query("SELECT* FROM ge_"+oApp:cId+"articu WHERE codigo =
       IF oQryS:nRecCount > 0
           lRta:=MsgYesNo("El articulo que esta facturando tiene receta, y los articulos"+chr(10)+;
                   "que la componen estan fuera de stock,"+CHR(10)+;
-                  "verifique su disponibilidad ¿Desea continuar?","Atencion")
+                  "verifique su disponibilidad Â¿Desea continuar?","Atencion")
           IF !lRta 
              RETURN .f.
           ENDIF                
@@ -689,7 +690,8 @@ RETURN nil
 *******************************************************************************************
 ******* MOSTRAR REMITOS A FACTURAR
 STATIC FUNCTION BuscaRemitos(nCodCli,oGet)
-LOCAL oDlg1,oBrwRem,oQryRem,oBot1,oBot2,acor:=ARRAY(4),mRta:=.f., cRemitos := ""
+LOCAL oDlg1,oBrwRem,oQryRem,oBot1,oBot2,acor:=ARRAY(4),mRta:=.f., cRemitos := "", lRespetaPrecios := .f.,;
+      oChe
 oGet[23]:cText := SPACE(100)
 oQryDet:ZAP()
 oBrw:Refresh()
@@ -705,10 +707,10 @@ oApp:oServer:Execute("INSERT INTO remitos_temp (tilde,numrem,fecha) "+;
                      "AND r.facturado = 0 GROUP BY r.nrorem )")
 oQryRem:= oApp:oServer:Query("SELECT * FROM remitos_temp ORDER BY fecha,numrem")
 
-DEFINE DIALOG oDlg1 TITLE "Remitos a facturar" OF oWnd1 FROM 05,15 TO 21,65
+DEFINE DIALOG oDlg1 TITLE "Remitos a facturar" OF oWnd1 FROM 05,15 TO 23,65
     oDlg1:lHelpIcon:=.f.
-
-@ 05,05 XBROWSE oBrwRem DATASOURCE oQryRem;
+@ 05,05 CHECKBOX oChe VAR lRespetaPrecios PROMPT "Respetar precios cargados" SIZE 100, 12 of oDlg1 PIXEL 
+@ 20,05 XBROWSE oBrwRem DATASOURCE oQryRem;
                  COLUMNS "tilde","numrem","fecha";    
                  HEADERS " ","Numero","Fecha";
                  SIZES 40,120,70;
@@ -759,39 +761,39 @@ oApp:oServer:Execute("INSERT INTO VENTAS_DET_H3 (codart,detart,cantidad,ptotal,n
                       "GROUP BY r.codart )")
 */
 ** ATENCION!!! CADA CHOCLO ES PRECIO VENTA CALCULADO == "+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+",1)
-
-oApp:oServer:Execute("INSERT INTO VENTAS_DET_H3 (codart,detart,cantidad,punit,ptotal,neto,iva,codiva,descuento,stotal,costo,descup,bultos,DEREMITO) "+;
-                      "(SELECT r.codart,r.detart,SUM(r.cantidad),"+;
-                      "(("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
-                      ",1))) ,"+; //punitario
-                      "SUM( ("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
-                      ",1)+"+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+",1)*(r.incrp*-1/100))*r.cantidad ),"+; //ptotal
-                      "SUM( (("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
-                      ",1))*r.cantidad) / (1+i.tasa/100) ),"+; //neto
-                      "SUM( ("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
-                      ",1)+"+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+",1)*(r.incrp*-1/100))*r.cantidad - "+;
-                      " (("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
-                      ",1)+"+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
-                      ",1)*r.incrp*-1/100)*r.cantidad) / (1+i.tasa/100) ),codiva,"+; //iva
-                      "SUM(("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
-                      ",1)*(r.incrp/100))*r.cantidad),"+; //descuento
-                      "SUM(("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
-                      ",1)+"+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
-                      ",1)*(r.incrp*-1/100))*r.cantidad) - "+;
-                      "SUM( ("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
-                      ",1)+"+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+",1)*(r.incrp*-1/100))*r.cantidad - "+;
-                      " (("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
-                      ",1)+"+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
-                      ",1)*r.incrp*-1/100)*r.cantidad) / (1+i.tasa/100) ),a.preciocos,r.incrp, "+; //subtotal
-                      "auto, "+; //bultos
-                      "TRUE "+;// VIENE DE UN REMITO (PARA NO DESCONTAR STOCK)
-                      "FROM ge_"+oApp:cId+"remitos r LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = r.codart "+;
-                      "LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = r.codiva "+;
-                      "WHERE (r.nrorem IN (SELECT numrem FROM remitos_temp WHERE tilde = 1)) AND (r.codart > 0) "+;
-                      ""+;
-                      "GROUP BY r.codart ORDER BY r.id )")
-
-oApp:oServer:Execute("INSERT INTO VENTAS_DET_H3 (codart,detart,cantidad,ptotal,neto,iva,codiva,descuento,stotal,punit,bultos) "+;
+IF !lRespetaPrecios
+    oApp:oServer:Execute("INSERT INTO VENTAS_DET_H3 (codart,detart,cantidad,punit,ptotal,neto,iva,codiva,descuento,stotal,costo,descup,bultos,DEREMITO) "+;
+                          "(SELECT r.codart,r.detart,SUM(r.cantidad),"+;
+                          "(("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
+                          ",1))) ,"+; //punitario
+                          "SUM( ("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
+                          ",1)+"+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+",1)*(r.incrp*-1/100))*r.cantidad ),"+; //ptotal
+                          "SUM( (("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
+                          ",1))*r.cantidad) / (1+i.tasa/100) ),"+; //neto
+                          "SUM( ("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
+                          ",1)+"+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+",1)*(r.incrp*-1/100))*r.cantidad - "+;
+                          " (("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
+                          ",1)+"+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
+                          ",1)*r.incrp*-1/100)*r.cantidad) / (1+i.tasa/100) ),codiva,"+; //iva
+                          "SUM(("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
+                          ",1)*(r.incrp/100))*r.cantidad),"+; //descuento
+                          "SUM(("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
+                          ",1)+"+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
+                          ",1)*(r.incrp*-1/100))*r.cantidad) - "+;
+                          "SUM( ("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
+                          ",1)+"+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+",1)*(r.incrp*-1/100))*r.cantidad - "+;
+                          " (("+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
+                          ",1)+"+IF(lReventa,"a.reventa","a.precioven")+" * IF(a.endolares,"+ClipValue2Sql(oQryPar:dolar)+;
+                          ",1)*r.incrp*-1/100)*r.cantidad) / (1+i.tasa/100) ),a.preciocos,r.incrp, "+; //subtotal
+                          "auto, "+; //bultos
+                          "TRUE "+;// VIENE DE UN REMITO (PARA NO DESCONTAR STOCK)
+                          "FROM ge_"+oApp:cId+"remitos r LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = r.codart "+;
+                          "LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = r.codiva "+;
+                          "WHERE (r.nrorem IN (SELECT numrem FROM remitos_temp WHERE tilde = 1)) AND (r.codart > 0) "+;
+                          ""+;
+                          "GROUP BY r.codart ORDER BY r.id )")
+  ELSE 
+  oApp:oServer:Execute("INSERT INTO VENTAS_DET_H3 (codart,detart,cantidad,ptotal,neto,iva,codiva,descuento,stotal,punit,bultos,DEREMITO) "+;
                       "(SELECT codart,detart,cantidad,"+;
                       "importe,"+; //ptotal
                       "neton,"+; //neto
@@ -799,14 +801,26 @@ oApp:oServer:Execute("INSERT INTO VENTAS_DET_H3 (codart,detart,cantidad,ptotal,n
                       "(neton*incrp*-1/100),"+; //incremento
                       "neto, "+; //subtotal
                       "importe/cantidad, "+; //punit
-                      "auto "+; //Bultos
+                      "auto, TRUE "+; //Bultos
+                      "FROM ge_"+oApp:cId+"remitos  "+;
+                      "WHERE (nrorem IN (SELECT rt.numrem FROM remitos_temp rt WHERE rt.tilde = 1 ))  AND (codart > 0)) ")  
+ENDIF  
+oApp:oServer:Execute("INSERT INTO VENTAS_DET_H3 (codart,detart,cantidad,ptotal,neto,iva,codiva,descuento,stotal,punit,bultos,DEREMITO) "+;
+                      "(SELECT codart,detart,cantidad,"+;
+                      "importe,"+; //ptotal
+                      "neton,"+; //neto
+                      "iva,codiva,"+; //iva
+                      "(neton*incrp*-1/100),"+; //incremento
+                      "neto, "+; //subtotal
+                      "importe/cantidad, "+; //punit
+                      "auto, TRUE "+; //Bultos
                       "FROM ge_"+oApp:cId+"remitos  "+;
                       "WHERE (nrorem IN (SELECT rt.numrem FROM remitos_temp rt WHERE rt.tilde = 1 ))  AND (codart = 0)) ")
 oApp:oServer:Execute("DELETE FROM VENTAS_DET_H3 WHERE cantidad = 0")
 oApp:oServer:NextResult()
 
 oQryDet:Refresh()
-ActualizarDet()
+ActualizarDet(lRespetaPrecios)
 oBrw:Refresh()
 oBrw:Maketotals()
 IF cLetra = "A"
@@ -826,11 +840,16 @@ RETURN nil
 
 **************************************************
 *** ACTUALIZAR TODO EL DETALLE 
-STATIC FUNCTION ActualizarDet()
+STATIC FUNCTION ActualizarDet(lRespetaPrecios)
+DEFAULT lRespetaPrecios := .f.
 oQryDet:GoTop()
 DO WHILE !oQryDet:EOF()
-  CambiaCant(,,,)
-  oQryDet:Skip()
+   IF !lRespetaPrecios 
+      CambiaCant(,,,)
+      //ELSE 
+      //CambiaCant(,,oQryDet:punit,)
+   ENDIF   
+   oQryDet:Skip()
 ENDDO
 RETURN .T.
 
@@ -863,6 +882,7 @@ oGet[21]:Refresh()
 oGet[08]:cText := 1
 oGet[08]:SetFocus()
 nUltimoCli := 0
+nPuntoVta := oQryPun:caja
 RETURN nil
 
 ************************************************************************************
@@ -1129,7 +1149,7 @@ IF nTipoDoc=1
    dFecVtoC:= DATE()
    cCae:= ""
    nTipFor:=01
-   lFisc:= MsgYesNo("¿Desea emitir el tiquet fiscal?","Atencion!")
+   lFisc:= MsgYesNo("Â¿Desea emitir el tiquet fiscal?","Atencion!")
    IF lFisc
       IF oQryPun:tipofac = 1
           nPunLocal :=  oApp:oServer:Query("SELECT punto FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip)):punto
@@ -1147,6 +1167,7 @@ IF nTipoDoc=1
              Return nil 
           ENDIF 
       ELSE
+          nPuntoVta := oApp:oServer:Query("SELECT caja FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip)):caja
           nNro := FacturaFiscal(oQryDet,oGet[08]:Value)
           IF nNro = 0
              MsgStop("Fallo el impresor fiscal","Error")
@@ -1154,6 +1175,7 @@ IF nTipoDoc=1
           ENDIF 
       ENDIF 
    ELSE
+     nPuntoVta:=  oApp:oServer:Query("SELECT caja FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip)):caja
      nNro := oApp:oServer:Query("SELECT presupu FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip)):presupu+1
      cLetra := "X"
      cNumComp := cLetra+STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNro,8)," ","0")
@@ -1416,7 +1438,7 @@ cTipoDoc := IF(nTipoDoc=1,"FR",IF(nTipoDoc=2,"ND","NC"))
                                                      "nombre,cuit,dni,direccion,localidad,percep,cae,fecvto,tipfor,usuario,fecmod,ip,vendedor,condven,formapag,hora,puntos,puntosacu) VALUES "+;
                            "("+ClipValue2Sql(cTipoDoc)+","+ClipValue2Sql(LEFT(cNumComp,1))+","+ClipValue2Sql(RIGHT(cNumComp,13))+","+;
                             ClipValue2Sql(nCliente)+","+ClipValue2Sql(nConIva)+","+;
-                            ClipValue2Sql(DATE())+","+ClipValue2Sql(oBrw:aCols[6]:nTotal)+","+ClipValue2Sql(oBrw:aCols[7]:nTotal)+","+;
+                            ClipValue2Sql(dFecha)+","+ClipValue2Sql(oBrw:aCols[6]:nTotal)+","+ClipValue2Sql(oBrw:aCols[7]:nTotal)+","+;
                             ClipValue2SQL(oGet[38]:cText)+","+ClipValue2Sql(nTotal)+","+IF(nCtaCte>0,"2","1")+","+;
                             ClipValue2Sql(oGet[23]:cText)+","+;
                             ClipValue2Sql(oGet[9]:cText)+","+ClipValue2Sql(oGet[12]:cText)+","+ClipValue2Sql(oGet[22]:cText)+","+;
@@ -1455,7 +1477,7 @@ cTipoDoc := IF(nTipoDoc=1,"FR",IF(nTipoDoc=2,"ND","NC"))
     ENDIF    
     ELSE
     IF oQryPar:pregunta_ticket
-        IF MsgYesNo("¿Desea imprimir el ticket no fiscal?","Atencion!")
+        IF MsgYesNo("Â¿Desea imprimir el ticket no fiscal?","Atencion!")
             FacturaNoFiscal(cTipoDoc,cNumComp)
         ENDIF
     ENDIF
@@ -1660,86 +1682,90 @@ IF !oApp:oServer:TableExist('ge_'+oApp:cId+"promociones")
    RETURN nil 
 ENDIF   
 oApp:oServer:Execute("DELETE FROM VENTAS_DET_H3 WHERE ESPROMO = TRUE")
-//Calculo las nuevas promos
-TEXT INTO cText 
-(SELECT
-    prom.CODART,
-    prom.TIPO,
-    prom.id,
-    prom.nompromo AS DETART,
-    CASE 
-        WHEN prom.tipo = 2 AND FLOOR(p.CANTIDAD / prom.cantidad_requerida) > 0 THEN 
-            p.cantidad - (FLOOR(p.CANTIDAD / prom.cantidad_requerida) * prom.cantidad_a_pagar + MOD(p.CANTIDAD, prom.cantidad_requerida))
-        ELSE p.CANTIDAD
-    END AS CANTIDAD,
-    CASE
-        WHEN prom.tipo = 1 THEN p.punit - prom.precio_especial        
-        WHEN prom.tipo = 4 AND p.CANTIDAD BETWEEN prom.cantidad_minima AND prom.cantidad_maxima THEN p.punit - prom.precio_unitario
-        ELSE p.PUNIT
-    END AS PUNIT,    
-    CASE
-        WHEN prom.tipo = 3 AND p.CANTIDAD >= prom.descuento_a_unidad THEN
-            prom.descuento_porcentual * FLOOR(p.CANTIDAD / prom.descuento_a_unidad)
-        ELSE 0
-    END AS DESCUENTO,    
-    p.CODIVA    
-FROM  ge_000001promociones AS prom    
-JOIN (SELECT CODART, DETART, SUM(CANTIDAD) AS CANTIDAD, PUNIT AS PUNIT, SUM(NETO) AS NETO,
-       0 AS DESCUENTO, SUM(STOTAL) AS STOTAL, SUM(IVA) AS IVA, CODIVA, SUM(PTOTAL) AS PTOTAL, 
-       0 AS PCOSTO, 0 AS IMPINT, 0 AS ESPROMO FROM VENTAS_DET_H3 GROUP BY CODART) AS p    
-    ON p.CODART = prom.codart   
-WHERE 
-    CURRENT_DATE BETWEEN prom.fecha_inicio AND prom.fecha_fin
-    AND (
-        (prom.tipo = 1) OR
-        (prom.tipo = 2 AND p.CANTIDAD >= prom.cantidad_requerida) OR
-        (prom.tipo = 3 AND p.CANTIDAD >= prom.descuento_a_unidad) OR
-        (prom.tipo = 4 AND p.CANTIDAD BETWEEN prom.cantidad_minima AND prom.cantidad_maxima)
-    ) 
-    GROUP BY prom.CODART, prom.TIPO)
-ENDTEXT
-cText := STRTRAN(cText,'ge_000001promociones','ge_'+oApp:cId+'promociones')
-oQryTem := oApp:oServer:Query(cText)
-oQryTem:GoTop()
-IF oQryTem:nRecCount > 0
-   DO WHILE !oQryTem:Eof()
-      DO CASE
-         CASE oQryTem:codiva = 3
-              nNeto := oQryTem:punit * oQryTem:cantidad 
-              nIva  := 0
-         CASE oQryTem:codiva = 4
-              nNeto := oQryTem:punit * oQryTem:cantidad  / 1.105
-              nIva  := oQryTem:punit * oQryTem:cantidad  - nNeto
-         CASE oQryTem:codiva = 5
-              nNeto := oQryTem:punit * oQryTem:cantidad  / 1.21
-              nIva  := oQryTem:punit * oQryTem:cantidad  - nNeto
-      ENDCASE
-      DO CASE 
-         CASE oQryTem:tipo = 1 .or. oQryTem:tipo = 2 .or. oQryTem:tipo = 4
-              oApp:oServer:Execute("INSERT INTO VENTAS_DET_H3 (CODART, DETART, CANTIDAD, PUNIT, "+;
-                +" NETO, DESCUENTO, STOTAL, IVA, CODIVA, PTOTAL, COSTO, IMPINT, ESPROMO) VALUES ("+;
-                ClipValue2Sql(oQryTem:codart)+","+Clipvalue2Sql(oQryTem:DETART)+","+;
-                ClipValue2Sql(oQryTem:cantidad)+","+ClipValue2Sql(-oQryTem:punit)+","+;
-                ClipValue2Sql(-nNeto)+",0,"+ClipValue2Sql(-nNeto)+","+Clipvalue2Sql(-nIva)+","+;
-                ClipValue2Sql(oQryTem:codiva)+","+ClipValue2Sql(-nNeto-nIva)+",0,0,1"+;
-                +")")         
-         CASE oQryTem:tipo = 3
-              nNeto := nNeto / oQryTem:cantidad
-              nIva  := nIva  / oQryTem:cantidad
-              oApp:oServer:Execute("INSERT INTO VENTAS_DET_H3 (CODART, DETART, CANTIDAD, PUNIT, "+;
-                +" NETO, DESCUENTO, STOTAL, IVA, CODIVA, PTOTAL, COSTO, IMPINT, ESPROMO) VALUES ("+;
-                ClipValue2Sql(oQryTem:codart)+","+Clipvalue2Sql(oQryTem:DETART)+","+;
-                ClipValue2Sql(1)+","+ClipValue2Sql(-oQryTem:punit*oQryTem:descuento/100)+","+;
-                ClipValue2Sql(-nNeto*oQryTem:descuento/100)+;
-                ",0,"+ClipValue2Sql(-nNeto*oQryTem:descuento/100)+;
-                  ","+Clipvalue2Sql(-nIva*oQryTem:descuento/100)+","+;
-                ClipValue2Sql(oQryTem:codiva)+","+ClipValue2Sql( (-nNeto-nIva)*oQryTem:descuento/100)+",0,0,1"+;
-                +")")         
+IF nCodCli > 1 .and. oApp:oServer:Query("SELECT excluyepromo FROM ge_"+oApp:cId+"clientes WHERE codigo = "+str(nCodCli)):excluyepromo
+   //No 
+   ELSE
+  //Calculo las nuevas promos
+  TEXT INTO cText 
+  (SELECT
+      prom.CODART,
+      prom.TIPO,
+      prom.id,
+      prom.nompromo AS DETART,
+      CASE 
+          WHEN prom.tipo = 2 AND FLOOR(p.CANTIDAD / prom.cantidad_requerida) > 0 THEN 
+              p.cantidad - (FLOOR(p.CANTIDAD / prom.cantidad_requerida) * prom.cantidad_a_pagar + MOD(p.CANTIDAD, prom.cantidad_requerida))
+          ELSE p.CANTIDAD
+      END AS CANTIDAD,
+      CASE
+          WHEN prom.tipo = 1 THEN p.punit - prom.precio_especial        
+          WHEN prom.tipo = 4 AND p.CANTIDAD BETWEEN prom.cantidad_minima AND prom.cantidad_maxima THEN p.punit - prom.precio_unitario
+          ELSE p.PUNIT
+      END AS PUNIT,    
+      CASE
+          WHEN prom.tipo = 3 AND p.CANTIDAD >= prom.descuento_a_unidad THEN
+              prom.descuento_porcentual * FLOOR(p.CANTIDAD / prom.descuento_a_unidad)
+          ELSE 0
+      END AS DESCUENTO,    
+      p.CODIVA    
+  FROM  ge_000001promociones AS prom    
+  JOIN (SELECT CODART, DETART, SUM(CANTIDAD) AS CANTIDAD, PUNIT AS PUNIT, SUM(NETO) AS NETO,
+         0 AS DESCUENTO, SUM(STOTAL) AS STOTAL, SUM(IVA) AS IVA, CODIVA, SUM(PTOTAL) AS PTOTAL, 
+         0 AS PCOSTO, 0 AS IMPINT, 0 AS ESPROMO FROM VENTAS_DET_H3 GROUP BY CODART) AS p    
+      ON p.CODART = prom.codart   
+  WHERE 
+      CURRENT_DATE BETWEEN prom.fecha_inicio AND prom.fecha_fin
+      AND (
+          (prom.tipo = 1) OR
+          (prom.tipo = 2 AND p.CANTIDAD >= prom.cantidad_requerida) OR
+          (prom.tipo = 3 AND p.CANTIDAD >= prom.descuento_a_unidad) OR
+          (prom.tipo = 4 AND p.CANTIDAD BETWEEN prom.cantidad_minima AND prom.cantidad_maxima)
+      ) 
+      GROUP BY prom.CODART, prom.TIPO)
+  ENDTEXT
+  cText := STRTRAN(cText,'ge_000001promociones','ge_'+oApp:cId+'promociones')
+  oQryTem := oApp:oServer:Query(cText)
+  oQryTem:GoTop()
+  IF oQryTem:nRecCount > 0
+     DO WHILE !oQryTem:Eof()
+        DO CASE
+           CASE oQryTem:codiva = 3
+                nNeto := oQryTem:punit * oQryTem:cantidad 
+                nIva  := 0
+           CASE oQryTem:codiva = 4
+                nNeto := oQryTem:punit * oQryTem:cantidad  / 1.105
+                nIva  := oQryTem:punit * oQryTem:cantidad  - nNeto
+           CASE oQryTem:codiva = 5
+                nNeto := oQryTem:punit * oQryTem:cantidad  / 1.21
+                nIva  := oQryTem:punit * oQryTem:cantidad  - nNeto
+        ENDCASE
+        DO CASE 
+           CASE oQryTem:tipo = 1 .or. oQryTem:tipo = 2 .or. oQryTem:tipo = 4
+                oApp:oServer:Execute("INSERT INTO VENTAS_DET_H3 (CODART, DETART, CANTIDAD, PUNIT, "+;
+                  +" NETO, DESCUENTO, STOTAL, IVA, CODIVA, PTOTAL, COSTO, IMPINT, ESPROMO) VALUES ("+;
+                  ClipValue2Sql(oQryTem:codart)+","+Clipvalue2Sql(oQryTem:DETART)+","+;
+                  ClipValue2Sql(oQryTem:cantidad)+","+ClipValue2Sql(-oQryTem:punit)+","+;
+                  ClipValue2Sql(-nNeto)+",0,"+ClipValue2Sql(-nNeto)+","+Clipvalue2Sql(-nIva)+","+;
+                  ClipValue2Sql(oQryTem:codiva)+","+ClipValue2Sql(-nNeto-nIva)+",0,0,1"+;
+                  +")")         
+           CASE oQryTem:tipo = 3
+                nNeto := nNeto / oQryTem:cantidad
+                nIva  := nIva  / oQryTem:cantidad
+                oApp:oServer:Execute("INSERT INTO VENTAS_DET_H3 (CODART, DETART, CANTIDAD, PUNIT, "+;
+                  +" NETO, DESCUENTO, STOTAL, IVA, CODIVA, PTOTAL, COSTO, IMPINT, ESPROMO) VALUES ("+;
+                  ClipValue2Sql(oQryTem:codart)+","+Clipvalue2Sql(oQryTem:DETART)+","+;
+                  ClipValue2Sql(1)+","+ClipValue2Sql(-oQryTem:punit*oQryTem:descuento/100)+","+;
+                  ClipValue2Sql(-nNeto*oQryTem:descuento/100)+;
+                  ",0,"+ClipValue2Sql(-nNeto*oQryTem:descuento/100)+;
+                    ","+Clipvalue2Sql(-nIva*oQryTem:descuento/100)+","+;
+                  ClipValue2Sql(oQryTem:codiva)+","+ClipValue2Sql( (-nNeto-nIva)*oQryTem:descuento/100)+",0,0,1"+;
+                  +")")         
 
-      ENDCASE   
-      oQryTem:Skip()
-   ENDDO
-ENDIF
+        ENDCASE   
+        oQryTem:Skip()
+     ENDDO
+  ENDIF
+ENDIF  
 oQryDet:Refresh()
 oBrw:Refresh()
 oBrw:MakeTotals()

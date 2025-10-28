@@ -10,8 +10,9 @@ MEMVAR oApp
 STATIC oQry,  oBrw, cVentana
 PROCEDURE CIERRET(cPermisos)
 LOCAL oBar, hHand
-LOCAL oGet := ARRAY(4), oBot := ARRAY(2), oForm, lRta := .f., aCor, oError,i, nId,;
-      lSuper:=.f., mfecha := DATE(), mefect := 0, mresul := 0, nCaja:= oApp:prefijo, cTexto := SPACE(10)
+LOCAL oGet := ARRAY(5), oBot := ARRAY(2), oForm, lRta := .f., aCor, oError,i, nId,;
+      lSuper:=.f., mfecha := DATE(), mefect := 0, mresul := 0, nCaja:= oApp:prefijo, cTexto := SPACE(10),;
+      nTransfiereefec := 0, oQryP := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = " + ClipValue2Sql(oApp:cIp))
 cVentana := PROCNAME()
 IF ASCAN(oApp:aVentanas,cVentana) > 0
    hHand := ASCAN(oApp:aVentanas,cVentana)
@@ -151,16 +152,21 @@ DEFINE DIALOG oForm TITLE "Cierre de turno de caja " + STR(nCaja,2);
       :CreateFromCode()
    END        
    PintaBrw(oBrw,0)
+   IF oQryP:transfiereefec 
+      nTransfiereefec := oBrw:aCols[4]:nTotal - 1
+      @ 140,80 SAY oGet[5] PROMPT "Transferencia automatica a caja "+STR(oQryP:transfierecaja,4) +;
+               " $" + STR(nTransfiereefec,13,2) OF oForm PIXEL
+   ENDIF 
    @125, 80 GET oGet[3] VAR mresul PICTURE "99999999.99"    OF oForm PIXEL RIGHT;
-                WHEN((oGet[3]:cText := oBrw:aCols[4]:nTotal - oGet[2]:value) = "xxxx" )
+                WHEN((oGet[3]:cText := oBrw:aCols[4]:nTotal -nTransfiereefec - oGet[2]:value) = "xxxx" )
    @125,140 GET oGet[4] VAR cTexto OF oForm PIXEL ;
-                WHEN((oGet[4]:cText := IF(oGet[3]:value>0,"Faltante","Sobrante")) = "xxxx" )
+                WHEN((oGet[4]:cText := IF(oGet[3]:value>0,"Faltante","Sobrante")) = "xxxx" )               
    acor := AcepCanc(oForm)
    @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Grabar" OF oForm SIZE 30,10 ;
            ACTION ((lRta := .t.), oForm:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oForm SIZE 30,10 ;
            ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL
-ACTIVATE DIALOG oForm CENTER ON INIT (oGet[1]:SetFocus(),IF('A'$cPermisos,NIL,(oGet[3]:Hide(),oGet[4]:Hide())))
+ACTIVATE DIALOG oForm CENTER ON INIT (oGet[1]:SetFocus(),IF('A'$cPermisos,NIL,(oGet[3]:Hide(),oGet[4]:Hide(),IF(oQryP:transfiereefec,oGet[5]:Hide(),nil ))))
 IF !lRta
    Cerrar()
    RETURN 
@@ -185,6 +191,30 @@ TRY
        ENDIF
        oQry:Skip()
    NEXT i
+   IF oQryP:transfiereefec
+      oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"cajadiaria_det (id_caja,concepto,debe,haber,efectivo) VALUES ("+;
+                          ClipValue2Sql(nId)+","+;
+                          ClipValue2Sql("Transf. Aut. a Caja "+STR(oQryP:transfierecaja,4))+","+;
+                          ClipValue2Sql(0)+","+;
+                          ClipValue2Sql(nTransfiereefec)+","+;
+                          ClipValue2Sql(-nTransfiereefec)+")" ) 
+      oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"retiros (caja,fecha,importe,observa,usuario,tipo,id_cierre,checkeado) VALUES ("+;
+                          ClipValue2Sql(nCaja)+",CURDATE(),"+;
+                          ClipValue2Sql(nTransfiereefec)+","+;
+                          ClipValue2Sql("Transf. Aut. a Caja "+STR(oQryP:transfierecaja,4))+","+;
+                          ClipValue2Sql(oApp:usuario)+","+;
+                          ClipValue2Sql("R")+","+;
+                          ClipValue2Sql(nId)+","+;
+                          ClipValue2Sql(.T.)+")" )
+      oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"retiros (caja,fecha,importe,observa,usuario,tipo,id_cierre,checkeado) VALUES ("+;
+                          ClipValue2Sql(oQryP:transfierecaja)+",CURDATE(),"+;
+                          ClipValue2Sql(nTransfiereefec)+","+;
+                          ClipValue2Sql("Transf. Aut. desde Caja "+STR(nCaja,4))+","+;
+                          ClipValue2Sql(oApp:usuario)+","+;
+                          ClipValue2Sql("I")+","+;
+                          ClipValue2Sql(0)+","+;
+                          ClipValue2Sql(.f.)+")" )                      
+   ENDIF
    oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"fondo    SET checkeado = TRUE, id_cierre = "+ClipValue2Sql(nId)+;
                         " WHERE "+IF(oApp:unifica_cajas,"TRUE","caja = " + ClipValue2Sql(nCaja))+" AND checkeado = FALSE")
    oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"retiros  SET checkeado = TRUE, id_cierre = "+ClipValue2Sql(nId)+;

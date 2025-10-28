@@ -7,13 +7,14 @@
 ** TRANSFORMACION DE ARTICULOS
 *************************************************
 MEMVAR oApp
-STATIC oGet, oDlg, oBot,nCodArtP,oQryRes,oQryHace,;
-       oBrw1, oBrw2, oQry, oQryArtP,nHacer,oSay1
+STATIC oGet, oDlg, oBot, nCodArtP, oQryRes, oQryHace,;
+       oBrw1, oBrw2, oQry, oQryArtP, nHacer, oSay1, oQryPun
 PROCEDURE PRODUCC(cPermisos)
-LOCAL oFont, oFo1, cNomArt:=SPACE(30),  mobserva, Lrta := .f., aObserva := {},oFontTotal,;
-      nCosto:=0,nValor:=0,oError
+LOCAL oFont, oFo1, cNomArt:=SPACE(30),  mobserva, Lrta := .f., aObserva := {}, oFontTotal,;
+      nCosto :=0, nValor:=0, oError
 oGet := ARRAY(12)
 oBot := ARRAY(07)
+oQryPun := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ClipValue2Sql(oApp:cip))
 nCodArtP:=0
 nHacer:=0
 oApp:oServer:Execute("";
@@ -36,6 +37,7 @@ oApp:oServer:Execute("";
     +"`CANTIDAD` DECIMAL(10,3) DEFAULT '0',";
     +"`PUNIT` DECIMAL(12,2) DEFAULT '0.00', ";
     +"`PTOTAL` DECIMAL(12,2) DEFAULT '0.00',";
+    +"`STOCK` DECIMAL(12,3) DEFAULT '0.00',";
     +"PRIMARY KEY (`CODART`)) ENGINE=INNODB DEFAULT CHARSET=utf8")
 oApp:oServer:NextResult()
 oApp:oServer:Execute("TRUNCATE reseta_temp1")
@@ -66,15 +68,19 @@ DO WHILE .T.
     REDEFINE GET oGet[3] VAR nHacer ID 102 OF oDlg PICTURE "9999999.999"
     oGet[3]:bLostFocus := {|| oGet[3]:assign(),ActualizaBrw()}
     REDEFINE XBROWSE oBrw2 DATASOURCE oQryHace;
-              COLUMNS "CODART","DETART","CANTIDAD","PUNIT","PTOTAL";
-              HEADERS "Codigo","Detalle Articulo","Cantidad","Precio U","Total";
+              COLUMNS "CODART","DETART","CANTIDAD","PUNIT","PTOTAL","STOCK";
+              HEADERS "Codigo","Detalle Articulo","Cantidad","Precio U","Total","Stock";
               FOOTERS ;
-              SIZES 80,281,60,80,80 ID 301 OF oDlg 
+              SIZES 80,281,60,80,80,80 ID 301 OF oDlg 
     PintaBrw(oBrw2,0)
     oBrw2:aCols[5]:nFooterTypE := AGGR_SUM
     oBrw2:aCols[3]:nEditType := 1
     oBrw2:aCols[3]:bOnPostEdit := {|oCol, xVal, nKey | CambiaCant(xval,,)}     
     oBrw2:MakeTotals()
+    IF oQryPun:pidestock <> 2
+       oBrw2:aCols[6]:Hide()
+    ENDIF   
+
 
     REDEFINE GET oGet[4] VAR nCosto    ID 103 OF oDlg COLOR CLR_RED , CLR_YELLOW READONLY;
                  PICTURE "999999999.99" FONT oFontTotal 
@@ -88,7 +94,13 @@ DO WHILE .T.
    IF !Lrta
       EXIT
    ENDIF
-
+  IF oQryPun:pidestock = 2 
+     IF oApp:oServer:Query("SELECT * FROM reseta_temp1 WHERE stock < cantidad"):nRecCount > 0
+        MsgStop("No puede producir el articulo seleccionado porque no estan en stock"+CHR(10)+;
+           "algunos de sus componentes","Atencion")
+        LOOP 
+     ENDIF     
+  ENDIF   
   TRY
   oApp:oServer:BeginTransaction()
   oApp:oServer:Execute("UPDATE reseta_temp1 r LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = r.codart "+;
@@ -151,9 +163,9 @@ LOCAL nMultiplica:=0
 SET DECIMALS TO 12
 nMultiplica:= nHacer / oQryArtP:cantprod
 oApp:oServer:Execute("TRUNCATE reseta_temp1")
-oApp:oServer:Execute("INSERT INTO reseta_temp1 (codart,detart,cantidad,punit,ptotal) "+;
+oApp:oServer:Execute("INSERT INTO reseta_temp1 (codart,detart,cantidad,punit,ptotal,stock) "+;
                      "(SELECT r.codusa,a.nombre,r.cantidad*"+ClipValue2Sql(nMultiplica)+;
-                     ",a.preciocos,r.cantidad*a.preciocos*"+ClipValue2Sql(nMultiplica)+" "+;
+                     ",a.preciocos,r.cantidad*a.preciocos*"+ClipValue2Sql(nMultiplica)+", a.stockact "+;
                      "FROM ge_"+oApp:cId+"reseta r LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = r.codusa "+;
                      "WHERE r.codart = " + ClipValue2Sql(oQryArtP:codigo)+")")
 oQryHace:Refresh()
@@ -521,6 +533,7 @@ IF !lResu
 ENDIF
 cSql := cSql + " WHERE a.marca IN " + cMarca + " AND a.rubro IN " + cRubro + ;
             " AND a.prov IN " + cProvee + " AND a.depto IN "+cDepto + " AND a.empresa IN "+cEmpresa
+cSql := cSql + " AND p.fecha >= "+ClipValue2Sql(mdesde) + " AND p.fecha <= " + ClipValue2Sql(mhasta)           
 IF lResu
    cSql := cSql + " GROUP BY p.codart ORDER BY p.detart"
    ELSE

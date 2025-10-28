@@ -51,6 +51,12 @@ IF oQry:nRecCount = 0
    MsgStop("Factura no existe","Error")
    RETURN 
 ENDIF
+IF oApp:oServer:Query("SELECT ticomp FROM ge_"+oApp:cId+;
+                      "ventas_encab WHERE observa LIKE '%"+oQry:ticomp+oQry:letra+oQry:numcomp+"%'"):nRecCount > 0
+   IF !MsgNoYes("Esa Factura tiene una NOTA DE CREDITO asociada."+chr(13)+"Igual desea remitar?","Atencion")
+      RETURN 
+   ENDIF 
+ENDIF                         
 Remitar(oQry,aTip1[mtipo])
 oQry:End()
 RETURN 

@@ -5,7 +5,7 @@ MEMVAR oApp
 ** REIMPRESION DE FACTURAS
 *************************************************
 PROCEDURE ReImFac()
-LOCAL oGet1, oGet2, oGet3, oGet4, oBot1, oBot2, oDlg1, oFont, mnumfac, ;
+LOCAL oGet1, oGet2, oGet3, oGet4, oBot1, oBot2, oDlg1, oFont, mnumfac, cFacRemitada,;
       mrta := .f., aCor, base, marchi, mtotal, mdescp := 0, mdeuda := 0,;
       aTipo  := {"Factura","Nota Credito","Nota Debito","Factura x Remito","Remito"}, oQry,;
       aTip1  := {"FC","NC","ND","FR","RE"}, mtipo := 1, mletra := "A", mprefijo := 3,;
@@ -81,13 +81,14 @@ IF mtipo <> 5
     ENDIF
   ELSE 
   //Remitos
-  oQryDet := oApp:oServer:Query("SELECT codart,detart,cantidad,auto as bultos, codcli FROM ge_"+oApp:cId+;
+  oQryDet := oApp:oServer:Query("SELECT codart,detart,cantidad,auto as bultos, codcli , factura FROM ge_"+oApp:cId+;
          "remitos WHERE nrorem = "+ClipValue2SQL("RE"+STRTRAN(STR(mprefijo,4)+"-"+STR(mnumero,8)," ","0")))
   IF oQryDet:nRecCount = 0
      MsgStop("Remito no existe","Error")
      RETURN 
   ENDIF
-  PrintRemito(oQryDet,,, STRTRAN(STR(mprefijo,4)+"-"+STR(mnumero,8)," ","0"),oQryDet:codcli)
+  cFacRemitada := IF(EMPTY(oQryDet:factura),"",oQryDet:factura)
+  PrintRemito(oQryDet,,, STRTRAN(STR(mprefijo,4)+"-"+STR(mnumero,8)," ","0"),oQryDet:codcli,cFacRemitada)
 ENDIF  
          
 RETURN

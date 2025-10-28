@@ -112,7 +112,7 @@ oQryCue := oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"cuentas"
 
 DO WHILE .T.
    oQry:= oApp:oServer:Query("SELECT * FROM transi_ordpag ORDER BY fecha")
-   DEFINE FONT oFont NAME "ARIAL" SIZE 09,-12 
+   DEFINE FONT oFont NAME "ARIAL" SIZE 08,-12 BOLD 
    DEFINE FONT oFo1  NAME "COURIER NEW" SIZE 08,-10
    DEFINE DIALOG oDlg RESOURCE "ORDPAG" OF oApp:oWnd TITLE "Ordenes de pago"
     oDlg:lHelpIcon := .f.

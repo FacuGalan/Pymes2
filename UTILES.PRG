@@ -42,7 +42,9 @@ IF nKey = 13
       oBrw:SetFocus()
   ENDIF
 ENDIF
-
+IF nKey = 17 //Control C
+   oBrw:Copy()
+ENDIF   
 IF nkey = VK_F2
    oBar:aControls[1]:Click()
    oBrw:SetFocus()

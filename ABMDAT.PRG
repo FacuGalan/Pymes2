@@ -7,7 +7,7 @@
 MEMVAR oApp
 STATIC oFont
 PROCEDURE DatEmp()
-LOCAL hHand, oGet := ARRAY(50), oBot := ARRAY(3), oForm, lRta := .f., aCor, base, oError, oQry, lProx:= .f.,oDlg1,oFld,;
+LOCAL hHand, oGet := ARRAY(51), oBot := ARRAY(3), oForm, lRta := .f., aCor, base, oError, oQry, lProx:= .f.,oDlg1,oFld,;
       oBrw, oQryP,;
       oCheck:= ARRAY(3),;
       aConIva := {;
@@ -144,13 +144,15 @@ REDEFINE FOLDEREX oFld ID 100 OF oDlg1 ;/*PAGES son dialogos de recurso*/
      oGet[46]:cToolTip:= "Si el producto tiene codigo de proveedor, este es el que sale en la factura" 
      REDEFINE CHECKBOX oGet[47] VAR base:utilfija     OF oFld:aDialogs[4] ID 4002 
      oGet[47]:cToolTip:= "No se calculara la utilidad cuando modifique manualmente el precio de venta" 
+     REDEFINE CHECKBOX oGet[51] VAR base:lvtostock     OF oFld:aDialogs[4] ID 4003 
+     oGet[51]:cToolTip:= "Permite que al cargar stock o compras, registre vencimientos del producto" 
 
 REDEFINE BUTTON oBot[1] ID 201 OF oDlg1 ;
              ACTION ((lRta := .t.), oDlg1:End() ) 
 REDEFINE BUTTON oBot[2] ID 202 OF oDlg1  CANCEL;
              ACTION ((lRta := .f.), oDlg1:End() ) 
   
- ACTIVATE DIALOG oDlg1 CENTER 
+ACTIVATE DIALOG oDlg1 CENTER 
 IF !lRta
    oQry:End()
    RELEASE oQry
@@ -183,6 +185,18 @@ TRY
               "('0465','MARKET','LISASIREP','Asignacion','Reporte de Hojas de Ruta','MODI','0450','ABMRE','N')")
           ENDIF 
       ENDIF
+   ENDIF
+   IF base:lvtostock
+      IF !oApp:oServer:TableExist("ge_"+oApp:cId+"stocklotes")
+          oApp:oServer:Execute("CREATE TABLE ge_"+oApp:cId+"stocklotes ( "+;  
+                              "`id` INT(10) NOT NULL AUTO_INCREMENT, "+;  
+                              "`codart` BIGINT(14),"+;  
+                              "`cantidad` DECIMAL(12,3),"+;  
+                              "`restan` DECIMAL(12,3),"+;  
+                              "`fechavto` DATE,"+;  
+                              "PRIMARY KEY (`id`)"+;                                
+                            ")")
+      ENDIF    
    ENDIF
 CATCH oError
   MsgStop("Error al grabar"+CHR(10)+oError:description,"Error")

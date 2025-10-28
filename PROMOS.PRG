@@ -87,10 +87,8 @@ IF lAlta
    ELSE
    oQryPro:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"promociones WHERE id = " +ClipValue2Sql(oQry:id))
    base := oQryPro:GetRowObj()
-   oQryArt:GoTop()
-   IF oQryArt:Seek(base:codart,1) > 0
-      cNombre := oQryArt:nombre
-   ENDIF
+   oQryArt := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu WHERE codigo = "+ClipValue2Sql(base:codart))
+   cNombre := oQryArt:nombre
 ENDIF
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 DO WHILE .T.
@@ -412,7 +410,7 @@ oQryFue:nMaxCol := MaxCol
                                 SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText
                       @ x1, nCol+0.15;
                          PRINT TO oPrn TEXT STR(oQryEti:descuento_a_unidad,3)+"° unidad a $" +;
-                                 ALLTRIM(STR(oQryEti:precioven*(oQryEti:descuento_porcentual/100),12,nDecimales)) ;
+                                 ALLTRIM(STR(oQryEti:precioven-oQryEti:precioven*(oQryEti:descuento_porcentual/100),12,nDecimales)) ;
                                 SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText          
                       @ x1, nCol+0.15;
                          PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR((oQryEti:precioven)*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
@@ -648,7 +646,7 @@ ACTIVATE FONT oFon3
                                 SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 
                       @ x1, nCol+0.15;
                          PRINT TO oPrn TEXT STR(oQryEti:descuento_a_unidad,3)+"° unidad a $" +;
-                                 ALLTRIM(STR(oQryEti:precioven*(oQryEti:descuento_porcentual/100),12,nDecimales)) ;
+                                 ALLTRIM(STR(oQryEti:precioven-oQryEti:precioven*(oQryEti:descuento_porcentual/100),12,nDecimales)) ;
                                 SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 
                       @ x1, nCol+0.15;
                          PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR((oQryEti:precioven)*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;

@@ -115,7 +115,7 @@ LOCAL  oBar,oBar2, oQryParmatros, i, oMetro,oFontBarra, oTimer1, hWnd, lRunning 
     ON INIT (IF(oApp:sonarpedidos,oTimer1:Activate(),nil), ;
              oApp:oTimer:Activate(),;
              Alertas(.t.),;
-             IF(lMostrar_novedades,MostrarNovedades(),nil)) 
+             IF(lMostrar_novedades,MostrarNovedades(),nil),AvisoStock()) 
     RELEASE oApp:oBmp
     oApp:oServer:End()
     PostQuitMessage( 0 )
@@ -129,7 +129,7 @@ STATIC FUNCTION HazMenu()
 LOCAL i, oMenu, j, oMenuItem, nivel, nivel1, ult, oQry
 MENU oMenu 2010
 ENDMENU
-RETURN oMenu
+RETURN oMenu 
 
 
 *********************************************************************
@@ -229,9 +229,11 @@ LOCAL oQryParmetros, oSer, aPlacas, i, lExiste := .f., nPV := 1, oQryPun, oIni
        memowrit( 'terminal.ini', oIni )
     ENDIF 
     IF !lExiste  
-       MsgStop("La terminal no esta registrada para acceder al sistema "+CHR(10)+;
-            "Contacte al proveedor","Atencion")
-       MsgGet("Su terminal","Cliente:"+oApp:cId,@oApp:cIp)
+       INI oIni FILE ".\terminal.ini"
+       i := oIni:Get('terminal', 'caja') 
+       MsgGet1("Error al ingresar","La terminal no esta registrada para acceder al sistema "+CHR(10)+;
+            "Contacte al proveedor"+CHR(10)+"Cliente:"+oApp:cId+" Terminal:"+i+chr(10)+;
+            "Copie y pegue este codigo y envíelo al Soperte Técnico de BCN Soft",@oApp:cIp)
        oApp:oServer:End()
        QUIT
     ENDIF
