@@ -33,9 +33,9 @@ echo descu.obj carcre.obj cardeu.obj fe.obj venrei.obj asigna.obj + >> b32.bc
 echo prelis.obj lisarti.obj lisven.obj liscom.obj lisfac.obj lisdeu.obj grafica.obj + >> b32.bc
 echo compras.obj lische.obj ventas.obj rendi.obj gastos.obj citicomp.obj remitar.obj fact_multi.obj notacre.obj centro_facturacion.obj + >> b32.bc
 echo etique.obj ordpag.obj cobran.obj facrem.obj FACT.obj transf.obj + >> b32.bc
-echo ABMEMPLE.OBJ ABMCATEMP.OBJ ABMHORAS.OBJ ABMINAS.OBJ ABMSECTOR.OBJ LISHORAS.OBJ NOVINDIV.OBJ PAGEMPLE.OBJ CONSUMOINT.OBJ + >> b32.bc
+echo ABMEMPLE.OBJ ABMCATEMP.OBJ ABMHORAS.OBJ ABMINAS.OBJ ABMSECTOR.OBJ LISHORAS.OBJ NOVINDIV.OBJ PAGEMPLE.OBJ CONSUMOINT.OBJ adelsuel.obj + >> b32.bc
 echo xbrowse.obj busqueda.obj utiles.obj usua.obj demo.obj enviomail.obj rpreview.obj prv2pdf.obj + >> b32.bc
-echo conectar.obj descarga.obj arca2.obj transmitir.obj, + >> b32.bc
+echo conectar.obj descarga.obj arca2.obj transmitir.obj , + >> b32.bc
 echo BCN.exe, + >> b32.bc
 echo BCN.map, + >> b32.bc
 echo H71532BC.LIB C:\FWH11\lib\dolphin.lib + >> b32.bc

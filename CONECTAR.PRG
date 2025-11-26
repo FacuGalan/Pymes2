@@ -57,7 +57,7 @@ LOCAL oServer, cDB, lRta, cHost, lLocal, oQryProc, oQryCli
               "Error de conexion")
       QUIT      
    ENDIF
-   oQryProc:= oServer:Query("SELECT id FROM information_schema.processlist WHERE db = '"+cDB+"' AND TIME > 3000")
+   oQryProc:= oServer:Query("SELECT id FROM information_schema.processlist WHERE db = '"+cDB+"' AND TIME > 600")
    IF oQryProc:reccount() > 0
      oQryProc:GoTop()
      WHILE !oQryProc:EOF()

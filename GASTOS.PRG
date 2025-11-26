@@ -30,8 +30,8 @@ DEFINE DIALOG oDlg1 TITLE "Carga de gastos" ;
    @ 67, 05 SAY "Forma Pago:"  OF oDlg1 PIXEL SIZE 40,12 RIGHT
 
    @ 05, 50 GET oGet[1] VAR nProvee  PICTURE "99999999" RIGHT OF oDlg1 SIZE 35,12 PIXEL;
-                VALID(Buscar(oQryPro,oDlg1,oGet[1],oGet[2]));
-                ACTION (oGet[1]:cText:= 0, Buscar(oQryPro,oDlg1,oGet[1],oGet[2])) BITMAP "BUSC1" 
+                VALID(BuscarArt(oQryPro,oDlg1,oGet[1],oGet[2],'0','inactivo'));
+                ACTION (oGet[1]:cText:= 0, Buscar(oQryPro,oDlg1,oGet[1],oGet[2],'0','inactivo')) BITMAP "BUSC1" 
    @ 05, 90 GET oGet[2] VAR cNomPro    PICTURE "@!" OF oDlg1 PIXEL WHEN(.F.)   
    @ 20, 50 GET oGet[3] VAR nImporte   PICTURE "99999999.99" OF oDlg1 PIXEL RIGHT VALID(nImporte>0)
    @ 35, 50 GET oGet[4] VAR cObserva   OF oDlg1 PIXEL PICTURE "@!" SIZE 220,12

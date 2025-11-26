@@ -106,7 +106,7 @@ oApp:oServer:NextResult()
 
 oQryCheP := oApp:oServer:Query("SELECT * FROM transi_chequeP")
 
-oQryPro:= oApp:oServer:Query("SELECT codigo,nombre,saldo,retencio,cuit,direccion,localidad,retiva,telefono,gasto,exgana FROM ge_"+oApp:cId+"provee")
+oQryPro:= oApp:oServer:Query("SELECT codigo,nombre,saldo,retencio,cuit,direccion,localidad,retiva,telefono,gasto,exgana,inactivo FROM ge_"+oApp:cId+"provee")
 oQryBan := oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"bancos")
 oQryCue := oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"cuentas")
 
@@ -122,10 +122,10 @@ DO WHILE .T.
              ACTION (oGet[01]:cText:= 0, ValidaProvee(oGet)) BITMAP "BUSC1" WHEN(lEdita)
     REDEFINE GET oGet[2] VAR mnompro  ID 113 OF oDlg PICTURE "@!" WHEN(.F.)
     REDEFINE GET oGet[3] VAR mfecha ID 114 OF oDlg PICTURE "@D" 
-    REDEFINE GET oGet[4] VAR mentrega  ID 116 OF oDlg PICTURE "999999999.99" VALID(IF(lEdita,.t.,(Mostrar()=nil .and. oBrw:SetFocus()=nil)))
+    REDEFINE GET oGet[4] VAR mentrega  ID 116 OF oDlg PICTURE "999999999.99" VALID(IF(lEdita,.t.,(Mostrar()=.t. .and. oBrw:SetFocus()=nil)))
     REDEFINE GET oGet[5] VAR manticipo ID 117 OF oDlg PICTURE "999999999.99" WHEN(.f.)
     REDEFINE CHECKBOX oGet[16] VAR lMostrarSis ID 4001 OF oDlg ON CHANGE ValidaProvee(oGet) WHEN(lEdita) 
-    REDEFINE BUTTON oBot[1] ID 115 OF oDlg ACTION (Mostrar(),oBrw:SetFocus()) WHEN(lEdita)
+    REDEFINE BUTTON oBot[1] ID 115 OF oDlg ACTION (IF(Mostrar(),oBrw:SetFocus(),oGet[1]:SetFocus())) WHEN(lEdita)
     IF oApp:usar_reten_gan .or. oApp:usar_reten_iibb .or. oApp:usar_reten_iva
        REDEFINE CHECKBOX oGet[22] VAR lReten ID 4007 OF oDlg WHEN(lEdita) 
     ENDIF
@@ -269,7 +269,7 @@ RETURN .F.
 ********* TRAIGO LOS DATOS DEL PROVEEDOR ELEGIDO 
 STATIC FUNCTION ValidaProvee(oGet)
 
-oQryPro:= oApp:oServer:Query("SELECT codigo,nombre,saldo,retencio,cuit,direccion,localidad,retiva,gasto,exgana FROM ge_"+oApp:cId+"provee WHERE codigo = " +ClipValue2Sql(mcodpro))
+oQryPro:= oApp:oServer:Query("SELECT codigo,nombre,saldo,retencio,cuit,direccion,localidad,retiva,gasto,exgana,inactivo FROM ge_"+oApp:cId+"provee WHERE codigo = " +ClipValue2Sql(mcodpro))
 IF oQryPro:RecCount() = 0 
    BuscarArt(oQryPro,oDlg,oGet[01])
 ENDIF
@@ -740,8 +740,13 @@ ENDDO
 oQry:GoTop()
 oBrw:Refresh()
 oBrw:MakeTotals()
-IF oQry:nRecCount = 0
-   lACuenta:= MsgNoYes("Proveedor sin deuda pendiente ¿desea realizar un pago a cuenta?","Atencion!")
+IF oQry:nRecCount = 0 
+   IF oQryPro:inactivo
+      MsgStop("Proveedor sin deuda pendiente e Inactivo","Atencion!") 
+      RETURN .f.
+      ELSE 
+      lACuenta:= MsgNoYes("Proveedor sin deuda pendiente ¿desea realizar un pago a cuenta?","Atencion!")
+   ENDIF   
    ELSE
    lEdita := .f.
    lACuenta:=.f.
@@ -756,7 +761,7 @@ oQryCheT:Refresh()
 oBrwCheT:Refresh()
 ENDIF
 
-RETURN nil 
+RETURN .t.
 
 *************************************************
 ** Borrar cheques de Propios

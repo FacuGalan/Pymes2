@@ -243,6 +243,10 @@ ACTIVATE DIALOG oDlg1 CENTER
 IF !mRta
    RETURN nil
 ENDIF
+IF EMPTY(base:nombre)
+   MsgStop("Indique un nombre para el cliente")
+   LOOP
+ENDIF
 IF base:coniva > 6 .and. base:coniva <12
    MsgStop("Condicion de I.V.A. no soportada por este programa")
    LOOP

@@ -15,7 +15,7 @@ STATIC oWnd1, nTipoEmp, nTipoFac, nTipoDoc, cVentana, oGet, oQryArt, oQryCli, oQ
 PROCEDURE FACREM() 
 LOCAL oBot := ARRAY(7), hHand , aTipoIva, aTipoDoc, cNomCli:=SPACE(30), cDireccion:=SPACE(30), cLocalidad:=SPACE(30),;
       cCUIT:=SPACE(13), nCodArt:=0, nCantidad:=0, nPunit:=0, nPtotal:=0, nTipoCli:=0, nNeto:=0, ;
-      nIVA:=0, dFecha, dFecIni, dFecFin,  oFontLetra, oFontTotal,aVendedores,oQryUsua,cLisPre:="SIN LISTA ESPECIAL"+SPACE(31),;
+      nIVA:=0,  dFecIni, dFecFin,  oFontLetra, oFontTotal,aVendedores,oQryUsua,cLisPre:="SIN LISTA ESPECIAL"+SPACE(31),;
       nDNI := 0, nTiArt,oQryIvaT, cRubNom := SPACE(30),nIngBru:=0,nIngBruP:=0,cCodArtP := SPACE(30), oQryFormas
  cVentana := PROCNAME()     
  IF ASCAN(oApp:aVentanas,cVentana) > 0
@@ -246,9 +246,12 @@ nFormaPago:=1
     oBrw:aCols[13]:lAutoSave := .t.
     oBrw:aCols[13]:nEditType := EDIT_GET 
     oBrw:aCols[3]:bOnPostEdit := {|oCol, xVal, nKey | IF(oQryDet:DEREMITO,MsgStop("No se puede modificar los valores del remito","Atencion!"),CambiaCant(xval,,))} 
-    oBrw:aCols[4]:lAutoSave := .t.
-    oBrw:aCols[4]:nEditType := EDIT_GET 
-    oBrw:aCols[4]:bOnPostEdit := {|oCol, xVal, nKey | IF(oQryDet:DEREMITO,MsgStop("No se puede modificar los valores del remito","Atencion!"),CambiaCant(,,xval))} 
+    
+    IF oApp:modifica_precios
+       oBrw:aCols[4]:lAutoSave := .t.
+       oBrw:aCols[4]:nEditType := EDIT_GET 
+       oBrw:aCols[4]:bOnPostEdit := {|oCol, xVal, nKey | CambiaCant(,,xval)} 
+    ENDIF   
     
     //BOTONES ---------------------------------------------------------------
     //Elige remitos

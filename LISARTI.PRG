@@ -16,9 +16,10 @@ LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, cOrden, oFont,;
       acor:= ARRAY(4), norden:=1, mrta:=.F., oGet:= ARRAY(7), oBot1, oBot2,;
       cSql, aOrden, oQryMar, oQryRub, oQryArt, aEst, i, nOrden2 := 1, oCom, oBrw, aRub, aMar, oBrwMar, oBrwRub,;
       cMarca, cRubro, oGru, oCol, oError, aTipo := {"Todos los productos","Solo los vendibles","Solo los no vendibles"}, ;
-      nTipo := 1, lOrdenPrecio := .f.
+      nTipo := 1, lOrdenPrecio := .f., oQryPro, nCodPro := 0, cNomPro := SPACE(30)
 CursorWait()      
 oQryMar:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"deptos  ORDER BY nombre")
+oQryPro:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"provee")
 oQryRub:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"rubros  ORDER BY nombre")
 oQryArt := oApp:oServer:Query("SELECT  a.nombre AS Nombre, a.codigo AS Codigo,"+;
                               "a.marca AS Marca, a.rubro AS Rubro, a.depto AS depart, d.nombre AS Depto_Descr, "+;
@@ -109,6 +110,12 @@ DEFINE DIALOG oDlg1 TITLE "Listado de Articulos" FROM 03,15 TO 35,90
    @ 135,130 CHECKBOX oGet[7] VAR lOrdenPrecio PROMPT "Y Ordena por precio" OF oDlg1 PIXEL SIZE 80,12
    @ 110,210 SAY "Listar" OF oDlg1 PIXEL
    @ 120,210 COMBOBOX oGet[1] VAR nTipo ITEMS aTipo OF oDlg1 PIXEL SIZE 70,12  
+
+   @ 162,130 SAY "Proveedor:" OF oDlg1 PIXEL SIZE 40,12
+   @ 160,172 GET oGet[01] VAR nCodPro OF oDlg1 PICTURE "99999" RIGHT SIZE 30,12 PIXEL;
+                VALID(nCodPro = 0 .or. Buscar(oQryPro,oDlg1,oGet[1],oGet[2]));
+                ACTION (oGet[01]:cText:= -1, Buscar(oQryPro,oDlg1,oGet[1],oGet[2])) BITMAP "BUSC1"
+   @ 175,130 GET oGet[02] VAR cNomPro          PIXEL OF oDlg1 WHEN (.F.)
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
@@ -152,7 +159,8 @@ FOR i := 1 TO LEN(aRub)
     ENDIF
 NEXT i
 cRubro := cRubro + ")"
-cSql := cSql + " WHERE a.rubro IN " + cRubro + " AND a.depto IN " + cMarca
+cSql := cSql + " WHERE a.rubro IN " + cRubro + " AND a.depto IN " + cMarca + ;
+                 IF(nCodPro <> 0, " AND a.prov = "+ClipValue2Sql(nCodPro),"")
 cSql := cSql + IF(nTipo = 1,"",IF(nTipo = 3," AND nosale IS TRUE "," AND nosale IS FALSE "))
 cSql := cSql +   " ORDER BY "+ aorden[nOrden2] + if(lOrdenPrecio,',precioven','')
 CursorWait()
@@ -204,9 +212,11 @@ LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, cOrden, oFont,;
       cSql, aOrden, oQryMar, oQryRub, oQryArt, aEst, i, nOrden2 := 1, oCom, oCom1, oCom2, oBrw,;
       aRub, aMar, oBrwMar, oBrwRub, cMarca, cRubro, oGru, oCol, oError, mfecha := DATE(), lAFecha := .f.,;
       aFiltro := {"Todos los productos","Solo mayor a cero","Solo negativos","Solo Faltantes"}, nFiltro := 2,;
-      nTipoArt := 1, aTipoArt := {"Todos los tipos","Solo productos","Solo Materia prima"}, lNoVendibles := .t.
+      nTipoArt := 1, aTipoArt := {"Todos los tipos","Solo productos","Solo Materia prima"}, lNoVendibles := .t.,;
+      nCodPro := 0, cNomPro := SPACE(30), oQryPro
 CursorWait()      
 oQryMar:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"deptos  ORDER BY nombre")
+oQryPro:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"provee  ORDER BY nombre")
 oQryRub:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"rubros  ORDER BY nombre")
 oQryArt := oApp:oServer:Query("SELECT  a.nombre AS Nombre, a.codigo AS Codigo,"+;
                               "d.nombre AS Depto_Descr, r.nombre AS Rubro_Descr, a.preciocos AS Precio_Costo, "+;                              
@@ -280,6 +290,11 @@ DEFINE DIALOG oDlg1 TITLE "Listado de Stock" FROM 03,15 TO 35,90
    @ 140,215 CHECKBOX oGet[7] VAR lNoVendibles PROMPT "Incluir NO VENDIBLES" OF oDlg1 PIXEL SIZE 80,12   
    @ 155,130 CHECKBOX oGet[8] VAR lAFecha PROMPT "Calcular stock a fecha" OF oDlg1 PIXEL SIZE 80,12
    @ 155,215 GET oGet[9] VAR mfecha OF oDlg1 PIXEL
+   @ 172,130 SAY "Proveedor:" OF oDlg1 PIXEL SIZE 40,12
+   @ 170,172 GET oGet[01] VAR nCodPro OF oDlg1 PICTURE "99999" RIGHT SIZE 30,12 PIXEL;
+                VALID(nCodPro = 0 .or. Buscar(oQryPro,oDlg1,oGet[1],oGet[2]));
+                ACTION (oGet[01]:cText:= -1, Buscar(oQryPro,oDlg1,oGet[1],oGet[2])) BITMAP "BUSC1"
+   @ 185,130 GET oGet[02] VAR cNomPro          PIXEL OF oDlg1 WHEN (.F.)
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
@@ -289,7 +304,7 @@ IF !mrta
    RETURN  NIL
 ENDIF
 IF lAFecha
-   LisStockAFecha(mfecha,lNoVendibles,nFiltro, nTipoArt, nOrden2, aOrden)
+   LisStockAFecha(mfecha,lNoVendibles,nFiltro, nTipoArt, nOrden2, aOrden, nCodPro)
    RETURN nil 
 ENDIF
 cSql :=  "SELECT  a.nombre AS Nombre, a.codigo AS Codigo,"+;
@@ -313,7 +328,8 @@ FOR i := 1 TO LEN(aRub)
     ENDIF
 NEXT i
 cRubro := cRubro + ")"
-cSql := cSql + " WHERE a.rubro IN " + cRubro + " AND a.depto IN " + cMarca
+cSql := cSql + " WHERE a.rubro IN " + cRubro + " AND a.depto IN " + cMarca+ ;
+                 IF(nCodPro <> 0, " AND a.prov = "+ClipValue2Sql(nCodPro),"")
 cSql := cSql + IF(nFiltro=1,"",IF(nFiltro = 2, " AND a.stockact > 0 ",IF(nFiltro = 3, " AND a.stockact < 0 "," AND a.stockact < a.stockmin ")))
 cSql := cSql + IF(lNoVendibles," "," AND nosale IS FALSE")
 cSql := cSql + IF(nTipoArt = 1," ",IF(nTipoArt=2," AND mprima IS FALSE"," AND mprima IS TRUE"))
@@ -396,7 +412,7 @@ static function MakeRepCol( oRep, i , oQry)
 
 return oCol
 
-STATIC FUNCTION LisStockAFecha(mfecha,lNoVendibles,nFiltro, nTipoArt,nOrden2,aOrden)
+STATIC FUNCTION LisStockAFecha(mfecha,lNoVendibles,nFiltro, nTipoArt,nOrden2,aOrden, nCodPro)
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, cSql, oError
 cSql := "SELECT * FROM ("+;
         "SELECT res.codigo,res.nombre, SUM(res.stockact) AS stockact, SUM(res.entradas) AS entradas, "+;
@@ -442,6 +458,7 @@ cSql := cSql + IF(nFiltro=1,"",IF(nFiltro = 2, " AND (res2.stockact + res2.salid
                 " AND (res2.stockact + res2.salidas - res2.entradas) < a.stockmin ")))
 cSql := cSql + IF(lNoVendibles," "," AND a.nosale IS FALSE")
 cSql := cSql + IF(nTipoArt = 1," ",IF(nTipoArt=2," AND a.mprima IS FALSE"," AND a.mprima IS TRUE"))
+cSql := cSql + IF(nCodPro = 0," "," AND a.prov = "+str(nCodPro))
 cSql := cSql +   " ORDER BY a."+ aorden[nOrden2]
 CursorWait()
 TRY

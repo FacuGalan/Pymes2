@@ -9,7 +9,7 @@ FUNCTION Punto()
 LOCAL oGet1, oGet2, oGet3, oGet4, oGet5, oGet6, oGet7, oGet8, oGet9, oGet10,;
       oGet11, oGet12, oGet13, oGet14, oGet15, oGet16, oGet17, oGet18, oGet19, oGet20, ;
       oGet21, oGet22, oGet23, oGet24, oGet25, oGet26, oGet27, oGet28, oGet29, oGet30, oGet31, oGet32, oGet33,;
-      oGet34, oGet35, oGet36,;
+      oGet34, oGet35, oGet36, oGet37,;
       oBot1, oBot2, oBot3, oDlg1, base, hHand, oQry, oError, aCor, mrta := .f.,;
       aCobrar := {"Cobro Salon","Cobro distribucion","Cobro ambos"}, oFont,;
       aTipos :={"Facturacion electronica","Facturacion con control. fiscal"}, aTipoC:={"Codigo interno","Codigo de barras"},;
@@ -115,9 +115,11 @@ DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 40,75 OF oApp
    oGet34:cToolTip := "Para alta de clientes en POS que lista de precios permite asignar?"
    @230, 05 CHECKBOX oGet35 VAR base:transfiereefec PROMPT "Transfiere efectivo al cierre" OF oDlg1 PIXEL SIZE 95,12
    oGet35:cToolTip := "Transferir el importe resultante de efectivo a la caja indicada al cierre del turno"
-   @230, 155 GET oGet36 VAR base:transfierecaja OF oDlg1 PICTURE "9999" WHEN(base:transfiereefec) RIGHT PIXEL SIZE 30,12;
+   @230, 105 GET oGet36 VAR base:transfierecaja OF oDlg1 PICTURE "9999" WHEN(base:transfiereefec) RIGHT PIXEL SIZE 30,12;
             VALID(Buscar(oQryPun,oDlg1,oGet36,,,,,, 'caja'));
             ACTION ((oGet36:cText := 0,Buscar(oQryPun,oDlg1,oGet36,,,,,, 'caja'))) BITMAP "BUSC1" 
+   @230,175 CHECKBOX oGet37 VAR base:agrupaimpresion PROMPT "Agrupa impresión" OF oDlg1 PIXEL SIZE 95,12
+   oGet37:cToolTip := "Agrupa la impresion de items iguales en las facturas de venta"
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Grabar" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;

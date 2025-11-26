@@ -567,7 +567,9 @@ TRY
          " UNION "+;
       "SELECT codart,detart, 0 as comprado, SUM(cantidad) as pedido, punit "+;
       " FROM ge_"+oApp:cId+"pedprov_det WHERE numero IN ("+cInped+") GROUP BY codart ) res GROUP BY res.codart")
+
      i := .f.
+     oQryPedPen:GoTop()
      DO WHIlE !oQryPedPen:eof()
         IF (oQryPedPen:comprado < oQryPedPen:pedido)
            i := .t.
@@ -579,8 +581,9 @@ TRY
                       "cantidades pedidas. Desea generar un pedido automático"+CHR(10)+;
                       "con los productos faltantes?","Atencion")
         IF i 
-            oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"pedprov (codpro,fecha,usuario,fecmod) VALUES ("+;
-                                ClipValue2Sql(base:codpro)+",CURDATE(),"+ClipValue2SQL(oApp:usuario)+",CURDATE())")
+            oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"pedprov (codpro,fecha,usuario,fecmod,observa) VALUES ("+;
+                                ClipValue2Sql(base:codpro)+",CURDATE(),"+ClipValue2SQL(oApp:usuario)+",CURDATE(),"+;
+                                "'Pedido Origen:"+cInPed+"')")
             i := oApp:oServer:LastInsertID()
             oQryPedPen:GoTop()
             DO WHIlE !oQryPedPen:eof()
@@ -1080,8 +1083,8 @@ RETURN .T.
 
 STATIC FUNCTION ValidaPro(oGet,lAlta,oDlg1,nDias)
    LOCAL oQryDeu,oQryCue
-   oQryPro := oApp:oServer:Query("SELECT codigo,nombre,alias,localidad,cuit,coniva,codcue,saldo,diasvenci  FROM ge_"+oApp:cId+"provee")
-   BuscarArt(oQryPro,oDlg1,oGet[07],oGet[08])
+   oQryPro := oApp:oServer:Query("SELECT codigo,nombre,alias,localidad,cuit,coniva,codcue,saldo,diasvenci,inactivo  FROM ge_"+oApp:cId+"provee")
+   BuscarArt(oQryPro,oDlg1,oGet[07],oGet[08],'0', 'inactivo')
    oQryPro := oApp:oServer:Query("SELECT codigo,nombre,alias,localidad,cuit,coniva,codcue,saldo,diasvenci FROM ge_"+oApp:cId+"provee  WHERE codigo = " + ClipValue2SQL(base:codpro))
    oQryIva := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"tipoiva   WHERE codigo = " + ClipValue2SQL(oQryPro:coniva))   
    nDias := oQryPro:diasvenci
@@ -1481,13 +1484,21 @@ oApp:oServer:NextResult()
 oApp:oServer:Execute("TRUNCATE comprasdet_H")
 oApp:oServer:NextResult()
 
-
-oApp:oServer:Execute("INSERT INTO comprasdet_H (codpro,tipocomp,letra,numfac,codart,detart,siniva,punit,"+;
+IF !lNoComputarIVA
+   oApp:oServer:Execute("INSERT INTO comprasdet_H (codpro,tipocomp,letra,numfac,codart,detart,siniva,punit,"+;
                                  "desc1,desc2,desc3,desc4,desc5,neto_unit,neto,iva,total,cantidad,codiva,codigopro)"+;
                       " (SELECT "+ClipValue2Sql(base:codpro)+",'FC','X','0000-0000000',codart,detart,true,punit,descuento,"+;
                       "0,0,0,0,punit,punit*cantidad,punit*cantidad*0.21,punit*cantidad*0.21+punit*cantidad,cantidad,5,'' "+;                      
                       "FROM ge_"+oApp:cId+"pedprov_det  "+;
                       "WHERE numero IN (SELECT numped FROM pedidosp_temp WHERE tilde = 1 ) )")
+   ELSE 
+   oApp:oServer:Execute("INSERT INTO comprasdet_H (codpro,tipocomp,letra,numfac,codart,detart,siniva,punit,"+;
+                                 "desc1,desc2,desc3,desc4,desc5,neto_unit,neto,iva,total,cantidad,codiva,codigopro)"+;
+                      " (SELECT "+ClipValue2Sql(base:codpro)+",'FC','X','0000-0000000',codart,detart,true,punit,descuento,"+;
+                      "0,0,0,0,punit,punit*cantidad,0,punit*cantidad,cantidad,5,'' "+;                      
+                      "FROM ge_"+oApp:cId+"pedprov_det  "+;
+                      "WHERE numero IN (SELECT numped FROM pedidosp_temp WHERE tilde = 1 ) )")
+ENDIF   
 oApp:oServer:NextResult()
 oQryComprasDet:Refresh()
 oBrwDet:Refresh()

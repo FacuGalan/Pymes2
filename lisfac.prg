@@ -12,8 +12,8 @@ MEMVAR oApp
 ** Cuenta corriente de cliente
 PROCEDURE RepCre1()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
-      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(6), oBot1, oBot2, oQryCli,;
-      cTodos := "Todos los clientes          ", mnomcli := SPACE(30), mdesde := CTOD("01/01/2010"), mhasta := DATE(),;
+      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(6), oBot1, oBot2, oQryCli, cSql,;
+      cTodos := "Todos los clientes          ", mnomcli := cTodos, mdesde := CTOD("01/01/2010"), mhasta := DATE(),;
       mcodcli := 0, mTotal := 0, lTipo := .f.,nTipo:=1,aTipo:={"Sistema","Demo"}, lConArt := .f.
 oQryCli:= oApp:oServer:Query("SELECT codigo,nombre, direccion FROM ge_"+oApp:cId+"clientes ORDER BY nombre")           
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
@@ -21,13 +21,14 @@ DEFINE DIALOG oDlg1 TITLE "Cuentas corrientes" FROM 03,15 TO 14,70 Of oApp:oWnd
    acor := AcepCanc(oDlg1)    
    @ 07, 01 SAY "Desde Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
    @ 22, 01 SAY "Hasta Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
-   @ 37, 01 SAY "Cliente:"     OF oDlg1 PIXEL SIZE 60,10 RIGHT 
+   @ 37, 01 SAY "Cliente (0:Todos):"     OF oDlg1 PIXEL SIZE 60,10 RIGHT 
    @ 05, 65 GET oGet[1] VAR mdesde    OF oDlg1 PIXEL
    @ 20, 65 GET oGet[2] VAR mhasta    OF oDlg1 PIXEL VALID(mhasta >= mdesde)
    @ 35, 65 GET oGet[3] VAR mcodcli OF oDlg1 SIZE 30,12 PIXEL RIGHT;
-                VALID(Buscar(oQryCli,oDlg1,oGet[3],oGet[4]));
-                ACTION (oGet[3]:cText:= 0, Buscar(oQryCli,oDlg1,oGet[3],oGet[4])) BITMAP "BUSC1" 
-   @ 35,100 GET oGet[4] VAR mnomcli PICTURE "@!"  OF oDlg1 PIXEL WHEN(.F.)
+                VALID(mcodcli = 0 .or. Buscar(oQryCli,oDlg1,oGet[3],oGet[4]));
+                ACTION (oGet[3]:cText:= -99, Buscar(oQryCli,oDlg1,oGet[3],oGet[4])) BITMAP "BUSC1" 
+   @ 35,100 GET oGet[4] VAR mnomcli PICTURE "@!"  OF oDlg1 PIXEL ;
+           WHEN((oGet[4]:cText := IF(mcodcli=0,cTodos,oQryCli:nombre)) = SPACE(30))
    @ 50, 65 CHECKBOX oGet[5] VAR lConArt PROMPT "Mostrar Articulos"   OF oDlg1 PIXEL 
   
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
@@ -40,71 +41,146 @@ IF !mrta
 ENDIF
 CursorWait()
 lTipo:= IF(nTipo=1,.f.,.t.)
-     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-9
-     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-9 BOLD
-     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC     
-oQry := oApp:oServer:Query("SELECT fecha, CONCAT('REC ',LPAD(CAST(numero AS CHAR),8,'0')) AS compro,"+;
-                            " 0 AS debe, total AS haber, interes as interes, ' ' as det"+;                          
-                            " FROM ge_"+oApp:cId+"pagos "+;                          
-                            " WHERE fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
-                            "       fecha <= " + ClipValue2Sql(mhasta) + " AND "+;
-                            "       cliente = " + ClipValue2Sql(mcodcli) + " AND total <> 0 "+;
-                            " UNION "+;   
-                           "SELECT v.fecha, CONCAT(v.ticomp,v.letra,v.numcomp) AS compro,"+;
-                           " v.importe*IF(v.ticomp='NC' OR v.ticomp='DE',-1,1) AS debe, 0 AS haber, 0 as interes,"+;
-                           "d.det AS det "+;
-                           " FROM ge_"+oApp:cId+"ventas_encab v"+;
-                           " LEFT JOIN (SELECT GROUP_CONCAT(detart,' ',cantidad) AS det, NROFAC "+;
-                           " FROM ge_"+oApp:cId+"ventas_det GROUP BY NROFAC) d "+;
-                           " ON CONCAT(v.ticomp,v.letra,v.numcomp) = d.nrofac "+;                         
-                           " WHERE fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
-                           "       fecha <= " + ClipValue2Sql(mhasta) + " AND "+;
-                           "       codcli = " + ClipValue2Sql(mcodcli) +;
-                           " UNION "+;
-                           " SELECT " + ClipValue2Sql(mdesde-1) + " AS fecha, "+;
-                           " 'Saldo Anterior' AS compro, "+;
-                           "(SELECT SUM(importe*IF(ticomp='NC' OR ticomp='DE',-1,1)) "+;
-                             "FROM ge_"+oApp:cId+"ventas_encab WHERE fecha < "+ClipValue2Sql(mdesde)+;
-                                   " AND codcli = "+ClipValue2Sql(mcodcli)+") AS debe, "+;
-                           "(SELECT SUM(total) "+;
-                             "FROM ge_"+oApp:cId+"pagos WHERE fecha < "+ClipValue2Sql(mdesde)+;
-                                   " AND cliente = "+ClipValue2Sql(mcodcli)+") AS haber ,"+;
-                           "(SELECT SUM(interes) "+;
-                             "FROM ge_"+oApp:cId+"pagos WHERE fecha < "+ClipValue2Sql(mdesde)+;
-                                   " AND cliente = "+ClipValue2Sql(mcodcli)+") AS interes, ' ' as det "+;
-                           " ORDER BY fecha ")
-REPORT oRep TITLE "Cuenta corriente de (" + STR(mcodcli,6)+") "+  ALLTRIM(mNomCli)  + ;
-                  " del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
-       FONT  oFont1,oFont2,oFont3 ;
-       HEADER OemToAnsi(oApp:nomb_emp)  , ;
-       "Cuenta corrientes cliente" CENTER ;
-       FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
-       PREVIEW CAPTION  "Cuenta corrientes cliente"
+DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-9
+DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-9 BOLD
+DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC     
+IF mcodcli > 0
+      
+      oQry := oApp:oServer:Query("SELECT fecha, CONCAT('REC ',LPAD(CAST(numero AS CHAR),8,'0')) AS compro,"+;
+                                  " 0 AS debe, total AS haber, interes as interes, ' ' as det"+;                          
+                                  " FROM ge_"+oApp:cId+"pagos "+;                          
+                                  " WHERE fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
+                                  "       fecha <= " + ClipValue2Sql(mhasta) + " AND "+;
+                                  "       cliente = " + ClipValue2Sql(mcodcli) + " AND total <> 0 "+;
+                                  " UNION "+;   
+                                 "SELECT v.fecha, CONCAT(v.ticomp,v.letra,v.numcomp) AS compro,"+;
+                                 " v.importe*IF(v.ticomp='NC' OR v.ticomp='DE',-1,1) AS debe, 0 AS haber, 0 as interes,"+;
+                                 "d.det AS det "+;
+                                 " FROM ge_"+oApp:cId+"ventas_encab v"+;
+                                 " LEFT JOIN (SELECT GROUP_CONCAT(detart,' ',cantidad) AS det, NROFAC "+;
+                                 " FROM ge_"+oApp:cId+"ventas_det GROUP BY NROFAC) d "+;
+                                 " ON CONCAT(v.ticomp,v.letra,v.numcomp) = d.nrofac "+;                         
+                                 " WHERE fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
+                                 "       fecha <= " + ClipValue2Sql(mhasta) + " AND "+;
+                                 "       codcli = " + ClipValue2Sql(mcodcli) +;
+                                 " UNION "+;
+                                 " SELECT " + ClipValue2Sql(mdesde-1) + " AS fecha, "+;
+                                 " 'Saldo Anterior' AS compro, "+;
+                                 "(SELECT SUM(importe*IF(ticomp='NC' OR ticomp='DE',-1,1)) "+;
+                                   "FROM ge_"+oApp:cId+"ventas_encab WHERE fecha < "+ClipValue2Sql(mdesde)+;
+                                         " AND codcli = "+ClipValue2Sql(mcodcli)+") AS debe, "+;
+                                 "(SELECT SUM(total) "+;
+                                   "FROM ge_"+oApp:cId+"pagos WHERE fecha < "+ClipValue2Sql(mdesde)+;
+                                         " AND cliente = "+ClipValue2Sql(mcodcli)+") AS haber ,"+;
+                                 "(SELECT SUM(interes) "+;
+                                   "FROM ge_"+oApp:cId+"pagos WHERE fecha < "+ClipValue2Sql(mdesde)+;
+                                         " AND cliente = "+ClipValue2Sql(mcodcli)+") AS interes, ' ' as det "+;
+                                 " ORDER BY fecha ")
+      REPORT oRep TITLE "Cuenta corriente de (" + STR(mcodcli,6)+") "+  ALLTRIM(mNomCli)  + ;
+                        " del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
+             FONT  oFont1,oFont2,oFont3 ;
+             HEADER OemToAnsi(oApp:nomb_emp)  , ;
+             "Cuenta corrientes cliente" CENTER ;
+             FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
+             PREVIEW CAPTION  "Cuenta corrientes cliente"
 
-COLUMN TITLE "Comprobante" DATA oQry:compro    SIZE IF(lConArt,15,35) FONT 1
-COLUMN TITLE "Fecha"       DATA FechaSql(oQry:fecha)     PICTURE "@D" SIZE 08 FONT 1
-COLUMN TITLE "Debe"        DATA oQry:debe      PICTURE "99999999999.99" ;
-                           SIZE 10 FONT 2 TOTAL
-COLUMN TITLE "Haber"       DATA oQry:haber PICTURE "99999999999.99" ;
-                           SIZE 10 FONT 2 TOTAL
-COLUMN TITLE "Interes"     DATA oQry:interes PICTURE "99999999999.99" ;
-                           SIZE 10 FONT 2 
-COLUMN TITLE "Saldo"       DATA mtotal PICTURE "99999999999.99" ;
-                           SIZE 10 FONT 2 
-IF lConArt
-   COLUMN TITLE "Productos"       DATA STRTRAN(oQry:det,","," - ") SIZE 35 FONT 1 MEMO
-ENDIF                           
+      COLUMN TITLE "Comprobante" DATA oQry:compro    SIZE IF(lConArt,15,35) FONT 1
+      COLUMN TITLE "Fecha"       DATA FechaSql(oQry:fecha)     PICTURE "@D" SIZE 08 FONT 1
+      COLUMN TITLE "Debe"        DATA oQry:debe      PICTURE "99999999999.99" ;
+                                 SIZE 10 FONT 2 TOTAL
+      COLUMN TITLE "Haber"       DATA oQry:haber PICTURE "99999999999.99" ;
+                                 SIZE 10 FONT 2 TOTAL
+      COLUMN TITLE "Interes"     DATA oQry:interes PICTURE "99999999999.99" ;
+                                 SIZE 10 FONT 2 
+      COLUMN TITLE "Saldo"       DATA mtotal PICTURE "99999999999.99" ;
+                                 SIZE 10 FONT 2 
+      IF lConArt
+         COLUMN TITLE "Productos"       DATA STRTRAN(oQry:det,","," - ") SIZE 35 FONT 1 MEMO
+      ENDIF                           
 
-// Digo que el titulo lo escriba con al letra 2
-oRep:oTitle:aFont[1] := {|| 2 }
-oRep:bInit := {|| oQry:GoTop(), mtotal := oQry:debe - oQry:haber }
-oRep:bSkip := {|| oQry:Skip(), mtotal := mtotal + oQry:debe + oQry:interes - oQry:haber }
+      // Digo que el titulo lo escriba con al letra 2
+      oRep:oTitle:aFont[1] := {|| 2 }
+      oRep:bInit := {|| oQry:GoTop(), mtotal := oQry:debe - oQry:haber }
+      oRep:bSkip := {|| oQry:Skip(), mtotal := mtotal + oQry:debe + oQry:interes - oQry:haber }
 
-END REPORT
-ACTIVATE REPORT oRep WHILE !oQry:EOF() ON INIT CursorArrow() ;
-         ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.jpg",1,1)         
+      END REPORT
+      ACTIVATE REPORT oRep WHILE !oQry:EOF() ON INIT CursorArrow() ;
+               ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.jpg",1,1)         
 
-oQry:End()
+      oQry:End()
+    ELSE
+    cSql := ""
+    oQryCli:GoTop()
+    DO WHILE !oQryCli:Eof()
+       cSql := cSql +           "SELECT "+STR(oQryCli:codigo)+" AS codcli, "+ClipValue2Sql(oQryCli:nombre)+" AS nomcli, fecha, CONCAT('REC ',LPAD(CAST(numero AS CHAR),8,'0')) AS compro,"+;
+                                 " 0 AS debe, total AS haber, interes as interes, ' ' as det"+;                          
+                                 " FROM ge_"+oApp:cId+"pagos "+;                          
+                                 " WHERE fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
+                                 "       fecha <= " + ClipValue2Sql(mhasta) + " AND "+;
+                                 "       cliente = " + ClipValue2Sql(oQryCli:codigo) + " AND total <> 0 "+;
+                                 " UNION "+;   
+                                 "SELECT "+STR(oQryCli:codigo)+" AS codcli, "+ClipValue2Sql(oQryCli:nombre)+" AS nomcli, v.fecha, CONCAT(v.ticomp,v.letra,v.numcomp) AS compro,"+;
+                                 " v.importe*IF(v.ticomp='NC' OR v.ticomp='DE',-1,1) AS debe, 0 AS haber, 0 as interes,"+;
+                                 "d.det AS det "+;
+                                 " FROM ge_"+oApp:cId+"ventas_encab v"+;
+                                 " LEFT JOIN (SELECT GROUP_CONCAT(detart,' ',cantidad) AS det, NROFAC "+;
+                                 " FROM ge_"+oApp:cId+"ventas_det GROUP BY NROFAC) d "+;
+                                 " ON CONCAT(v.ticomp,v.letra,v.numcomp) = d.nrofac "+;                         
+                                 " WHERE fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
+                                 "       fecha <= " + ClipValue2Sql(mhasta) + " AND "+;
+                                 "       codcli = " + ClipValue2Sql(oQryCli:codigo) +;
+                                 " UNION "+;
+                                 "SELECT "+STR(oQryCli:codigo)+" AS codcli, "+ClipValue2Sql(oQryCli:nombre)+" AS nomcli," + ClipValue2Sql(mdesde-1) + " AS fecha, "+;
+                                 " 'Saldo Anterior' AS compro, "+;
+                                 "(SELECT SUM(importe*IF(ticomp='NC' OR ticomp='DE',-1,1)) "+;
+                                 " FROM ge_"+oApp:cId+"ventas_encab WHERE fecha < "+ClipValue2Sql(mdesde)+;
+                                 " AND codcli = "+ClipValue2Sql(oQryCli:codigo)+") AS debe, "+;
+                                 "(SELECT SUM(total) "+;
+                                 " FROM ge_"+oApp:cId+"pagos WHERE fecha < "+ClipValue2Sql(mdesde)+;
+                                 " AND cliente = "+ClipValue2Sql(oQryCli:codigo)+") AS haber ,"+;
+                                 "(SELECT SUM(interes) "+;
+                                 " FROM ge_"+oApp:cId+"pagos WHERE fecha < "+ClipValue2Sql(mdesde)+;
+                                 " AND cliente = "+ClipValue2Sql(oQryCli:codigo)+") AS interes, ' ' as det "
+       oQryCli:Skip()
+       IF !oQryCli:Eof()
+          cSql := cSql  + " UNION "
+       ENDIF   
+    ENDDO
+    cSql := "SELECT res.* FROM ("+ cSql + ") res WHERE res.codcli > 1 ORDER BY res.codcli, res.fecha"
+    oQry:= oApp:oServer:Query(cSql)
+    REPORT oRep TITLE "Cuenta corriente del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
+             FONT  oFont1,oFont2,oFont3 ;
+             HEADER OemToAnsi(oApp:nomb_emp)  , ;
+             "Cuenta corrientes cliente" CENTER ;
+             FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
+             PREVIEW CAPTION  "Cuenta corrientes cliente"
+      GROUP ON oQry:codcli HEADER "Cliente: ("+ STR(oQry:codcli) + ") " + ALLTRIM(oQry:nomcli) FONT 3 EJECT
+      COLUMN TITLE "Comprobante" DATA oQry:compro    SIZE IF(lConArt,15,35) FONT 1
+      COLUMN TITLE "Fecha"       DATA FechaSql(oQry:fecha)     PICTURE "@D" SIZE 08 FONT 1
+      COLUMN TITLE "Debe"        DATA oQry:debe      PICTURE "99999999999.99" ;
+                                 SIZE 10 FONT 2 
+      COLUMN TITLE "Haber"       DATA oQry:haber PICTURE "99999999999.99" ;
+                                 SIZE 10 FONT 2 
+      COLUMN TITLE "Interes"     DATA oQry:interes PICTURE "99999999999.99" ;
+                                 SIZE 10 FONT 2 
+      COLUMN TITLE "Saldo"       DATA mtotal PICTURE "99999999999.99" ;
+                                 SIZE 10 FONT 2 
+      IF lConArt
+         COLUMN TITLE "Productos"       DATA STRTRAN(oQry:det,","," - ") SIZE 35 FONT 1 MEMO
+      ENDIF                           
+
+      // Digo que el titulo lo escriba con al letra 2
+      oRep:oTitle:aFont[1] := {|| 2 }
+      oRep:bInit := {|| oQry:GoTop() }
+      oRep:bStartGroup := {||  mtotal := oQry:debe - oQry:haber }
+      oRep:bSkip := {|| oQry:Skip(), mtotal := mtotal + oQry:debe + oQry:interes - oQry:haber }
+
+      END REPORT
+      ACTIVATE REPORT oRep WHILE !oQry:EOF() ON INIT CursorArrow() ;
+               ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.jpg",1,1)         
+
+      oQry:End()
+ENDIF
 RETURN 
 
 ***********************************

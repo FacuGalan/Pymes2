@@ -36,7 +36,7 @@ oApp:oServer:Execute("";
     +") ENGINE=INNODB DEFAULT CHARSET=utf8")
 
 
-oQryBrw:= oApp:oServer:Query("SELECT p.id AS id, p.codpro AS codpro, p.fecha AS fecha, pr.nombre AS nompro "+;
+oQryBrw:= oApp:oServer:Query("SELECT p.id AS id, p.codpro AS codpro, p.fecha AS fecha, pr.nombre AS nompro, p.observa "+;
                              "FROM ge_"+oApp:cId+"pedprov p LEFT JOIN ge_"+oApp:cId+"provee pr ON pr.codigo = p.codpro")
                         
  
@@ -72,11 +72,11 @@ oQryBrw:= oApp:oServer:Query("SELECT p.id AS id, p.codpro AS codpro, p.fecha AS 
    oWnd1:bResized := { || Incrusta( oWnd1, oDlg, .t.) }
      DEFINE DIALOG oDlg RESOURCE "ABMS" OF oWnd1
          REDEFINE XBROWSE oBrw DATASOURCE oQryBrw;
-                  COLUMNS "id","fecha","nompro";
-                  HEADERS "Pedido","Fecha","Proveedor";
-                  SIZES 70,70,200;
+                  COLUMNS "id","fecha","nompro","observa";
+                  HEADERS "Pedido","Fecha","Proveedor","Observaciones";
+                  SIZES 70,70,150,300;
                   ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu( .f.),oBrw:Refresh()),nil))
-     PintaBrw(oBrw,3) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
+     PintaBrw(oBrw,4) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
      oQryBrw:bOnChangePage := {|| oBrw:Refresh() }
      oBrw:aCols[2]:SetOrder()
      oBrw:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar, oBrw,cPermisos,5)}
@@ -91,7 +91,7 @@ RETURN
 *************************************
 ** Agregar un registro nuevo
 STATIC FUNCTION Formu (lAlta)
-LOCAL oGet := ARRAY(9), oBot := ARRAY(6), oForm, lRta := .F., aCor, base,;
+LOCAL oGet := ARRAY(10), oBot := ARRAY(6), oForm, lRta := .F., aCor, base,;
       oQryPro:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"provee"),cNomPro:=SPACE(50),;
       nSubTotal:=0,nRetencio:=0,nTotal:=0,oError
 
@@ -117,6 +117,7 @@ IF lAlta
    base:fecha := DATE()
    base:descuento:= 0
    base:reten    := 0
+   base:observa  := SPACE(400)
    ELSE
    oQry:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"pedprov WHERE id = " + ClipValue2Sql(oQryBrw:id))
    base := oQry:GetRowObj()
@@ -141,12 +142,13 @@ DEFINE DIALOG oForm RESOURCE "PEDPROV" OF oWnd1
  
  REDEFINE GET oGet[01] VAR base:id PICTURE "9999999999" ID 101 OF oForm WHEN(.F.)
  REDEFINE GET oGet[02] VAR base:codpro PICTURE "999999" ID 102 OF oForm ;
-              VALID(Buscar(oQryPro,oForm,oGet[2],oGet[3]) .AND. (oGet[06]:cText:=oQryPro:retencio) <> "xxx");
-              ACTION (oGet[2]:cText:= 0, Buscar(oQryPro,oForm,oGet[2],oGet[3])) BITMAP "BUSC1"
+              VALID(BuscarArt(oQryPro,oForm,oGet[2],oGet[3],'0','inactivo') .AND. (oGet[06]:cText:=oQryPro:retencio) <> "xxx");
+              ACTION (oGet[2]:cText:= 0, BuscarArt(oQryPro,oForm,oGet[2],oGet[3],'0','inactivo')) BITMAP "BUSC1"
  REDEFINE GET oGet[03] VAR cNomPro ID 103 OF oForm  PICTURE "@!" WHEN(.F.)
  REDEFINE GET oGet[04] VAR base:fecha     PICTURE "@D" ID 104 OF oForm
  REDEFINE GET oGet[05] VAR base:descuento PICTURE "999.99" ID 105 OF oForm WHEN(oQryDet:RecCount()=0)
  REDEFINE GET oGet[06] VAR base:reten     PICTURE "999.99" ID 106 OF oForm WHEN(.F.)
+ REDEFINE GET oGet[10] VAR base:observa   ID 4005 OF oForm MEMO
 
  REDEFINE XBROWSE oBrwDet DATASOURCE oQryDet;
        COLUMNS "CODART","DETART","CANTIDAD","PUNIT","DESCUENTO","TOTAL","CODIGOPROV","CODIGOPROV1",'STOCK';

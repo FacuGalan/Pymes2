@@ -108,6 +108,7 @@ IF lAlta
        MsgStop("No puede modificar un movimiento ya consolidadado en un cierre","Error") 
        RETURN nil 
    ENDIF   
+   oQry:lAppend := .f.   
    base := oQry:GetRowObj()
    cTip := base:tipo
    nImp := base:importe

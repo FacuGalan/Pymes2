@@ -2262,7 +2262,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                 "IVA NO Alcanzado"}, nIndiceDolar, cSigno,;
   i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, oFont5, oQryVen1, oQryDet1, config, lComan,;
   oQryIvaDet, aCor,cCondVen,cFormaPag, nDesFac, oQryP , nRow1, nHoja , oQryPar1, cDomicilioFiscal, nBultos,;
-  lImprimio_promo 
+  lImprimio_promo, lAgrupa 
 DEFAULT aMetodosPago := {}  
   oQryVen1 := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"ventas_encab  "+;                                 
                                  "WHERE ticomp = " + ClipValue2Sql(cTipoDoc)+;
@@ -2276,6 +2276,7 @@ DEFAULT aMetodosPago := {}
      cSigno := "$"
   ENDIF
   oQryP :=  oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip))
+  lAgrupa := oQryP:agrupaimpresion
   oQryPar1 := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros")
   oApp:cDestinoMail := oApp:oServer:Query("SELECT mail FROM ge_"+oApp:cId+"clientes WHERE codigo = "+ClipValue2Sql(oQryVen1:codcli)):mail
    IF oQryVen1:nRecCount = 0
@@ -2301,7 +2302,19 @@ DEFAULT aMetodosPago := {}
    oQryIvaDet:= oApp:oServer:Query("SELECT SUM(v.iva) AS iva,SUM(v.neto) AS neto, v.codiva, i.nombre AS nomiva FROM ge_"+oApp:cId+"ventas_det v "+;
                                    "INNER JOIN ge_"+oApp:cId+"ivas i ON v.codiva = i.codigo "+;
                                    "WHERE v.nrofac = " + ClipValue2Sql(cTipoDoc+cNumComp)+ " GROUP BY v.codiva ")
-   oQryDet1 := oApp:oServer:Query("SELECT vd.codart,vd.detart,vd.cantidad,vd.punit,vd.importe,vd.neto,vd.iva,"+;
+   IF lAgrupa
+       oQryDet1 := oApp:oServer:Query("SELECT vd.codart,vd.detart,SUM(vd.cantidad) AS cantidad,vd.punit,SUM(vd.importe) AS importe,SUM(vd.neto) AS neto,SUM(vd.iva) AS iva,"+;
+                                  "vd.codiva,SUM(vd.neton) AS neton,vd.descu,SUM(vd.impint) AS impint,SUM(vd.bultos) AS bultos,"+;
+       "IF(vd.descup>0,vd.descup,0) AS descupor,"+;
+       "IF(SUBSTR(nrofac,3,1) = 'A', SUM(neto),SUM(importe)) AS subtot,"+;
+       "IF(codiva = 5,'21%',IF(codiva=3,'0%','10.5%')) AS alicu, (i.tasa / 100) as tasa,"+;
+       "SUM(importe) AS subtotalciva,a.codigopro FROM ge_"+oApp:cId+"ventas_det vd "+;
+                                  " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = vd.codart "+;
+                                  " LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = vd.codiva "+;
+                                  " WHERE nrofac = " + ClipValue2Sql(cTipoDoc+cNumComp)+;
+                                  IF(lAgrupa," GROUP BY vd.codart,vd.punit,vd.descu  ORDER BY vd.id",""))
+       ELSE 
+       oQryDet1 := oApp:oServer:Query("SELECT vd.codart,vd.detart,vd.cantidad,vd.punit,vd.importe,vd.neto,vd.iva,"+;
                                   "vd.codiva,vd.neton,vd.descu,vd.impint,vd.bultos,"+;
        "IF(vd.descup>0,vd.descup,0) AS descupor,"+;
        "IF(SUBSTR(nrofac,3,1) = 'A', neto,importe) AS subtot,"+;
@@ -2310,6 +2323,7 @@ DEFAULT aMetodosPago := {}
                                   " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = vd.codart "+;
                                   " LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = vd.codiva "+;
                                   " WHERE nrofac = " + ClipValue2Sql(cTipoDoc+cNumComp))
+   ENDIF    
    config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
    cCondVen := oApp:oServer:Query("SELECT nombre FROM ge_"+oApp:cId+"cond_venta WHERE codigo = "+ClipValue2Sql(oQryVen1:condven)):nombre
    cFormaPag:= oApp:oServer:Query("SELECT nombre FROM ge_"+oApp:cId+"forpag WHERE codigo = "+ClipValue2Sql(oQryVen1:formapag)):nombre
@@ -2652,8 +2666,8 @@ DEFAULT aMetodosPago := {}
                IF config:fon > 25
                   config:fon := config:fon /3
                ENDIF   
-               DEFINE FONT oFont   NAME "COURIER NEW"       SIZE config:fon,config:fon*2.5
-               DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
+               DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.8,config:fon*3
+               DEFINE FONT oFont1  NAME "ARIAL"       SIZE config:fon*1.5,config:fon*3.5 BOLD
                PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
                   oPrn:oFont := oFont
                   PAGE                                  
@@ -2812,8 +2826,8 @@ DEFAULT aMetodosPago := {}
                IF config:fon > 25
                   config:fon := config:fon /3
                ENDIF   
-               DEFINE FONT oFont   NAME "COURIER NEW"       SIZE config:fon,config:fon*2.5
-               DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
+               DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.8,config:fon*3
+               DEFINE FONT oFont1  NAME "ARIAL"       SIZE config:fon*1.5,config:fon*3.5 BOLD
                PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
                   oPrn:oFont := oFont
                   PAGE                                  
@@ -2909,9 +2923,9 @@ DEFAULT aMetodosPago := {}
                                   SIZE 7.1,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"   
                          //Nuevo... Transparencia Fiscal
                          @ nRow, .1 PRINT TO oPrn TEXT "Regimen Transparencia Fiscal";
-                                  SIZE 7.1,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"
+                                  SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "L"
                          @ nRow, .1 PRINT TO oPrn TEXT    "IVA Contenido: $"+STR(oQryVen1:iva,12,2);
-                                  SIZE 7.1,.5 CM FONT oFont1 LASTROW nRow ALIGN "L" 
+                                  SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "L" 
                          IF oQryVen1:sobretasa > 0
                             @ nRow, .1 PRINT TO oPrn TEXT "Imp. Internos: $"+STR(oQryVen1:sobretasa,12,2) ;
                               SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "L"                     
@@ -3020,11 +3034,16 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                 "Pequeño Contribuyente Eventual Social","IVA no Alcanzado"},;
       i, x, y, oPrn, nRow, oFont, oFont2, oFont1, oFont3, config, nHoja := 1, cCodigopro, nIva := 0,;
       oQryP :=  oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip)),;
-      lComan :=.f., cDomicilioFiscal, nRow1    
+      lComan :=.f., cDomicilioFiscal, nRow1, lAgrupa := oQryP:agrupaimpresion, oQryDet1    
 DEFAULT dFecVen:= nil, lImpSinIva := .f., lPreciosFinales := .f.
    oApp:cDestinoMail := oApp:oServer:Query("SELECT mail FROM ge_"+oApp:cId+"clientes WHERE codigo = "+oGet[08]:cText):mail
-   config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
-   
+   config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")   
+   IF lAgrupa 
+      oQryDet1 := oQryDet 
+      oQryDet := oApp:oServer:Query("SELECT codart,detart,SUM(cantidad) AS cantidad,punit,"+;
+                                    "SUM(ptotal) AS ptotal,SUM(stotal) AS stotal "+;                                         
+       " FROM ventas_det_H  GROUP BY codart,punit,DESCUENTO ORDER BY id")
+   ENDIF
    cDomicilioFiscal := oApp:dire_emp
     
    IF oQryP:preguntaimpr 
@@ -3294,8 +3313,8 @@ DEFAULT dFecVen:= nil, lImpSinIva := .f., lPreciosFinales := .f.
            IF config:fon > 25
               config:fon := config:fon /3
            ENDIF   
-           DEFINE FONT oFont   NAME "COURIER NEW"       SIZE config:fon,config:fon*2.5
-           DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
+           DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.8,config:fon*3
+           DEFINE FONT oFont1  NAME "ARIAL"       SIZE config:fon*1.5,config:fon*3.5 BOLD
            PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
               oPrn:oFont := oFont
               PAGE                                  
@@ -3400,8 +3419,8 @@ DEFAULT dFecVen:= nil, lImpSinIva := .f., lPreciosFinales := .f.
            IF config:fon > 25
               config:fon := config:fon /3
            ENDIF   
-           DEFINE FONT oFont   NAME "COURIER NEW"       SIZE config:fon,config:fon*2.5
-           DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
+           DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.8,config:fon*3
+           DEFINE FONT oFont1  NAME "ARIAL"       SIZE config:fon*1.5,config:fon*3.5 BOLD
            PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
               oPrn:oFont := oFont
               PAGE                                  
@@ -3501,7 +3520,10 @@ DEFAULT dFecVen:= nil, lImpSinIva := .f., lPreciosFinales := .f.
               ENDPAGE
            ENDPRINT                            
         ENDIF
-    ENDIF    
+   ENDIF    
+   IF lAgrupa 
+      oQryDet := oQryDet1
+   ENDIF
 RETURN nil
 
 
@@ -3753,8 +3775,8 @@ DEFAULT cFactRemitada:=''
                IF config:fon > 25
                   config:fon := config:fon /3
                ENDIF   
-               DEFINE FONT oFont   NAME "COURIER NEW"       SIZE config:fon,config:fon*2.5
-               DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
+               DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.8,config:fon*3
+               DEFINE FONT oFont1  NAME "ARIAL"       SIZE config:fon*1.5,config:fon*3.5 BOLD
                PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
                   oPrn:oFont := oFont
                   PAGE                                  
@@ -3818,8 +3840,8 @@ DEFAULT cFactRemitada:=''
                IF config:fon > 25
                   config:fon := config:fon /3
                ENDIF   
-               DEFINE FONT oFont   NAME "COURIER NEW"       SIZE config:fon,config:fon*2.5
-               DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
+               DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.8,config:fon*3
+               DEFINE FONT oFont1  NAME "ARIAL"       SIZE config:fon*1.5,config:fon*3.5 BOLD
                PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
                   oPrn:oFont := oFont
                   PAGE                                  
@@ -3891,7 +3913,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                 "IVA Responsable Inscripto Agente de Percepción",;
                 "Pequeño Contribuyente Eventual","Monotributista Social",;
                 "Pequeño Contribuyente Eventual Social","IVA no Alcanzado"},;
-      i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, oFont5, oQryVen1, oQryDet1, config,;
+      i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, oFont5, oQryVen1, oQryDet1, config, lAgrupa,;
       oQryIvaDet, aCor,cCondVen,cFormaPag, oQryP, nRow1, nHoja, nDesFac, nBultos, lComan, lImprimio_promo := .f.
 DEFAULT aMetodosPago := {}      
    oQryVen1 := oApp:oServer:Query("SELECT *  FROM ge_"+oApp:cId+"ventas_encab "+;
@@ -3905,6 +3927,7 @@ DEFAULT aMetodosPago := {}
       RETURN nil
    ENDIF       
    oQryP :=  oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip))
+   lAgrupa := oQryP:agrupaimpresion
    IF oQryP:preguntaimpr
       lComan := SiNoCancelar("Atencion","Por donde desea emitir el Comprobante?",{"Comandera","Impresora","No imprimir"})
       IF lComan == nil 
@@ -3915,7 +3938,19 @@ DEFAULT aMetodosPago := {}
    oQryIvaDet:= oApp:oServer:Query("SELECT SUM(v.iva) AS iva,SUM(v.neto) AS neto, v.codiva, i.nombre AS nomiva FROM ge_"+oApp:cId+"ventas_det v "+;
                                    "INNER JOIN ge_"+oApp:cId+"ivas i ON v.codiva = i.codigo "+;
                                    "WHERE v.nrofac = " + ClipValue2Sql(cTipoDoc+cNumComp)+ " GROUP BY v.codiva ")
-   oQryDet1 := oApp:oServer:Query("SELECT vd.codart,vd.detart,vd.cantidad,vd.punit,vd.importe,vd.neto,vd.iva,"+;
+   IF lAgrupa
+       oQryDet1 := oApp:oServer:Query("SELECT vd.codart,vd.detart,SUM(vd.cantidad) AS cantidad,vd.punit,SUM(vd.importe) AS importe,SUM(vd.neto) AS neto,SUM(vd.iva) AS iva,"+;
+                                  "vd.codiva,SUM(vd.neton) AS neton,vd.descu,SUM(vd.impint) AS impint,SUM(vd.bultos) AS bultos,"+;
+       "IF(vd.descup>0,vd.descup,0) AS descupor,"+;
+       "IF(SUBSTR(nrofac,3,1) = 'A', SUM(neto),SUM(importe)) AS subtot,"+;
+       "IF(codiva = 5,'21%',IF(codiva=3,'0%','10.5%')) AS alicu, (i.tasa / 100) as tasa,"+;
+       "SUM(importe) AS subtotalciva,a.codigopro FROM ge_"+oApp:cId+"ventas_det vd "+;
+                                  " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = vd.codart "+;
+                                  " LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = vd.codiva "+;
+                                  " WHERE nrofac = " + ClipValue2Sql(cTipoDoc+cNumComp)+;
+                                  IF(lAgrupa,"GROUP BY vd.codart,vd.punit,vd.descu ORDER BY vd.id",""))
+       ELSE 
+       oQryDet1 := oApp:oServer:Query("SELECT vd.codart,vd.detart,vd.cantidad,vd.punit,vd.importe,vd.neto,vd.iva,"+;
                                   "vd.codiva,vd.neton,vd.descu,vd.impint,vd.bultos,"+;
        "IF(vd.descup>0,vd.descup,0) AS descupor,"+;
        "IF(SUBSTR(nrofac,3,1) = 'A', neto,importe) AS subtot,"+;
@@ -3924,6 +3959,7 @@ DEFAULT aMetodosPago := {}
                                   " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = vd.codart "+;
                                   " LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = vd.codiva "+;
                                   " WHERE nrofac = " + ClipValue2Sql(cTipoDoc+cNumComp))
+   ENDIF    
    config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
    cCondVen := oApp:oServer:Query("SELECT nombre FROM ge_"+oApp:cId+"cond_venta WHERE codigo = "+ClipValue2Sql(oQryVen1:condven)):nombre
    cFormaPag:= oApp:oServer:Query("SELECT nombre FROM ge_"+oApp:cId+"forpag WHERE codigo = "+ClipValue2Sql(oQryVen1:formapag)):nombre
@@ -4208,9 +4244,9 @@ DEFAULT aMetodosPago := {}
                IF config:fon > 25
                   config:fon := config:fon /3
                ENDIF
-               DEFINE FONT oFont   NAME "COURIER NEW"       SIZE config:fon,config:fon*2.5
-               DEFINE FONT oFont1  NAME "CALIBRI"           SIZE config:fon*1.5,config:fon*4 BOLD
-               DEFINE FONT oFont2  NAME "CALIBRI"           SIZE config:fon*1.1,config:fon*3 BOLD
+               DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.8,config:fon*3
+               DEFINE FONT oFont1  NAME "ARIAL"       SIZE config:fon*1.5,config:fon*3.5 BOLD
+               DEFINE FONT oFont2  NAME "CALIBRI"     SIZE config:fon*1.1,config:fon*3 BOLD
                PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
                   oPrn:oFont := oFont
                   PAGE                                  
@@ -4331,9 +4367,9 @@ DEFAULT aMetodosPago := {}
                IF config:fon > 25
                   config:fon := config:fon /3
                ENDIF
-               DEFINE FONT oFont   NAME "COURIER NEW"       SIZE config:fon,config:fon*2.5
-               DEFINE FONT oFont1  NAME "CALIBRI"           SIZE config:fon*1.5,config:fon*4 BOLD
-               DEFINE FONT oFont2  NAME "CALIBRI"           SIZE config:fon*1.2,config:fon*3 BOLD
+               DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.8,config:fon*3
+               DEFINE FONT oFont1  NAME "ARIAL"       SIZE config:fon*1.5,config:fon*3.5 BOLD
+               DEFINE FONT oFont2  NAME "CALIBRI"     SIZE config:fon*1.2,config:fon*3 BOLD
                PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
                   oPrn:oFont := oFont
                   PAGE                                  
@@ -4622,9 +4658,11 @@ DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
        oGet[13]:Set(oQryPresu:coniva)
     ENDIF
     oApp:oServer:Execute("TRUNCATE ventas_det_H")
-    oApp:oServer:Execute("INSERT INTO ventas_det_H (codart,detart,cantidad,punit,neto,descuento,descup,stotal,iva,codiva,ptotal,pcosto) "+;
-                         "(SELECT codart,detart,cantidad,punit,neton,descu,descup,neto,iva,codiva,importe,pcosto FROM ge_"+oApp:cId+"presupuestos_det "+;
-                         "WHERE numven = "+ClipValue2Sql(oQryPresu:id)+")")
+    oApp:oServer:Execute("INSERT INTO ventas_det_H (codart,detart,cantidad,punit,neto,descuento,descup,stotal,iva,codiva,ptotal,pcosto,impint) "+;
+                         "(SELECT p.codart,p.detart,p.cantidad,p.punit,p.neton,p.descu,p.descup,p.neto,p.iva,p.codiva,p.importe,p.pcosto,a.impint*p.cantidad "+;
+                         " FROM ge_"+oApp:cId+"presupuestos_det p "+;
+                         " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = p.codart "+;
+                         "WHERE p.numven = "+ClipValue2Sql(oQryPresu:id)+")")
     nBorrarPresu:= oQryPresu:id
 
 oQryDet:Refresh()

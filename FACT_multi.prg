@@ -15,7 +15,15 @@ static oDlg, oDlg1, nMesa := 1, oFont, oFontBot, oBrwDet, oQryDet, oQryDep, oQry
 //----------------------------------------------------------------//
 
 PROCEDURE POSMULTI(cPermisos)
-LOCAL oWnd1, oDlg, oBar, oTimer
+LOCAL oWnd1, oDlg, oBar, oTimer, hHand
+cVentana := PROCNAME()
+IF ASCAN(oApp:aVentanas,cVentana) > 0
+   hHand := ASCAN(oApp:aVentanas,cVentana)
+   oApp:oWnd:Select(hHand)
+   oApp:oWnd:oWndClient:aWnd[hHand]:Restore()
+   RETURN
+ENDIF
+AADD(oApp:aVentanas,cVentana)
 CrearTemporales()
 oApp:oServer:Execute("TRUNCATE VENTAS_DET_H1")
 oApp:oServer:Execute("TRUNCATE formapag_temp")
@@ -94,13 +102,6 @@ return nil
 PROCEDURE POS1MULTI(cPermisos,nId)
 LOCAL hHand
 LOCAL i,oFont1,oFont2,oFont3,oFont4,nCodArt:=0,nNumMesa,oMesa,nPicture,nComen:=0,oQryFormas, lGrande := .f.
-   cVentana := PROCNAME()
-   IF ASCAN(oApp:aVentanas,cVentana) > 0 
-      hHand := ASCAN(oApp:aVentanas,cVentana)
-      oApp:oWnd:Select(hHand)
-      oApp:oWnd:oWndClient:aWnd[hHand]:Restore()
-      RETURN
-   ENDIF
 cPermi := cPermisos   
 lSaleX := .F.
 oApp:oServer:Execute("TRUNCATE VENTAS_DET_H1")
@@ -157,7 +158,7 @@ lReemplaza:=.t.
    nRecarTot:=0
    lConsulta:=.f.
    nLista:= oApp:oServer:Query("SELECT lispre FROM ge_"+oApp:cId+"clientes WHERE codigo = "+ClipValue2Sql(nCliente)):lispre
-   nLisPre := 0
+   nLisPre := oApp:oServer:Query("SELECT lispreesp FROM ge_"+oApp:cId+"clientes WHERE codigo = "+ClipValue2Sql(nCliente)):lispreesp
    oQryFormas:= oApp:oServer:Query("SELECT nombre,incremento,tipo FROM ge_"+oApp:cId+"forpag ORDER BY codigo")
     aFormaNom:={}
     aFormaInc:={}

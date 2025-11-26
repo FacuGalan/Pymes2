@@ -13,21 +13,25 @@ MEMVAR oApp
 PROCEDURE RepVen()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
       acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(6), oBot1, oBot2, oQryVen,;
-      cTodos := "Todos los vendedores            ", mnomven := SPACE(30), mdesde := DATE(), mhasta := DATE(),;
-      mvendedor := 0, aTipoForm, oQryTip, nTipo, lIva := .F.
+      cTodos := "Todos los vendedores            ", mnomven := SPACE(30), ;
+      mdesde := DATE(), mhasta := DATE(),mdesdeh := "00:00:00", mhastah := "23:59:59",;
+      mvendedor := 0, aTipoForm, oQryTip, nTipo, lIva := .F., oQry1
 
 aTipoForm := {"FC","NC","ND","  ","RE"}
 nTipo := 4
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
-DEFINE DIALOG oDlg1 TITLE "Listado de Ventas por fecha" FROM 03,15 TO 13,70 Of oApp:oWnd
+DEFINE DIALOG oDlg1 TITLE "Listado de Ventas por fecha" FROM 03,15 TO 16,70 Of oApp:oWnd
    acor := AcepCanc(oDlg1)    
    @ 07, 01 SAY "Desde Fecha:"        OF oDlg1 PIXEL SIZE 60,10 RIGHT 
    @ 22, 01 SAY "Hasta Fecha:"        OF oDlg1 PIXEL SIZE 60,10 RIGHT 
-   @ 37, 01 SAY "Tipo Formulario:"    OF oDlg1 PIXEL SIZE 60,10 RIGHT 
+   @ 37, 01 SAY "Desde Hora:"        OF oDlg1 PIXEL SIZE 60,10 RIGHT 
+   @ 52, 01 SAY "Hasta Hora:"        OF oDlg1 PIXEL SIZE 60,10 RIGHT 
+   @ 67, 01 SAY "Tipo Formulario:"    OF oDlg1 PIXEL SIZE 60,10 RIGHT 
    @ 05, 65 GET oGet[1] VAR mdesde    OF oDlg1 PIXEL
    @ 20, 65 GET oGet[2] VAR mhasta    OF oDlg1 PIXEL VALID(mhasta >= mdesde)
-   *@ 37, 65 CHECKBOX oGet[3] VAR lIva PROMPT "Solo Fiscales" OF oDlg1 PIXEL SIZE 60,10 
-   @ 35, 65 COMBOBOX oGet[5] VAR nTipo ITEMS aTipoForm OF oDlg1 SIZE 40,10 PIXEL WHEN(!lIva)
+   @ 35, 65 GET oGet[4] VAR mdesdeh    OF oDlg1 PIXEL PICTURE "99:99:99" WHEN(nTipo <> 5)
+   @ 50, 65 GET oGet[5] VAR mhastah    OF oDlg1 PIXEL PICTURE "99:99:99" VALID(mhastah >= mdesdeh) WHEN(nTipo <> 5)
+   @ 65, 65 COMBOBOX oGet[5] VAR nTipo ITEMS aTipoForm OF oDlg1 SIZE 40,10 PIXEL WHEN(!lIva)
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
@@ -43,28 +47,42 @@ IF nTipo <> "RE"
          DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-10 BOLD
          DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC     
     oQry := oApp:oServer:Query("SELECT CONCAT(v.ticomp,v.letra, v.numcomp) AS compro, v.fecha as fecha, v.hora as hora, "+;
-                              " c.nombre AS cliente,c.cuit, v.neto*IF(v.ticomp='NC',-1,1) AS neto,"+;
+                              " v.codcli as codcli, c.nombre AS cliente,c.cuit, v.neto*IF(v.ticomp='NC',-1,1) AS neto,"+;
                               " v.iva*IF(v.ticomp='NC',-1,1) AS iva, v.cae AS cae,"+;
                               "  v.importe*IF(v.ticomp='NC',-1,1) AS importe, v.vendedor AS vendedor, v.usuario as usuario, LEFT(v.observa,35) as observa "+;
                               " FROM ge_"+oApp:cId+"ventas_encab v LEFT JOIN ge_"+oApp:cId+"clientes c ON v.codcli = c.codigo "+;
                               " WHERE v.fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
                               " v.fecha <= "+ ClipValue2Sql(mhasta) + " AND "+;
+                              " v.hora >= " + ClipValue2Sql(mdesdeh) + " AND "+;
+                              " v.hora <= "+ ClipValue2Sql(mhastah) + " AND "+;
                               IF(nTipo = "  "," TRUE "," v.ticomp = " + ClipValue2Sql(nTipo)) + IF(nTipo = "FC"," OR v.ticomp = 'FR'", " ")+;
                               " AND " + IF(lIva,"v.letra <> 'X' "," TRUE ")+;
                               " ORDER BY v.fecha,v.numcomp" )
+    oQry1 := oApp:oServer:Query("SELECT SUM(v.importe*IF(v.ticomp='NC',-1,1)) AS importe, SUM(IF(v.ticomp='NC',-1,1)) AS casos"+;
+                              " FROM ge_"+oApp:cId+"ventas_encab v  "+;
+                              " WHERE v.fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
+                              " v.fecha <= "+ ClipValue2Sql(mhasta) + " AND "+;
+                              " v.hora >= " + ClipValue2Sql(mdesdeh) + " AND "+;
+                              " v.hora <= "+ ClipValue2Sql(mhastah) + " AND "+;
+                              IF(nTipo = "  "," TRUE "," v.ticomp = " + ClipValue2Sql(nTipo)) + IF(nTipo = "FC"," OR v.ticomp = 'FR'", " ")+;
+                              " AND " + IF(lIva,"v.letra <> 'X' "," TRUE ") )
 
     REPORT oRep TITLE IF(lIva,"Reporte I.V.A. Ventas","Reporte de Ventas " )  + ;
-                      " del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
+                      " del " + DTOC(mdesde) + " al " + DTOC(mhasta),;
+                      " desde " + mdesdeh + " a " + mhastah + " hs";
            FONT  oFont1,oFont2,oFont3 ;
            HEADER OemToAnsi(oApp:nomb_emp) , ;
-           "Ventas por fecha" CENTER ;
+           "Ventas por fecha",;
+           "Ticket Promedio :$" + ALLTRIM(STR(oQry1:importe / oQry1:casos,14,2)),; 
+           "Cantidad tickets:" + ALLTRIM(STR(oQry1:casos,5)) CENTER ;
            FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
            PREVIEW CAPTION  "Ventas por fecha"
 
     COLUMN TITLE "Nro.Fact." DATA oQry:compro    SIZE 15 FONT 1
     COLUMN TITLE "Fecha"     DATA oQry:fecha     PICTURE "@D" SIZE 08 FONT 1
-    COLUMN TITLE "Hora"      DATA oQry:hora      SIZE 08 FONT 1
-    COLUMN TITLE "Cliente"   DATA oQry:cliente   SIZE 30 FONT 1
+    COLUMN TITLE "Hora"      DATA oQry:hora      SIZE 07 FONT 1
+    COLUMN TITLE "Nro"       DATA oQry:codcli    SIZE 05 FONT 1
+    COLUMN TITLE "Cliente"   DATA oQry:cliente   SIZE 27 FONT 1
     IF lIva
        COLUMN TITLE "C.U.I.T."   DATA oQry:cuit   SIZE 13 FONT 1
        COLUMN TITLE "Neto "      DATA oQry:neto PICTURE "9,999,999,999.99" SIZE 10 FONT 1 TOTAL
@@ -73,7 +91,7 @@ IF nTipo <> "RE"
     ENDIF
     COLUMN TITLE "Importe"   DATA oQry:importe PICTURE "9,999,999,999.99" ;
                              SIZE 10 FONT 2 TOTAL
-    COLUMN TITLE "Facturó"   DATA oQry:usuario    SIZE 10 FONT 1
+    COLUMN TITLE "Facturó"   DATA oQry:usuario    SIZE 08 FONT 1
     COLUMN TITLE "Vendedor"  DATA oQry:vendedor   SIZE 10 FONT 1
     COLUMN TITLE "Observaciones"  DATA oQry:observa   SIZE 22 FONT 1
 
@@ -93,7 +111,7 @@ IF nTipo <> "RE"
          DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
          DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-8 BOLD ITALIC     
     oQry := oApp:oServer:Query("SELECT DISTINCT(v.nrorem) AS compro, v.fecha as fecha,  "+;
-                              " c.nombre AS cliente,c.cuit, IF(v.facturado,'Si','No') AS facturado,"+;
+                              " v.codcli as codcli, c.nombre AS cliente,c.cuit, IF(v.facturado,'Si','No') AS facturado,"+;
                               " v.factura AS factura, v.vendedor AS vendedor,  v.usuario as usuario "+;
                               " FROM ge_"+oApp:cId+"remitos v LEFT JOIN ge_"+oApp:cId+"clientes c ON v.codcli = c.codigo "+;
                               " WHERE v.fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
@@ -109,6 +127,7 @@ IF nTipo <> "RE"
 
     COLUMN TITLE "Nro.Remito" DATA oQry:compro    SIZE 15 FONT 1
     COLUMN TITLE "Fecha"      DATA oQry:fecha     PICTURE "@D" SIZE 08 FONT 1
+    COLUMN TITLE "Nro"        DATA oQry:codcli    SIZE 05 FONT 1
     COLUMN TITLE "Cliente"    DATA oQry:cliente   SIZE 30 FONT 1
     COLUMN TITLE "Confeccion" DATA oQry:usuario    SIZE 10 FONT 1
     COLUMN TITLE "Vendedor"   DATA oQry:vendedor   SIZE 10 FONT 1
@@ -206,12 +225,12 @@ RETURN
 ** Ventas por articulo
 PROCEDURE RepVen2()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
-      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(13), oBot1 := ARRAY(5), oBot2,;
+      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(15), oBot1 := ARRAY(5), oBot2,;
       oQryMar, oQryRub, oQryPro, oQryDep, oQryEmp, i, aRub, aMar, aPro, aDep, aEmp, oBrwMar, oBrwRub, oBrwPro, oBrwDep, oBrwEmp, cSql,;
       cMarca, cRubro, cProvee, cDepto, cEmpresa, oGru, mdesde := DATE(), mhasta := DATE(), lResu := .f., lProv := .f., nTipo := 3,;
       aTipo := {"Sistema","Demo","Ambos"}, oQryCli, nCliente := 0, cNomCli := "Todos"+SPACE(30), lPorFactura := .f.,;
       aTipo1 := {"Facturas","Presupuestos","Ambos"}, nTipo1 := 3, lRanking := .f., n,;
-      cTodos := "TODOS                  ", oQryVen,;
+      cTodos := "TODOS                  ", oQryVen, cDesdeHora := "00:00:00", cHastaHora := "23:59:59", ;
       aOrden := {"Departamento","Rubro","Marca","Proveedor"}, nOrden := 1, ;
       aOrdenTabla := {"deptos","rubros","marcas","provee"},aOrdenCampo := {"depto","rubro","marca","prov"},;      
       mvendedor := 0, aVendedores := {"TODOS                  "}, cVendedor := "TODOS                  ",;
@@ -368,6 +387,10 @@ DEFINE DIALOG oDlg1 TITLE "Ventas por articulo" FROM 03,15 TO 30,153
    @ 112,300 SAY "Orden:" OF oDlg1 PIXEL SIZE 30,10 RIGHT
    @ 110,332 COMBOBOX oGet[11] VAR nOrden ITEMS aOrden OF oDlg1 SIZE 90,30 PIXEL WHEN(!lRanking .and. !lProv .and. !lPorFactura) 
    @ 140,332 COMBOBOX oGet[12] VAR nCaja ITEMS aCaja OF oDlg1 SIZE 90,30 PIXEL WHEN(!lRanking .and. !lProv .and. !lPorFactura) 
+   @ 142,425 SAY "Desde hora:" OF oDlg1 PIXEL SIZE 40,12 RIGHT
+   @ 157,425 SAY "Hasta hora:" OF oDlg1 PIXEL SIZE 40,12 RIGHT
+   @ 140,470 GET oGet[14] VAR cDesdeHora PICTURE "99:99:99" PIXEL OF oDlg1
+   @ 155,470 GET oGet[15] VAR cHastaHora PICTURE "99:99:99" PIXEL OF oDlg1
    @ acor[1],acor[2] BUTTON oBot1[5] PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
@@ -448,7 +471,7 @@ ENDIF
 EXIT
 ENDDO
 nCaja := aCajaNr[nCaja]
-IF ((cVendedor <> "TODOS") .and. !lPorFactura) .or. lProv
+IF !lPorFactura .or. lProv
    oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS ventas_encab_report AS (SELECT * FROM ge_"+oApp:cId+"ventas_encab LIMIT 0)")
    oApp:oServer:Execute("TRUNCATE ventas_encab_report")
    oApp:oServer:Execute("INSERT INTO ventas_encab_report (SELECT * FROM ge_"+oApp:cId+"ventas_encab "+;
@@ -467,21 +490,21 @@ IF !lProv .and. !lPorFactura
     IF !lResu
     cSql := "SELECT v.codart AS codart, v.detart AS detart, a.codigopro as codigopro, d.nombre AS marca, "+;
             "v.cantidad * IF(LEFT(v.nrofac,2)='NC',-1,1) AS cantidad, v.importe * IF(LEFT(v.nrofac,2)='NC',-1,1) AS precio, v.fecha AS fecha,"+;
-            "v.nrofac AS numfac,v.cantidad * v.pcosto * IF(LEFT(v.nrofac,2)='NC',-1,1) AS costo  FROM ventas_det_report v "
+            "v.nrofac AS numfac,v.cantidad * v.pcosto * IF(LEFT(v.nrofac,2)='NC',-1,1) AS costo, ve.hora as hora   FROM ventas_det_report v "
        ELSE
     cSql := "SELECT v.codart AS codart, v.detart AS detart, a.codigopro as codigopro, d.nombre AS marca,"+;
             "SUM(v.cantidad* IF(LEFT(v.nrofac,2)='NC',-1,1)) AS cantidad, SUM(v.importe * IF(LEFT(v.nrofac,2)='NC',-1,1)) AS precio, ANY_VALUE(v.fecha) AS fecha, "+;
-            "SUM(v.cantidad * v.pcosto * IF(LEFT(v.nrofac,2)='NC',-1,1)) AS costo "+;
+            "SUM(v.cantidad * v.pcosto * IF(LEFT(v.nrofac,2)='NC',-1,1)) AS costo, ve.hora as hora "+;
             "FROM ventas_det_report v "   
     ENDIF
     cSql := cSql + ;
             "LEFT JOIN ge_"+oApp:cId+"articu a ON v.codart = a.codigo "+;
             "LEFT JOIN ge_"+oApp:cId+aOrdenTabla[nOrden]+" d ON a."+aOrdenCampo[nOrden]+" = d.codigo "
-    IF(cVendedor <> "TODOS")
+    //IF(cVendedor <> "TODOS")
             cSql := cSql + ;        
             "LEFT JOIN ventas_encab_report ve "+;
             " ON ve.ticomp = LEFT(v.nrofac,2) AND ve.letra = SUBSTR(v.nrofac,3,1) AND RIGHT(v.nrofac,13) = ve.numcomp "
-    ENDIF
+    //ENDIF
     IF(nCaja <> 0)
             cSql := cSql + ;        
             " LEFT JOIN (SELECT ticomp,letra,numcomp, caja FROM ge_"+oApp:cId+"concfact GROUP BY ticomp,letra,numcomp) cf "+;
@@ -489,7 +512,9 @@ IF !lProv .and. !lPorFactura
     ENDIF        
     cSql := cSql + ;        
             "WHERE v.fecha >= " + ClipValue2Sql(mdesde) +;
-            "  AND v.fecha <= " + ClipValue2Sql(mhasta)  
+            "  AND v.fecha <= " + ClipValue2Sql(mhasta) +;
+            "  AND ve.hora >= " + ClipValue2Sql(cDesdeHora)+;
+            "  AND ve.hora <= " + ClipValue2Sql(cHastaHora)
     IF(cVendedor <> "TODOS")      
        cSql := cSql +" AND "+ IF(cVendedor = "TODOS","TRUE"," ve.vendedor = " + ClipValue2Sql(cVendedor)) 
     ENDIF        
@@ -518,7 +543,9 @@ IF !lProv .and. !lPorFactura
          DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-10 BOLD
          DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC   
     REPORT oRep TITLE "Articulos vendidos por fecha del " + ;
-                      DTOC(mdesde) + " al " + DTOC(mhasta), IF(lRanking,"Ranking","")+" Vendedor:"+ALLTRIM(cVendedor) ;
+                      DTOC(mdesde) + " al " + DTOC(mhasta),;
+                      " desde " + cDesdeHora + " a " + cHastaHora + " hs",;
+                      IF(lRanking,"Ranking","")+" Vendedor:"+ALLTRIM(cVendedor) ;
            FONT  oFont1,oFont2,oFont3 HEADER OemToAnsi(oApp:nomb_emp) , ;
            "Articulos por fecha" CENTER ;
            FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
@@ -534,7 +561,8 @@ IF !lProv .and. !lPorFactura
     ENDIF   
     IF !lResu
        COLUMN TITLE "Nro.Fact." DATA oQry:numfac   SIZE 15 FONT 1
-       COLUMN TITLE "Fecha"     DATA oQry:fecha    PICTURE "@D"   SIZE 10 FONT 1   
+       COLUMN TITLE "Fecha"     DATA oQry:fecha    PICTURE "@D"   SIZE 8 FONT 1
+       COLUMN TITLE "Hora"      DATA oQry:hora     SIZE 7 FONT 1   
        ELSE
        COLUMN TITLE "Articulo" DATA oQry:detart   SIZE 30 FONT 1
        COLUMN TITLE "Codigo"   DATA oQry:codart   SIZE 12 FONT 1
@@ -563,7 +591,7 @@ ELSE
     IF !lPorFactura
       cSql := "SELECT v.codart AS codart, v.detart AS detart, a.codigopro as codigopro, d.nombre AS prov,"+;
               "SUM(v.cantidad* IF(LEFT(v.nrofac,2)='NC',-1,1)) AS cantidad, SUM(v.importe* IF(LEFT(v.nrofac,2)='NC',-1,1)) AS precio, v.fecha AS fecha, "+;
-              "SUM(v.cantidad*v.pcosto* IF(LEFT(v.nrofac,2)='NC',-1,1)) AS costo "+;
+              "SUM(v.cantidad*v.pcosto* IF(LEFT(v.nrofac,2)='NC',-1,1)) AS costo, ve.hora as hora "+;
               " FROM ventas_det_report v "
       cSql := cSql + ;
               "LEFT JOIN ge_"+oApp:cId+"articu a ON v.codart = a.codigo "+;        
@@ -571,7 +599,9 @@ ELSE
               "LEFT JOIN ventas_encab_report ve "+;
               " ON ve.ticomp = LEFT(v.nrofac,2) AND ve.letra = SUBSTR(v.nrofac,3,1) AND RIGHT(v.nrofac,13) = ve.numcomp "+;
               "WHERE v.fecha >= " + ClipValue2Sql(mdesde) +;
-              "  AND v.fecha <= " + ClipValue2Sql(mhasta) +;   
+              "  AND v.fecha <= " + ClipValue2Sql(mhasta) +;  
+              "  AND ve.hora >= " + ClipValue2Sql(cDesdeHora)+;
+              "  AND ve.hora <= " + ClipValue2Sql(cHastaHora) +;
               " AND a.marca IN " + cMarca + " AND a.rubro IN " + cRubro + " "+;
               " AND a.prov IN " + cProvee + " AND a.depto IN "+cDepto +" "+ " AND a.empresa IN "+cEmpresa+;
               IF(nCliente = 0,""," AND v.codcli = " + ClipValue2Sql(nCliente))+;

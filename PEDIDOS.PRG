@@ -70,6 +70,10 @@ oQryBrw:= oApp:oServer:Query("SELECT p.nuevo, p.id,p.CODCLI,p.CLIENTE,p.FECHA,p.
             TOOLTIP "Filtrar pedidos"  ;
             ACTION Filtrar();
             PROMPT "Filtrar" TOP 
+         DEFINE BUTTON RESOURCE "PROV" OF oBar ;
+            TOOLTIP "Validar armado de pedidos"  ;
+            ACTION Validar();
+            PROMPT "Armar" TOP WHEN('E'$cPermisos)
          // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;
             TOOLTIP "Cerrar Ventana" ;
@@ -2068,3 +2072,250 @@ cWhere = " 1=1 " + IF(EMPTY(vCodigo),""," and a.CODIGO =" + ClipValue2SQL(VCodig
  
 
 RETURN cWhere
+
+
+STATIC FUNCTION Validar()
+LOCAL oBot := ARRAY(9) , aTipoIva, aTipoDoc, base, cDireccion:=SPACE(30), cLocalidad:=SPACE(30), aVendedor, oQryV,;
+      cCUIT:=SPACE(13),  nCodArt:=0, nCantidad:=0, nPunit:=0, nPtotal:=0,  nNeto:=0, oQry, lUsoBorrar := .f.,;      
+      nIVA:=0,  oFontLetra, oFontTotal,cDescu,oSay2,oDlg2,oWnd2,i,lResp:=.f.,oQryLis,cLisPre:="SIN LISTA ESPECIAL"+SPACE(31),;
+      nNumFac:=0, nDNI := 0, nTiArt,oQryIvaT, cNomLis:=SPACE(50),aListas:={"Lista 1","Lista 2"}, cCodArtP := SPACE(30)
+      aTipoiva  := {;
+"1 IVA Responsable Inscripto",;
+"2 IVA Responsable no Inscripto",;
+"3 IVA no Responsable",;
+"4 IVA Sujeto Exento",;
+"5 Consumidor Final",;
+"6 Responsable Monotributo",;
+"7 Sujeto no Categorizado",;
+"8 Proveedor del Exterior",;
+"9 Cliente del Exterior",;
+"10  IVA Liberado – Ley Nº 19.640",;
+"11  IVA Responsable Inscripto – Agente de Percepción",;
+"12  Pequeño Contribuyente Eventual",;
+"13  Monotributista Social",;
+"14  Pequeño Contribuyente Eventual Social",;
+"15  IVA NO Alcanzado"}
+ IF oQryBrw:estado <> 'P'
+    IF MsgStop('Este pedido no está pendiente'+chr(10)+;
+               'No se puede validar el armado','Atencion')
+       RETURN .f.
+    ENDIF
+ ENDIF 
+oApp:oServer:Execute("";
+    + "CREATE TEMPORARY TABLE IF NOT EXISTS ventas_det_h2 ";
+    +"( `id` INT(6) NOT NULL AUTO_INCREMENT, ";
+    +"`CODART` bigint(14) NOT NULL,";  
+    +"`DETART` VARCHAR(100) NOT NULL,";
+    +"`CANTIDAD` DECIMAL(8,2) DEFAULT '0',";
+    +"`FALTANTES` DECIMAL(8,2) DEFAULT '0',";
+    +"`PUNIT` DECIMAL(12,3) DEFAULT '0.00', ";
+    +"`NETO`  DECIMAL(12,3) DEFAULT '0.00', ";
+    +"`DESCUENTO`  DECIMAL(12,3) DEFAULT '0.00', ";
+    +"`STOTAL`  DECIMAL(12,3) DEFAULT '0.00', ";
+    +"`IVA` DECIMAL(12,3) DEFAULT '0.00', ";
+    +"`CODIVA` INT(2) DEFAULT '0', ";
+    +"`PTOTAL` DECIMAL(12,3) DEFAULT '0.00',";
+    +"`PCOSTO` DECIMAL(12,3) DEFAULT '0.00',";
+    +"`ESTADO` VARCHAR(1) NOT NULL,";
+    +"`DESCP` DECIMAL(5,2) DEFAULT '0.00',";
+    +"PRIMARY KEY (`id`)) ENGINE=INNODB DEFAULT CHARSET=utf8")
+    //+"`COSTO` DECIMAL(10,2) DEFAULT '0.00', PRIMARY KEY (`id`)) ENGINE=INNODB DEFAULT CHARSET=utf8")
+
+    oApp:oServer:NextResult()   
+    oQry    := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"pedidos_encab WHERE id = " + ClipValue2Sql(oQryBrw:id)+" ")    
+    base:= oQry:GetRowObj() 
+    oQry:lAppend:= .f.
+    oApp:oServer:Execute("DELETE FROM ventas_det_h2")               
+    
+    aVendedor := {base:vendedor}
+    oQryDet :=oApp:oServer:Query("SELECT *,(cantidad-faltantes) AS disponibles FROM ventas_det_h2")
+    oQryDet:ZAP()
+
+nTipoDoc := 1 
+oQryCli := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"clientes ORDER BY codigo")
+oQryIvaT:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"ivas ORDER BY tasa")
+nPorIva:=21.00
+nCodIva:= 5
+nTiArt:=1
+nDescuGen:=0
+cDetArt:=SPACE(50)
+nTotal:=0
+nForPag:=2
+nDeuda:= 0
+nDescArt:=0
+nDescArt1:=0
+nPagado:=0
+nVuelto:=0
+nConIva:=1
+lReemplaza:=.t.
+cDescu:= "Descuento:"
+cRemitos := oQry:vendedor + SPACE(200)
+nLisPre:=1
+nLisPreE:=0
+nLisPreEAnt := 0
+
+  //FUENTES -----------------------------------------------
+  DEFINE FONT oFontLetra NAME "ARIAL" SIZE 35,60
+  DEFINE FONT oFontTotal NAME "ARIAL" SIZE 12,30
+    //DLG -----------------------------------------------
+    DEFINE DIALOG oDlg2 RESOURCE "PEDIDO2" OF oWnd1
+    oDlg2:lHelpIcon := .f.
+    //Fechas y tipo de Comprobante
+    REDEFINE GET oGet[01] VAR base:id        ID 174  OF oDlg2 WHEN (.f.)
+    REDEFINE GET oGet[01] VAR base:fecha     ID 176  OF oDlg2 WHEN(.F.)
+    REDEFINE GET oGet[02] VAR base:parafecha ID 175  OF oDlg2 WHEN(.F.)
+
+    //CLIENTE
+    REDEFINE GET oGet[08] VAR base:codcli ID 185 OF oDlg2 PICTURE "999999" WHEN(.F.) ;
+             ACTION (oGet[08]:cText:= 0, ValidaCli(,base:vendedor,.F.))  BITMAP "BUSC1" VALID (ValidaCli(,base:vendedor,.F.)) 
+    REDEFINE GET oGet[09] VAR base:cliente ID 186 OF oDlg2 PICTURE "@!"  WHEN(.f.)
+    REDEFINE GET oGet[10] VAR cDireccion ID 187  OF oDlg2 PICTURE "@!" WHEN(.f.)
+    REDEFINE GET oGet[11] VAR cLocalidad ID 188  OF oDlg2 PICTURE "@!" WHEN(.f.)
+    REDEFINE GET oGet[12] VAR cCUIT      ID 189 OF oDlg2 PICTURE "99-99999999-9" ;
+             WHEN(.f.) VALID(ValidaCuit(cCuit))
+    REDEFINE GET oGet[22] VAR nDNI      ID 201 OF oDlg2 PICTURE "99999999" ;
+             WHEN(.f.)
+    REDEFINE SAY oSay3 VAR cRemitos ID 4002 OF oDlg2 COLOR CLR_GREEN 
+
+    REDEFINE COMBOBOX oGet[13] VAR nConIva ID 190 OF oDlg2 WHEN(.f.) ITEMS aTipoIva;
+             ON CHANGE ValidaCli(.f.,base:vendedor)  
+
+    REDEFINE COMBOBOX oGet[43] VAR base:vendedor ID 4014 OF oDlg2 WHEN(.F.) ITEMS aVendedor
+
+    REDEFINE GET oGet[31] VAR nDescuGen ID 308 OF oDlg2 PICTURE "999.99" WHEN(.F.)
+    REDEFINE GET oGet[32] VAR nDeuda    ID 4001 OF oDlg2 PICTURE "9999999999.99" WHEN(.F.)
+    REDEFINE COMBOBOX oGet[36] VAR nLisPre   ID 4011  ITEMS aListas OF oDlg2 WHEN(.F.)
+    REDEFINE GET oGet[40] VAR nLisPreE ID 4017 OF oDlg2 PICTURE "999" VALID(ValidaLista(oQryLisPre,oGet,oDlg2,.f.));
+                 ACTION (ValidaLista(oQryLisPre,oGet,oDlg2,.T.)) BITMAP "BUSC1" WHEN(.F.)
+    REDEFINE GET oGet[41] VAR cLisPre ID 4018 OF oDlg2 PICTURE "@!" WHEN(.F.)
+    REDEFINE GET oGet[42] VAR base:observa ID 4005 OF oDlg2 WHEN(.F.) 
+
+    //TIPO ARTICULO
+    REDEFINE RADIO oGet[24] VAR nTiArt  ID 300,301 OF oDlg2 WHEN(.F.);
+             ON CLICK(nCodArt:=0        ,cDetArt:=SPACE(50),nCantidad:=0      ,nPunit:=0         ,nPTotal:=0,;
+                      oGet[14]:Refresh(),oGet[15]:Refresh(),oGet[16]:Refresh(),oGet[17]:Refresh(),oGet[18]:Refresh(),;
+                                         oGet[25]:Refresh(),oGet[26]:Refresh(),oGet[27]:Refresh(),oGet[28]:Refresh())
+    
+    //Datos del articulo registrado
+    REDEFINE GET oGet[14] VAR nCodArt   ID 191  OF oDlg2 PICTURE "99999999999999" ;
+             ACTION (oGet[14]:cText:= 0, ValidaArt())  BITMAP "BUSC1" VALID(ValidaArt())
+    REDEFINE GET oGet[15] VAR cDetArt   ID 192  OF oDlg2 PICTURE "@!" WHEN(.F.)
+    REDEFINE GET oGet[16] VAR nCantidad ID 193  OF oDlg2 PICTURE "999999.999"  VALID(nCantidad>0) WHEN(nTiArt=1)
+    REDEFINE GET oGet[17] VAR nPunit    ID 194  OF oDlg2 PICTURE "99999999.999" WHEN(.F.)
+    REDEFINE GET oGet[33] VAR nDescArt  ID 4003 OF oDlg2 PICTURE "999.99" WHEN(.F.) VALID(nDescArt>=0 .and. nDescArt<=100)
+    REDEFINE GET oGet[18] VAR nPtotal   ID 195  OF oDlg2 PICTURE "99999999.999" ;
+            WHEN((oGet[18]:cText := nCantidad*nPunit-(nCantidad*nPunit)*(nDescArt/100)) = "-9" .and. nTiArt=1) 
+    REDEFINE GET oGet[39] VAR cCodArtP   ID 4016  OF oDlg2 WHEN(.F.);
+             VALID(oGet[39]:cText=SPACE(30) .OR. ValidaArtP()) 
+    //Datos del articulo ocacional
+    REDEFINE GET oGet[25] VAR cDetArt   ID 302  OF oDlg2 PICTURE "@!" WHEN(.F.)
+    REDEFINE GET oGet[26] VAR nCantidad ID 304  OF oDlg2 PICTURE "999999.999"  VALID(nCantidad>0) WHEN(.F.)
+    REDEFINE GET oGet[27] VAR nPunit    ID 305  OF oDlg2 PICTURE "99999999.999" WHEN(.F.);
+                 VALID((oGet[28]:cText := nCantidad*nPunit-(nCantidad*nPunit)*(nDescArt1/100)) <> "xxx" )
+    REDEFINE GET oGet[34] VAR nDescArt1  ID 4004 OF oDlg2 PICTURE "999.99" WHEN(.F.)
+    REDEFINE GET oGet[28] VAR nPtotal   ID 306  OF oDlg2 PICTURE "99999999.999" WHEN(.f.)
+    REDEFINE GET oGet[30] VAR nPorIva   ID 303  OF oDlg2 PICTURE "999.99" WHEN(.F.); 
+             VALID((oQryIvaT:Seek(nPorIva,3) > 0) .and. ((nCodIva:=oQryIvaT:codigo) >0 ))
+          
+    //neto y IVA y total
+    REDEFINE GET oGet[19] VAR nNeto  ID 198 OF oDlg2 PICTURE "999999999.99" WHEN(.F.)
+    REDEFINE GET oGet[20] VAR nIVA   ID 199 OF oDlg2 PICTURE "999999999.99" WHEN(.F.)
+    REDEFINE GET oGet[21] VAR nTotal ID 200 OF oDlg2 COLOR CLR_RED , CLR_YELLOW READONLY;
+           PICTURE "999999999.99" FONT oFontTotal WHEN(.F.)
+       
+    //GRILLA ---------------------------------------------------------------      
+    
+    REDEFINE XBROWSE oBrw DATASOURCE oQryDet;
+       COLUMNS "CODART","DETART","CANTIDAD","FALTANTES","DISPONIBLES","PUNIT","NETO","DESCP","DESCUENTO","STOTAL","IVA","PTOTAL","CODIVA";
+       HEADERS "Codigo","Detalle Articulo","Cantidad","Faltantes","Disponibles","Precio U","Neto","% Desc","Dto./Rec.","Sub Total","IVA","Total","Tasa";
+       FOOTERS ;
+       SIZES 75,350,65,65,65,65,65,65,65,65,65,70,60,66;
+    ID 197 OF oDlg2 AUTOSORT WHEN(oQryDet:RecCount()>0)
+    PintaBrw(oBrw,0)
+    
+    oBrw:bKeyDown := { |nKey| IF (nKey == VK_DELETE,oQryDet:Delete(),)}    
+    FOR i:= 4 to 13
+     oBrw:aCols[i]:Hide()
+    NEXT i
+    
+    //BOTONES ---------------------------------------------------------------
+    //+
+    REDEFINE BUTTON oBot[1] ID 196 ACTION(AgregaItemVal(oQry,oQryDet,nCodArt,cDetArt,nCantidad),IF(nTiArt=1,oGet[14]:Setfocus(),oGet[25]:Setfocus()) ) ;
+                   WHEN(((nCodArt>0 .and. nTiArt=1 .and. (nPtotal>0 .or. nDescArt=100)) ;
+                    .or. (nTiArt=2 .and. cDetArt<>SPACE(30) .and. nPtotal>0)) .and. nCantidad > 0)
+    //cancelar
+    REDEFINE BUTTON oBot[2] ID 102 ACTION (LimpiarForm()) 
+    //grabar
+    REDEFINE BUTTON oBot[3] ID 103 ACTION (lResp :=ValidacionesVal(oQry,base),IF(lResp,(oDlg2:End(),lResp:=.t.),nil)) WHEN(oQryDet:RecCount() > 0)
+    //grabar
+    REDEFINE BUTTON oBot[4] ID 104 ACTION ImprimirPedido(base) WHEN(oQryDet:RecCount() > 0 .and. !lUsoBorrar) 
+    //grabar
+    REDEFINE BUTTON oBot[7] ID 107 ACTION (oBrw:ToExcel(),oDlg2:End(),lResp:=.f.) CANCEL
+    //salir
+    REDEFINE BUTTON oBot[6] ID 106 ACTION (oDlg2:End(),lResp:=.f.) CANCEL
+
+    REDEFINE BUTTON oBot[9] ID 4013 ACTION GenAnticipo(base:codcli,oGet[32]) WHEN( base:codcli > 1)
+    // Ver Historial
+    REDEFINE BUTTON oBot[8] ID 4012 ACTION VerHistorial(base:codcli,oQryDet,oBrw) WHEN(base:codcli > 0)
+    // F9 Para grabar             
+    oDlg2:bKeyDown = { | nKey, nFlags | IF(nKey==120,oBot[3]:Click,.f.) }
+    //ACTiVACION   ---------------------------------------------------------------
+    ACTIVATE DIALOG oDlg2 CENTER ON INIT (oBot[8]:Hide(),oBot[9]:Hide(),oBot[4]:Hide())
+
+
+RETURN nil 
+
+//Validar que exista en el pedido
+STATIC FUNCTION AgregaItemVal(oQry,oQryDet,nCodArt,cDetArt, nCantidad)
+LOCAL nCant, nCant2
+//Paso 1: Validar que exista
+IF oApp:oServer:Query("SELECT codart FROM ge_"+oApp:cId+"pedidos_det WHERE idpedido = "+;
+   Clipvalue2sql(oQry:id)+" AND codart = "+ ClipValue2Sql(nCodArt)):nRecCount = 0
+   MsgStop("El articulo no existe en este pedido","Atencion")
+   RETURN nil 
+ENDIF
+//Paso 2: Me fijo cuantos hay ya
+nCant  := oApp:oServer:Query("SELECT SUM(cantidad) as cantidad FROM ventas_det_h2 WHERE codart = "+;
+          ClipValue2Sql(nCodArt)):cantidad   
+nCant2 := oApp:oServer:Query("SELECT SUM(cantidad) as cantidad FROM ge_"+oApp:cId+"pedidos_det "+;
+         " WHERE idpedido = "+;
+          Clipvalue2sql(oQry:id)+" AND codart = "+ ClipValue2Sql(nCodArt)):cantidad   
+IF nCant + nCantidad > nCant2
+   MsgStop("La cantidad indicada supera la del pedido","Atencion")
+   RETURN nil 
+ENDIF
+// Si esta todo bien, lo grabo
+IF oApp:oServer:Query("SELECT codart FROM ventas_det_h2 WHERE codart = "+ ClipValue2Sql(nCodArt)):nRecCount = 0
+   oApp:oServer:Execute("INSERT INTO ventas_det_h2 (codart,detart,cantidad) VALUE ("+;
+    ClipValue2Sql(nCodArt)+","+ClipValue2Sql(cDetArt)+","+ClipValue2Sql(nCantidad)+")")
+   ELSE 
+   oApp:oServer:Execute("UPDATE ventas_det_h2 SET cantidad = cantidad + "+STR(nCantidad)+" WHERE codart ="+ClipValue2Sql(nCodArt))
+ENDIF 
+oQryDet:Refresh()
+oBrw:Refresh()   
+RETURN NIL 
+
+STATIC FUNCTION ValidacionesVal(oQry,base)
+LOCAL oQryV, nErrores := 0 
+oQryV := oApp:oServer:Query("SELECT res.codart, res.detart, sum(res.cantidad) AS cantidad, "+;
+                           " SUM(res.cantidadreal) AS cantidadreal FROM "+;
+                            "((SELECT codart,detart,cantidad,0 as cantidadreal FROM ventas_det_h2 ) "+;
+                            "UNION ALL "+;
+                            "(SELECT codart,detart,0 as cantidad,SUM(cantidad) as cantidadreal FROM ge_"+oApp:cId+"pedidos_det "+;
+                            " WHERE idpedido = "+Clipvalue2sql(oQry:id)+" GROUP BY codart)) res GROUP BY res.codart")
+DO WHILE !oQryV:Eof()
+   IF oQryV:cantidad <> oQryV:cantidadreal
+      nErrores ++
+   ENDIF
+   oQryV:Skip()   
+ENDDO
+IF nErrores > 0 
+   MsgStop("Tiene "+STR(nErrores,6)+" articulos con diferencias","Atencion")
+   RETURN .f. 
+ENDIF   
+oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"pedidos_encab "+;
+                     " SET observa = IF(observa IS NULL,'Controlado!!',CONCAT('Controlado!! ',observa)) "+;
+                     " WHERE id = "+Clipvalue2sql(oQry:id))
+oQryBrw:Refresh()
+oBrwG:Refresh()
+RETURN .T.

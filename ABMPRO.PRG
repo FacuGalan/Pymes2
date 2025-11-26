@@ -103,7 +103,7 @@ RETURN NIL*/
 *************************************
 ** Agregar un registro nuevo
 STATIC FUNCTION Formu (lAlta)
-LOCAL oGet := ARRAY(22), oBot := ARRAY(3), oForm, lRta := .F., aCor, base, oError, oQry,oSay,;
+LOCAL oGet := ARRAY(23), oBot := ARRAY(3), oForm, lRta := .F., aCor, base, oError, oQry,oSay,;
 	    cCuenta:=SPACE(50),aTipoIva :=  {"RESPO. INSCRIPTO","RES.NO INSCRIPTO", "NO RESPONSABLE .",;
                                        "EXENTO         .","CONSUMIDOR FINAL", "MONOTRIBUTO    ."},;
       oQryCue, nCuit := 0
@@ -154,6 +154,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Proveedores";
    @ 05, 65 GET oGet[01] VAR base:codigo     OF oForm PIXEL PICTURE "999999" RIGHT WHEN(.F.)
    @ 20, 65 GET oGet[02] VAR base:nombre     OF oForm PIXEL PICTURE "@!" ;
                 VALID(base:nombre<>SPACE(30))
+   @ 05,170 CHECKBOX oGet[23] VAR base:inactivo PROMPT "Proveedor inactivo" SIZE 60,12 PIXEL OF oForm
    @ 35, 65 Get oGet[03] VAR base:alias      OF oForm PIXEL PICTURE "@!"             
    @ 50, 65 GET oGet[04] VAR base:localidad  OF oForm PIXEL PICTURE "@!"
    @ 65, 65 GET oGet[05] VAR base:codpos     OF oForm PIXEL PICTURE "9999" RIGHT

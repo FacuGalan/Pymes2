@@ -131,8 +131,8 @@ DO WHILE .T.
    @ 35, 70 GET oGet[04] VAR base:importe  OF oForm PIXEL PICTURE "999999999.99" RIGHT;
                 VALID(base:importe>0)
    @ 50, 70 GET oGet[05] VAR base:codpro  OF oForm PIXEL PICTURE "999999" RIGHT SIZE 30,12;
-                VALID(IF(base:codpro=0,.t.,Buscar(oQry3,oForm,oGet[05],oGet[06])));
-                ACTION (oGet[05]:cText:= 0, Buscar(oQry3,oForm,oGet[05],oGet[06])) BITMAP "BUSC1"  
+                VALID(IF(base:codpro=0,.t.,Buscar(oQry3,oForm,oGet[05],oGet[06],'0','inactivo')));
+                ACTION (oGet[05]:cText:= 0, Buscar(oQry3,oForm,oGet[05],oGet[06],'0','inactivo')) BITMAP "BUSC1"  
    @ 65, 70 GET oGet[06] VAR nompro  OF oForm PIXEL PICTURE "@!" WHEN(.F.)
    @ 80, 70 GET oGet[07] VAR base:fecemi OF oForm PIXEL CENTER  
    @ 95, 70 GET oGet[08] VAR base:fecvto OF oForm PIXEL CENTER 

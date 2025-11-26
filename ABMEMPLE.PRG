@@ -96,7 +96,7 @@ RETURN NIL
 *************************************
 ** Agregar un registro nuevo
 STATIC FUNCTION Formu (lAlta)
-LOCAL oGet := ARRAY(30), oBot := ARRAY(3), oForm, lRta := .F., aCor, base, oError, oQry,;
+LOCAL oGet := ARRAY(31), oBot := ARRAY(3), oForm, lRta := .F., aCor, base, oError, oQry,;
 	    cNomSec:=SPACE(50),oQrySec:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"emp_sector"),;
       cNomCat:=SPACE(50),oQryCat:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"emp_emplcat"),;
       mfoto := ".\iconos\nofoto.jpg", aConsumo_por := {"Por precio Costo","Por precio Venta"},;
@@ -114,6 +114,7 @@ IF lAlta
    base:hor_hab_hasta2:= "17:00:00"
    base:consumo_por := 2
    base:tipocontrato := "MENSUAL"+SPACE(13)
+   base:tope_adelanto := 0
    ELSE
    oQry:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"emp_empleado WHERE codigo = " + ClipValue2Sql(oQryBrw:codigo))
    base := oQry:GetRowObj()
@@ -163,6 +164,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Empleados";
    @202,105 SAY "Talle Rem./Chomba:" OF oForm PIXEL SIZE 50,12 RIGHT
    @202,205 SAY "Talle Campera/Buzo:" OF oForm PIXEL SIZE 50,12 RIGHT
    @217, 05 SAY "Contacto Emerg.:" OF oForm PIXEL SIZE 50,12 RIGHT
+   @217,205 SAY "Tope adelanto:" OF oForm PIXEL SIZE 50,12 RIGHT
 
 
    @ 05, 50 GET oGet[1] VAR base:codigo PICTURE "99999" OF oForm PIXEL RIGHT WHEN(lAlta)
@@ -203,6 +205,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Empleados";
    @200,160 GET oGet[26] VAR base:tallerem  OF oForm PIXEL PICTURE "@S10"
    @200,260 GET oGet[27] VAR base:tallebuz  OF oForm PIXEL PICTURE "@S10"
    @215, 60 GET oGet[28] VAR base:contacto  OF oForm PIXEL 
+   @215,260 GET oGet[31] VAR base:tope_adelanto  OF oForm PIXEL PICTURE "9999999999.99" RIGHT
 
    
    acor := AcepCanc(oForm)

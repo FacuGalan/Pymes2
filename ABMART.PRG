@@ -9,7 +9,7 @@
 *************************************************
 MEMVAR oApp
 STATIC oQryBrw,oQry, oQry2, oQry3, oQry4, oQry5, oQry6, oQry7 ,;
-       oWnd1, oBrw, oDlg, cVentana,oBrw1, oQryArt,oQryPun , lTipoArt, nActivos,cWhere
+       oWnd1, oBrw, oDlg, cVentana,oBrw1, oQryArt,oQryPun , lTipoArt, nActivos,cWhere, dDesde, dHasta
 PROCEDURE Artic(cPermisos)
 LOCAL oBar, hHand, oGetSeek, cSeek := SPACE(50), oPop2, oPop3
 cVentana := PROCNAME()
@@ -21,7 +21,8 @@ IF ASCAN(oApp:aVentanas,cVentana) > 0
 ENDIF
 lTipoArt := nil
 AADD(oApp:aVentanas,cVentana)
-
+dDesde := CTOD('01/01/2000')
+dHasta := DATE()
 nActivos:= 1
 cWhere:=''
 oQryBrw:= oApp:oServer:Query("SELECT a.codigo,a.codigopro,a.nombre,a.stockact,a.Preciocos,a.Precioven,a.reventa,a.fecmod,LEFT(a.observa,50) AS observa,a.nosale,p.nombre AS nompro "+;
@@ -898,13 +899,14 @@ RETURN nil
 ****************************************FILTRADO**********************
 STATIC FUNCTION FILT( )
 LOCAL vMarca,cMarc:=SPACE(30),vRubro,cRub:=SPACE(30),vempresa,cEmp:=SPACE(30),;
-      vdepto,cDept:=SPACE(30),vProv,cProve:=SPACE(30),vcodigo,cNomArt:=SPACE(30),vnosale:=.f.,;
+      vdepto,cDept:=SPACE(30),vProv,cProve:=SPACE(30),vcodigo,cNomArt:=SPACE(30),vnosale:=.t., vtipo := nActivos,;
+      aTipo := {"Todos","Vendibles","No Vendibles"},;
       vnombre:=SPACE(30),vnomregi:=SPACE(30),vstockmin,vstockact,vstockide,vReventa,;
       vpreciocos,viva,cNomIva:=SPACE(30),vdesc1,vdesc2,vdesc3,vdesc4,vdesc5,;
       vprecioven,vpresugeri,vprecossiva,vpreciopro,vporcentaje,vfecmodd:="  /  /    ",vfecmodh:="  /  /    ",;
       vfecultcomd:="  /  /    ",vfecultcomh:="  /  /    ",oSay1,oSay2,;
       vneto,vimpint,vflete,vunimed,vobserva,cIvaNom:=SPACE(30),;
-      oFilt, acor:=ARRAY(4), oBot:=ARRAY(3), lRta:=.f., oGet:=ARRAY(53),;
+      oFilt, acor:=ARRAY(4), oBot:=ARRAY(4), lRta:=.f., oGet:=ARRAY(53),;
       vpesable:=.f.,vcombustible:=.f.,vmprima:=.f.,vproduccion:=.f.,;
       vmedida,ventero,vuxbulto,vpxbulto,vsiniva:=.f.,vcodigopro:=SPACE(30), vstockotro := .f.
 
@@ -917,10 +919,10 @@ DEFINE DIALOG oFilt TITLE "Filtrado de Articulo" RESOURCE "ABMART1" OF oWnd1
   REDEFINE GET oGet[01] VAR vcodigo ID 100 OF oFilt 
   REDEFINE GET oGet[02] VAR vnombre PICTURE "@!" ID 101 OF oFilt 
   REDEFINE GET oGet[03] VAR vnomregi ID 102 OF oFilt 
-  REDEFINE CHECKBOX oGet[34] VAR vnosale ID 103 
+  REDEFINE CHECKBOX oGet[34] VAR vnosale ID 103 WHEN(.F.)
   REDEFINE CHECKBOX oGet[46] VAR vpesable ID 4011 OF oFilt 
   REDEFINE GET oGet[51] VAR vcodigopro ID 4017 OF oFilt PICTURE "@!"
-
+  REDEFINE BUTTON oBot[4] ID 4009 OF oFilt ACTION CambiaFilt(oGet[34], aTipo,@vTipo)
 
 
   REDEFINE CHECKBOX oGet[44] VAR vmprima      ID 4007 OF oFilt
@@ -998,7 +1000,7 @@ DEFINE DIALOG oFilt TITLE "Filtrado de Articulo" RESOURCE "ABMART1" OF oWnd1
   REDEFINE BUTTON oBot[2] ID 138 OF oFilt PROMPT "Quita Filt.";
            ACTION ((lRta := .f.), oFilt:End() ) CANCEL
  
-ACTIVATE DIALOG oFilt CENTER ON INIT oGet[01]:SetFocus()
+ACTIVATE DIALOG oFilt CENTER ON INIT (oBot[4]:SetText ("Camb. tipo"),oGet[01]:SetFocus(),oGet[34]:SetText (aTipo[vtipo]))
 
 IF !lRta
    nActivos:= 1
@@ -1008,13 +1010,13 @@ IF !lRta
    RETURN nil
 ENDIF
 
-nActivos:= IF(!vnosale,2,3)
+nActivos:= vTipo
 
 cWhere = " 1=1 " + IF(EMPTY(vCodigo),""," and a.CODIGO =" + ClipValue2SQL(VCodigo) + "") ;
             + "" + IF(EMPTY(VNOMBRE),"","  and TRIM(a.NOMBRE) like '%" + ALLTRIM(VNOMBRE) + "%'") ;
             + "" + IF(EMPTY(Vnomregi),"","  and TRIM(a.nomregi) like '%" + ALLTRIM(Vnomregi) + "%'") ;
             + "" + IF(EMPTY(vcodigopro),"","  and TRIM(a.codigopro) like '%" + ALLTRIM(vcodigopro) + "%'") ;
-            + "" + IF(!vnosale," and a.nosale IS FALSE "," and a.nosale IS TRUE ");
+            + "" + IF(nActivos=1,"",IF(nActivos=2," and a.nosale IS FALSE "," and a.nosale IS TRUE "));
             + "" + IF(!vpesable,""," and a.pesable = TRUE ");
             + "" + IF(!vcombustible,""," and a.combustible = TRUE");
             + "" + IF(!vmprima,""," and a.mprima = TRUE ");
@@ -1061,6 +1063,15 @@ ENDDO
 oQryBrw:SetNewFilter(SET_WHERE,cWhere,.t.)
 oBrw:Refresh()
 RETURN nil
+
+*******************************
+** 
+STATIC FUNCTION CambiaFilt(oGet, aTipo,vTipo)
+vTipo ++
+vTipo := if(vtipo>3,1,vtipo)
+oGet:SetText(aTipo[vTipo])
+RETURN nil
+
 
 **** Filrado por tipo de articulos
 STATIC FUNCTION FiltrarVen(lTipo)
@@ -1514,6 +1525,7 @@ Procesando(.t.)
 TRY 
    oApp:oServer:BeginTransaction() 
    *** Cambio el codigo 
+   oApp:oServer:Execute("SET FOREIGN_KEY_CHECKS = 0")
    oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"articu SET codigo = "+ClipValue2SQL(nCodNue)+;
        " WHERE codigo = "+ClipValue2Sql(oQryBrw:codigo))
    oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"ventas_det SET codart = "+ClipValue2SQL(nCodNue)+;
@@ -1542,8 +1554,15 @@ TRY
        " WHERE codart = "+ClipValue2Sql(oQryBrw:codigo))
    oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"stoman SET codart = "+ClipValue2SQL(nCodNue)+;
        " WHERE codart = "+ClipValue2Sql(oQryBrw:codigo))
-   oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"pedidos_det SET codart = "+ClipValue2SQL(nCodNue)+;
-       " WHERE codart = "+ClipValue2Sql(oQryBrw:codigo))
+   IF oApp:oServer:TableExist("ge_"+oApp:cId+"pedidos_det")
+      oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"pedidos_det SET codart = "+ClipValue2SQL(nCodNue)+;
+          " WHERE codart = "+ClipValue2Sql(oQryBrw:codigo))
+   ENDIF
+   IF oApp:oServer:TableExist("ge_"+oApp:cId+"promociones")
+      oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"promociones SET codart = "+ClipValue2SQL(nCodNue)+;
+          " WHERE codart = "+ClipValue2Sql(oQryBrw:codigo))
+   ENDIF   
+   oApp:oServer:Execute("SET FOREIGN_KEY_CHECKS = 1")
    oApp:oServer:CommitTransaction()
 CATCH oError
    MsgStop("Error al Cambiar"+CHR(10)+oError:description,"Error")
@@ -1590,18 +1609,19 @@ RETURN NIL
 ************************************************
 ** Historial de ventas de un producto 
 STATIC FUNCTION HistorialVentas()
-LOCAL oBot := ARRAY(2), oForm, lRta := .f., aCor, oFont, oFont1, oError,;
-      oQryDet, oBrwDet
+LOCAL oBot := ARRAY(3), oForm, lRta := .f., aCor, oFont, oFont1, oError,;
+      oQryDet, oBrwDet, oGet := ARRAY(2)
 oQryDet := oApp:oServer:Query("SELECT v.codart,v.cantidad,v.fecha,v.punit, "+;
   " v.importe*IF(LEFT(nrofac,2)='NC',-1,1) as importe,c.nombre,v.nrofac,v.descu "+;
   " FROM ge_"+oApp:cId+"ventas_det v LEFT JOIN ge_"+oApp:cId+"clientes c ON c.codigo = v.codcli "+;
-  " WHERE v.codart = "+ClipValue2SQL(oQryBrw:codigo))
+  " WHERE v.codart = "+ClipValue2SQL(oQryBrw:codigo) + " AND v.fecha >= "+ClipValue2SQL(dDesde)+;
+  " AND v.fecha <= "+ClipValue2Sql(dHasta) )
            
 DEFINE FONT oFont  NAME "TAHOMA" SIZE 0,-11.5
 DEFINE FONT oFont1 NAME "Segoe UI Light" SIZE 0,-22
 DEFINE DIALOG oForm TITLE "Historial de Ventas "+oQryBrw:nombre  FROM 05,15 TO 25,130 OF oWnd1 FONT oFont
    acor := AcepCanc(oForm)   
-   @ 05, 05 SAY "VENTAS DEL PRODUCTO"  OF oForm SIZE 300,14 PIXEL FONT oFont1
+   @ 05, 05 SAY "VENTAS DEL PRODUCTO"  OF oForm SIZE 200,14 PIXEL FONT oFont1
    @ 25, 05 XBROWSE oBrwDet SIZE 400,100 PIXEL OF oForm DATASOURCE oQryDet ;
       COLUMNS "fecha","nrofac","nombre","cantidad","punit","importe","descu";
       HEADERS "Fecha","Comprobante","Cliente","Cant.","Unitario","Total","%Desc";
@@ -1612,12 +1632,24 @@ DEFINE DIALOG oForm TITLE "Historial de Ventas "+oQryBrw:nombre  FROM 05,15 TO 2
    oBrwDet:MakeTotals()
    oBrwDet:CreateFromCode()   
    PintaBrw(oBrwDet,0)   
-  
+   @07,210 SAY "Desde:" OF oForm PIXEL SIZE 30,12 
+   @07,290 SAY "Hasta:" OF oForm PIXEL SIZE 30,12 
+   @05,241 GET oGet[1] VAR dDesde OF oForm PIXEL 
+   @05,321 GET oGet[2] VAR dHasta OF oForm PIXEL 
+   @05,365 BUTTON oBot[3] PROMPT "Aplica" OF oForm PIXEL SIZE 20,12  ACTION FiltHis(oBrwDet,oQryDet,oQryBrw)
    @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Exportar" OF oForm SIZE 30,10 ;
            ACTION (oBrwDet:ToExcel()) PIXEL WHEN(oQryDet:nRecCount()>0)
    @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Salir" OF oForm SIZE 30,10 ;
            ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL
 ACTIVATE DIALOG oForm CENTER 
+RETURN nil
+
+STATIC FUNCTION FiltHis(oBrwDet,oQryDet,oQryBrw)
+LOCAL cWhere := "v.codart = " +ClipValue2SQL(oQryBrw:codigo) + " AND v.fecha >= "+ClipValue2SQL(dDesde)+;
+  " AND v.fecha <= "+ClipValue2Sql(dHasta) 
+oQryDet:SetNewFilter(SET_WHERE,cWhere,.t.)
+oBrwDet:Refresh()
+oBrwDet:Maketotals()
 RETURN nil
 
 
