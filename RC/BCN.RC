@@ -1424,8 +1424,10 @@ FONT 8, "MS Sans Serif"
   CONTROL "Art. eventual + IVA", 4011, "Button", BS_AUTOCHECKBOX|WS_TABSTOP, 124, 192, 84, 12
   CONTROL "Art. eventual u$s", 4012, "Button", BS_AUTOCHECKBOX|WS_TABSTOP, 212, 192, 88, 12
   CONTROL "Usa bultos en ventas", 4014, "Button", BS_AUTOCHECKBOX|WS_TABSTOP, 208, 112, 92, 12
+  CONTROL "Imprimir copia ventas cta cte", 4018, "Button", BS_AUTOCHECKBOX|WS_TABSTOP, 12, 128, 140, 12
   CONTROL "Usa repartos c/hoja ruta", 4015, "Button", BS_AUTOCHECKBOX|WS_TABSTOP, 208, 128, 96, 12
   CONTROL "Imprimir importe descuento y %", 4016, "Button", BS_AUTOCHECKBOX|WS_TABSTOP, 8, 208, 136, 12
+  CONTROL "Imprimir pedidos sin importe", 4017, "Button", BS_AUTOCHECKBOX|WS_TABSTOP, 156, 208, 136, 12
 }
 
 PARPROV DIALOG DISCARDABLE 15, 19, 305, 193
@@ -1448,7 +1450,10 @@ FONT 8, "MS Sans Serif"
   CONTROL "Utilizar codigo de proveedores", 103, "Button", BS_AUTOCHECKBOX|WS_TABSTOP, 16, 44, 156, 12
   CONTROL "Imprime en la factura el cod. de proveedor si tiene", 4001, "Button", BS_AUTOCHECKBOX|WS_TABSTOP, 16, 60, 220, 12
   CONTROL "Mantener la utilidad cuando cambia manualmente precios", 4002, "Button", BS_AUTOCHECKBOX|WS_TABSTOP, 16, 80, 220, 12
-  CONTROL "Lleva vencimientos de stock", 4003, "Button", BS_AUTOCHECKBOX|WS_TABSTOP, 16, 100, 220, 12
+  CONTROL "Lleva vencimientos de stock", 4003, "Button", BS_AUTOCHECKBOX|WS_TABSTOP, 16, 100, 136, 12
+  CONTROL "Tilde automatico no computa IVA en compras", 4004, "Button", BS_AUTOCHECKBOX|WS_TABSTOP, 16, 120, 220, 12
+  CONTROL "", 4005, "Edit", ES_RIGHT|ES_AUTOHSCROLL|WS_BORDER|WS_TABSTOP, 248, 100, 40, 12
+  CONTROL "Días de alerta:", -1, "Static", SS_RIGHT|WS_GROUP, 180, 100, 64, 8
 }
 
 PEDPROV DIALOG DISCARDABLE 59, 54, 465, 302

@@ -394,10 +394,10 @@ oQryFue:nMaxCol := MaxCol
                                 SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C" COLOR aSay[3]:nClrText
                   CASE oQryEti:tipo = 2
                       @ x1, nCol+0.15;
-                         PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven*oQryEti:cantidad_requerida/oQryEti:cantidad_a_pagar,12,nDecimales)) ;
+                         PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven*oQryEti:cantidad_a_pagar,12,nDecimales)) ;
                                 SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText
                       @ x1, nCol+0.15;
-                         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR((oQryEti:precioven*oQryEti:cantidad_requerida/oQryEti:cantidad_a_pagar)*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
+                         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR((oQryEti:precioven*oQryEti:cantidad_a_pagar)*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
                                 SPACE(10),"")+ "Cod. " +STR(oQryEti:codart)+;
                                 IF(lVto," - Valido hasta el "+DTOC(oQryEti:fecha_fin),"");
                                 SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C" LASTROW x1 COLOR  aSay[3]:nClrText
@@ -630,10 +630,10 @@ ACTIVATE FONT oFon3
                                 SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C" 
                   CASE oQryEti:tipo = 2
                       @ x1, nCol+0.15;
-                         PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven*oQryEti:cantidad_requerida/oQryEti:cantidad_a_pagar,12,nDecimales)) ;
+                         PRINT TO oPrn TEXT "$" + ALLTRIM(STR(oQryEti:precioven*oQryEti:cantidad_a_pagar,12,nDecimales)) ;
                                 SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 
                       @ x1, nCol+0.15;
-                         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR((oQryEti:precioven*oQryEti:cantidad_requerida/oQryEti:cantidad_a_pagar)*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
+                         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + oQryAux:unimed + STR((oQryEti:precioven*oQryEti:cantidad_a_pagar)*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
                                 SPACE(10),"")+ "Cod. " +STR(oQryEti:codart)+;
                                 IF(lVto," - Valido hasta el "+DTOC(oQryEti:fecha_fin),"");
                                 SIZE (21/MaxCol)-.3,((29.7-2.4)/MaxFil)*0.25 CM FONT oFon3 ALIGN "C" LASTROW x1 

@@ -445,7 +445,7 @@ DEFINE DIALOG oForm TITLE "Cambio de Precios por Excel " FROM 03,15 TO 35,140
                 " y el precio de costo en la columna 3 del Excel, y deberán estar SIN FORMATO." OF oForm PIXEL SIZE 285,70   
    @ 20, 05 XBROWSE oBrwTmp SIZE 465,180 pixel OF oForm ARRAY aCols ;
       HEADERS "Cod.Prov.", "Producto","Costo","Observaciones","Cod.Propio","UxB","Costo Bulto";
-      PICTURE "@!","@!","9999999.999","@!","99999999999999","999","999999999.99";
+      PICTURE "@!","@!","999999999.999","@!","99999999999999","999","999999999.99";
       COLUMNS 1, 2 ,3, 4, 5, 6, 7;
       SIZES 80,240,70,240,70,80,70,70;
       CELL LINES NOBORDER 

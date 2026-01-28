@@ -721,14 +721,16 @@ return nil
 
 
 FUNCTION AvisoStock()
-LOCAL oQry, oDlg, oSay, oBot, aNueva, i,j, cVentana, oFont, oBrw1, lVtoStock
-lVtoStock := oApp:oServer:Query( "SELECT lVtoStock FROM ge_"+oApp:cId+"parametros"):lVtoStock
+LOCAL oQry, oDlg, oSay, oBot, aNueva, i,j, cVentana, oFont, oBrw1, lVtoStock, nDias, oQry1 
+oQry1 := oApp:oServer:Query( "SELECT lVtoStock, diasalertastock FROM ge_"+oApp:cId+"parametros")
+lVtoStock := oQry1:lVtoStock
+nDias := oQry1:diasalertastock
 IF !lVtoStock .or. !oApp:usua_es_supervisor
    RETURN nil 
 ENDIF   
 oQry := oApp:oServer:Query("SELECT s.*, a.nombre FROM ge_"+oApp:cId+"stocklotes s "+;
                           " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = s.codart "+;
-                          " WHERE s.fechavto <= CURDATE() AND s.restan > 0")
+                          " WHERE s.fechavto <= DATE_ADD(CURDATE(), INTERVAL "+ALLTRIM(STR(nDias))+" DAY) AND s.restan > 0")
 
 IF oQry:nRecCount > 0
    AADD(oApp:aVentanas,cVentana)

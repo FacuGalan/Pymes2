@@ -1,1 +1,72 @@
--O2 -eCONECTAR.exe -Ic:\harb16\include CONECTAR.c 
+c0w32.obj + 
+BCN.obj  + 
+prueba2.obj + 
+listadostab.obj procesosper.obj + 
+modsto.obj pregen.obj fcaja.obj rcaja.obj chepro.obj cheter.obj depret.obj tipdep.obj modrem.obj abmgar.obj + 
+abmpro.obj abmmar.obj abmrub.obj abmven.obj abmban.obj abmctas.obj abmcom.obj abmpcon.obj abmcondven.obj + 
+abmiva.obj abmrep.obj abmdat.obj abmdat1.obj abmcli.obj abmcli1.obj abmart.obj abmdes.obj abmrep.obj + 
+abmemp.obj abmdep.obj abmret.obj abmfor.obj abmaut.obj bcaja.obj cambiopre.obj combus.obj + 
+ordenes.obj canpag.obj pedprov.obj consulta.obj pedidos.obj abmfgs.obj buscapre.obj lispre.obj promos.obj service.obj + 
+calinfo.obj tcalex.obj agenda.obj + 
+liscaja.obj cietur.obj vales.obj audita.obj + 
+descu.obj carcre.obj cardeu.obj fe.obj venrei.obj asigna.obj + 
+prelis.obj lisarti.obj lisven.obj liscom.obj lisfac.obj lisdeu.obj grafica.obj + 
+compras.obj lische.obj ventas.obj rendi.obj gastos.obj citicomp.obj remitar.obj fact_multi.obj notacre.obj centro_facturacion.obj + 
+etique.obj ordpag.obj cobran.obj facrem.obj FACT.obj transf.obj + 
+ABMEMPLE.OBJ ABMCATEMP.OBJ ABMHORAS.OBJ ABMINAS.OBJ ABMSECTOR.OBJ LISHORAS.OBJ NOVINDIV.OBJ PAGEMPLE.OBJ CONSUMOINT.OBJ adelsuel.obj + 
+xbrowse.obj busqueda.obj utiles.obj usua.obj demo.obj enviomail.obj rpreview.obj prv2pdf.obj + 
+conectar.obj descarga.obj arca2.obj transmitir.obj , + 
+BCN.exe, + 
+BCN.map, + 
+H71532BC.LIB C:\FWH11\lib\dolphin.lib + 
+C:\FWH16\lib\dolphin.lib + 
+C:\FWH16\lib\FiveH.lib C:\FWH16\lib\FiveHC.lib C:\FWH16\lib\tcalex.lib + 
+C:\FWH16\lib\libmysql.lib + 
+C:\FWH16\lib\libmysqld.lib + 
+c:\harb16\lib\hbwin.lib + 
+c:\harb16\lib\hbrtl.lib + 
+c:\harb16\lib\xhb.lib + 
+c:\harb16\lib\hbvm.lib + 
+c:\harb16\lib\gtgui.lib + 
+c:\harb16\lib\gtstd.lib + 
+c:\harb16\lib\hblang.lib + 
+c:\harb16\lib\hbmacro.lib + 
+c:\harb16\lib\hbrdd.lib + 
+c:\harb16\lib\rddntx.lib + 
+c:\harb16\lib\rddcdx.lib + 
+c:\harb16\lib\rddfpt.lib + 
+c:\harb16\lib\hbsix.lib + 
+c:\harb16\lib\hbdebug.lib + 
+c:\harb16\lib\hbcommon.lib + 
+c:\harb16\lib\hbpp.lib + 
+c:\harb16\lib\hbusrrdd.lib + 
+c:\harb16\lib\hbwin.lib + 
+c:\harb16\lib\hbcplr.lib + 
+c:\harb16\lib\hbct.lib + 
+c:\harb16\lib\hbcpage.lib + 
+c:\harb16\lib\hbhsx.lib + 
+c:\harb16\lib\hbmisc.lib + 
+c:\harb16\lib\hbmzip.lib + 
+c:\harb16\lib\hbnf.lib + 
+c:\harb16\lib\hbpcre.lib + 
+c:\harb16\lib\hbtip.lib + 
+c:\harb16\lib\hbziparc.lib + 
+c:\harb16\lib\hbmzip.lib + 
+c:\harb16\lib\hbzlib.lib + 
+c:\harb16\lib\minizip.lib + 
+c:\harb16\lib\png.lib + 
+c:\harb16\lib\hbusrrdd.lib + 
+c:\harb16\lib\hbtip.lib + 
+c:\bcc7\lib\cw32.lib + 
+c:\bcc7\lib\uuid.lib + 
+c:\bcc7\lib\import32.lib + 
+c:\bcc7\lib\ws2_32.lib + 
+c:\bcc7\lib\psdk\odbc32.lib + 
+c:\bcc7\lib\psdk\nddeapi.lib + 
+c:\bcc7\lib\psdk\iphlpapi.lib + 
+c:\bcc7\lib\psdk\msimg32.lib + 
+c:\bcc7\lib\psdk\psapi.lib + 
+c:\bcc7\lib\psdk\rasapi32.lib + 
+c:\bcc7\lib\psdk\gdiplus.lib + 
+c:\bcc7\lib\psdk\shell32.lib, 
+RC\BCN.res 

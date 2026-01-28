@@ -20,7 +20,7 @@ ENDIF
 AADD(oApp:aVentanas,cVentana)
 
    CursorWait()   
-   oQry  := oApp:oServer:Query( "SELECT c.id,c.fecha,c.saldo,c.caja,c.hora,cd.debe,"+;
+   oQry  := oApp:oServer:Query( "SELECT c.id,c.fecha,c.saldo,c.caja,c.hora,c.observa,cd.debe,"+;
     "cd.haber,cd.efectivo FROM ge_"+oApp:cId+"cajadiaria c "+;
     "LEFT JOIN "+;
     "(SELECT id_caja, SUM(debe) AS debe,SUM(haber) AS haber,SUM(efectivo) AS efectivo "+;
@@ -65,13 +65,13 @@ AADD(oApp:aVentanas,cVentana)
    oWnd1:bResized := { || Incrusta( oWnd1, oDlg, .t.) }
    DEFINE DIALOG oDlg RESOURCE "ABMS" OF oWnd1
         REDEFINE XBROWSE oBrw DATASOURCE oQry;
-              COLUMNS "Id","caja","fecha","hora","debe","haber","saldo","efectivo";
-              HEADERS "Cierre","Caja","Fecha","Hora","Ingresos","Egresos","Falt/Sob","Efectivo";
-              SIZES   80,80,80,80,80,80,80,80;
+              COLUMNS "Id","caja","fecha","hora","debe","haber","saldo","efectivo","observa";
+              HEADERS "Cierre","Caja","Fecha","Hora","Ingresos","Egresos","Falt/Sob","Efectivo","Observaciones";
+              SIZES   80,80,80,80,80,80,80,80,100;
               ID 111 OF oDlg  
      REDEFINE SAY oBrw:oSeek PROMPT "" ID 113 OF oDlg
      oQry:bOnChangePage := {|| oBrw:Refresh() }
-     PintaBrw(oBrw,8) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE     
+     PintaBrw(oBrw,9) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE     
      // Activo el dialogo y al iniciar muevo a 0,0
      ACTIVATE DIALOG oDlg NOWAIT ON INIT oDlg:Move(0,0) VALID(oWnd1:End())
    ACTIVATE WINDOW oWnd1 ON INIT Incrusta( oWnd1, oDlg, .T.) VALID(cerrar())

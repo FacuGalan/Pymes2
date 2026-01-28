@@ -832,7 +832,7 @@ oRep:bInit := {|| oQry:GoTop() }
 oRep:bSkip := {|| oQry:Skip() }
 
 END REPORT
-ACTIVATE REPORT oRep WHILE !oQry:EOF() ON INIT CursorArrow() ;
+ACTIVATE REPORT oRep WHILE !oQry:EOF() FOR (oQry:afacturar - oQry:facturado) <> 0 ON INIT CursorArrow() ;
          ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.BMP",.5,.5)
 oQry:End()
 RETURN NIL

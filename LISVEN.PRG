@@ -515,8 +515,12 @@ IF !lProv .and. !lPorFactura
             "  AND v.fecha <= " + ClipValue2Sql(mhasta) +;
             "  AND ve.hora >= " + ClipValue2Sql(cDesdeHora)+;
             "  AND ve.hora <= " + ClipValue2Sql(cHastaHora)
-    IF(cVendedor <> "TODOS")      
-       cSql := cSql +" AND "+ IF(cVendedor = "TODOS","TRUE"," ve.vendedor = " + ClipValue2Sql(cVendedor)) 
+    IF(cVendedor <> "TODOS")
+       IF !oApp:usua_es_vendedor       
+          cSql := cSql +" AND "+ IF(cVendedor = "TODOS","TRUE"," ve.vendedor = " + ClipValue2Sql(cVendedor)) 
+          ELSE 
+          cSql := cSql +" AND "+ IF(cVendedor = "TODOS","TRUE"," ve.usuario = " + ClipValue2Sql(cVendedor)) 
+       ENDIF   
     ENDIF        
 
     cSql := cSql + " AND a.marca IN " + cMarca + " AND a.rubro IN " + cRubro + ;
@@ -658,10 +662,11 @@ ELSE
               "v.descu  AS descu, "+;
               "v.descup AS descup, "+;
               "v.cantidad*v.pcosto* IF(LEFT(v.nrofac,2)='NC',-1,1) AS costo, "+;
-              "cf.observa as formapag "+;
+              "cf.observa as formapag, ve.hora "+;
               " FROM ventas_det_report v "
     cSql := cSql + ;              
-              "LEFT JOIN ge_"+oApp:cId+"clientes c ON c.codigo = v.codcli "+; 
+              "LEFT JOIN ge_"+oApp:cId+"clientes c ON c.codigo = v.codcli "+;
+              "LEFT JOIN ge_"+oApp:cId+"ventas_encab ve ON v.nrofac = CONCAT(ve.ticomp,ve.letra,ve.numcomp) "+; 
               "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+; 
               "LEFT JOIN (SELECT CONCAT(ticomp,letra, numcomp) AS compro, "+;
                                " GROUP_CONCAT(observa) AS observa "+;
@@ -675,6 +680,8 @@ ELSE
               " AND a.prov IN " + cProvee + " AND a.depto IN "+cDepto+ " AND a.empresa IN "+cEmpresa+;
               " AND "+IF(nTipo1 = 3," TRUE ",IF(nTipo1 = 1," SUBSTR(v.nrofac,3,1) <> 'X' "," SUBSTR(v.nrofac,3,1) = 'X' "))+;              
               IF(nCliente = 0,""," AND v.codcli = " + ClipValue2Sql(nCliente))+;
+              "  AND ve.hora >= " + ClipValue2Sql(cDesdeHora)+;
+              "  AND ve.hora <= " + ClipValue2Sql(cHastaHora)+;
               " ORDER BY v.fecha,v.nrofac"
     CursorWait()
     Procesando(.t.)
@@ -693,17 +700,18 @@ ELSE
 
       COLUMN TITLE "Articulo" DATA oQry:detart   SIZE 30 FONT 1
       COLUMN TITLE "Codigo"   DATA oQry:codart   SIZE 12 FONT 1
-      COLUMN TITLE "Codigo Pro" DATA oQry:codigopro   SIZE 12 FONT 1
-      COLUMN TITLE "Cantidad"  DATA oQry:cantidad PICTURE "9,999,999,999.99" ;
+      COLUMN TITLE "Codigo Pro" DATA oQry:codigopro   SIZE 11 FONT 1
+      COLUMN TITLE "Cantidad"  DATA oQry:cantidad PICTURE "999,999.99" ;
                                   SIZE 6 FONT 1 TOTAL
       COLUMN TITLE "Total"     DATA oQry:precio PICTURE "9,999,999,999.99" SIZE 12 FONT 2 TOTAL
       COLUMN TITLE "Neto"      DATA oQry:neto   PICTURE "9,999,999,999.99" SIZE 12 FONT 2 TOTAL
-      COLUMN TITLE "IVA"       DATA oQry:iva    PICTURE "9,999,999,999.99" SIZE 12 FONT 2 TOTAL
-      COLUMN TITLE "Imp.Int"   DATA oQry:impint PICTURE "9,999,999,999.99" SIZE 12 FONT 2 TOTAL
+      COLUMN TITLE "IVA"       DATA oQry:iva    PICTURE "9,999,999,999.99" SIZE 10 FONT 2 TOTAL
+      COLUMN TITLE "Imp.Int"   DATA oQry:impint PICTURE "9,999,999,999.99" SIZE 08 FONT 2 TOTAL
       COLUMN TITLE "Desc.%"    DATA oQry:descup PICTURE "999.99" SIZE 6 FONT 1
-      COLUMN TITLE "Desc.$"    DATA oQry:descu  PICTURE "9,999,999,999.99" SIZE 12 FONT 2 TOTAL
-      COLUMN TITLE "Utilidad"  DATA oQry:precio - oQry:costo PICTURE "9,999,999,999.99" SIZE 12 FONT 2 TOTAL
+      COLUMN TITLE "Desc.$"    DATA oQry:descu  PICTURE "9,999,999,999.99" SIZE 10 FONT 2 TOTAL
+      COLUMN TITLE "Utilidad"  DATA oQry:precio - oQry:costo PICTURE "9,999,999,999.99" SIZE 10 FONT 2 TOTAL
       COLUMN TITLE "Costo Unit" DATA oQry:costo / oQry:cantidad PICTURE "9,999,999,999.99" SIZE 10 FONT 1
+      COLUMN TITLE "Hora"       DATA LEFT(oQry:hora,5) SIZE 05 FONT 1
       // Digo que el titulo lo escriba con al letra 2
       oRep:oTitle:aFont[1] := {|| 3 }
       oRep:bInit := {|| oQry:GoTop() }
@@ -755,7 +763,7 @@ CursorWait()
 IF nTipo = 1     
    oQry := oApp:oServer:Query("SELECT SUM(IF(LEFT(v.nrofac,2)='NC',-v.cantidad,v.cantidad)) AS cantidad,  "+;
                          " SUM(IF(LEFT(v.nrofac,2)='NC',-v.importe,v.importe)) AS importe, "+;
-                         " SUM(IF(LEFT(v.nrofac,2)='NC',-v.pcosto,v.pcosto)) AS costo, "+;
+                         " SUM(IF(LEFT(v.nrofac,2)='NC',-v.pcosto,v.pcosto)*v.cantidad) AS costo, "+;
                          " r.nombre AS rubro "+;                         
                          " FROM ge_"+oApp:cId+"ventas_det v  "+;
                          " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+;
@@ -767,7 +775,7 @@ IF nTipo = 1
    ELSE 
    oQry := oApp:oServer:Query("SELECT SUM(IF(LEFT(v.nrofac,2)='NC',-v.cantidad,v.cantidad)) AS cantidad,  "+;
                          " SUM(IF(LEFT(v.nrofac,2)='NC',-v.importe,v.importe)) AS importe, "+;
-                         " SUM(IF(LEFT(v.nrofac,2)='NC',-v.pcosto,v.pcosto)) AS costo, "+;
+                         " SUM(IF(LEFT(v.nrofac,2)='NC',-v.pcosto,v.pcosto)*v.cantidad) AS costo, "+;
                          " r.nombre AS rubro "+;                         
                          " FROM ge_"+oApp:cId+"ventas_det v  "+;
                          " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+;

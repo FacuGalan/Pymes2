@@ -103,7 +103,8 @@ LOCAL oGet:=ARRAY(48),oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTipoCom
       nPunit, nPTotal, cNomRet1, cNomRet2, cNomRet3, cNomRet4, cNomRet5, oDlg1, oQryDoc,nRenglon,;
       nSaldoIni:=0, nImporteIni:=0,oQryCodigos,nMaximo,nOrden, lPuedeCobrar, oQryPedPen, cInPed, cNumCompAnt,;
       dCierrecompras := oApp:oServer:Query( "SELECT cierrecompra FROM ge_"+oApp:cId+"parametros"):cierrecompra,;
-      lVtoStock := oApp:oServer:Query( "SELECT lVtoStock FROM ge_"+oApp:cId+"parametros"):lVtoStock
+      lVtoStock := oApp:oServer:Query( "SELECT lVtoStock FROM ge_"+oApp:cId+"parametros"):lVtoStock,;
+      lTilda_computaiva := oApp:oServer:Query( "SELECT Tilda_computaiva FROM ge_"+oApp:cId+"parametros"):tilda_computaiva
 lUsoPedido := {} 
 lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHERE (usuario="+;
         ClipValue2SQL(oApp:usuario)+ " AND modulo = 'ORDPAG' AND permisos = 'ABMRE') ORDER BY codigo"):nRecCount > 0
@@ -176,8 +177,7 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
   oQryArt := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu    ORDER BY codigo LIMIT 0")
   oQryTip := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"tipocomp  ORDER BY codigo")
   oQryCom := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"compras   LIMIT 0")
-  aTipoDoc:={"Factura","Nota de credito","Nota de debito","Presupuesto","Remito"} 
-        
+          
   aTipoDoc:={"Factura","Nota de credito","Nota de debito","Presupuesto","Remito"}
   lPaga:=.f.
   lNoComputarIVA:=.f.
@@ -251,7 +251,7 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
     REDEFINE GET oGet[02] VAR base:letra   ID 111  OF oDlg1 VALID( base:letra $ "ABCRMXE") WHEN(lAlta)
     
     oGet[2]:bLostFocus := {|| (IF(oGet[2]:cText = 'X',(base:imputaiva:=.f.,oGet[14]:Refresh()),(base:imputaiva:=.t.,oGet[14]:Refresh())),;
-                               IF(oGet[2]:cText $ 'XBC',(lNoComputarIVA:=.T.,oGet[22]:Refresh()),(lNoComputarIVA:=.F.,oGet[22]:Refresh())))}
+                               IF(lTilda_computaiva,IF(oGet[2]:cText $ 'XBC',(lNoComputarIVA:=.T.,oGet[22]:Refresh()),(lNoComputarIVA:=.F.,oGet[22]:Refresh())),nil ))}
 
     REDEFINE GET oGet[03] VAR cNumRe1      ID 500 OF oDlg1 PICTURE "9999" ;
                 VALID((oGet[03]:cText:= STRTRAN(STR(VAL(oGet[03]:cText),4)," ","0")) <> "xxx")
@@ -391,7 +391,7 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
     *oGet[26]:bLostFocus:= { || (oGet[26]:Assign(), oGet[20]:SetFocus())}
     *oGet[27]:bLostFocus:= { || (oGet[27]:Assign(), oGet[20]:SetFocus())}
 
-        REDEFINE GET oGet[42] VAR base:importe    ID 300 OF oDlg1 FONT oFontTotal COLOR CLR_RED,CLR_WHITE PICTURE "9999999999.99";
+    REDEFINE GET oGet[42] VAR base:importe    ID 300 OF oDlg1 FONT oFontTotal COLOR CLR_RED,CLR_WHITE PICTURE "9999999999.99";
         
     //BOTONES ---------------------------------------------------------------
     REDEFINE BUTTON oBot[2] ID 102 OF oDlg1 ACTION(Cancela(oGet))    
@@ -442,7 +442,7 @@ IF lAlta
       base:saldo = 0
       base:estado = 'P'
    ENDIF
-   IF base:fecvto > base:fecfac 
+   IF base:fecvto > base:fecfac .and. nTipoComp <> 5
       lAgenda := MsgNoYes("¿Desea agendar el vencimiento de esta factura "+chr(10)+;
                 "en la agenda del sistema?","Atencion!")
    ENDIF   
@@ -463,6 +463,11 @@ base:fecmod := DATE()
 
 base:neto := oBrwIvas:aCols[3]:nTotal 
 base:iva  := oBrwIvas:aCols[4]:nTotal
+IF nTipoComp = 5
+   base:importe := 0
+   base:saldo := 0
+   base:estado := 'P'
+ENDIF   
 
 oQry:oRow := base
 TRY
@@ -753,6 +758,7 @@ TRY
                        " reventa ="+ClipValue2Sql(baseArt:reventa)+","+;
                        " ip ="+ClipValue2Sql(baseArt:ip)+","+;
                        " fecmod ="+ClipValue2Sql(baseArt:fecmod)+","+;
+                       " horamod = CURTIME(),"+;
                        " usuario ="+ClipValue2Sql(baseArt:usuario)+" WHERE codigo = "+ClipValue2Sql(baseArt:codigo))
   oQryComprasDet:Save()
   oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"campre (codigo,preciocos,precossiva,precioven,reventa,fecmod,usuario,ip) "+;
@@ -970,7 +976,7 @@ oBrwRet:MakeTotals()
 oBrwIvas:MakeTotals()
 oGet[42]:cText:= (oBrwIvas:aCols[3]:nTotal + oBrwIvas:aCols[4]:nTotal +  oBrwRet:aCols[3]:nTotal + base:nograbado) *;
                  IF( oGet[1]:nAt = 5,0,1) 
-IF lNoComputarIVA
+IF lNoComputarIVA .and. oGet[1]:nAt <> 5
    oGet[42]:cText := oBrwRet:aCols[3]:nTotal + base:nograbado + oBrwDet:aCols[13]:nTotal 
 ENDIF
 oGet[42]:Refresh()
@@ -1203,6 +1209,11 @@ LOCAL oGet := ARRAY(52), oBot := ARRAY(8), oForm, lRta := .F., aCor, base, cProv
    base := oQryArt:GetBlankRow()
    base:codigo := oApp:oServer:GetAutoIncrement("ge_"+oApp:cId+"articu")
    base:iva := 5
+   base:prov    := oQry2:codigo
+   base:rubro   := oQry5:codigo
+   base:marca   := oQry4:codigo
+   base:empresa := oQry7:codigo
+   base:depto   := oQry6:codigo
    oQry3:GoTop()
    IF oQry3:Seek(base:iva,1) > 0
       cIvaNom := STR(oQry3:tasa,6,2) + "%"
@@ -1325,7 +1336,11 @@ IF base:preciocos = 0 .or. base:iva = 0
    msginfo("Campos obligatorios como 'Precio costo' e 'IVA' tienen que estar completos","Atencion!")
    LOOP
 ENDIF
-
+IF base:prov = 0 .OR. base:rubro = 0 .or. base:depto = 0 .or. base:empresa = 0 .or. base:marca = 0
+   msginfo("Campos de configuracion 'Proveedor', 'Departamento', 'Rubro', 'Marca', 'Empresa' "+Chr(10)+;
+           " tienen que estar completos","Atencion!")
+   LOOP
+ENDIF
 IF nPrecioven <> base:precioven .OR. nPreciocos <> base:preciocos 
    oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"campre (codigo,preciocos,precossiva,precioven,reventa,fecmod,usuario,ip) "+;
                         "VALUES ("+ClipValue2Sql(base:codigo)+","+ClipValue2Sql(base:preciocos)+","+;

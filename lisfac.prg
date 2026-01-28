@@ -293,6 +293,8 @@ ELSE
                              " AND "+IF(mvendedor=0,"TRUE","c.vendedor = "+ClipValue2Sql(mvendedor))+;
                              " AND " + IF(mcliente=0,"TRUE ","v.cliente = "+ClipValue2Sql(mcliente))+" "+;
                              " AND " + IF(!lTipo,"TRUE ","v.letra <> 'X' ")+" "+;
+                             " AND v.fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
+                             " v.fecha <= "+ ClipValue2Sql(mhasta) +;
                              " UNION " +;
                              "SELECT codigo AS codcli, nombre, direccion, "+;
                              " telefono, 'Anticipo' AS compro, "+;

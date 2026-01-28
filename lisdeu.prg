@@ -103,7 +103,7 @@ IF mcodpro > 0
                   " FROM ge_"+oApp:cId+"ordpag "+;                          
                   " WHERE fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
                   "       fecha <= " + ClipValue2Sql(mhasta) + " AND "+;
-                  "       proveedor = " + ClipValue2Sql(mcodpro) +;
+                  "       proveedor = " + ClipValue2Sql(oQryPro:codigo) +;
                   " UNION "+;
                  "SELECT "+STR(oQryPro:codigo)+" AS codpro, "+ClipValue2Sql(oQryPro:nombre)+" AS nompro, "+;
                  " fecfac as fecha, CONCAT(tipocomp,letra,numfac) AS compro,"+;
@@ -161,10 +161,11 @@ RETURN
 ** Resumen de deudas
 PROCEDURE RepDeu2()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
-      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(6), oBot1, oBot2,;
-      mdesde := CTOD("01/01/2020"), mhasta := DATE(), lDetalle := .f., oGru, lTipo := .F., lDeta1 := .f., lVto := .f.
+      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(7), oBot1, oBot2,;
+      mdesde := CTOD("01/01/2020"), mhasta := DATE(), lDetalle := .f., oGru,;
+      lTipo := .F., lDeta1 := .f., lVto := .f., lSoloACuenta := .f.
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
-DEFINE DIALOG oDlg1 TITLE "Resumen de deudas a Pagar" FROM 03,15 TO 15,50 Of oApp:oWnd
+DEFINE DIALOG oDlg1 TITLE "Resumen de deudas a Pagar" FROM 03,15 TO 17,50 Of oApp:oWnd
    acor := AcepCanc(oDlg1)    
    @ 07, 01 SAY "Desde Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
    @ 22, 01 SAY "Hasta Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
@@ -174,6 +175,8 @@ DEFINE DIALOG oDlg1 TITLE "Resumen de deudas a Pagar" FROM 03,15 TO 15,50 Of oAp
    @ 35, 85 CHECKBOX oGet[4] VAR lTipo    PROMPT "Solo Imputables" OF oDlg1 SIZE 70,12 PIXEL
    @ 50, 05 CHECKBOX oGet[5] VAR lDeta1   PROMPT "Solo Origen/Saldo" OF oDlg1 SIZE 70,12 PIXEL WHEN(lDetalle)
    @ 50, 85 CHECKBOX oGet[5] VAR lVto     PROMPT "Por fecha Vto" OF oDlg1 SIZE 70,12 PIXEL 
+   @ 65, 05 CHECKBOX oGet[6] VAR lSoloACuenta     PROMPT "Solo Saldo a Favor" OF oDlg1 SIZE 70,12 PIXEL;
+    WHEN(!lDetalle .and. !lTipo .and. !lDeta1 .and. !lVto)
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
@@ -191,10 +194,10 @@ IF !lDetalle
                              " p.telefono AS telefono, "+;
                              " p.saldo AS acuenta, SUM(c.saldo*IF(c.tipocomp='NC',-1,1)) AS importe,"+;
                              " (SELECT MAX(o.fecha) FROM ge_"+oApp:cId+"ordpag o WHERE o.proveedor = p.codigo)  AS fecha  " +;                         
-                             " FROM ge_"+oApp:cId+"compras c LEFT JOIN ge_"+oApp:cId+"provee p ON c.codpro = p.codigo "+;                                                 
-                             " WHERE c.saldo > 0 AND "+IF(lVto,"c.fecvto","c.fecfac")+ " >= " + ClipValue2Sql(mdesde) + " AND "+;
+                             " FROM ge_"+oApp:cId+"provee p LEFT JOIN ge_"+oApp:cId+"compras c ON c.codpro = p.codigo "+;                                                 
+                             " WHERE (c.saldo > 0 AND "+IF(lVto,"c.fecvto","c.fecfac")+ " >= " + ClipValue2Sql(mdesde) + " AND "+;
                              " "+IF(lVto,"c.fecvto","c.fecfac")+ " <= "+ ClipValue2Sql(mhasta) +; 
-                             " AND " + IF(!lTipo,"TRUE","c.imputaiva")+;
+                             " AND " + IF(!lTipo,"TRUE","c.imputaiva")+") OR p.saldo > 0 "+ ;
                              " GROUP BY c.codpro ORDER BY p.nombre " )
     REPORT oRep TITLE "Resumen de deudas" + IF(lVto," Por Fecha Vto"," Por Fecha Factura") + " del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
            FONT  oFont1,oFont2,oFont3  HEADER OemToAnsi(oApp:nomb_emp) , ;
@@ -211,7 +214,10 @@ IF !lDetalle
                              SIZE 10 FONT 2 TOTAL
     COLUMN TITLE "Deuda"     DATA oQry:importe    PICTURE "9,999,999,999.99" ;
                              SIZE 10 FONT 2 TOTAL
-
+    IF lSoloACuenta                         
+    COLUMN TITLE "Neto a Cta"  DATA oQry:acuenta-oQry:importe    PICTURE "9,999,999,999.99" ;
+                             SIZE 10 FONT 2 TOTAL
+    ENDIF
 
     // Digo que el titulo lo escriba con al letra 2
     oRep:oTitle:aFont[1] := {|| 2 }
@@ -220,8 +226,13 @@ IF !lDetalle
     oRep:bSkip := {|| oQry:Skip() }
 
     END REPORT
-    ACTIVATE REPORT oRep WHILE !oQry:EOF() ON INIT CursorArrow() ;
-             ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.jpg",1,1)
+    IF !lSoloACuenta
+       ACTIVATE REPORT oRep WHILE !oQry:EOF()  ON INIT CursorArrow() ;
+                 ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.jpg",1,1)
+       ELSE 
+       ACTIVATE REPORT oRep WHILE !oQry:EOF() FOR oQry:acuenta>0 .and. oQry:acuenta > oQry:importe  ON INIT CursorArrow() ;
+                 ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.jpg",1,1)
+    ENDIF                       
     oQry:End()
     ELSE
     IF !lDeta1

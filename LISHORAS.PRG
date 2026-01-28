@@ -156,9 +156,9 @@ PROCEDURE RepSuel2()
 LOCAL oGet := ARRAY(7), oQryEmp, oQry, mdesde := DATE(), mhasta := DATE(), oForm,;
       mcodemp := 0, mnomemp := SPACE(30), aCor, mrta := .f., oBot1, oBot2,;
       oRep, oFont1, oFont2, oFont3,nTipo:=2,aTipo:={"Sistema","Demo"}, lSinValor := .t.,;
-      mlimite := 0, cSql
+      lDescansos := .F., cSql
 
-oQryEmp := oApp:oServer:Query("SELECT codigo,nombre,hor_hab_desde1,hor_hab_hasta1,hor_hab_desde2,hor_hab_hasta2  FROM ge_"+oApp:cId+"emp_empleado")
+oQryEmp := oApp:oServer:Query("SELECT codigo,nombre,hor_hab_desde1,hor_hab_hasta1,hor_hab_desde2,hor_hab_hasta2,valorhora  FROM ge_"+oApp:cId+"emp_empleado")
      DEFINE FONT oFont1 NAME "ARIAL"  SIZE 0,-10
      DEFINE FONT oFont2 NAME "ARIAL"  SIZE 0,-11 BOLD
      DEFINE FONT oFont3 NAME "TAHOMA" SIZE 0,-12.5
@@ -178,7 +178,7 @@ DEFINE DIALOG oForm TITLE "Detalle de fichadas por empleado" FROM 03,15 TO 14,75
    //IF oApp:lEstado
    //   @ 20,115 COMBOBOX oGet[6] VAR nTipo ITEMS aTipo PIXEL SIZE 50,12
    //ENDIF
-   //@ 50, 70 GET oGet[7] VAR mlimite   PICTURE "99" OF oForm PIXEL RIGHT VALID(mlimite >0 .and. mlimite<32)
+   @ 50, 70 CHECKBOX oGet[7] VAR lDescansos PROMPT "Calcular descansos" OF oForm PIXEL SIZE 60,12
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oForm SIZE 30,10 ACTION ((mrta := .t.), oForm:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oForm SIZE 30,10 ACTION ((mrta := .f.), oForm:End() ) PIXEL CANCEL 
 ACTIVATE DIALOG oForm CENTER 
@@ -244,72 +244,129 @@ IF mRta = 0
 
     oApp:oServer:Execute(cSql)
 ENDIF
+IF !lDescansos
+    oQry := oApp:oServer:Query("SELECT * FROM ("+;
+                               "(SELECT h.codtar as legajo, h.fecha, h.hora1ent,h.hora1sal,"+;
+                               " h.hora2ent,h.hora2sal, h.hora3ent,h.hora3sal,"+;
+                               "horas(h.fecha,h.hora1ent,h.hora1sal,h.hora2ent,h.hora2sal, h.hora3ent,h.hora3sal) as horastra,"+;
+                               "horasE(h.fecha,h.hora1ent,h.hora1sal,h.hora2ent,h.hora2sal, h.hora3ent,h.hora3sal,s.horas) as horasExt,"+;
+                               "m.valorhora as importe,"+;
+                               "'' as obs, s.horas as horas "+;
+                               "FROM ge_"+oApp:cId+"emp_horas h "+;
+                               "LEFT JOIN ge_"+oApp:cId+"emp_empleado m ON m.codigo  = h.codtar "+;                           
+                               "LEFT JOIN ge_"+oApp:cId+"emp_emplcat cat ON cat.codigo  = m.catego "+;
+                               "LEFT JOIN ge_"+oApp:cId+"emp_sector  s   ON s.codigo  = m.sector "+;
+                               "WHERE h.fecha >= "+ClipValue2Sql(mdesde)+" AND h.fecha <= "+ClipValue2Sql(mhasta)+" AND "+;
+                               "      h.codtar = "+ClipValue2Sql(mcodemp)+ ") "+;
+                               "UNION "+;
+                               "(SELECT i.legajo as legajo, i.fecinasi as fecha, '00:00:00' as hora1ent,'00:00:00' as hora1sal,"+;
+                               " '00:00:00' as hora2ent,'00:00:00' as hora2sal, '00:00:00' as hora3ent,'00:00:00' as hora3sal,"+;
+                               " 0 as horastra, 0 as horasExt, 0 as importe, "+;
+                               " c.nombre as obs, 0 as horas "+;
+                               "FROM ge_"+oApp:cId+"emp_inasi i "+;
+                               "LEFT JOIN ge_"+oApp:cId+"emp_inasistencia c ON c.codigo  = i.codigo "+;                           
+                               "WHERE i.fecinasi >= "+ClipValue2Sql(mdesde)+" AND i.fecinasi <= "+ClipValue2Sql(mhasta)+" AND "+;
+                               "      i.legajo = "+ClipValue2Sql(mcodemp)+ ") "+;
+                               "UNION "+;
+                               "(SELECT ps.codemp as legajo, ps.fecha as fecha, '00:00:00' as hora1ent,'00:00:00' as hora1sal,"+;
+                               " '00:00:00' as hora2ent,'00:00:00' as hora2sal, '00:00:00' as hora3ent,'00:00:00' as hora3sal,"+;
+                               " 0 as horastra, 0 as horasExt, -importe as importe, "+;
+                               " concat('Pago ',IFNULL(ps.observa,'')) as obs, 0 as horas "+;
+                               "FROM ge_"+oApp:cId+"emp_pagsueldo ps "+;                           
+                               "WHERE ps.fecha >= "+ClipValue2Sql(mdesde)+" AND ps.fecha <= "+ClipValue2Sql(mhasta)+" AND "+;
+                               "      ps.codemp = "+ClipValue2Sql(mcodemp)+ " ) "+;
+                               ") res "+;
+                               "ORDER BY res.fecha")
 
-oQry := oApp:oServer:Query("SELECT * FROM ("+;
-                           "(SELECT h.codtar as legajo, h.fecha, h.hora1ent,h.hora1sal,"+;
-                           " h.hora2ent,h.hora2sal, h.hora3ent,h.hora3sal,"+;
-                           "horas(h.fecha,h.hora1ent,h.hora1sal,h.hora2ent,h.hora2sal, h.hora3ent,h.hora3sal) as horastra,"+;
-                           "horasE(h.fecha,h.hora1ent,h.hora1sal,h.hora2ent,h.hora2sal, h.hora3ent,h.hora3sal,s.horas) as horasExt,"+;
-                           "cat.valorhora as importe,"+;
-                           "'' as obs, s.horas as horas "+;
-                           "FROM ge_"+oApp:cId+"emp_horas h "+;
-                           "LEFT JOIN ge_"+oApp:cId+"emp_empleado m ON m.codigo  = h.codtar "+;                           
-                           "LEFT JOIN ge_"+oApp:cId+"emp_emplcat cat ON cat.codigo  = m.catego "+;
-                           "LEFT JOIN ge_"+oApp:cId+"emp_sector  s   ON s.codigo  = m.sector "+;
-                           "WHERE h.fecha >= "+ClipValue2Sql(mdesde)+" AND h.fecha <= "+ClipValue2Sql(mhasta)+" AND "+;
-                           "      h.codtar = "+ClipValue2Sql(mcodemp)+ ") "+;
-                           "UNION "+;
-                           "(SELECT i.legajo as legajo, i.fecinasi as fecha, '00:00:00' as hora1ent,'00:00:00' as hora1sal,"+;
-                           " '00:00:00' as hora2ent,'00:00:00' as hora2sal, '00:00:00' as hora3ent,'00:00:00' as hora3sal,"+;
-                           " 0 as horastra, 0 as horasExt, 0 as importe, "+;
-                           " c.nombre as obs, 0 as horas "+;
-                           "FROM ge_"+oApp:cId+"emp_inasi i "+;
-                           "LEFT JOIN ge_"+oApp:cId+"emp_inasistencia c ON c.codigo  = i.codigo "+;                           
-                           "WHERE i.fecinasi >= "+ClipValue2Sql(mdesde)+" AND i.fecinasi <= "+ClipValue2Sql(mhasta)+" AND "+;
-                           "      i.legajo = "+ClipValue2Sql(mcodemp)+ ") "+;
-                           "UNION "+;
-                           "(SELECT ps.codemp as legajo, ps.fecha as fecha, '00:00:00' as hora1ent,'00:00:00' as hora1sal,"+;
-                           " '00:00:00' as hora2ent,'00:00:00' as hora2sal, '00:00:00' as hora3ent,'00:00:00' as hora3sal,"+;
-                           " 0 as horastra, 0 as horasExt, -importe as importe, "+;
-                           " ps.observa as obs, 0 as horas "+;
-                           "FROM ge_"+oApp:cId+"emp_pagsueldo ps "+;                           
-                           "WHERE ps.fecha >= "+ClipValue2Sql(mdesde)+" AND ps.fecha <= "+ClipValue2Sql(mhasta)+" AND "+;
-                           "      ps.codemp = "+ClipValue2Sql(mcodemp)+ " ) "+;
-                           ") res "+;
-                           "ORDER BY res.fecha")
+    oQry:GoTop()
+    REPORT oRep TITLE "Detalle de horas de " + mnomemp + " Legajo:" + STR(mcodemp,6) ;
+           FONT  oFont1,oFont2,oFont3 ;
+           HEADER OemToAnsi(oApp:nomb_emp) , ;
+           "Fichadas " + DTOC(mdesde) + " al "  + DTOC(mhasta),;
+           "Valor Hora " + STR(oQryEmp:valorhora) ,;
+           "Horario Habitual: " + oQryEmp:hor_hab_desde1+" "+oQryEmp:hor_hab_hasta1+" "+;
+                                  IF(oQryEmp:hor_hab_desde2<> '00:00:00',oQryEmp:hor_hab_desde2+" "+oQryEmp:hor_hab_hasta2,"") CENTER ;
+           FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) + ;
+                  "  Firma responsable operativo:_______________________" + ;
+                  "  Firma responsable area:____________________________" CENTER;
+           PREVIEW CAPTION  "Detalle de horas"
+           COLUMN TITLE "Dia"     DATA CDOW(oQry:fecha) SIZE 8  FONT 1        
+           COLUMN TITLE "Fecha"   DATA oQry:fecha       SIZE 08 FONT 1 CENTER PICTURE "@D"
+           COLUMN TITLE "Entrada" DATA oQry:hora1ent  SIZE 08 FONT 1 PICTURE "99:99:99"
+           COLUMN TITLE "Salida"  DATA oQry:hora1sal  SIZE 08 FONT 1 PICTURE "99:99:99"
+           COLUMN TITLE "Entrada" DATA oQry:hora2ent  SIZE 08 FONT 1 PICTURE "99:99:99" 
+           COLUMN TITLE "Salida"  DATA oQry:hora2sal  SIZE 08 FONT 1 PICTURE "99:99:99"
+           COLUMN TITLE "Entrada" DATA oQry:hora3Ent    SIZE 08 FONT 1 PICTURE "99:99:99"
+           COLUMN TITLE "Salida"  DATA oQry:hora3Sal    SIZE 08 FONT 1 PICTURE "99:99:99"
+           COLUMN TITLE "Hs. Trab."      DATA oQry:horastra PICTURE "999.99" SIZE 06 FONT 1 RIGHT TOTAL
+           COLUMN TITLE "Extras"         DATA oQry:horasExt PICTURE "999.99" SIZE 06 FONT 1 RIGHT TOTAL 
+           COLUMN TITLE "$ Hs.Trab."     DATA IF(oQry:horastra>0,oQry:horastra*oQry:importe,0) PICTURE "999999999.99" SIZE 11 FONT 1 RIGHT TOTAL            
+           COLUMN TITLE "Observaciones"  DATA oQry:obs    SIZE 20 FONT 1 
+           
 
-oQry:GoTop()
-REPORT oRep TITLE "Detalle de horas de " + mnomemp + " Legajo:" + STR(mcodemp,6) ;
-       FONT  oFont1,oFont2,oFont3 ;
-       HEADER OemToAnsi(oApp:nomb_emp) , ;
-       "Fichadas " + DTOC(mdesde) + " al "  + DTOC(mhasta),;
-       "Horario Habitual: " + oQryEmp:hor_hab_desde1+" "+oQryEmp:hor_hab_hasta1+" "+;
-                              IF(oQryEmp:hor_hab_desde2<> '00:00:00',oQryEmp:hor_hab_desde2+" "+oQryEmp:hor_hab_hasta2,"") CENTER ;
-       FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) + ;
-              "  Firma responsable operativo:_______________________" + ;
-              "  Firma responsable area:____________________________" CENTER;
-       PREVIEW CAPTION  "Detalle de horas"
-       COLUMN TITLE "Dia"     DATA CDOW(oQry:fecha) SIZE 8  FONT 1        
-       COLUMN TITLE "Fecha"   DATA oQry:fecha       SIZE 08 FONT 1 CENTER PICTURE "@D"
-       COLUMN TITLE "Entrada" DATA oQry:hora1ent  SIZE 08 FONT 1 PICTURE "99:99:99"
-       COLUMN TITLE "Salida"  DATA oQry:hora1sal  SIZE 08 FONT 1 PICTURE "99:99:99"
-       COLUMN TITLE "Entrada" DATA oQry:hora2ent  SIZE 08 FONT 1 PICTURE "99:99:99" 
-       COLUMN TITLE "Salida"  DATA oQry:hora2sal  SIZE 08 FONT 1 PICTURE "99:99:99"
-       COLUMN TITLE "Entrada" DATA oQry:hora3Ent    SIZE 08 FONT 1 PICTURE "99:99:99"
-       COLUMN TITLE "Salida"  DATA oQry:hora3Sal    SIZE 08 FONT 1 PICTURE "99:99:99"
-       COLUMN TITLE "Hs. Trab."      DATA oQry:horastra PICTURE "999.99" SIZE 06 FONT 1 RIGHT TOTAL
-       COLUMN TITLE "Extras"         DATA oQry:horasExt PICTURE "999.99" SIZE 06 FONT 1 RIGHT TOTAL       
-       COLUMN TITLE "Observaciones"  DATA oQry:obs    SIZE 25 FONT 1 
-       
+    END REPORT
+    oRep:oTitle:aFont[1] := {|| 2 }
+    oRep:bInit := {|| oQry:GoTop()}
+    oRep:bSkip := {|| oQry:Skip() }
 
-END REPORT
-oRep:oTitle:aFont[1] := {|| 2 }
-oRep:bInit := {|| oQry:GoTop()}
-oRep:bSkip := {|| oQry:Skip() }
+    ACTIVATE REPORT oRep WHILE !oQry:Eof();
+             ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.BMP",1.5,.5)
+    oQry:End()
+    ELSE 
+    TEXT INTO cSql 
+        SELECT 
+            codtar, 
+            fecha,
+            hora1ent,
+            hora1sal,
+            hora2ent,
+            hora2sal,
+            hora3ent,
+            hora3sal,
+            IF(hora2ent <> '00:00:00' AND hora1sal <> '00:00:00', 
+               ROUND(TIME_TO_SEC(TIMEDIFF(CAST(hora2ent AS TIME), CAST(hora1sal AS TIME))) / 3600, 2),
+               0.00) AS descanso1,
+            IF(hora3ent <> '00:00:00' AND hora2sal <> '00:00:00', 
+               ROUND(TIME_TO_SEC(TIMEDIFF(CAST(hora3ent AS TIME), CAST(hora2sal AS TIME))) / 3600, 2),
+               0.00) AS descanso2
+        FROM ge_000001emp_horas
+        WHERE codtar =  
+    ENDTEXT   
+    cSql = cSql + STR(mcodemp) + " AND fecha >= " + ClipValue2Sql(mdesde) + " AND fecha <= "+ ClipValue2Sql(mhasta)
+    cSql = STRTRAN(cSql, 'ge_000001', "ge_"+oApp:cId)
+    oQry := oApp:oServer:Query(cSql)
+    oQry:GoTop()
+    REPORT oRep TITLE "Detalle de descansos de " + mnomemp + " Legajo:" + STR(mcodemp,6) ;
+           FONT  oFont1,oFont2,oFont3 ;
+           HEADER OemToAnsi(oApp:nomb_emp) , ;
+           "Descansos " + DTOC(mdesde) + " al "  + DTOC(mhasta),;
+           "Horario Habitual: " + oQryEmp:hor_hab_desde1+" "+oQryEmp:hor_hab_hasta1+" "+;
+                                  IF(oQryEmp:hor_hab_desde2<> '00:00:00',oQryEmp:hor_hab_desde2+" "+oQryEmp:hor_hab_hasta2,"") CENTER ;
+           FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) + ;
+                  "  Firma responsable operativo:_______________________" + ;
+                  "  Firma responsable area:____________________________" CENTER;
+           PREVIEW CAPTION  "Detalle de Descansos"
+           COLUMN TITLE "Dia"     DATA CDOW(oQry:fecha) SIZE 8  FONT 1        
+           COLUMN TITLE "Fecha"   DATA oQry:fecha       SIZE 08 FONT 1 CENTER PICTURE "@D"
+           COLUMN TITLE "Entrada" DATA oQry:hora1ent  SIZE 08 FONT 1 PICTURE "99:99:99"
+           COLUMN TITLE "Salida"  DATA oQry:hora1sal  SIZE 08 FONT 1 PICTURE "99:99:99"
+           COLUMN TITLE "Entrada" DATA oQry:hora2ent  SIZE 08 FONT 1 PICTURE "99:99:99" 
+           COLUMN TITLE "Salida"  DATA oQry:hora2sal  SIZE 08 FONT 1 PICTURE "99:99:99"
+           COLUMN TITLE "Entrada" DATA oQry:hora3Ent    SIZE 08 FONT 1 PICTURE "99:99:99"
+           COLUMN TITLE "Salida"  DATA oQry:hora3Sal    SIZE 08 FONT 1 PICTURE "99:99:99"
+           COLUMN TITLE "Desc.1"  DATA oQry:descanso1 PICTURE "999.99" SIZE 06 FONT 1 RIGHT TOTAL
+           COLUMN TITLE "Desc.2"  DATA oQry:descanso2 PICTURE "999.99" SIZE 06 FONT 1 RIGHT TOTAL       
+           
 
-ACTIVATE REPORT oRep WHILE !oQry:Eof();
-         ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.BMP",1.5,.5)
-oQry:End()
+    END REPORT
+    oRep:oTitle:aFont[1] := {|| 2 }
+    oRep:bInit := {|| oQry:GoTop()}
+    oRep:bSkip := {|| oQry:Skip() }
+
+    ACTIVATE REPORT oRep WHILE !oQry:Eof();
+             ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.BMP",1.5,.5)
+    oQry:End()
+ENDIF    
 RETURN
 
 STATIC FUNCTION HorasVar(nDia,cHora,nTipo,mlimite,cHoraFija,cObs,nDow)

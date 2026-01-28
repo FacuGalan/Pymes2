@@ -30,7 +30,8 @@ cDialog:= "ABMS"
 oQryPar:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros LIMIT 1")
 oQryBrw:= oApp:oServer:Query("SELECT p.nuevo, p.id,p.CODCLI,p.CLIENTE,p.FECHA,p.PARAFECHA,p.Observa,"+;
                              "p.VENDEDOR,p.ESTADO,ROUND(SUM(pd.cantidad * pd.punitario * (1-pd.descup/100)),2) as total, "+;
-                             "CONCAT(c.direccion,' ',IF(c.localidad is null,'',c.localidad)) AS direccion FROM ge_"+oApp:cId+"pedidos_encab p "+;
+                             "CONCAT(c.direccion,' ',IF(c.localidad is null,'',c.localidad)) AS direccion, "+;
+                             "p.facturanro as factura FROM ge_"+oApp:cId+"pedidos_encab p "+;
                              "LEFT JOIN ge_"+oApp:cId+"pedidos_det pd ON pd.idpedido = p.id "+;
                              "LEFT JOIN ge_"+oApp:cId+"clientes c ON p.codcli = c.codigo "+;
                              " WHERE p.estado = 'P' GROUP BY p.id")
@@ -83,9 +84,9 @@ oQryBrw:= oApp:oServer:Query("SELECT p.nuevo, p.id,p.CODCLI,p.CLIENTE,p.FECHA,p.
    oWnd1:bResized := { || Incrusta( oWnd1, oDlg, .t.) }
      DEFINE DIALOG oDlg RESOURCE cDialog OF oWnd1
      REDEFINE XBROWSE oBrwG DATASOURCE oQryBrw;
-              COLUMNS "nuevo","id","CODCLI","CLIENTE","direccion","FECHA","PARAFECHA","total","VENDEDOR","ESTADO","observa";
-              HEADERS "","Nro Pedido","Código Cliente","Nombre","Direccion","Fecha","Para Fecha","Total","Vendedor","Estado","Observaciones";
-              SIZES 30,65,60,250,110,90,90,200,100,100,100;
+              COLUMNS "nuevo","id","CODCLI","CLIENTE","direccion","FECHA","PARAFECHA","total","VENDEDOR","ESTADO","observa","Factura";
+              HEADERS "","Nro Pedido","Código Cliente","Nombre","Direccion","Fecha","Para Fecha","Total","Vendedor","Estado","Observaciones","Comprobante";
+              SIZES 30,65,60,250,110,90,90,90,100,100,100,110;
               FOOTERS;
               ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu(cPermisos,.f.),oBrwG:Refresh()),.T.))
      REDEFINE SAY oBrwG:oSeek PROMPT "" ID 113 OF oDlg
@@ -100,9 +101,9 @@ oQryBrw:= oApp:oServer:Query("SELECT p.nuevo, p.id,p.CODCLI,p.CLIENTE,p.FECHA,p.
      oBrwG:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar,cPermisos)}
      oBrwG:cSeek := ""
      oBrwG:oSeek:SetText("")
-     oBrwG:aCols[9]:nFooterTypE := AGGR_SUM
+     oBrwG:aCols[8]:nFooterTypE := AGGR_SUM
      oBrwG:Maketotals()
-     PintaBrw(oBrwG,11) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
+     PintaBrw(oBrwG,12) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
      // Activo el dialogo y al iniciar muevo a 0,0
      ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT oDlg:Move(0,0) VALID(oWnd1:End())
    ACTIVATE WINDOW oWnd1 ON INIT Incrusta( oWnd1, oDlg, .T.) VALID(cerrar())
@@ -113,7 +114,7 @@ RETURN
 STATIC FUNCTION Filtrar( )
    LOCAL oFilt,oGet:=ARRAY(9),oBot:=ARRAY(2),acor:=ARRAY(4),vProv:=0,cNomProv:=SPACE(30),;
    vDesde:=CTOD("01/01/2000"),vHasta:=DATE(),oQryPro,lRta:=.f.,oFont,cWhere,;
-   vPDesde:=DATE(),vPHasta := CTOD("01/01/2100") , nEstado := 1, aEstado := {"Solo Pendientes","Todos"},;
+   vPDesde:=DATE(),vPHasta := CTOD("01/01/2100") , nEstado := 1, aEstado := {"Solo Pendientes","Solo Facturados","Todos"},;
    oQryVen := oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"vendedores"), cNomVende := SPACE(30), vVende := 0
    
 oQryPro:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"clientes")
@@ -164,7 +165,7 @@ DO WHILE .T.
           + "" + IF(EMPTY(Vhasta),""," and fecha <=" + ClipValue2SQL(Vhasta) + "") ;
           + "" + IF(EMPTY(VPdesde),""," and parafecha >=" + ClipValue2SQL(VPdesde) + "") ; 
           + "" + IF(EMPTY(VPhasta),""," and parafecha <=" + ClipValue2SQL(VPhasta) + "") ;
-          + "" + IF(nEstado = 2," and estado <> 'A' "," and estado = 'P' " ) ;
+          + "" + IF(nEstado = 3," and estado <> 'A' ",IF(nEstado = 1," and estado = 'P' "," and estado = 'F'" )) ;
           + "" + IF(vVende = 0,""," and codven =  "+str(vVende) ) 
    EXIT
 ENDDO
@@ -239,6 +240,7 @@ oApp:oServer:Execute("";
     //+"`COSTO` DECIMAL(10,2) DEFAULT '0.00', PRIMARY KEY (`id`)) ENGINE=INNODB DEFAULT CHARSET=utf8")
 
 oApp:oServer:NextResult()
+nCodArt := oApp:oServer:Query("SELECT codigo FROM ge_"+oApp:cId+"articu WHERE nosale IS FALSE LIMIT 1"):codigo
 
 IF lAlta 
     oQry    := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"pedidos_encab LIMIT 0")
@@ -693,7 +695,7 @@ oBrw:MakeTotals()
 oBrw:GoBottom()
 oGet[19]:cText := oBrw:aCols[10]:nTotal 
 oGet[20]:cText := oBrw:aCols[11]:nTotal 
-oGet[14]:cText:=1
+oGet[14]:cText:= oApp:oServer:Query("SELECT codigo FROM ge_"+oApp:cId+"articu WHERE nosale IS FALSE LIMIT 1"):codigo
 oGet[14]:Refresh()
 oGet[15]:cText:=SPACE(30)
 oGet[25]:cText:=SPACE(30)
@@ -964,12 +966,16 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                 "Pequeño Contribuyente Eventual","Monotributista Social",;
                 "Pequeño Contribuyente Eventual Social","IVA NO Alcanzado"},oQryDet1,;
       i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, config, oQryCli, lRta := .F.,;
-      oQryP :=  oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip))
+      oQryP :=  oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip)),;
+      lConImporte := .t., lPreguntaSinImporte := oApp:oServer:Query("SELECT pedidossinimporte FROM ge_"+oApp:cId+"parametros"):pedidossinimporte
    IF base:codcli = nil
       nCodcli := oGet[08]:value       
    ENDIF
    IF oQryP:imprimeTic
       lRta := MsgNoYes("Desea imprimir por comandera?","Atencion")
+   ENDIF
+   IF lPreguntaSinImporte
+      lConImporte := MsgYesNo("Imprime el pedido valorizado?","Atencion")
    ENDIF      
    oQryDet1:= oApp:oServer:Query("SELECT * FROM ventas_det_h2")
    oQryCli := oApp:oServer:Query("SELECT c.*,v.nombre as nomven FROM ge_"+oApp:cId+"clientes c "+;
@@ -1051,11 +1057,12 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                   SIZE 7,.5 CM FONT oFont ALIGN "L"
          @ 8.2, 11 PRINT TO oPrn TEXT "Cantidad" ;
                   SIZE 2,.5 CM FONT oFont ALIGN "R"
+         IF lConImporte         
          @ 8.2, 14 PRINT TO oPrn TEXT "Pr.Unitario" ;
                   SIZE 2,.5 CM FONT oFont ALIGN "R"
          @ 8.2, 17 PRINT TO oPrn TEXT "Subtotal" ;
                   SIZE 3,.5 CM FONT oFont ALIGN "R"
-             
+         ENDIF    
          y := 9.2
          oQryDet1:GoTop()
          FOR i = 1 TO oQryDet1:nRecCount          
@@ -1065,10 +1072,12 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                   SIZE 7,1.5 CM FONT oFont LASTROW nRow
                @ y, 11 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,08,2) ;
                   SIZE 2,.5 CM FONT oFont ALIGN "R"  
+               IF lConImporte   
                @ y, 14 PRINT TO oPrn TEXT oQryDet1:ptotal/oqrydet1:cantidad ;
                           SIZE 2,.5 CM FONT oFont ALIGN "R"
                @ y, 17 PRINT TO oPrn TEXT oQryDet1:ptotal;
                     SIZE 3,.5 CM FONT oFont ALIGN "R"             
+               ENDIF
                y := nRow + .1
                IF y > 21
                     @ 23, 05 PRINT TO oPrn TEXT "CONTINUA EN OTRA HOJA";
@@ -1138,11 +1147,12 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                               SIZE 7,.5 CM FONT oFont ALIGN "L"
                      @ 8.2, 11 PRINT TO oPrn TEXT "Cantidad" ;
                               SIZE 2,.5 CM FONT oFont ALIGN "R"
+                     IF lConImporte
                      @ 8.2, 14 PRINT TO oPrn TEXT "Pr.Unitario" ;
                               SIZE 2,.5 CM FONT oFont ALIGN "R"
                      @ 8.2, 17 PRINT TO oPrn TEXT "Subtotal" ;
                               SIZE 3,.5 CM FONT oFont ALIGN "R"
-                         
+                     ENDIF    
                      y := 9.2
                  ENDIF
                oQryDet1:Skip()
@@ -1150,11 +1160,13 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
          @ y, 1 PRINT TO oPrn TEXT ALLTRIM(oGet[42]:cText) ;
                           SIZE 18,3 CM FONT oFont ALIGN "L"   
          @ 23.0,1  PRINT TO oPrn TEXT IF(!empty(base:vendedor),"Vendedor: "+ALLTRIM(base:vendedor),"") ;
-                      SIZE 5,.5 CM FONT oFont3                 
+                      SIZE 5,.5 CM FONT oFont3     
+         IF lConImporte                         
          @ 23.5, 12 PRINT TO oPrn TEXT "Total $:" ;
                           SIZE 4,.5 CM FONT oFont3 ALIGN "R"
                      @ 23.5, 17 PRINT TO oPrn TEXT STR(nTotal,12,2) ;
                           SIZE 3,.5 CM FONT oFont ALIGN "R"  
+         ENDIF                 
        ENDPAGE
        NEXT x
        ENDPRINT
@@ -1165,7 +1177,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
        IF config:fon > 25
           config:fon := config:fon /3
        ENDIF  
-       DEFINE FONT oFont   NAME "COURIER NEW" SIZE config:fon,config:fon*2.5
+       DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*1.2,config:fon*2.5
        DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
        IF !oApp:tick80
            PRINT oPrn TO ALLTRIM(oQryP:impresoraT) 
@@ -1200,6 +1212,10 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                       SIZE 4.8,1.5 CM FONT oFont LASTROW nRow
                  @ nRow, 00 PRINT TO oPrn TEXT "Telefono: "+ALLTRIM(oQryCli:telefono)  ;
                       SIZE 4.8,1 CM FONT oFont LASTROW nRow
+                 @ nRow, 00 PRINT TO oPrn TEXT "Fecha pedido: "+DTOC(base:fecha)  ;
+                      SIZE 4.8,1 CM FONT oFont LASTROW nRow
+                 @ nRow, 00 PRINT TO oPrn TEXT "Para Fecha: "+DTOC(base:parafecha)  ;
+                      SIZE 4.8,1 CM FONT oFont LASTROW nRow
                  nRow := nRow + 1
                  @ nRow, 00 PRINT TO oPrn TEXT "Producto" ;
                               SIZE 3,.5 CM FONT oFont 
@@ -1219,8 +1235,10 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                  y := y + .5  
                  @ y, 0 PRINT TO oPrn TEXT ALLTRIM(oGet[42]:cText) ;
                               SIZE 4.5,3 CM FONT oFont ALIGN "L" LASTROW nRow   
+                 IF lConImporte 
                  @ nRow, 00 PRINT TO oPrn TEXT "Total $:" + STR(nTotal,12,2);
                               SIZE 4,.5 CM FONT oFont1 ALIGN "R"
+                 ENDIF             
                  @ nRow, 00 PRINT TO oPrn TEXT "V:" + ALLTRIM(base:vendedor);
                               SIZE 4.5,.5 CM FONT oFont1 ALIGN "L" LASTROW nRow 
                  @ nRow+.5,.1 PRINT TO oPrn TEXT "...";
@@ -1229,6 +1247,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
            ENDPRINT
            ELSE
            // Ticket 80 mm
+           DEFINE FONT oFont3   NAME "ARIAL"       SIZE config:fon*1.4,config:fon*2.4 BOLD
            PRINT oPrn TO ALLTRIM(oQryP:impresoraT) 
                PAGE
                  nRow := 0
@@ -1237,18 +1256,18 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                  ENDIF
                  IF config:x1 = 1 .or. config:x1 = 3
                      @ nRow, .1 PRINT TO oPrn TEXT ALLTRIM(oApp:nomb_emp) ;
-                              SIZE 8,.5 CM FONT oFont1 ALIGN "C" LASTROW nRow
+                              SIZE 7.4,.5 CM FONT oFont1 ALIGN "C" LASTROW nRow
                      @ nRow, .1 PRINT TO oPrn TEXT ALLTRIM(oApp:dire_emp) ;
-                              SIZE 8,.5 CM FONT oFont LASTROW nRow ALIGN "C"    
+                              SIZE 7.4,.5 CM FONT oFont LASTROW nRow ALIGN "C"    
                      @ nRow, .1 PRINT TO oPrn TEXT ALLTRIM(aiva[oApp:tipo_iva]) ;
-                              SIZE 8,.5 CM FONT oFont LASTROW nRow ALIGN "C"
+                              SIZE 7.4,.5 CM FONT oFont LASTROW nRow ALIGN "C"
                  ENDIF
                  @ nRow, .1 PRINT TO oPrn TEXT "CUIT:"+oApp:cuit_emp ;
-                              SIZE 8,.5 CM FONT oFont LASTROW nRow ALIGN "C"
+                              SIZE 7.4,.5 CM FONT oFont LASTROW nRow ALIGN "C"
                  @ nRow, .1 PRINT TO oPrn TEXT "Ing.br:"+ALLTRIM(oApp:ingb_emp);
-                              SIZE 8,.5 CM FONT oFont LASTROW nRow ALIGN "C"
+                              SIZE 7.4,.5 CM FONT oFont LASTROW nRow ALIGN "C"
                  @ nRow, .1 PRINT TO oPrn TEXT "Inic.Act.:"+DTOC(oApp:inac_emp);
-                              SIZE 8,.5 CM FONT oFont LASTROW nRow ALIGN "C"
+                              SIZE 7.4,.5 CM FONT oFont LASTROW nRow ALIGN "C"
                               
                  @ nRow, 00 PRINT TO oPrn TEXT "PEDIDO" ;
                           SIZE 7.5,1 CM FONT oFont1 LASTROW nRow ALIGN "C"
@@ -1261,31 +1280,41 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                       SIZE 7.5,1.5 CM FONT oFont LASTROW nRow
                  @ nRow, 00 PRINT TO oPrn TEXT "Telefono: "+ALLTRIM(oQryCli:telefono)  ;
                       SIZE 7.5,1 CM FONT oFont LASTROW nRow
+                 @ nRow, 00 PRINT TO oPrn TEXT "Fecha pedido: "+DTOC(base:fecha)  ;
+                      SIZE 7.5,1 CM FONT oFont LASTROW nRow
+                 @ nRow, 00 PRINT TO oPrn TEXT "Para Fecha: "+DTOC(base:parafecha)  ;
+                      SIZE 7.5,1 CM FONT oFont LASTROW nRow
                  nRow := nRow + 1
                  @ nRow, 00 PRINT TO oPrn TEXT "Producto" ;
                               SIZE 4,.5 CM FONT oFont
                  @ nRow, 04.1 PRINT TO oPrn TEXT "Cantidad" ;
                       SIZE 1.5,.5 CM FONT oFont ALIGN "R"
+                 IF lConImporte 
                  @ nRow, 05.6 PRINT TO oPrn TEXT "Total" ;
                       SIZE 1.7,.5 CM FONT oFont ALIGN "R"
+                 ENDIF
                  oQryDet1:GoTop()
                  y := nRow + .5
                  FOR i = 1 TO oQryDet1:nRecCount          
                        
                        @ y, 00 PRINT TO oPrn TEXT ALLTRIM(oQryDet1:detart) ;
-                          SIZE 4,1 CM FONT oFont LASTROW nRow
+                          SIZE 4,1 CM FONT oFont3 LASTROW nRow
                        @ y, 4.1 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,08,2) ;
                           SIZE 1.5,.5 CM FONT oFont ALIGN "R" 
+                       IF lConImporte 
                        @ y, 5.6 PRINT TO oPrn TEXT STR(oQryDet1:ptotal,12,2) ;
                           SIZE 1.7,.5 CM FONT oFont ALIGN "R"  
+                       ENDIF
                          y := nRow + .1
                        oQryDet1:Skip()
                  NEXT  
                  y := y + .2  
                  @ y, 0 PRINT TO oPrn TEXT ALLTRIM(oGet[42]:cText) ;
                               SIZE 7.5,3 CM FONT oFont ALIGN "L" LASTROW nRow   
+                 IF lConImporte 
                  @ nRow, 00 PRINT TO oPrn TEXT "Total $:" + STR(nTotal,12,2);
                               SIZE 7.5,.5 CM FONT oFont1 ALIGN "L" LASTROW nRow 
+                 ENDIF
                  @ nRow, 00 PRINT TO oPrn TEXT "V:" + ALLTRIM(base:vendedor);
                               SIZE 7.5,.5 CM FONT oFont1 ALIGN "L" LASTROW nRow 
                  @ nRow, 00 PRINT TO oPrn TEXT "...";

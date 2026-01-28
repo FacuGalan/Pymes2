@@ -244,7 +244,7 @@ IF oQryP:imprimeTic
           oPrn:Say( oApp:tamlet*1,1, "DOCUMENTO NO VALIDO",oFont)
           oPrn:Say( oApp:tamlet*2,1, "  COMO FACTURA",oFont)             
              
-          oPrn:Say( oApp:tamlet*3,1, "Puesto:"+STR(oQryI:caja,4),oFont)
+          oPrn:Say( oApp:tamlet*3,1, "Puesto:"+STR(oQryI:caja,4)+" Nro:"+ALLTRIM(STR(oQryI:id,10)),oFont)
           oPrn:Say( oApp:tamlet*4,1, DTOC(oQryI:fecha),oFont)
           oPrn:Say( oApp:tamlet*5,1, IF(oQryI:tipo="I","INGRESO A CAJA","RETIRO DE CAJA"),oFont1)
           oPrn:Say( oApp:tamlet*6,1, "Importe:"+STR(oQryI:importe,12,2),oFont)
@@ -264,7 +264,7 @@ IF oQryP:imprimeTic
                                   SIZE 7.4,.5 CM FONT oFont1 LASTROW nRow ALIGN "C"
           @ nRow, 00 PRINT TO oPrn TEXT "COMO FACTURA" ;
                                   SIZE 7.4,.5 CM FONT oFont1 LASTROW nRow ALIGN "C"             
-          @ nRow, 00 PRINT TO oPrn TEXT  "Caja N°:"+STR(oQryI:caja,4) ;
+          @ nRow, 00 PRINT TO oPrn TEXT  "Caja N°:"+STR(oQryI:caja,4)+" Nro:"+ALLTRIM(STR(oQryI:id,10)) ;
                   SIZE 7.4,.5 CM FONT oFont1 LASTROW nRow  ALIGN "C"        
           @ nRow, 00 PRINT TO oPrn TEXT  "Fecha de operación:"+DTOC(oQryI:fecha);
                   SIZE 7.4,.5 CM FONT oFont LASTROW nRow ALIGN "C"
@@ -296,7 +296,7 @@ IF oQryP:imprimeTic
                                   SIZE 20,.5 CM FONT oFont1 LASTROW nRow ALIGN "C"
           @ nRow, 00 PRINT TO oPrn TEXT "COMO FACTURA" ;
                                   SIZE 20,.5 CM FONT oFont1 LASTROW nRow ALIGN "C"             
-          @ nRow, 00 PRINT TO oPrn TEXT  "Caja N°:"+STR(oQryI:caja,4) ;
+          @ nRow, 00 PRINT TO oPrn TEXT  "Caja N°:"+STR(oQryI:caja,4)+" Nro:"+ALLTRIM(STR(oQryI:id,10)) ;
                   SIZE 20,.5 CM FONT oFont1 LASTROW nRow  ALIGN "C"        
           @ nRow, 00 PRINT TO oPrn TEXT  "Fecha de operación:"+DTOC(oQryI:fecha);
                   SIZE 20,.5 CM FONT oFont LASTROW nRow ALIGN "C"

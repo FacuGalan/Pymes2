@@ -37,7 +37,7 @@ oQry2 := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"cuentas ORDER BY codig
          DEFINE BUTTON RESOURCE "BAJA" OF oBar ;
             TOOLTIP "Eliminar Registro"  ;
             ACTION (Baja( ),oBrw:Refresh());
-            PROMPT "Baja " TOP WHEN(oQryBrw:RecCount()>0 .and. "B"$cPermisos)
+            PROMPT "Baja" TOP WHEN(oQryBrw:RecCount()>0 .and. "B"$cPermisos)
          DEFINE BUTTON RESOURCE "EXCE" OF oBar ;
             TOOLTIP "Exportar a Excel" ;
             ACTION oBrw:ToExcel() ;
@@ -49,11 +49,15 @@ oQry2 := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"cuentas ORDER BY codig
          DEFINE BUTTON RESOURCE "TRANSF" OF oBar ;
             TOOLTIP "Transferencia entre dos cuenta"  ;
             ACTION (Transfe( ),oBrw:Refresh());
-            PROMPT "Transf. " TOP WHEN("A"$cPermisos)
+            PROMPT "Transf." TOP WHEN("A"$cPermisos)
          DEFINE BUTTON RESOURCE "FILT" OF oBar ;
             TOOLTIP "Filtrar Datos"  ;
             ACTION (Filtrar( ),oBrw:Refresh());
             PROMPT "Filtra" TOP 
+         DEFINE BUTTON RESOURCE "DEPA" OF oBar ;
+            TOOLTIP "Tipos de deposito / Retiro"  ;
+            ACTION (oWnd1:End( ),TDep(cPermisos));
+            PROMPT "T.Dep-Ret" TOP    
         // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;
             TOOLTIP "Cerrar Ventana" ;

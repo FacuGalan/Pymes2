@@ -10,7 +10,7 @@ MEMVAR oApp
 STATIC oQry,  oBrw, cVentana
 PROCEDURE CIERRET(cPermisos)
 LOCAL oBar, hHand
-LOCAL oGet := ARRAY(5), oBot := ARRAY(2), oForm, lRta := .f., aCor, oError,i, nId,;
+LOCAL oGet := ARRAY(6), oBot := ARRAY(2), oForm, lRta := .f., aCor, oError,i, nId, cObserva := SPACE(100),;
       lSuper:=.f., mfecha := DATE(), mefect := 0, mresul := 0, nCaja:= oApp:prefijo, cTexto := SPACE(10),;
       nTransfiereefec := 0, oQryP := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = " + ClipValue2Sql(oApp:cIp))
 cVentana := PROCNAME()
@@ -122,6 +122,7 @@ DEFINE DIALOG oForm TITLE "Cierre de turno de caja " + STR(nCaja,2);
    @ 07, 05 SAY "Fecha de cierre:"  OF oForm PIXEL SIZE 70,12 RIGHT
    @ 22, 05 SAY "Efectivo rendido:" OF oForm PIXEL SIZE 70,12 RIGHT
    @127, 05 SAY "Resultado       :" OF oForm PIXEL SIZE 70,12 RIGHT
+   @142, 05 SAY "Observaciones   :" OF oForm PIXEL SIZE 70,12 RIGHT
   
    @ 05, 80 GET oGet[1] VAR mfecha   PICTURE "@D"  OF oForm PIXEL CENTER WHEN(.f.)
    @ 20, 80 GET oGet[2] VAR mefect PICTURE "99999999.99"    OF oForm PIXEL RIGHT;
@@ -160,7 +161,8 @@ DEFINE DIALOG oForm TITLE "Cierre de turno de caja " + STR(nCaja,2);
    @125, 80 GET oGet[3] VAR mresul PICTURE "99999999.99"    OF oForm PIXEL RIGHT;
                 WHEN((oGet[3]:cText := oBrw:aCols[4]:nTotal -nTransfiereefec - oGet[2]:value) = "xxxx" )
    @125,140 GET oGet[4] VAR cTexto OF oForm PIXEL ;
-                WHEN((oGet[4]:cText := IF(oGet[3]:value>0,"Faltante","Sobrante")) = "xxxx" )               
+                WHEN((oGet[4]:cText := IF(oGet[3]:value>0,"Faltante","Sobrante")) = "xxxx" )  
+   @140, 80 GET oGet[6] VAR cObserva OF oForm PIXEL PICTURE "@S40"
    acor := AcepCanc(oForm)
    @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Grabar" OF oForm SIZE 30,10 ;
            ACTION ((lRta := .t.), oForm:End() ) PIXEL
@@ -174,11 +176,11 @@ ENDIF
 TRY
    oApp:oServer:BeginTransaction()
    nId := oApp:oServer:GetAutoIncrement("ge_"+oApp:cId+"cajadiaria")
-   oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"cajadiaria (id,fecha,caja,saldo,hora) VALUES ("+;
+   oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"cajadiaria (id,fecha,caja,saldo,hora,observa) VALUES ("+;
                         ClipValue2Sql(nId)+","+;
                         ClipValue2Sql(mfecha)+","+;
                         IF(oApp:unifica_cajas,"0",ClipValue2Sql(nCaja))+","+;
-                        ClipValue2Sql(mresul)+",CURTIME())" )
+                        ClipValue2Sql(mresul)+",CURTIME(),"+ClipValue2Sql(cObserva)+")" )
    oQry:Gotop()
    FOR i := 1 TO oQry:nRecCount
        IF oQry:debe <> 0 .or. oQry:haber <> 0
@@ -257,7 +259,7 @@ RETURN .t.
 FUNCTION ImprimirCaja(nId,lPrev)
 LOCAL oParame, oPrn, i, oFont, config, oQry, oFont1, y, nAnt := 0, nTotD := 0,;
       nTotH := 0, nTotE := 0, nTotEfe := 0, oGru, lComan,oPr,nRenglon,nRow, oQryP,nTotalVentas, ;
-      oQryFor, nMargen, nTotalX, nTotalB
+      oQryFor, nMargen, nTotalX, nTotalB, cObserva
 DEFAULT lPrev := .f.
 oQry := TraerQuery(nId)
 
@@ -286,6 +288,7 @@ nTotalX := oApp:oServer:Query("SELECT SUM(v.importe) AS ventas "+;
                              " FROM ge_"+oApp:cId+"concfact v "+;                             
                              "WHERE v.letra = 'X' AND v.id_cierre = "+ClipValue2Sql(nId)):ventas
 nTotalB := nTotalVentas - nTotalX
+cObserva := oApp:oServer:Query("SELECT observa FROM ge_"+oApp:cId+"cajadiaria WHERE id = " +ClipValue2Sql(nId)):observa
 IF lComan
    IF config:fon > 25
       config:fon := config:fon /3
@@ -295,8 +298,9 @@ IF lComan
                            "count(importe) AS casos  FROM ge_"+oApp:cId+"concfact "+;
                            " WHERE id_cierre = "+ClipValue2Sql(nId) +;
                            " GROUP BY observa" )
-   DEFINE FONT oFont   NAME "COURIER NEW"       SIZE -config:fon,config:fon*2.5
-   DEFINE FONT oFont1  NAME "COURIER NEW"       SIZE -config:fon,config:fon*3.5 BOLD
+
+   DEFINE FONT oFont   NAME "ARIAL"             SIZE config:fon*.8,config:fon*3
+   DEFINE FONT oFont1  NAME "COURIER NEW"       SIZE -config:fon*1.5,config:fon*3.5 BOLD
    nMargen := IF(oQryP:tick80,7.2,4.6)
    PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
       oPrn:oFont := oFont
@@ -386,6 +390,8 @@ IF lComan
                           SIZE nMargen,0.5 CM FONT oFont LASTROW nRow ALIGN "L"                    
       @ nRow, .01 PRINT TO oPrn TEXT "  -  - - - FIN DE CAJA - - - - - - - ";
                           SIZE nMargen,0.5 CM FONT oFont LASTROW nRow ALIGN "C"
+      @ nRow, .01 PRINT TO oPrn TEXT "Observac.: "+alltrim(cObserva);
+                          SIZE nMargen,1.5 CM FONT oFont LASTROW nRow ALIGN "C"
       @ nRow, .01 PRINT TO oPrn TEXT "....";
                           SIZE nMargen,0.5 CM FONT oFont LASTROW nRow ALIGN "L"
    
@@ -400,14 +406,16 @@ IF lComan
        PRINT oPr
        REPORT oPrn TITLE "Cierre de turno" + DTOC(oQry:fecha) + " Caja:"+ STR(oQry:caja,4) + " Cierre Nro:"+STR(nId,4) ;       
            HEADER ALLTRIM(OemToAnsi(oApp:nomb_emp)) CENTER ;       
-           FOOTER "Firma operador:____________________    Firma del Encargado:_____________________";
+           FOOTER "Firma operador:____________________    Firma del Encargado:_____________________",;
+                  "Observac.: "+alltrim(cObserva);
            TO DEVICE oPr;
            FONT oFont,oFont1;
            CAPTION  "Cierre de turno" PREVIEW
        ELSE 
        REPORT oPrn TITLE "Cierre de turno" + DTOC(oQry:fecha) + " Caja:"+ STR(oQry:caja,4) + " Cierre Nro:"+STR(nId,4) ;       
            HEADER ALLTRIM(OemToAnsi(oApp:nomb_emp)) CENTER;
-           FOOTER "Firma operador:____________________    Firma del Encargado:_____________________";         
+           FOOTER "Firma operador:____________________    Firma del Encargado:_____________________",;
+                  "Observac.: "+alltrim(cObserva);
            FONT oFont,oFont1;
            CAPTION  "Cierre de turno" PREVIEW
     ENDIF
@@ -555,13 +563,13 @@ STATIC FUNCTION EnviarCierre(nId)
 LOCAL oParame, oPrn, i, oFont, config, oQry, oFont1, y, nAnt := 0, nTotD := 0, oQryFor,;
       nTotH := 0, nTotE := 0, nTotEfe := 0, oGru, lComan,oPr, nTotalVentas,nRow,nRow1,nTotalComensales,oQryV,;
       oFontEncab,oFontSubTit,oFontSubTitN,oFontOpc,oFontTot,oFontCombina,cText,oFontDet,oFontDetN,oQryComand,;
-      nTotalX, nTotalB
+      nTotalX, nTotalB, cObserva
 oQry := TraerQuery(nId,.T.)
 IF oQry:nRecCount = 0
    MsgInfo("Cierre no existe","Error")
    RETURN NIL 
 ENDIF
-
+cObserva := oApp:oServer:Query("SELECT observa FROM ge_"+oApp:cId+"cajadiaria WHERE id = " +ClipValue2Sql(nId)):observa
 oParame := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros")
 
    DEFINE FONT oFont  NAME "ARIAL" SIZE 0,-8
@@ -571,7 +579,8 @@ oParame := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros")
 
        REPORT oPrn TITLE "Cierre de turno" + DTOC(oQry:fecha) + " Caja:"+ STR(oQry:caja,4) + " Cierre Nro:"+STR(nId,4) ;       
            HEADER ALLTRIM(OemToAnsi(oApp:nomb_emp)) CENTER ;       
-           FOOTER "Firma operador:____________________    Firma del Encargado:_____________________";
+           FOOTER "Firma operador:____________________    Firma del Encargado:_____________________",;
+                  "Observac.: "+alltrim(cObserva);
            TO DEVICE oPr;
            FONT oFont,oFont1;
            CAPTION  "Cierre de turno" PREVIEW    

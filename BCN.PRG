@@ -700,7 +700,7 @@ STATIC FUNCTION Sonar()
 LOCAL oError, nPed
 IF oApp:oServer <> nil
    TRY 
-       nPed := oApp:oServer:Query("SELECT id FROM ge_"+oApp:cId+"pedidos_encab WHERE nuevo IS TRUE"):nRecCount
+       nPed := oApp:oServer:Query("SELECT id FROM ge_"+oApp:cId+"pedidos_encab WHERE nuevo IS TRUE AND estado <> 'A'"):nRecCount
        IF nPed > 0
           SndPlaySound("ringin.wav",1)
           oApp:oMsg[5]:SetText("NUEVOS PEDIDOS")

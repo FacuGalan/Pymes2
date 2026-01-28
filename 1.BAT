@@ -22,7 +22,7 @@ echo c0w32.obj + > b32.bc
 echo BCN.obj  + >> b32.bc
 echo prueba2.obj + >> b32.bc
 echo listadostab.obj procesosper.obj + >> b32.bc
-echo modsto.obj pregen.obj fcaja.obj rcaja.obj chepro.obj cheter.obj depret.obj modrem.obj abmgar.obj + >> b32.bc
+echo modsto.obj pregen.obj fcaja.obj rcaja.obj chepro.obj cheter.obj depret.obj tipdep.obj modrem.obj abmgar.obj + >> b32.bc
 echo abmpro.obj abmmar.obj abmrub.obj abmven.obj abmban.obj abmctas.obj abmcom.obj abmpcon.obj abmcondven.obj + >> b32.bc
 echo abmiva.obj abmrep.obj abmdat.obj abmdat1.obj abmcli.obj abmcli1.obj abmart.obj abmdes.obj abmrep.obj + >> b32.bc
 echo abmemp.obj abmdep.obj abmret.obj abmfor.obj abmaut.obj bcaja.obj cambiopre.obj combus.obj + >> b32.bc

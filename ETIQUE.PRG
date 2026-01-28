@@ -8,8 +8,8 @@ STATIC oQryFue, oQryEti, oBrw,;
        lImprimeLista2,cNombreLista1,cNombreLista2 // Las defino globales para no tener que pasarla a todos lados (CAMBIO FACU)
 PROCEDURE planil
 LOCAL aFon1, aFon2, aFon3, nCol1 := 0, nCol2 := 0, nCol3:= 0, lCodBarra :=.f., mbarra1,;
-      oSay1, oSay2, oSay3, oBot1, oBot2, oDlg1, oDlg2, oDlg3, oFld, oBot10,;
-      oBot01,oBot02,oBot03,oBot04,oBot05,oBot06, oBot07, oBot08, oBot09, oLbx,;
+      oSay1, oSay2, oSay3, oBot1, oBot2, oDlg1, oDlg2, oDlg3, oFld,;
+      oBot01,oBot02,oBot03,oBot04,oBot05,oBot06, oBot07, oBot08, oBot09, oBot10, oBot11, oLbx,;
       oFon1 , oFon2, oFon3, oFon4, oFont5, oCom, oGet, oGet1, oGet2, oGet3, oGet4, oGet5, oGet6,oGet7,oGet8, mfecha := DATE(), ;
       mfechah := DATE(), mhorad := "00:00:00", mhorah := "23:59:59", hHand, oQryAux, aText := {}, aSay := ARRAY(3),;
       mopc:=2, aTipo := {"Todos los Articulos", "Solo novedades","Articulos Puntuales"},;
@@ -107,6 +107,8 @@ DEFINE DIALOG oDlg1 TITLE "Impresion de Etiquetas de precios" FROM 05,15 TO 37,1
         ACTION Modi(oBrw) WHEN(mopc > 1 )
    @100,200 BUTTON oBot09 PROMPT "Borrar" OF oDlg1 SIZE 40,12  PIXEL;
         ACTION Baja(oBrw) WHEN(mopc > 1 )
+   @115,200 BUTTON oBot11 PROMPT "X Compras" OF oDlg1 SIZE 40,12  PIXEL;
+        ACTION PorCompra(oBrw) WHEN(mopc > 1 )
    
    @ 70, 05 XBROWSE oBrw DATASOURCE oQryEti;
               COLUMNS "Codigo","Nombre","PrecioVen","Cant","fecmod","horamod";
@@ -646,7 +648,7 @@ IF oQryArt:nRecCount > 0
    nReventa:= oQryArt:reventa
    RETURN .t.
    ELSE
-   Buscar(oQryArt,oDlg,oGet1,oGet2)
+   BuscarArt(oQryArt,oDlg,oGet1,oGet2)
    oGet3:cText := oQryArt:precioven
    mneto := oQryArt:precioven - oQryArt:impint
    mneto := mneto - IF(oQryArt:iva = 5, mneto * 21 / 121,IF(oQryArt:iva = 4, mneto * 10.5 / 110.5,mneto ))
@@ -1135,3 +1137,52 @@ ENDTEXT
 cSql := "insert  into `ge_"+oApp:cId+"fuentes` "+cSql
 oApp:oServer:Execute(cSql)
 RETURN nil
+
+STATIC FUNCTION PorCompra()
+LOCAL oGet1, oGet2, oGet3, oGet4, oBot1, oBot2, oDlg1, oFont, mnumfac, cFacRemitada,;
+      mrta := .f., aCor, base, marchi, mtotal, mdescp := 0, mdeuda := 0, oError,;
+      aTipo  := {"Factura","Nota Credito","Nota Debito","Factura x Remito","Remito"}, oQry,;
+      aTip1  := {"FC","NC","ND","FR","RE"}, mtipo := 1, mletra := "A", mprefijo := 3,;
+      mnumero := 0, oQryDet1, lConsulta := .f., oChe, oQryUlt, oBrw1, oQryDet
+oQryUlt := oApp:oServer:Query("SELECT c.tipocomp,c.letra,c.numfac,p.nombre,c.importe,c.fecfac, c.codpro "+;
+                              " FROM ge_"+oApp:cId+"compras c "+;
+                              " LEFT JOIN ge_"+oApp:cId+"provee p ON p.codigo = c.codpro "+;
+                              " ORDER BY c.fecfac DESC LIMIT 25")
+
+DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5      
+DEFINE DIALOG oDlg1 TITLE "Etiquetas por compra" FROM 03,20 TO 20,90 OF oBrw1 FONT oFont
+   acor := AcepCanc(oDlg1)
+   @ 01, 05 SAY "Seleccione el comprobante" OF oDlg1 PIXEL CENTER SIZE 230,10
+   @ 12, 05 XBROWSE oBrw1 DATASOURCE oQryUlt;
+              COLUMNS "tipocomp","letra","numfac","fecfac","nombre","importe";
+              HEADERS "Tipo","Letra","Numero Comp","Fecha","Proveedor","Importe";
+              SIZES 30,30,100,100,140,80;
+              AUTOSORT OF oDlg1 ;
+     SIZE 250,70 PIXEL 
+   PintaBrw(oBrw1,6)   
+   oBrw1:CreateFromcode()
+   
+   @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Cargar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .f.), oDlg1:End() ) PIXEL
+ACTIVATE DIALOG oDlg1 CENTER 
+IF !mrta
+   RETURN nil
+ENDIF
+
+TRY 
+   oApp:oServer:Execute("INSERT IGNORE INTO etiqueT (codigo,nombre,precioven,reventa,neto,neto2,cant,horamod,fecmod) "+;
+                         "(SELECT c.codart,a.nombre,a.precioven, a.reventa,a.precioven / (1+IF(a.iva=5,.21,.105)), "+;
+                         "        a.reventa / (1+IF(a.iva=5,.21,.105)),1,a.horamod,a.fecmod "+;
+                         "     FROM ge_"+oApp:cId+"compradet c LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = c.codart "+;
+                         "     WHERE c.tipocomp = " + ClipValue2Sql(oQryUlt:tipocomp)+" "+;
+                         "     AND c.letra = " + ClipValue2Sql(oQryUlt:letra)+" "+;
+                         "     AND c.codpro = " + ClipValue2Sql(oQryUlt:codpro)+" "+;
+                         "     AND c.numfac = " + ClipValue2Sql(oQryUlt:numfac)+")")
+CATCH oError
+   ValidaError(oError)
+END TRY  
+oQryEti:Refresh()  
+oBrw:Refresh()
+RETURN nil 

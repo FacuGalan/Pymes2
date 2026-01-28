@@ -450,7 +450,7 @@ FOR i:= 16 TO 18
 NEXT i
 oGet[19]:cText := oBrw:aCols[6]:nTotal 
 oGet[20]:cText := oBrw:aCols[7]:nTotal     
-oGet[38]:cText := oBrw:aCols[7]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
+oGet[38]:cText := oBrw:aCols[6]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
 oGet[21]:cText := oBrw:aCols[8]:nTotal + oGet[38]:value
 oGet[19]:Refresh()
 oGet[20]:Refresh()
@@ -682,7 +682,7 @@ oBrw:Refresh()
 oBrw:Maketotals()
 oGet[19]:cText := oBrw:aCols[6]:nTotal 
 oGet[20]:cText := oBrw:aCols[7]:nTotal     
-oGet[38]:cText := oBrw:aCols[7]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
+oGet[38]:cText := oBrw:aCols[6]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
 oGet[21]:cText := oBrw:aCols[8]:nTotal + oGet[38]:value
 oGet[19]:Refresh()
 oGet[20]:Refresh()
@@ -796,18 +796,20 @@ IF !lRespetaPrecios
                           ""+;
                           "GROUP BY r.codart ORDER BY r.id )")
   ELSE 
-  oApp:oServer:Execute("INSERT INTO VENTAS_DET_H3 (codart,detart,cantidad,ptotal,neto,iva,codiva,descuento,stotal,punit,bultos,DEREMITO) "+;
+  oApp:oServer:Execute("INSERT INTO VENTAS_DET_H3 (codart,detart,cantidad,ptotal,neto,iva,codiva,descuento,stotal,punit,bultos,descup,DEREMITO) "+;
                       "(SELECT codart,detart,cantidad,"+;
                       "importe,"+; //ptotal
                       "neton,"+; //neto
                       "iva,codiva,"+; //iva
-                      "(neton*incrp*-1/100),"+; //incremento
+                      "(neto+iva)*100/(100-incrp)*(incrp/100),"+; //incremento
                       "neto, "+; //subtotal
                       "importe/cantidad, "+; //punit
-                      "auto, TRUE "+; //Bultos
+                      "auto, incrp,TRUE "+; //Bultos
                       "FROM ge_"+oApp:cId+"remitos  "+;
                       "WHERE (nrorem IN (SELECT rt.numrem FROM remitos_temp rt WHERE rt.tilde = 1 ))  AND (codart > 0)) ")  
 ENDIF  
+oApp:oServer:Execute('UPDATE VENTAS_DET_H3 v LEFT JOIN ge_'+oApp:cId+'articu a ON a.codigo = v.codart '+;
+                     ' SET v.impint = a.impint * v.cantidad')
 oApp:oServer:Execute("INSERT INTO VENTAS_DET_H3 (codart,detart,cantidad,ptotal,neto,iva,codiva,descuento,stotal,punit,bultos,DEREMITO) "+;
                       "(SELECT codart,detart,cantidad,"+;
                       "importe,"+; //ptotal
@@ -833,7 +835,7 @@ IF cLetra = "A"
    oGet[19]:cText := 0
    oGet[20]:cText := 0
 ENDIF     
-oGet[38]:cText := oBrw:aCols[7]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
+oGet[38]:cText := oBrw:aCols[6]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
 oGet[21]:cText := oBrw:aCols[8]:nTotal + oGet[38]:value
 oGet[19]:Refresh()
 oGet[20]:Refresh()

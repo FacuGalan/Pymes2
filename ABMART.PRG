@@ -216,24 +216,24 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Articulo" RESOU
   
 
   REDEFINE GET oGet[04] VAR base:prov ID 104 OF oForm PICTURE "99999";
-                VALID(Buscar(oQry2,oForm,oGet[4],oGet[5]));
-                ACTION (oGet[04]:cText:= 0, Buscar(oQry2,oForm,oGet[4],oGet[5])) BITMAP "BUSC1"
+                VALID(BuscarArt(oQry2,oForm,oGet[4],oGet[5]));
+                ACTION (oGet[04]:cText:= 0, BuscarArt(oQry2,oForm,oGet[4],oGet[5])) BITMAP "BUSC1"
   REDEFINE GET oGet[05] VAR cProve          ID 105 OF oForm WHEN (.F.)
   REDEFINE GET oGet[21] VAR base:marca      ID 122 OF oForm PICTURE "9999";
-               VALID(Buscar(oQry4,oForm,oGet[21],oGet[22]));
-               ACTION (oGet[21]:cText:= 0, Buscar(oQry4,oForm,oGet[21],oGet[22])) BITMAP "BUSC1"
+               VALID(BuscarArt(oQry4,oForm,oGet[21],oGet[22]));
+               ACTION (oGet[21]:cText:= 0, BuscarArt(oQry4,oForm,oGet[21],oGet[22])) BITMAP "BUSC1"
   REDEFINE GET oGet[22] VAR cMarc           ID 123 OF oForm WHEN (.F.)
   REDEFINE GET oGet[23] VAR base:rubro      ID 124 OF oForm PICTURE "9999";
-                VALID(Buscar(oQry5,oForm,oGet[23],oGet[24]) .and. (oGet[25]:cText:= oQry5:depto) <> 'XXX' .and. Buscar(oQry6,oForm,oGet[25],oGet[26]));
-               ACTION (oGet[23]:cText:= 0, Buscar(oQry5,oForm,oGet[23],oGet[24]),oGet[25]:cText:= oQry5:depto,Buscar(oQry6,oForm,oGet[25],oGet[26])) BITMAP "BUSC1"
+                VALID(BuscarArt(oQry5,oForm,oGet[23],oGet[24]) .and. (oGet[25]:cText:= oQry5:depto) <> 'XXX' .and. BuscarArt(oQry6,oForm,oGet[25],oGet[26]));
+               ACTION (oGet[23]:cText:= 0, BuscarArt(oQry5,oForm,oGet[23],oGet[24]),oGet[25]:cText:= oQry5:depto,BuscarArt(oQry6,oForm,oGet[25],oGet[26])) BITMAP "BUSC1"
   REDEFINE GET oGet[24] VAR cRub            ID 125 OF oForm WHEN (.F.)
   REDEFINE GET oGet[27] VAR base:empresa    ID 126 OF oForm PICTURE "9999";
-               VALID(Buscar(oQry7,oForm,oGet[27],oGet[28]));
-               ACTION (oGet[27]:cText:= 0, Buscar(oQry7,oForm,oGet[27],oGet[28])) BITMAP "BUSC1"
+               VALID(BuscarArt(oQry7,oForm,oGet[27],oGet[28]));
+               ACTION (oGet[27]:cText:= 0, BuscarArt(oQry7,oForm,oGet[27],oGet[28])) BITMAP "BUSC1"
   REDEFINE GET oGet[28] VAR cEmp            ID 127 OF oForm WHEN (.F.)
   REDEFINE GET oGet[25] VAR base:depto      ID 128 OF oForm PICTURE "9999";
-               VALID(Buscar(oQry6,oForm,oGet[25],oGet[26]));
-               ACTION (oGet[25]:cText:= 0, Buscar(oQry6,oForm,oGet[25],oGet[26])) BITMAP "BUSC1"
+               VALID(BuscarArt(oQry6,oForm,oGet[25],oGet[26]));
+               ACTION (oGet[25]:cText:= 0, BuscarArt(oQry6,oForm,oGet[25],oGet[26])) BITMAP "BUSC1"
   REDEFINE GET oGet[26] VAR cDept           ID 129 OF oForm WHEN (.F.)
 
   REDEFINE BUTTON oBot[4] ID 301 OF oForm ACTION AltaMar()
@@ -295,7 +295,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Articulo" RESOU
 
 
   REDEFINE GET oGet[31] VAR base:stockmin   ID 132 OF oForm PICTURE "99999999.99"
-  REDEFINE GET oGet[32] VAR base:stockact   ID 133 OF oForm PICTURE "99999999.99"
+  REDEFINE GET oGet[32] VAR base:stockact   ID 133 OF oForm PICTURE "99999999.999"
   REDEFINE GET oGet[33] VAR base:stockide   ID 134 OF oForm PICTURE "99999999.99"
   REDEFINE CHECKBOX oGet[53] VAR base:stockotro  ID 4005 OF oForm WHEN(!base:produccion)
   REDEFINE BUTTON oBot[8] ID 4015 OF oForm ACTION (Reseta(base,oForm,.f.)) WHEN (base:stockotro)
@@ -876,11 +876,12 @@ RETURN nil
 ***********************************************************************************
 ******* Mostrar historial de precios
 STATIC FUNCTION Historial()
-LOCAL oDlgH,oBot,oBrwH,oQryHist,oGet1,oGet2
+LOCAL oDlgH, oBot := ARRAY(2), oBrwH, oQryHist, oGet1, oGet2, aCor, lRta := .f.
 oQryHist:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"campre WHERE codigo = " + ClipValue2Sql(oQryBrw:codigo))
 DEFINE DIALOG oDlgH TITLE "Historial de precios" FROM 05,15 TO 23,82;
        OF oWnd1 ICON oApp:oIco
    oDlgH:lHelpIcon := .f.
+   acor := AcepCanc(oDlgH)
    @ 07,05 SAY "Artículo:" OF oDlgH PIXEL   
    @ 05,30 GET oGet1 VAR oQryBrw:codigo OF oDlgH PIXEL PICTURE "99999999999999" RIGHT WHEN(.F.)
    @ 05,85 GET oGet2 VAR oQryBrw:nombre OF oDlgH PIXEL PICTURE "@!"     WHEN(.F.)
@@ -891,7 +892,10 @@ DEFINE DIALOG oDlgH TITLE "Historial de precios" FROM 05,15 TO 23,82;
            OF oDlgH SIZE 260, 88 AUTOSORT PIXEL
    oBrwH:CreateFromCode()  
    PintaBrw(oBrwH,0) 
-   @ 120,115 BUTTON oBot PROMPT "&OK" OF oDlgH PIXEL SIZE 30,10 ACTION oDlgH:End()
+   @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Exportar" OF oDlgH SIZE 30,10 ;
+           ACTION (oBrwH:ToExcel()) PIXEL WHEN(oQryHist:nRecCount()>0)
+   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Salir" OF oDlgH SIZE 30,10 ;
+           ACTION ((lRta := .f.), oDlgH:End() ) PIXEL CANCEL
 ACTIVATE DIALOG oDlgH CENTER ON INIT oGet1:SetFocus()
 RETURN nil
 *************************************

@@ -2,7 +2,7 @@
 #include "xbrowse.ch"
 #include "Tdolphin.ch"
 *************************************************
-** Tipos de comprobantes
+** Tipos de comprobantes deposito retiro
 *************************************************
 MEMVAR oApp
 STATIC oQry, oWnd1, oBrw, oDlg, lEdit := .f., cVentana,oError
@@ -16,7 +16,7 @@ IF ASCAN(oApp:aVentanas,cVentana) > 0
    RETURN
 ENDIF
 AADD(oApp:aVentanas,cVentana)
-   oQry  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"tipodepo ")
+   oQry  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"tipodepo ORDER BY nombre ")
    // Defino el dialogo tomado del recurso ABMCAJA
    DEFINE WINDOW oWnd1 MDICHILD TITLE "A/B/M de Tipos de depositos/retiros" ;
           OF oApp:oWnd NOZOOM ICON oApp:oIco
@@ -24,23 +24,23 @@ AADD(oApp:aVentanas,cVentana)
           DEFINE BUTTON RESOURCE "ALTA" OF oBar ;
             TOOLTIP "Agregar Registro"  ;
             ACTION (Formu(.t. ),oBrw:Refresh());
-            PROMPT "Alta [F2]" TOP WHEN("A"$cPermisos)
+            PROMPT "Alta" TOP WHEN("A"$cPermisos)
          DEFINE BUTTON RESOURCE "MODI" OF oBar ;
             TOOLTIP "Modificar Registro"  ;
             ACTION (Formu(.f. ),oBrw:Refresh());
-            PROMPT "Modifica [F3]" TOP WHEN(oQry:RecCount()>0 .and. "M"$cPermisos)
+            PROMPT "Modifica" TOP WHEN(oQry:RecCount()>0 .and. "M"$cPermisos)
          DEFINE BUTTON RESOURCE "BAJA" OF oBar ;
             TOOLTIP "Eliminar Registro"  ;
             ACTION (Baja( ),oBrw:Refresh());
-            PROMPT "Baja [F4]" TOP WHEN(oQry:RecCount()>0 .and. "B"$cPermisos)
+            PROMPT "Baja" TOP WHEN(oQry:RecCount()>0 .and. "B"$cPermisos)
          DEFINE BUTTON RESOURCE "EXCE" OF oBar ;
             TOOLTIP "Exportar a Excel" ;
             ACTION oBrw:ToExcel() WHEN(oQry:RecCount()>0 .and. "E"$cPermisos);
-            PROMPT "Exporta [F5]" TOP
+            PROMPT "Exporta" TOP
          DEFINE BUTTON RESOURCE "IMPR" OF oBar ;
             TOOLTIP "Imprimir Planilla"  ;
             ACTION oBrw:Report("Reporte de Tipos de depositos/retiriros",.T.,.F.);
-            PROMPT "Reporte [F6]" TOP WHEN(oQry:RecCount()>0 .and. "R"$cPermisos)
+            PROMPT "Reporte" TOP WHEN(oQry:RecCount()>0 .and. "R"$cPermisos)
          // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;
             TOOLTIP "Cerrar Ventana" ;

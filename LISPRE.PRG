@@ -6,7 +6,7 @@
 ** ABM Listas de precios especiales
 *************************************************
 MEMVAR oApp
-STATIC oQry, oWnd1, oBrw, oDlg, cVentana,nPorc,nLisBase, lFiltra
+STATIC oQry, oWnd1, oBrw, oDlg, cVentana, lFiltra, base
 PROCEDURE ABMLISPRE(cPermisos)
 LOCAL oBar, hHand
 cVentana := PROCNAME()
@@ -17,8 +17,6 @@ IF ASCAN(oApp:aVentanas,cVentana) > 0
    RETURN
 ENDIF
 AADD(oApp:aVentanas,cVentana)
-nPorc:=0
-nLisBase:=1
 oQry  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"lispre ORDER BY nombre")
 
   DEFINE WINDOW oWnd1 MDICHILD TITLE "A/B/M de Listas de precios" ;
@@ -85,7 +83,7 @@ RETURN
 ***************************************
 ** Formulario de altas y modificaciones
 STATIC FUNCTION Formu ( lAlta)
-LOCAL oGet := ARRAY(9), oBot := ARRAY(7),oQryPar,oQryEnt,oQryPro, oForm, lRta := .f., aCor, base, oError,;
+LOCAL oGet := ARRAY(9), oBot := ARRAY(7),oQryPar,oQryEnt,oQryPro, oForm, lRta := .f., aCor,  oError,;
       oBrw1,oBrw2,oFont,aListas:={"Lista 1","Lista 2","Precio de costo"}, oGetSeek, cSeek := SPACE(60)
 lFiltra := .f.
 oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS `transi_lispre` ("+;
@@ -104,13 +102,15 @@ oApp:oServer:NextResult()
 IF lAlta
    oQryPro:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre LIMIT 0")
    base := oQryPro:GetBlankRow()
+   base:lista_base := 1
    base:codigo := oApp:oServer:GetAutoIncrement("ge_"+oApp:cId+"lispre")
    ELSE
    oQryPro:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre WHERE codigo = " +ClipValue2Sql(oQry:codigo))
    base := oQryPro:GetRowObj()
    oApp:oServer:Execute("INSERT INTO transi_lispre (codigo,nombre,numpre,porc,precio,nosale) "+;
                      "SELECT p.codart,a.nombre,p.numpre,p.porc,p.precio,a.nosale FROM ge_"+oApp:cId+"lispredet p LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = p.codart "+;
-                     "WHERE p.codlis = " + ClipValue2Sql(oQry:codigo))
+                     "WHERE p.codlis = " + ClipValue2Sql(oQry:codigo))   
+   base:lista_base := IF(base:lista_base = 0,1,base:lista_base)
    oApp:oServer:NextResult()
 ENDIF
 
@@ -131,8 +131,8 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de lista de precio
    @ 20, 40 GET oGet[2] VAR base:nombre PICTURE "@!"    OF oForm PIXEL ;
                 VALID(base:nombre<>SPACE(30))
 
-   @ 35, 40 COMBOBOX oGet[3] VAR nLisBase ITEMS aListas OF oForm SIZE 40,40 PIXEL
-   @ 35,110 GET oGet[5] VAR nPorc OF oForm PIXEL PICTURE "999.99" RIGHT;
+   @ 35, 40 COMBOBOX oGet[3] VAR base:lista_base ITEMS aListas OF oForm SIZE 40,40 PIXEL
+   @ 35,110 GET oGet[5] VAR base:incremento OF oForm PIXEL PICTURE "999.99" RIGHT;
 
    
    @ 35,145 BUTTON oBot[3] PROMPT "+"  SIZE 12,12 OF oForm PIXEL ACTION(AgregaArt(oForm),oQryPar:Refresh(),;
@@ -273,7 +273,7 @@ RETURN nil
 STATIC FUNCTION AgregaArtGen(oForm)
 LOCAL oDlgA,oError,oQryArt,nArticu:=0,cNomArt:=SPACE(50),oGet:=ARRAY(12),oQryAux,;
       oBot:=ARRAY(2),acor:=ARRAY(4),lRta:=.f.,lBorrar:=.f., aListas := {"precioven","reventa","preciocos"},;
-      cLista:=aListas[nLisBase],lBorrarFilt:=.f.,;
+      cLista:=aListas[base:lista_base],lBorrarFilt:=.f.,;
       nCodProv:=0,cNomProv:="TODOS"+SPACE(45),oQryProv:= oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"provee"),;
       nCodMar:=0,cNomMar:="TODOS"+SPACE(25),oQryMar:= oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"marcas"),;
       nCodRub:=0,cNomRub:="TODOS"+SPACE(25),oQryRub:= oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"rubros"),;
@@ -347,8 +347,8 @@ TRY
 									                                IF(nCodRub>0 ,"a.rubro   = "+ClipValue2Sql(nCodRub) ," TRUE ")+")")
   ENDIF
   oApp:oServer:Execute("INSERT INTO transi_lispre (codigo,nombre,numpre,porc,precio) "+;
-                       "(SELECT a.codigo,a.nombre,"+ClipValue2Sql(nLisBase)+","+ClipValue2Sql(nPorc)+","+;
-                              "ROUND(a."+cLista+" + a."+cLista+" * ("+ClipValue2Sql(nPorc)+"/100),0) "+;
+                       "(SELECT a.codigo,a.nombre,"+ClipValue2Sql(base:lista_base)+","+ClipValue2Sql(base:incremento)+","+;
+                              "ROUND(a."+cLista+" + a."+cLista+" * ("+ClipValue2Sql(base:incremento)+"/100),0) "+;
                        "FROM ge_"+oApp:cId+"articu a "+;
                        "WHERE nosale IS FALSE AND "+;
                                 IF(nCodProv>0,"a.prov    = "+ClipValue2Sql(nCodProv)," TRUE ")+" AND "+;
@@ -368,7 +368,7 @@ STATIC FUNCTION AgregaArt(oForm)
 LOCAL oDlgA,oError,oQryArt,nArticu:=0,cNomArt:=SPACE(50),oGet1,oGet2,oGet3,oGet4,oGet5,lBorrar,;
       oBot:=ARRAY(2),acor:=ARRAY(4),lRta:=.f.,nPrecio:=0,nPrecioBase:=0,;
       aListas := {"precioven","reventa","preciocos"},;
-      cLista:=aListas[nLisBase]
+      cLista:=aListas[base:lista_base]
 oQryArt:= oApp:oServer:Query("SELECT a.codigo AS codigo,a.nombre AS nombre,m.nombre AS Marca, "+;
                               "r.nombre AS Rubro, a."+cLista+" AS preciobase FROM ge_"+oApp:cId+"articu a "+;
                               "LEFT JOIN ge_"+oApp:cId+"marcas m ON m.codigo = a.marca "+;
@@ -380,9 +380,9 @@ DEFINE DIALOG oDlgA TITLE "Seleccione el articulo" FROM 05,15 TO 15,90 OF oForm
    @ 42, 05 SAY "Precio venta:"   OF oDlgA PIXEL SIZE 40,12 RIGHT
    @ 10, 50 GET oGet1 VAR nArticu OF oDlgA PIXEL PICTURE "99999999999999" SIZE 45,12 RIGHT;
                VALID(BuscarArt(oQryArt,oDlgA,oGet1,oGet2) .and. (oGet3:cText:= oQryArt:preciobase) <> "xxx" .and.;
-                    (oGet4:cText:= (oQryArt:preciobase + oQryArt:preciobase * (nPorc/100) )) <> "xxx"  );
+                    (oGet4:cText:= (oQryArt:preciobase + oQryArt:preciobase * (base:incremento/100) )) <> "xxx"  );
                ACTION (oGet1:cText:= 0, BuscarArt(oQryArt,oDlgA,oGet1,oGet2),oGet3:cText:= oQryArt:preciobase,;
-                       oGet4:cText:= (oQryArt:preciobase + oQryArt:preciobase * (nPorc/100) )) BITMAP "BUSC1"
+                       oGet4:cText:= (oQryArt:preciobase + oQryArt:preciobase * (base:incremento/100) )) BITMAP "BUSC1"
    @ 10,100 GET oGet2 VAR cNomArt OF oDlgA PIXEL PICTURE "@!" WHEN(.f.)
    @ 25, 50 GET oGet3 VAR nPrecioBase OF oDlgA PIXEL PICTURE "99999999.99" RIGHT WHEN(.F.)
    @ 40, 50 GET oGet4 VAR nPrecio OF oDlgA PIXEL PICTURE "99999999.99" RIGHT 
@@ -404,7 +404,7 @@ TRY
   IF lBorrar
      oApp:oServer:Execute("DELETE FROM transi_lispre WHERE codigo = "+ClipValue2Sql(nArticu))
   ENDIF
-  oApp:oServer:Insert("transi_lispre",{"codigo","nombre","precio","numpre","porc"},{nArticu,cNomArt,ROUND(nPrecio,0),nLisBase,nPorc})
+  oApp:oServer:Insert("transi_lispre",{"codigo","nombre","precio","numpre","porc"},{nArticu,cNomArt,ROUND(nPrecio,0),base:lista_base,base:incremento})
   oApp:oServer:CommitTransaction()
 CATCH oError
     ValidaError(oError)

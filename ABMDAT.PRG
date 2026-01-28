@@ -7,7 +7,7 @@
 MEMVAR oApp
 STATIC oFont
 PROCEDURE DatEmp()
-LOCAL hHand, oGet := ARRAY(51), oBot := ARRAY(3), oForm, lRta := .f., aCor, base, oError, oQry, lProx:= .f.,oDlg1,oFld,;
+LOCAL hHand, oGet := ARRAY(55), oBot := ARRAY(3), oForm, lRta := .f., aCor, base, oError, oQry, lProx:= .f.,oDlg1,oFld,;
       oBrw, oQryP,;
       oCheck:= ARRAY(3),;
       aConIva := {;
@@ -122,6 +122,10 @@ REDEFINE FOLDEREX oFld ID 100 OF oDlg1 ;/*PAGES son dialogos de recurso*/
      oGet[48]:cToolTip:= "Usar repartidores para asignar facturas a hoja de ruta"
      REDEFINE CHECKBOX oGet[50] VAR base:imprimedescuimp    OF oFld:aDialogs[2] ID 4016
      oGet[50]:cToolTip:= "Si no esta tildado, solo imprime el % de descuento, no el importe"
+     REDEFINE CHECKBOX oGet[53] VAR base:pedidossinimporte    OF oFld:aDialogs[2] ID 4017
+     oGet[53]:cToolTip:= "Si esta tildado, poner cartel para imprimir con o sin importe los pedidos"
+     REDEFINE CHECKBOX oGet[54] VAR base:imprimetickecc    OF oFld:aDialogs[2] ID 4018
+     oGet[54]:cToolTip:= "Si esta tildado, imprime una copia extra para firmar para tickets cuenta corriente"
 
 //PESTAÑA 3 ---- DATOS DE PAGO A PROVEEDORES
      
@@ -145,7 +149,10 @@ REDEFINE FOLDEREX oFld ID 100 OF oDlg1 ;/*PAGES son dialogos de recurso*/
      REDEFINE CHECKBOX oGet[47] VAR base:utilfija     OF oFld:aDialogs[4] ID 4002 
      oGet[47]:cToolTip:= "No se calculara la utilidad cuando modifique manualmente el precio de venta" 
      REDEFINE CHECKBOX oGet[51] VAR base:lvtostock     OF oFld:aDialogs[4] ID 4003 
-     oGet[51]:cToolTip:= "Permite que al cargar stock o compras, registre vencimientos del producto" 
+     oGet[51]:cToolTip:= "Permite que al cargar stock o compras, registre vencimientos del producto"
+     REDEFINE CHECKBOX oGet[52] VAR base:tilda_computaiva     OF oFld:aDialogs[4] ID 4004 
+     oGet[52]:cToolTip:= "Permite que al cargar compras en comprobantes no fiscales, se tilde automaticamente NO COMPUTAR IVA" 
+     REDEFINE GET oGet[55] VAR base:diasalertastock     OF oFld:aDialogs[4] ID 4005 PICTURE "99"
 
 REDEFINE BUTTON oBot[1] ID 201 OF oDlg1 ;
              ACTION ((lRta := .t.), oDlg1:End() ) 

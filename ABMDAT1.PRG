@@ -40,15 +40,15 @@ DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 40,75 OF oApp
    @ 22, 90 SAY "Ultimo Remito:"       OF oDlg1 PIXEL SIZE 55,12 RIGHT
    @ 22, 05 SAY "Ultimo Presupuesto:"  OF oDlg1 PIXEL SIZE 55,12 RIGHT
    @ 37, 90 SAY "N° Caja:"      OF oDlg1 PIXEL SIZE 55,12 RIGHT
-   @ 90, 05 SAY "Copias de impresion:" OF oDlg1 PIXEL SIZE 80,11 
+   @ 95, 05 SAY "Copias de impresion:" OF oDlg1 PIXEL SIZE 80,11 
    @ 94,05 GROUP oGru TO 170,270  OF oDlg1 PIXEL
    
-   @112, 10 SAY "Factura A:"    OF oDlg1 PIXEL SIZE 35,12 RIGHT
-   @112, 65 SAY "Factura B:"    OF oDlg1 PIXEL SIZE 35,12 RIGHT
-   @112,105 SAY "Remito:"       OF oDlg1 PIXEL SIZE 35,12 RIGHT 
-   @127, 10 SAY "Presupuesto:"  OF oDlg1 PIXEL SIZE 35,12 RIGHT
-   @127, 65 SAY "Nota credito:" OF oDlg1 PIXEL SIZE 35,12 RIGHT
-   @127, 65 SAY "Nota credito:" OF oDlg1 PIXEL SIZE 35,12 RIGHT
+   @112, 10 SAY "Facturas:"     OF oDlg1 PIXEL SIZE 35,12 RIGHT
+   @112, 65 SAY "Presupuesto:"    OF oDlg1 PIXEL SIZE 35,12 RIGHT
+   @112,105 SAY "Remitos:"      OF oDlg1 PIXEL SIZE 35,12 RIGHT 
+   //@127, 10 SAY "Presupuesto:"  OF oDlg1 PIXEL SIZE 35,12 RIGHT
+   //@127, 65 SAY "Nota credito:" OF oDlg1 PIXEL SIZE 35,12 RIGHT
+   
  
    
    @ 77, 10 SAY "Nombre Equipo: " + oApp:cNombreEquipo OF oDlg1 PIXEL SIZE 80,12 
@@ -86,8 +86,8 @@ DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 40,75 OF oApp
    @110, 50 GET oGet10 VAR base:copiafa  PICTURE "99" OF oDlg1 PIXEL RIGHT
    @110,105 GET oGet11 VAR base:copiafb  PICTURE "99" OF oDlg1 PIXEL RIGHT
    @110,145 GET oGet12 VAR base:copiare  PICTURE "99" OF oDlg1 PIXEL RIGHT
-   @125, 50 GET oGet13 VAR base:copiapr  PICTURE "99" OF oDlg1 PIXEL RIGHT
-   @125,105 GET oGet16 VAR base:copianc  PICTURE "99" OF oDlg1 PIXEL RIGHT
+   /*@125, 50 GET oGet13 VAR base:copiapr  PICTURE "99" OF oDlg1 PIXEL RIGHT
+   @125,105 GET oGet16 VAR base:copianc  PICTURE "99" OF oDlg1 PIXEL RIGHT*/
    @125,145 CHECKBOX oGet25 VAR base:sonarpedidos PROMPT "Alerta Pedidos nuevos" OF oDlg1 PIXEL SIZE 90,12
    oGet25:cToolTip:= "Emitir una alerta sonora cuando haya un pedido nuevo"
 

@@ -20,7 +20,7 @@ LOCAL oBot := ARRAY(11), hHand , aTipoIva, aTipoDoc, cNomCli:=SPACE(30), cDirecc
       cCUIT:=SPACE(13), nCodArt:=0, nCantidad:=0, nPunit:=0, nPtotal:=0, nNeto:=0, nImpInt:=0, nBultos := 0,;
       nIVA:=0, oFontLetra, oFontTotal,cDescu,oSay2,oQryUsua,aVendedores,cLisPre:="SIN LISTA ESPECIAL"+SPACE(31),;
       nNumFac:=0, nDNI := 0, nTiArt,oQryIvaT, cRubNom := SPACE(30),nIngBru:=0,nIngBruP:=0, cCodArtP := SPACE(30),oQryFormas,;
-      oSay := ARRAY(2)
+      oSay := ARRAY(2), lPermiteNC
  cVentana := PROCNAME()     
  IF ASCAN(oApp:aVentanas,cVentana) > 0
      hHand := ASCAN(oApp:aVentanas,cVentana)
@@ -30,6 +30,8 @@ LOCAL oBot := ARRAY(11), hHand , aTipoIva, aTipoDoc, cNomCli:=SPACE(30), cDirecc
   ENDIF
   AADD(oApp:aVentanas,cVentana)
 oQryUsua:= oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"vendedores ORDER BY nombre")
+lPermiteNC := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHERE (usuario="+;
+        ClipValue2SQL(oApp:usuario)+ " AND modulo = 'NotaCred' AND permisos = 'ABMRE') "):nRecCount > 0      
 IF oApp:usua_es_vendedor
    cVendedor:= oApp:usuario
 ELSE 
@@ -199,7 +201,7 @@ ENDIF
     REDEFINE CHECKBOX oGet[48] VAR lFacturaD OF oDlg ID 4030
     oGet[48]:cToolTip:= "Realizar la factura en DOLARES"
     REDEFINE COMBOBOX oGet[02] VAR nTipoDoc ITEMS aTipoDoc ID 177 OF oDlg;
-             ON CHANGE(oGet[08]:SetFocus())
+             ON CHANGE(IF(oGet[2]:nAt = 3 .and. !lPermiteNC,(MsgInfo('Sin permisos para hacer NC','Atencion'),oGet[2]:Set(1), oGet[08]:SetFocus()), oGet[08]:SetFocus()))
     REDEFINE SAY oSay1    VAR cLetra  ID 180  OF oDlg FONT oFontLetra
     REDEFINE SAY oSay2    VAR cDescu  ID 999 OF oDlg
     //Numero de comprobante 
@@ -424,7 +426,7 @@ IF oQryPun:pidestock < 3 .and. nTipoDoc <> 3
                    " WHERE p.idpedido IN (SELECT id FROM pedidos_temp WHERE tilde ) AND "+;
                    "p.cantidadreal > 0 "+;
                    " AND (a.stockact < p.cantidadreal " +;
-                   " OR IF(a.stockmin > 0, a.stockact - p.cantidadreal > a.stockmin,FALSE))")
+                   " OR IF(a.stockmin > 0, a.stockact - p.cantidadreal < a.stockmin,FALSE))")
    IF oQryStock:nRecCount > 0
       DEFINE DIALOG oDlg1 TITLE "Faltantes de Stock" OF oWnd1 FROM 05,15 TO 21,78
           oDlg1:lHelpIcon:=.f.
@@ -1229,7 +1231,7 @@ LOCAL oGet1 := ARRAY(22), oBot := ARRAY(4), oForm, lRta := .f., oBrw2, oQryCuo, 
       oQryFormaPag:=oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"forpag"), oQryStock,;
       dFecVen:=DATE(),lGuarda:=.t.,lEnDolares:=.f.,nNumero, nPunLocal , nVuelto := 0, oFontV,;
       lImpSinIva := .f., cNomban, nSaldoCta, nNewPed, nCotiza, nPuntos := 0, nPuntosAcu := 0,;
-      cNotaCre := "", lPreciosFinales := .f., cSQL
+      cNotaCre := "", lPreciosFinales := .f., cSQL, cObserva
 cLetra := IF(nTipoDoc=5,"R",IF(oApp:tipo_iva<>6,IF(oGet[13]:nAt = 1 .or. oGet[13]:nAt = 2 .or. oGet[13]:nAt = 6,"A","B"),"C"))
 cLetra := IF(!lFacturaM,cLetra,IF(cLetra="A","M",cLetra))
 // Validar que el DATOS CLIENTE
@@ -1762,7 +1764,10 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
          nPuntosAcu := nPuntosAcu + INT(nTotal/oApp:pesos_x_punto)
          nPuntos :=  INT(nTotal/oApp:pesos_x_punto)
       ENDIF
-         
+      cObserva := ALLTRIM(oGet[23]:cText)
+      IF lPedidoUsado = .t.
+         cObserva := cObserva + " Ped:"+oApp:oServer:Query("SELECT GROUP_CONCAT(id) AS id FROM pedidos_temp WHERE tilde"):id
+      ENDIF   
       oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ventas_encab (ticomp,letra,numcomp,codcli,coniva,fecha,neto,iva,iibb,importe,tipopag,observa,"+;
                                                      "nombre,cuit,dni,direccion,localidad,percep,cae,fecvto,tipfor,usuario,fecmod,ip,vendedor,condven,"+;
                                                      "formapag,sobretasa,acopio,endolares,cotiza,hora,puntos,puntosacu) VALUES "+;
@@ -1770,7 +1775,7 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
                             ClipValue2Sql(nCliente)+","+ClipValue2Sql(nConIva)+","+;
                             ClipValue2Sql(oGet[1]:value)+","+ClipValue2Sql(oBrw:aCols[7]:nTotal)+","+ClipValue2Sql(oBrw:aCols[8]:nTotal)+","+;
                             ClipValue2SQL(oGet[38]:cText)+","+ClipValue2Sql(nTotal)+","+IF(nCtaCte>0,"2","1")+","+;
-                            ClipValue2Sql(IF(EMPTY(cNotaCre),"",cNotaCre+" ")+ALLTRIM(oGet[23]:cText)+IF(nDescuGen>0," Descuento: %"+ALLTRIM(STR(nDescuGen,5,2)),""))+","+;
+                            ClipValue2Sql(IF(EMPTY(cNotaCre),"",cNotaCre+" ")+ALLTRIM(cObserva)+IF(nDescuGen>0," Descuento: %"+ALLTRIM(STR(nDescuGen,5,2)),""))+","+;
                             ClipValue2Sql(oGet[9]:cText)+","+ClipValue2Sql(oGet[12]:cText)+","+ClipValue2Sql(oGet[22]:cText)+","+;
                             ClipValue2Sql(oGet[10]:cText)+","+ClipValue2Sql(oGet[11]:cText)+","+ClipValue2SQL(oGet[37]:cText)+","+;
                             ClipValue2Sql(cCae)+","+ClipValue2Sql(dFecVtoC)+","+ClipValue2Sql(STRTRAN(STR(nTipFor,2)," ","0"))+","+;
@@ -1856,7 +1861,34 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
          ENDIF 
       ELSE
          oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"punto SET presupu = presupu+1 WHERE ip = "+ ClipValue2Sql(oApp:cip))
-      ENDIF         
+      ENDIF   
+      IF lPedidoUsado = .t.
+         oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"pedidos_encab SET estado = 'F',facturanro = "+ClipValue2Sql(cTipoDoc+cNumComp)+" "+;
+                            "WHERE id IN (SELECT id FROM pedidos_temp WHERE tilde )")
+         lPedidoUsado:=.f.         
+         //Aca hago las comprobaciones si desea guardar los faltantes como pedido nuevo
+         IF (oApp:oServer:Query("SELECT COUNT(id) as cant FROM ge_"+oApp:cId+"pedidos_det "+;
+                                " WHERE cantidadreal < cantidad "+;
+                                " AND idpedido IN (SELECT id FROM pedidos_temp WHERE tilde )"):cant > 0)
+            IF MsgYesNo("Los pedidos del cliente tienen faltantes"+chr(10)+;
+               "Desea generar un pedido nuevo con los faltantes?","Atencion")
+               //Genero un nuevo pedido con todos los productos faltantes 
+               //Primero ingreso el encabezado
+               oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"pedidos_encab "+;
+                " (codcli,cliente,codven,vendedor,fecha,parafecha,estado,observa) "+;
+                "VALUES ("+ClipValue2Sql(nCliente)+','+ClipValue2Sql(oGet[9]:cText)+','+ClipValue2Sql(nCondVen)+","+;
+                            ClipValue2Sql(cVendedor)+',CURDATE(),CURDATE(),"P","Creado por faltantes")')
+               nNewPed := oApp:oServer:LastInsertID()
+               //Luego el cuerpo
+               oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"pedidos_det "+;
+                " (idpedido,codart,detart,cantidad,cantidadreal,punitario)  "+;
+                " ( SELECT "+ClipValue2Sql(nNewPed)+",codart,detart,cantidad - cantidadreal,cantidad - cantidadreal,"+;
+                "   punitario FROM ge_"+oApp:cId+"pedidos_det  WHERE cantidadreal < cantidad "+;
+                                " AND idpedido IN (SELECT id FROM pedidos_temp WHERE tilde ) ) ")               
+            ENDIF 
+         ENDIF 
+         oApp:oServer:Execute("TRUNCATE pedidos_temp")    
+      ENDIF      
       oApp:oServer:CommitTransaction()
       IF lFisc 
          IF oApp:factura = 1
@@ -1885,33 +1917,7 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
          ENDIF         
       ENDIF*/
       //-- BORRO PEDIDO SI LO USO
-      IF lPedidoUsado = .t.
-         oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"pedidos_encab SET estado = 'F',facturanro = "+ClipValue2Sql(cTipoDoc+cNumComp)+" "+;
-                            "WHERE id IN (SELECT id FROM pedidos_temp WHERE tilde )")
-         lPedidoUsado:=.f.         
-         //Aca hago las comprobaciones si desea guardar los faltantes como pedido nuevo
-         IF (oApp:oServer:Query("SELECT COUNT(id) as cant FROM ge_"+oApp:cId+"pedidos_det "+;
-                                " WHERE cantidadreal < cantidad "+;
-                                " AND idpedido IN (SELECT id FROM pedidos_temp WHERE tilde )"):cant > 0)
-            IF MsgYesNo("Los pedidos del cliente tienen faltantes"+chr(10)+;
-               "Desea generar un pedido nuevo con los faltantes?","Atencion")
-               //Genero un nuevo pedido con todos los productos faltantes 
-               //Primero ingreso el encabezado
-               oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"pedidos_encab "+;
-                " (codcli,cliente,codven,vendedor,fecha,parafecha,estado,observa) "+;
-                "VALUES ("+ClipValue2Sql(nCliente)+','+ClipValue2Sql(oGet[9]:cText)+','+ClipValue2Sql(nCondVen)+","+;
-                            ClipValue2Sql(cVendedor)+',CURDATE(),CURDATE(),"P","Creado por faltantes")')
-               nNewPed := oApp:oServer:LastInsertID()
-               //Luego el cuerpo
-               oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"pedidos_det "+;
-                " (idpedido,codart,detart,cantidad,cantidadreal,punitario)  "+;
-                " ( SELECT "+ClipValue2Sql(nNewPed)+",codart,detart,cantidad - cantidadreal,cantidad - cantidadreal,"+;
-                "   punitario FROM ge_"+oApp:cId+"pedidos_det  WHERE cantidadreal < cantidad "+;
-                                " AND idpedido IN (SELECT id FROM pedidos_temp WHERE tilde ) ) ")               
-            ENDIF 
-         ENDIF 
-         oApp:oServer:Execute("TRUNCATE pedidos_temp")    
-      ENDIF
+      
   CATCH oErr
       MsgStop("Error al grabar"+CHR(10)+oErr:description,"Error")
       oApp:oServer:RollBack()
@@ -2262,7 +2268,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                 "IVA NO Alcanzado"}, nIndiceDolar, cSigno,;
   i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, oFont5, oQryVen1, oQryDet1, config, lComan,;
   oQryIvaDet, aCor,cCondVen,cFormaPag, nDesFac, oQryP , nRow1, nHoja , oQryPar1, cDomicilioFiscal, nBultos,;
-  lImprimio_promo, lAgrupa 
+  lImprimio_promo, lAgrupa, nCopiaCC := 0, aOriginal := {"ORIGINAL","DUPLICADO","TRIPLICADO","CUADRUPLICADO","QUINTUPLICADO","SEXTUPLICADO"} 
 DEFAULT aMetodosPago := {}  
   oQryVen1 := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"ventas_encab  "+;                                 
                                  "WHERE ticomp = " + ClipValue2Sql(cTipoDoc)+;
@@ -2308,7 +2314,7 @@ DEFAULT aMetodosPago := {}
        "IF(vd.descup>0,vd.descup,0) AS descupor,"+;
        "IF(SUBSTR(nrofac,3,1) = 'A', SUM(neto),SUM(importe)) AS subtot,"+;
        "IF(codiva = 5,'21%',IF(codiva=3,'0%','10.5%')) AS alicu, (i.tasa / 100) as tasa,"+;
-       "SUM(importe) AS subtotalciva,a.codigopro FROM ge_"+oApp:cId+"ventas_det vd "+;
+       "SUM(importe) AS subtotalciva,a.codigopro, a.condicioncompra FROM ge_"+oApp:cId+"ventas_det vd "+;
                                   " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = vd.codart "+;
                                   " LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = vd.codiva "+;
                                   " WHERE nrofac = " + ClipValue2Sql(cTipoDoc+cNumComp)+;
@@ -2319,7 +2325,7 @@ DEFAULT aMetodosPago := {}
        "IF(vd.descup>0,vd.descup,0) AS descupor,"+;
        "IF(SUBSTR(nrofac,3,1) = 'A', neto,importe) AS subtot,"+;
        "IF(codiva = 5,'21%',IF(codiva=3,'0%','10.5%')) AS alicu, (i.tasa / 100) as tasa,"+;
-       "importe AS subtotalciva,a.codigopro FROM ge_"+oApp:cId+"ventas_det vd "+;
+       "importe AS subtotalciva,a.codigopro, a.condicioncompra FROM ge_"+oApp:cId+"ventas_det vd "+;
                                   " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = vd.codart "+;
                                   " LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = vd.codiva "+;
                                   " WHERE nrofac = " + ClipValue2Sql(cTipoDoc+cNumComp))
@@ -2344,7 +2350,7 @@ DEFAULT aMetodosPago := {}
            PRINT oPrn NAME "Factura "+cTipoDoc+cNumComp PREVIEW MODAL
            oPrn:SetPortrait()
            oPrn:SetPage(9)
-           FOR x := 1 TO 2
+           FOR x := 1 TO IF(oQryP:copiafa=1,2,oQryP:copiafa)
              nHoja := 1
              nBultos := 0
              lImprimio_promo := .f.
@@ -2362,7 +2368,7 @@ DEFAULT aMetodosPago := {}
              oPrn:CmBox( 5.3, .5, 7.5, 20.5 ) // Box datos del cliente
              oPrn:CmBox(   8, .5, 9, 20.5 ) // Box titulos     
              oPrn:CmBox( 22, .5, 25, 20.5 )   // Box datos del iva
-             @ .8, 01.15 PRINT TO oPrn TEXT IF(x=1,"ORIGINAL","DUPLICADO") ;
+             @ .8, 01.15 PRINT TO oPrn TEXT aOriginal[ x] ;
                       SIZE 18,.9 CM FONT oFont1 ALIGN "C"    
              IF config:x1 = 2 .or. config:x1 = 3
                 @ 1.6,.6 PRINT TO oPrn IMAGE "logo.jpg" SIZE 8, 3 CM 
@@ -2453,7 +2459,7 @@ DEFAULT aMetodosPago := {}
                     @ y-0.07, 01 PRINT TO oPrn TEXT STR(oQryDet1:codart,13) ;
                           SIZE 2.5,.5 CM FONT oFont5 ALIGN "TL"
                  ENDIF         
-                 @ y-0.07, 03.5 PRINT TO oPrn TEXT ALLTRIM(oQryDet1:detart) ;
+                 @ y-0.07, 03.5 PRINT TO oPrn TEXT ALLTRIM(oQryDet1:detart)+" "+ALLTRIM(oQryDet1:condicioncompra) ;
                       SIZE 6.5,2.5 CM FONT oFont5 LASTROW nRow ALIGN "TL"
                  @ y-0.07, 10 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,10,2) ;
                       SIZE 2,.5 CM FONT oFont5 ALIGN "TR"
@@ -2661,6 +2667,14 @@ DEFAULT aMetodosPago := {}
            ENDPRINT
            oApp:cDestinoMail := " "
        OTHERWISE
+           IF oQryPar1:imprimetickecc 
+              IF oApp:oServer:Query("SELECT saldo FROM ge_"+oApp:cId+"ventas_cuota  "+;                                 
+                                 "WHERE tipo = " + ClipValue2Sql(cTipoDoc)+;
+                                 " AND letra = "+Clipvalue2sql(LEFT(cNumComp,1))+;
+                                 " AND numero = " + ClipValue2Sql(RIGHT(cNumComp,13))):saldo > 0
+                 nCopiaCC := 1
+              ENDIF                 
+           ENDIF
            IF !oApp:tick80
                *********** Impresion de Ticket 48 mm 
                IF config:fon > 25
@@ -2668,8 +2682,9 @@ DEFAULT aMetodosPago := {}
                ENDIF   
                DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.8,config:fon*3
                DEFINE FONT oFont1  NAME "ARIAL"       SIZE config:fon*1.5,config:fon*3.5 BOLD
+               FOR x := 1 TO oQryP:copiafa + nCopiaCC
                PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
-                  oPrn:oFont := oFont
+                  //oPrn:oFont := oFont
                   PAGE                                  
                      nRow := 2
                      IF config:x1 = 2 .or. config:x1 = 3
@@ -2720,7 +2735,8 @@ DEFAULT aMetodosPago := {}
                                   SIZE 1.0,.5 CM FONT oFont LASTROW nRow ALIGN "R"
                                       oQryDet1:GoTop()   
                      nDesFac := 0     
-                     lImprimio_promo := .f.           
+                     lImprimio_promo := .f. 
+                     oQryDet1:GoTop()          
                      FOR i = 1 TO oQryDet1:nRecCount           
                          nRow1 := nRow
                          IF oQryDet1:punit < 0 .and. !lImprimio_promo 
@@ -2821,6 +2837,7 @@ DEFAULT aMetodosPago := {}
                               SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"              
                   ENDPAGE
                ENDPRINT
+               NEXT x
               ELSE
                *********** Impresion de Ticket 80 mm 
                IF config:fon > 25
@@ -2828,8 +2845,9 @@ DEFAULT aMetodosPago := {}
                ENDIF   
                DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.8,config:fon*3
                DEFINE FONT oFont1  NAME "ARIAL"       SIZE config:fon*1.5,config:fon*3.5 BOLD
+               FOR x := 1 TO oQryP:copiafa + nCopiaCC
                PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
-                  oPrn:oFont := oFont
+                  //oPrn:oFont := oFont
                   PAGE                                  
                      nRow := 2
                      IF config:x1 = 2 .or. config:x1 = 3
@@ -2988,7 +3006,8 @@ DEFAULT aMetodosPago := {}
                      @ nRow,.1 PRINT TO oPrn TEXT "...";
                               SIZE 7.1,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"              
                   ENDPAGE
-               ENDPRINT              
+               ENDPRINT 
+               NEXT x             
               ENDIF 
 ENDCASE
 RETURN nil
@@ -3062,7 +3081,7 @@ DEFAULT dFecVen:= nil, lImpSinIva := .f., lPreciosFinales := .f.
        PRINT oPrn NAME "Presupuesto "+cNumcomp PREVIEW MODAL
        oPrn:SetPortrait()
        oPrn:SetPage(9)
-       FOR x := 1 TO 2
+       FOR x := 1 TO oQryP:copiafb
          PAGE
          nHoja := 1
          nIva := 0
@@ -3315,6 +3334,7 @@ DEFAULT dFecVen:= nil, lImpSinIva := .f., lPreciosFinales := .f.
            ENDIF   
            DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.8,config:fon*3
            DEFINE FONT oFont1  NAME "ARIAL"       SIZE config:fon*1.5,config:fon*3.5 BOLD
+           FOR x := 1 TO oQryP:copiafb
            PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
               oPrn:oFont := oFont
               PAGE                                  
@@ -3413,7 +3433,8 @@ DEFAULT dFecVen:= nil, lImpSinIva := .f., lPreciosFinales := .f.
                   @ nRow1,00  PRINT TO oPrn TEXT "Vendedor: "+ALLTRIM(oGet[36]:aItems[oGet[36]:nAt]) ;
                               SIZE 3.9,.5 CM FONT oFont3 LASTROW nRow1 
               ENDPAGE
-           ENDPRINT                            
+           ENDPRINT  
+           NEXT x                          
            ELSE 
            ** IMPRESORA DE 80 MM 
            IF config:fon > 25
@@ -3421,6 +3442,7 @@ DEFAULT dFecVen:= nil, lImpSinIva := .f., lPreciosFinales := .f.
            ENDIF   
            DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.8,config:fon*3
            DEFINE FONT oFont1  NAME "ARIAL"       SIZE config:fon*1.5,config:fon*3.5 BOLD
+           FOR x := 1 TO oQryP:copiafb
            PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
               oPrn:oFont := oFont
               PAGE                                  
@@ -3518,7 +3540,8 @@ DEFAULT dFecVen:= nil, lImpSinIva := .f., lPreciosFinales := .f.
                  @ nRow1,00  PRINT TO oPrn TEXT "Vendedor: "+ALLTRIM(oGet[36]:aItems[oGet[36]:nAt]) ;
                               SIZE 3.9,.5 CM FONT oFont3 LASTROW nRow1 
               ENDPAGE
-           ENDPRINT                            
+           ENDPRINT      
+           NEXT x                      
         ENDIF
    ENDIF    
    IF lAgrupa 
@@ -3574,7 +3597,7 @@ DEFAULT cFactRemitada:=''
          PRINT oPrn NAME "Remito "+cNumcomp  PREVIEW MODAL
          oPrn:SetPortrait()
          oPrn:SetPage(9)
-         FOR x := 1 TO 2
+         FOR x := 1 TO oQryP:copiare
            PAGE
            nRow := (oPrn:nHorzRes() / 80) / 47
            nBultos := 0 
@@ -3654,7 +3677,7 @@ DEFAULT cFactRemitada:=''
                  //   SIZE 2.8,.5 CM FONT oFont  ALIGN "R"
                  cCodigopro := ""
                  IF oQryDet:codart > 0              
-                    cCodigoPro := oApp:oServer:Query("SELECT codigopro FROM ge_"+oApp:cId+"articu WHERE codigo = "+STR(oQryDet:codart)):codigopro
+                    cCodigoPro := oApp:oServer:Query("SELECT codigopro FROM ge_"+oApp:cId+"articu WHERE codigo = "+STR(oQryDet:codart)):codigopro                    
                  ENDIF  
                  IF oApp:impcodpro 
                     @ y-0.07, 01 PRINT TO oPrn TEXT IF(EMPTY(cCodigopro),STR(oQryDet:codart,13),ALLTRIM(cCodigopro)) ;
@@ -3662,8 +3685,13 @@ DEFAULT cFactRemitada:=''
                     ELSE 
                     @ y-0.07, 01 PRINT TO oPrn TEXT STR(oQryDet:codart,13) ;
                             SIZE 2.9,.5 CM FONT oFont ALIGN "TL"
-                 ENDIF           
-                 @ y-0.07, 04 PRINT TO oPrn TEXT ALLTRIM(oQryDet:detart) ;
+                 ENDIF
+                 IF oQryDet:codart > 0  
+                    cCodigoPro := oApp:oServer:Query("SELECT condicioncompra FROM ge_"+oApp:cId+"articu WHERE codigo = "+STR(oQryDet:codart)):condicioncompra           
+                    ELSE 
+                    cCodigopro := ""
+                 ENDIF                   
+                 @ y-0.07, 04 PRINT TO oPrn TEXT ALLTRIM(oQryDet:detart)+" "+ALLTRIM(cCodigopro) ;
                     SIZE 7,2.5 CM FONT oFont LASTROW nRow ALIGN "TL"
                  @ y-0.07, 15 PRINT TO oPrn TEXT STR(oQryDet:cantidad,08,2) ;
                     SIZE 2,.5 CM FONT oFont ALIGN "TR"        
@@ -3777,6 +3805,7 @@ DEFAULT cFactRemitada:=''
                ENDIF   
                DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.8,config:fon*3
                DEFINE FONT oFont1  NAME "ARIAL"       SIZE config:fon*1.5,config:fon*3.5 BOLD
+               FOR x := 1 TO oQryP:copiare
                PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
                   oPrn:oFont := oFont
                   PAGE                                  
@@ -3835,6 +3864,7 @@ DEFAULT cFactRemitada:=''
                               SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"              
                   ENDPAGE
                ENDPRINT
+              NEXT x 
               ELSE
                *********** Impresion de Ticket 80 mm 
                IF config:fon > 25
@@ -3842,6 +3872,7 @@ DEFAULT cFactRemitada:=''
                ENDIF   
                DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.8,config:fon*3
                DEFINE FONT oFont1  NAME "ARIAL"       SIZE config:fon*1.5,config:fon*3.5 BOLD
+               FOR x := 1 TO oQryP:copiare
                PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
                   oPrn:oFont := oFont
                   PAGE                                  
@@ -3898,7 +3929,8 @@ DEFAULT cFactRemitada:=''
                      @ nRow,.1 PRINT TO oPrn TEXT "...";
                               SIZE 7.1,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"              
                   ENDPAGE
-               ENDPRINT              
+               ENDPRINT
+              NEXT x
           ENDIF 
     ENDIF       
 RETURN nil
@@ -3913,8 +3945,9 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                 "IVA Responsable Inscripto Agente de Percepción",;
                 "Pequeño Contribuyente Eventual","Monotributista Social",;
                 "Pequeño Contribuyente Eventual Social","IVA no Alcanzado"},;
-      i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, oFont5, oQryVen1, oQryDet1, config, lAgrupa,;
-      oQryIvaDet, aCor,cCondVen,cFormaPag, oQryP, nRow1, nHoja, nDesFac, nBultos, lComan, lImprimio_promo := .f.
+      i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, oFont5, oQryVen1, oQryDet1, config,;
+      lAgrupa, oQryIvaDet, aCor,cCondVen,cFormaPag, oQryP, nRow1, nHoja, nDesFac, nBultos, lComan,;
+      lImprimio_promo := .f., nCopiaCC := 0, aOriginal := {"ORIGINAL","DUPLICADO","TRIPLICADO","CUADRUPLICADO","QUINTUPLICADO","SEXTUPLICADO"}
 DEFAULT aMetodosPago := {}      
    oQryVen1 := oApp:oServer:Query("SELECT *  FROM ge_"+oApp:cId+"ventas_encab "+;
                                  " WHERE ticomp = " + ClipValue2Sql(cTipoDoc)+;
@@ -3944,7 +3977,7 @@ DEFAULT aMetodosPago := {}
        "IF(vd.descup>0,vd.descup,0) AS descupor,"+;
        "IF(SUBSTR(nrofac,3,1) = 'A', SUM(neto),SUM(importe)) AS subtot,"+;
        "IF(codiva = 5,'21%',IF(codiva=3,'0%','10.5%')) AS alicu, (i.tasa / 100) as tasa,"+;
-       "SUM(importe) AS subtotalciva,a.codigopro FROM ge_"+oApp:cId+"ventas_det vd "+;
+       "SUM(importe) AS subtotalciva,a.codigopro,a.condicioncompra FROM ge_"+oApp:cId+"ventas_det vd "+;
                                   " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = vd.codart "+;
                                   " LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = vd.codiva "+;
                                   " WHERE nrofac = " + ClipValue2Sql(cTipoDoc+cNumComp)+;
@@ -3955,7 +3988,7 @@ DEFAULT aMetodosPago := {}
        "IF(vd.descup>0,vd.descup,0) AS descupor,"+;
        "IF(SUBSTR(nrofac,3,1) = 'A', neto,importe) AS subtot,"+;
        "IF(codiva = 5,'21%',IF(codiva=3,'0%','10.5%')) AS alicu, (i.tasa / 100) as tasa,"+;
-       "importe AS subtotalciva,a.codigopro FROM ge_"+oApp:cId+"ventas_det vd "+;
+       "importe AS subtotalciva,a.codigopro,a.condicioncompra FROM ge_"+oApp:cId+"ventas_det vd "+;
                                   " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = vd.codart "+;
                                   " LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = vd.codiva "+;
                                   " WHERE nrofac = " + ClipValue2Sql(cTipoDoc+cNumComp))
@@ -3976,7 +4009,7 @@ DEFAULT aMetodosPago := {}
            PRINT oPrn NAME "Presupuesto "+cNumcomp PREVIEW MODAL
            oPrn:SetPortrait()
            oPrn:SetPage(9)
-           FOR x := 1 TO 2
+           FOR x := 1 TO IF(oQryP:copiafb =1,2,oQryP:copiafb)
              PAGE 
              nHoja := 1   
              lImprimio_promo := .f.
@@ -3993,7 +4026,7 @@ DEFAULT aMetodosPago := {}
              oPrn:CmBox( 5.3, .5, 7.5, 20.5 ) // Box datos del cliente
              oPrn:CmBox(   8, .5, 9, 20.5 ) // Box titulos     
              oPrn:CmBox( 22, .5, 25, 20.5 )   // Box datos del iva
-             @ .8, 01.15 PRINT TO oPrn TEXT IF(x=1,"ORIGINAL","DUPLICADO") ;
+             @ .8, 01.15 PRINT TO oPrn TEXT aOriginal[ x] ;
                       SIZE 18,.9 CM FONT oFont1 ALIGN "C" 
              IF oQryP:imprimeDat            
                  IF config:x1 = 2 .or. config:x1 = 3
@@ -4083,7 +4116,7 @@ DEFAULT aMetodosPago := {}
                     @ y-0.07, 01 PRINT TO oPrn TEXT STR(oQryDet1:codart,13) ;
                       SIZE 2.5,.5 CM FONT oFont5 ALIGN "TL"
                  ENDIF     
-                 @ y-.07, 03.5 PRINT TO oPrn TEXT ALLTRIM(oQryDet1:detart) ;
+                 @ y-.07, 03.5 PRINT TO oPrn TEXT ALLTRIM(oQryDet1:detart)+" "+ALlTRIM(oQryDet1:condicioncompra) ;
                       SIZE 6.5,2.5 CM FONT oFont5 LASTROW nRow ALIGN "TL"
                  @ y-0.07, 10 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,10,2) ;
                       SIZE 2,.5 CM FONT oFont5 ALIGN "TR"
@@ -4238,6 +4271,14 @@ DEFAULT aMetodosPago := {}
            NEXT x
            ENDPRINT
           OTHERWISE
+           IF oQryPar:imprimetickecc 
+              IF oApp:oServer:Query("SELECT saldo FROM ge_"+oApp:cId+"ventas_cuota  "+;                                 
+                                 "WHERE tipo = " + ClipValue2Sql(cTipoDoc)+;
+                                 " AND letra = "+Clipvalue2sql(LEFT(cNumComp,1))+;
+                                 " AND numero = " + ClipValue2Sql(RIGHT(cNumComp,13))):saldo > 0
+                 nCopiaCC := 1
+              ENDIF                 
+           ENDIF 
            IF !oApp:tick80
                *** Impresion 48 mm
                *********** Impresion de Ticket NO FISCAL 
@@ -4247,8 +4288,9 @@ DEFAULT aMetodosPago := {}
                DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.8,config:fon*3
                DEFINE FONT oFont1  NAME "ARIAL"       SIZE config:fon*1.5,config:fon*3.5 BOLD
                DEFINE FONT oFont2  NAME "CALIBRI"     SIZE config:fon*1.1,config:fon*3 BOLD
+               FOR x := 1 TO oQryP:copiafb + nCopiaCC
                PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
-                  oPrn:oFont := oFont
+                  //oPrn:oFont := oFont
                   PAGE                                  
                      nRow := 1
                      IF oQryP:imprimeDat
@@ -4307,7 +4349,7 @@ DEFAULT aMetodosPago := {}
                                   SIZE .8,.5 CM FONT oFont LASTROW nRow ALIGN "R"
                      @ nRow1, 03.9 PRINT TO oPrn TEXT "Total";
                                   SIZE 0.9,.5 CM FONT oFont LASTROW nRow ALIGN "R"
-                                      oQryDet1:GoTop()
+                     oQryDet1:GoTop()
                      nDesFac := 0     
                      lImprimio_promo := .f.              
                      FOR i = 1 TO oQryDet1:nRecCount           
@@ -4361,6 +4403,7 @@ DEFAULT aMetodosPago := {}
                                   SIZE 5,.5 CM FONT oFont LASTROW nRow ALIGN "L"                       
                   ENDPAGE
                ENDPRINT
+               NEXT x
               ELSE
                *** Impresion 80 mm
                *********** Impresion de Ticket NO FISCAL 
@@ -4370,8 +4413,9 @@ DEFAULT aMetodosPago := {}
                DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon*.8,config:fon*3
                DEFINE FONT oFont1  NAME "ARIAL"       SIZE config:fon*1.5,config:fon*3.5 BOLD
                DEFINE FONT oFont2  NAME "CALIBRI"     SIZE config:fon*1.2,config:fon*3 BOLD
+               FOR x := 1 TO oQryP:copiafb  + nCopiaCC
                PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
-                  oPrn:oFont := oFont
+                  //oPrn:oFont := oFont
                   PAGE                                  
                      nRow := 1
                      IF oQryP:imprimeDat
@@ -4493,6 +4537,7 @@ DEFAULT aMetodosPago := {}
                                   SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "L"                       
                   ENDPAGE
                ENDPRINT
+               NEXT x
               ENDIF 
 ENDCASE
 oApp:cDestinoMail := ""
