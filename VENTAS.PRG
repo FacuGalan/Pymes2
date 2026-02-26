@@ -20,7 +20,8 @@ LOCAL oBot := ARRAY(11), hHand , aTipoIva, aTipoDoc, cNomCli:=SPACE(30), cDirecc
       cCUIT:=SPACE(13), nCodArt:=0, nCantidad:=0, nPunit:=0, nPtotal:=0, nNeto:=0, nImpInt:=0, nBultos := 0,;
       nIVA:=0, oFontLetra, oFontTotal,cDescu,oSay2,oQryUsua,aVendedores,cLisPre:="SIN LISTA ESPECIAL"+SPACE(31),;
       nNumFac:=0, nDNI := 0, nTiArt,oQryIvaT, cRubNom := SPACE(30),nIngBru:=0,nIngBruP:=0, cCodArtP := SPACE(30),oQryFormas,;
-      oSay := ARRAY(2), lPermiteNC
+      oSay := ARRAY(2), lPermiteNC, ;
+      lAdmin:= oApp:oServer:Query("SELECT IF(tipo='ADMIN',1,0) AS admin FROM ge_"+oApp:cId+"usuarios WHERE usuario = "+ClipValue2Sql(oApp:usuario)):admin = 1
  cVentana := PROCNAME()     
  IF ASCAN(oApp:aVentanas,cVentana) > 0
      hHand := ASCAN(oApp:aVentanas,cVentana)
@@ -305,7 +306,7 @@ ENDIF
     oBrw:aCols[3]:lAutoSave := .t.
     oBrw:aCols[3]:nEditType := EDIT_GET 
     oBrw:aCols[3]:bOnPostEdit := {|oCol, xVal, nKey | CambiaCant(xval,,)} 
-    IF oApp:modifica_precios
+    IF oApp:modifica_precios .or. lAdmin
       oBrw:aCols[4]:lAutoSave := .t.
       oBrw:aCols[4]:nEditType := EDIT_GET 
       oBrw:aCols[4]:bOnPostEdit := {|oCol, xVal, nKey | CambiaCant(,,xval)} 
@@ -1682,7 +1683,7 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
                                          ClipValue2Sql(LEFT(cNumComp,1))+","+;
                                          ClipValue2Sql(RIGHT(cNumComp,13))+","+;
                                          "cuota," + ClipValue2Sql(oGet1[9]:value) +","+;
-                                         "CURDATE(),"+ ClipValue2Sql(nCliente)+","+ClipValue2Sql(nNetoPar/oGet1[9]:value)+","+;
+                                         ClipValue2Sql(oGet[1]:value)+","+ ClipValue2Sql(nCliente)+","+ClipValue2Sql(nNetoPar/oGet1[9]:value)+","+;
                                          "importe,"+IF(nCtaCte>=0,"importe","0")+","+IF(nCtaCte=0,"'P'","'I'")+",fecvto, "+;
                                          ClipValue2Sql(oGet[9]:cText)+","+;
                                          ClipValue2Sql(oGet[12]:cText)+","+;
@@ -1703,7 +1704,7 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
                                          ClipValue2Sql(LEFT(cNumComp,1))+","+;
                                          ClipValue2Sql(RIGHT(cNumComp,13))+","+;
                                          "0," + ClipValue2Sql(oGet1[9]:value) +","+;
-                                         "CURDATE(),"+ ClipValue2Sql(nCliente)+",0,"+;
+                                         ClipValue2Sql(oGet[1]:value)+","+ ClipValue2Sql(nCliente)+",0,"+;
                                          ClipValue2Sql(nTotal)+","+;
                                          IF(nCtaCte>0,ClipValue2Sql(nCtaCte),"0")+",'P',CURDATE(),"+;
                                          ClipValue2Sql(oGet[9]:cText)+","+;
@@ -2387,7 +2388,7 @@ DEFAULT aMetodosPago := {}
            oPrn:CmSay( 1.5, 9.8, LEFT(cNumComp,1),oFont2)
            oPrn:CmSay( 2.3, 9.5, "Cod:"+oQryVen1:tipfor,oFont)
            oPrn:CmSay( 2.5, 11, "Punto de venta:"+SUBSTR(cNumcomp,2,4) + " Comprobante Nro:"+RIGHT(cNumcomp,8),oFont)
-           oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(oQryVen1:fecha),oFont)
+           oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(oQryVen1:fecmod),oFont)
 
              oPrn:CmSay( 3.5, 11, "CUIT:"+oApp:cuit_emp,oFont)
              oPrn:CmSay( 4.0, 11, "Ingresos brutos:"+oApp:ingb_emp,oFont) 
@@ -2523,7 +2524,7 @@ DEFAULT aMetodosPago := {}
                        oPrn:CmSay( 1.5, 9.8, LEFT(cNumComp,1),oFont2)
                        oPrn:CmSay( 2.3, 9.5, "Cod:"+oQryVen1:tipfor,oFont)
                        oPrn:CmSay( 2.5, 11, "Punto de venta:"+SUBSTR(cNumcomp,2,4) + " Comprobante Nro:"+RIGHT(cNumcomp,8),oFont)
-                       oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(oQryVen1:fecha),oFont)
+                       oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(oQryVen1:fecmod),oFont)
 
                        oPrn:CmSay( 3.5, 11, "CUIT:"+oApp:cuit_emp,oFont)
                        oPrn:CmSay( 4.0, 11, "Ingresos brutos:"+oApp:ingb_emp,oFont) 
@@ -2710,7 +2711,7 @@ DEFAULT aMetodosPago := {}
                                   SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "C"
                      @ nRow, .1 PRINT TO oPrn TEXT "Cod:" + oQryVen1:tipfor+" Nro:"+RIGHT(cNumcomp,13) ;
                                   SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "C"                 
-                     @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecha)+" "+oQryVen1:hora;
+                     @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecmod)+" "+oQryVen1:hora;
                                   SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "C"                                                  
                      IF oQryVen1:coniva = 5 .and. oQryVen1:codcli <= 1 .and. "CONSUMIDOR"$oQryVen1:nombre 
                         @ nRow, .1 PRINT TO oPrn TEXT "A Consumidor Final";
@@ -2774,6 +2775,10 @@ DEFAULT aMetodosPago := {}
                                   SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"
                          @ nRow, .1 PRINT TO oPrn TEXT    "IVA Contenido: $"+STR(oQryVen1:iva,12,2);
                                   SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "L" 
+                         IF oQryVen1:iibb > 0
+                            @ nRow, .1 PRINT TO oPrn TEXT "Percepcion IIBB "+STR(oQryVen1:percep,6,2)+"%: $"+STR(oQryVen1:iibb,12,2) ;
+                              SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "L"                     
+                         ENDIF                                           
                          IF oQryVen1:sobretasa > 0
                             @ nRow, .1 PRINT TO oPrn TEXT "Imp. Internos: $"+STR(oQryVen1:sobretasa,12,2) ;
                               SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "L"                     
@@ -2789,6 +2794,10 @@ DEFAULT aMetodosPago := {}
                          NEXT
                          IF oQryVen1:sobretasa > 0
                             @ nRow, .1 PRINT TO oPrn TEXT "Imp. Internos: $"+STR(oQryVen1:sobretasa,12,2) ;
+                              SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "L"                     
+                         ENDIF
+                         IF oQryVen1:iibb > 0
+                            @ nRow, .1 PRINT TO oPrn TEXT "Percepcion IIBB "+STR(oQryVen1:percep,6,2)+"%: $"+STR(oQryVen1:iibb,12,2) ;
                               SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "L"                     
                          ENDIF
                          @ nRow, .1 PRINT TO oPrn TEXT "Total $:"+STR(oQryVen1:importe,12,2) ;
@@ -2873,7 +2882,7 @@ DEFAULT aMetodosPago := {}
                                   SIZE 7.1,.5 CM FONT oFont1 LASTROW nRow ALIGN "C"
                      @ nRow, .1 PRINT TO oPrn TEXT "Cod:" + oQryVen1:tipfor+" Nro:"+RIGHT(cNumcomp,13) ;
                                   SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"                 
-                     @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecha)+" "+oQryVen1:hora;
+                     @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecmod)+" "+oQryVen1:hora;
                                   SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"                                                  
                      IF oQryVen1:coniva = 5 .and. oQryVen1:codcli <= 1 .and. "CONSUMIDOR"$oQryVen1:nombre 
                         @ nRow, .1 PRINT TO oPrn TEXT "A Consumidor Final";
@@ -2947,7 +2956,11 @@ DEFAULT aMetodosPago := {}
                          IF oQryVen1:sobretasa > 0
                             @ nRow, .1 PRINT TO oPrn TEXT "Imp. Internos: $"+STR(oQryVen1:sobretasa,12,2) ;
                               SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "L"                     
-                         ENDIF                             
+                         ENDIF         
+                         IF oQryVen1:iibb > 0
+                            @ nRow, .1 PRINT TO oPrn TEXT "Percepcion IIBB "+STR(oQryVen1:percep,6,2)+"%: $"+STR(oQryVen1:iibb,12,2) ;
+                              SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "L"                     
+                         ENDIF                    
                          ELSE 
                          @ nRow, .1 PRINT TO oPrn TEXT "Subtotal $ " + STR(oQryVen1:neto,12,2);
                                   SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "L"                     
@@ -2960,6 +2973,10 @@ DEFAULT aMetodosPago := {}
                          IF oQryVen1:sobretasa > 0
                             @ nRow, .1 PRINT TO oPrn TEXT "Imp. Internos: $"+STR(oQryVen1:sobretasa,12,2) ;
                               SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "L"                     
+                         ENDIF
+                         IF oQryVen1:iibb > 0
+                            @ nRow, .1 PRINT TO oPrn TEXT "Percepcion IIBB "+STR(oQryVen1:percep,6,2)+"%: $"+STR(oQryVen1:iibb,12,2) ;
+                              SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "L"                     
                          ENDIF
                          @ nRow, .1 PRINT TO oPrn TEXT "Total $:"+STR(oQryVen1:importe,12,2) ;
                               SIZE 7.1,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"                     

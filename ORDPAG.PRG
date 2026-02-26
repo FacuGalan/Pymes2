@@ -324,7 +324,15 @@ IF ROUND(nFaltante,2) < 0
       RETURN .f.
    ENDIF
 ENDIF
-
+//Validar que los valores de la deuda esten iguales
+IF ROUND(oApp:oServer:Query("SELECT SUM(c.saldo*IF(c.tipocomp='NC',-1,1)) AS saldo FROM transi_ordpag t "+;
+                      " LEFT JOIN ge_"+oApp:cId+"compras c "+;
+                      " ON CONCAT(c.tipocomp,c.letra,c.numfac) = CONCAT(t.ticomp,t.letra,t.numcomp) "+;
+                      " AND c.codpro =  "+ClipValue2Sql(mcodpro)):saldo,2) <> ROUND(oBrw:aCols[5]:nTotal,2)
+   MsgStop("Los saldos de las facturas han cambiado."+CHR(10)+;
+           "Verifique si otro puesto de trabajo ha aplicado pagos!" ,"ERROR")
+   RETURN .f.
+ENDIF
 TRY 
    nNuevoSaldo := oBrw:aCols[5]:nTotal -;
                   (nEfectivo+nTransferencia+nCheqP+nCheqT+nReten1+nReten2+nReten3+nMPago) - nAnticipo

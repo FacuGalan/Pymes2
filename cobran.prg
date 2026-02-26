@@ -300,6 +300,14 @@ IF ROUND(nFaltante,2) < 0
    ENDIF
 ENDIF
 nTotRet:= oApp:oServer:Query("SELECT SUM(importe) AS total FROM transi_ret"):total
+//Validar que los valores de la deuda esten iguales
+IF ROUND(oApp:oServer:Query("SELECT SUM(v.saldo*IF(v.tipo='NC',-1,1)) AS saldo FROM tranci_pagos t "+;
+                      " LEFT JOIN ge_"+oApp:cId+"ventas_cuota v "+;
+                      " ON CONCAT(v.tipo,v.letra,v.numero) = CONCAT(t.tipo,t.numcomp) "):saldo,2) <> ROUND(oBrw:aCols[5]:nTotal,2)
+   MsgStop("Los saldos de las facturas han cambiado."+CHR(10)+;
+           "Verifique si otro puesto de trabajo ha aplicado pagos!" ,"ERROR")
+   RETURN .f.
+ENDIF
 TRY 
    oApp:oServer:BeginTransaction()
      IF oApp:usar_cuotas // Si vende en cuotas calculo el interes

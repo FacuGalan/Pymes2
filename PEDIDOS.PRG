@@ -1456,7 +1456,7 @@ RETURN .T.
 ** Reporte de pedidos 
 STATIC FUNCTION ReporPed()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,oGru,;
-      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(8), oBot1, oBot2, cTodos := "Todos                   ", ;
+      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(8), oBot1, oBot2, oBot3, cTodos := "Todos                   ", ;
       mdesde := DATE(), mhasta := DATE(), mtotal := 0, lResu := .t., lFacturados := .f., oQryVen, oQryCli,;
       mnomven := SPACE(30),mvendedor := 0, mcliente := 0, mnomcli := SPACE(30)
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
@@ -1847,17 +1847,19 @@ RETURN nil
 STATIC FUNCTION ReporPedArt()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,oGru,;
       acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(3), oBot1, oBot2, oBot3, ;
-      mdesde := DATE(), mhasta := DATE(), mtotal := 0, lResu := .t., cWhere := "1=1"
+      mdesde := DATE(), mhasta := DATE(), mtotal := 0, lResu := .t., cWhere := "1=1", cWhere1 := "1=1"
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
-DEFINE DIALOG oDlg1 TITLE "Reporte de Pedidos Por articulos" FROM 03,15 TO 13,50 Of oApp:oWnd
+DEFINE DIALOG oDlg1 TITLE "Reporte de Pedidos Por articulos" FROM 03,15 TO 14,50 Of oApp:oWnd
    acor := AcepCanc(oDlg1)    
    @ 07, 01 SAY "Para Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
    @ 22, 01 SAY "Hasta Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
    @ 05, 65 GET oGet[1] VAR mdesde    OF oDlg1 PIXEL
-   @ 20, 65 GET oGet[2] VAR mhasta    OF oDlg1 PIXEL VALID(mhasta >= mdesde) 
-   @ 35 ,65 CHECKBOX oGet[3] VAR lResu PROMPT "Resumido" OF oDlg1 PIXEL SIZE 90,12  
+   @ 20, 65 GET oGet[2] VAR mhasta    OF oDlg1 PIXEL VALID(mhasta >= mdesde)    
    @ 35 ,05 BUTTON oBot3 PROMPT "&Filtrar"  OF oDlg1 SIZE 30,10 ;
            ACTION (cWhere := FiltraArt()) PIXEL
+   @ 35 ,75 BUTTON oBot3 PROMPT "&Filtrar + "  OF oDlg1 SIZE 30,10 ;
+           ACTION (cWhere1 := FiltraArt1()) PIXEL
+   @ 50 ,65 CHECKBOX oGet[3] VAR lResu PROMPT "Resumido" OF oDlg1 PIXEL SIZE 90,12  
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
@@ -1880,6 +1882,7 @@ IF lResu
                          " p1.parafecha <= "+ ClipValue2Sql(mhasta) +;
                          " AND p1.estado = 'P' "+;
                          " AND "+cWhere+;
+                         " AND "+cWhere1+;
                          " GROUP BY p.codart,p.detart ")
     REPORT oRep TITLE "Articulos Pedidos Pendientes" + ;
                       " del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
@@ -2348,3 +2351,214 @@ oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"pedidos_encab "+;
 oQryBrw:Refresh()
 oBrwG:Refresh()
 RETURN .T.
+
+
+***********************************************************
+** Filtro articulos seleccionando
+STATIC FUNCTION FiltraArt1()
+LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
+      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(15), oBot1 := ARRAY(5), oBot2,;
+      oQryMar, oQryRub, oQryPro, oQryDep, oQryEmp, i, aRub, aMar, aPro, aDep,;
+      aEmp, oBrwMar, oBrwRub, oBrwPro, oBrwDep, oBrwEmp, cSql,;
+      cMarca, cRubro, cProvee, cDepto, cEmpresa, n
+      
+      
+oQryMar:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"marcas  ORDER BY nombre")
+oQryPro:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"provee  ORDER BY nombre")
+oQryDep:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"deptos  ORDER BY nombre")  
+oQryEmp:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"empresas  ORDER BY nombre")  
+oQryRub:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"rubros  ORDER BY nombre")     
+
+aMar   := {}
+DO WHILE !oQryMar:Eof()
+   AADD(aMar,{.t.,oQryMar:Nombre, oQryMar:codigo})
+   oQryMar:Skip()
+ENDDO
+
+aRub   := {}
+DO WHILE !oQryRub:Eof()
+   AADD(aRub,{.t.,oQryRub:Nombre, oQryRub:codigo})
+   oQryRub:Skip()
+ENDDO
+aPro   := {}
+DO WHILE !oQryPro:Eof()
+   AADD(aPro,{.t.,oQryPro:Nombre, oQryPro:codigo})
+   oQryPro:Skip()
+ENDDO
+aDep   := {}
+DO WHILE !oQryDep:Eof()
+   AADD(aDep,{.t.,oQryDep:Nombre, oQryDep:codigo})
+   oQryDep:Skip()
+ENDDO
+aEmp   := {}
+DO WHILE !oQryEmp:Eof()
+   AADD(aEmp,{.t.,oQryEmp:Nombre, oQryEmp:codigo})
+   oQryEmp:Skip()
+ENDDO
+DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
+DO WHILE .T.
+DEFINE DIALOG oDlg1 TITLE "Filtro por articulo" FROM 03,15 TO 20,153
+   acor := AcepCanc(oDlg1)    
+   @ 05, 05 SAY "Marcas a Incluir" OF oDlg1 PIXEL
+   @ 05, 80 BUTTON oBot1[1] PROMPT "Inc" ACTION Cambiar(@aMar,oBrwMar) PIXEL SIZE 20,10 OF oDlg1
+   @ 20, 05 XBROWSE oBrwMar SIZE 100,80 pixel OF oDlg1 ARRAY aMar ;
+      HEADERS "Incluir", "Marca","Codigo";
+      COLUMNS 1, 2 ,3;
+      CELL LINES NOBORDER 
+   WITH OBJECT oBrwMar
+      :nEdittYPEs := 1
+      :aCols[ 1 ]:SetCheck()
+      :aCols[ 2 ]:SetOrder()
+      :CreateFromCode()
+   END  
+   PintaBrw(oBrwMar,0)
+
+   @ 05, 110 SAY "Rubros a Incluir" OF oDlg1 PIXEL
+   @ 05, 190 BUTTON oBot1[2] PROMPT "Inc" ACTION Cambiar(@aRub,oBrwRub) PIXEL SIZE 20,10 OF oDlg1
+   @ 20, 110 XBROWSE oBrwRub SIZE 100,80 pixel OF oDlg1 ARRAY aRub ;
+      HEADERS "Incluir", "Rubro","Codigo";
+      COLUMNS 1, 2 ,3;
+      CELL LINES NOBORDER 
+   WITH OBJECT oBrwRub
+      :nEdittYPEs := 1
+      :aCols[ 1 ]:SetCheck()
+      :aCols[ 2 ]:SetOrder()
+      :CreateFromCode()
+   END  
+   PintaBrw(oBrwRub,0)
+
+   @ 05, 215 SAY "Proveedores a Incluir" OF oDlg1 PIXEL
+   @ 05, 295 BUTTON oBot1[3] PROMPT "Inc" ACTION Cambiar(@aPro,oBrwPro) PIXEL SIZE 20,10 OF oDlg1
+   @ 20, 215 XBROWSE oBrwPro SIZE 100,80 pixel OF oDlg1 ARRAY aPro ;
+      HEADERS "Incluir", "Proveedor","Codigo";
+      COLUMNS 1, 2 ,3;
+      CELL LINES NOBORDER 
+   WITH OBJECT oBrwPro
+      :nEdittYPEs := 1
+      :aCols[ 1 ]:SetCheck()
+      :aCols[ 2 ]:SetOrder()
+      :CreateFromCode()
+   END  
+   PintaBrw(oBrwPro,0)
+
+   @ 05, 320 SAY "Departamentos a Incluir" OF oDlg1 PIXEL
+   @ 05, 400 BUTTON oBot1[4] PROMPT "Inc" ACTION Cambiar(@aDep,oBrwDep) PIXEL SIZE 20,10 OF oDlg1
+   @ 20, 320 XBROWSE oBrwDep SIZE 100,80 pixel OF oDlg1 ARRAY aDep ;
+      HEADERS "Incluir", "Depto","Codigo";
+      COLUMNS 1, 2 ,3;
+      CELL LINES NOBORDER 
+   WITH OBJECT oBrwDep
+      :nEdittYPEs := 1
+      :aCols[ 1 ]:SetCheck()
+      :aCols[ 2 ]:SetOrder()
+      :CreateFromCode()
+   END  
+   PintaBrw(oBrwDep,0) 
+
+   @ 05, 425 SAY "Empresas a Incluir" OF oDlg1 PIXEL
+   @ 05, 505 BUTTON oBot1[5] PROMPT "Inc" ACTION Cambiar(@aEmp,oBrwEmp) PIXEL SIZE 20,10 OF oDlg1
+   @ 20, 425 XBROWSE oBrwEmp SIZE 100,80 pixel OF oDlg1 ARRAY aEmp ;
+      HEADERS "Incluir", "Empresa","Codigo";
+      COLUMNS 1, 2 ,3;
+      CELL LINES NOBORDER 
+   WITH OBJECT oBrwEmp
+      :nEdittYPEs := 1
+      :aCols[ 1 ]:SetCheck()
+      :aCols[ 2 ]:SetOrder()
+      :CreateFromCode()
+   END  
+   PintaBrw(oBrwEmp,0)    
+   
+   
+   @ acor[1],acor[2] BUTTON oBot1[5] PROMPT "&Filtrar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .f.), oDlg1:End() ) PIXEL
+ACTIVATE DIALOG oDlg1 CENTER 
+oQryMar:End()
+oQryRub:End()
+oQryPro:End()
+oQryDep:End()
+oQryEmp:End()
+IF !mrta
+   RETURN "1=1"
+ENDIF
+cMarca := "("
+n := 0
+FOR i := 1 TO LEN(aMar)
+    IF aMar[i,1]
+       cMarca := cMarca + IF(cMarca=="(","",",") + STR(aMar[i,3])  
+       n++
+    ENDIF
+NEXT i
+cMarca := cMarca + ")"
+IF n = 0 
+   MsgInfo("Marque al menos una Marca","Atencion")
+   LOOP
+ENDIF
+cRubro := "("
+n := 0
+FOR i := 1 TO LEN(aRub)
+    IF aRub[i,1]
+       cRubro := cRubro + IF(cRubro=="(","",",") + STR(aRub[i,3])  
+       n++
+    ENDIF
+NEXT i
+cRubro := cRubro + ")"
+IF n = 0 
+   MsgInfo("Marque al menos un Rubro","Atencion")
+   LOOP
+ENDIF
+cProvee := "("
+n := 0
+FOR i := 1 TO LEN(aPro)
+    IF aPro[i,1]
+       cProvee := cProvee + IF(cProvee=="(","",",") + STR(aPro[i,3])  
+       n++
+    ENDIF
+NEXT i
+cProvee := cProvee + ")"
+IF n = 0 
+   MsgInfo("Marque al menos un Proveedor","Atencion")
+   LOOP
+ENDIF
+cDepto := "("
+n := 0
+FOR i := 1 TO LEN(aDep)
+    IF aDep[i,1]
+       cDepto := cDepto + IF(cDepto=="(","",",") + STR(aDep[i,3])  
+       n++
+    ENDIF
+NEXT i
+cDepto := cDepto + ")"
+IF n = 0 
+   MsgInfo("Marque al menos un Departamento","Atencion")
+   LOOP
+ENDIF
+cEmpresa := "("
+n := 0
+FOR i := 1 TO LEN(aEmp)
+    IF aEmp[i,1]
+       cEmpresa := cEmpresa + IF(cEmpresa=="(","",",") + STR(aEmp[i,3])  
+       n++
+    ENDIF
+NEXT i
+cEmpresa := cEmpresa + ")"
+IF n = 0 
+   MsgInfo("Marque al menos una Empresa","Atencion")
+   LOOP
+ENDIF
+EXIT
+ENDDO
+
+cSql := " a.marca IN " + cMarca + " AND a.rubro IN " + cRubro + ;
+        " AND a.prov IN " + cProvee + " AND a.depto IN "+cDepto + " AND a.empresa IN "+cEmpresa
+RETURN cSql               
+
+STATIC FUNCTION Cambiar(Arr,oBr)
+LOCAL i
+FOR i := 1 TO LEN(Arr)
+    Arr[i,1] := !Arr[i,1]
+NEXT i
+oBr:Refresh()
+RETURN nil  

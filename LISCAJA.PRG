@@ -68,8 +68,8 @@ AADD(oApp:aVentanas,cVentana)
               COLUMNS "Id","caja","fecha","hora","debe","haber","saldo","efectivo","observa";
               HEADERS "Cierre","Caja","Fecha","Hora","Ingresos","Egresos","Falt/Sob","Efectivo","Observaciones";
               SIZES   80,80,80,80,80,80,80,80,100;
-              ID 111 OF oDlg  
-     REDEFINE SAY oBrw:oSeek PROMPT "" ID 113 OF oDlg
+              ID 111 OF oDlg  ON DBLCLICK IF("A"$cPermisos,(EditarObs( oQry:id),oBrw:Refresh()),nil)
+     REDEFINE SAY oBrw:oSeek PROMPT "" ID 113 OF oDlg 
      oQry:bOnChangePage := {|| oBrw:Refresh() }
      PintaBrw(oBrw,9) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE     
      // Activo el dialogo y al iniciar muevo a 0,0
@@ -256,3 +256,33 @@ IF !lTipo
    ImprimirDetCaja(0,mdesde,mhasta)
 ENDIF 
 RETURN NIL   
+
+
+STATIC FUNCTION EditarObs(nId)
+LOCAL oQry1, oDlg1, oFont,;
+      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(1), oBot1, oBot2,  cObserva      
+cObserva := oApp:oServer:Query("SELECT observa FROM ge_"+oApp:cId+"cajadiaria WHERE id="+ClipValue2Sql(nId)):observa
+DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
+DEFINE DIALOG oDlg1 TITLE "Editar Observaciones" FROM 03,15 TO 11,65 Of oApp:oWnd
+   acor := AcepCanc(oDlg1)    
+   @ 07, 04 SAY "Observaciones:" OF oDlg1 PIXEL SIZE 60,10
+   @ 20, 05 GET oGet[1] VAR cObserva    OF oDlg1 PIXEL PICTURE "@S50"
+   @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Guardar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .f.), oDlg1:End() ) PIXEL
+ACTIVATE DIALOG oDlg1 CENTER 
+IF !mrta   
+   RETURN NIL
+ENDIF
+TRY
+  oApp:oServer:BeginTransaction()
+  oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"cajadiaria SET observa = "+ClipValue2Sql(cObserva)+;
+                       " WHERE id = "+ClipValue2Sql(nId))  
+  oApp:oServer:CommitTransaction()
+  oQry:LoadQuery(.f.)
+  oBrw:Refresh()
+CATCH oError
+    ValidaError(oError)  
+END TRY
+RETURN nil

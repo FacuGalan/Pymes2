@@ -8,7 +8,7 @@
 *************************************************
 MEMVAR oApp
 STATIC oQryBrw, oWnd1, oBrw, oDlg, lEdit := .f., cVentana,oError,nFiltro
-PROCEDURE PAGOS()
+PROCEDURE PAGOS(cPermisos)
 LOCAL oGet, cBuscar := SPACE(50), oBar, hHand, oFol,oBot,lFiltro:=.t.
 cVentana := PROCNAME()
 IF ASCAN(oApp:aVentanas,cVentana) > 0
@@ -48,7 +48,7 @@ ENDIF
          DEFINE BUTTONBAR oBar  SIZE 60,60 OF oWnd1 2010
          DEFINE BUTTON RESOURCE "MODI" OF oBar ;
             TOOLTIP "Modificar Registro"  ;
-            ACTION (Formu(),oBrw:Refresh());
+            ACTION (Formu(cPermisos),oBrw:Refresh());
             PROMPT "Modifica" TOP 
          DEFINE BUTTON RESOURCE "EXCE" OF oBar ;
             TOOLTIP "Exportar a Excel" ;
@@ -70,7 +70,7 @@ ENDIF
               COLUMNS "numero","nomcli","fecha","total";
               HEADERS "Numero","Cliente","Fecha","Importe";
               SIZES 80,200,100,100;
-              ID 111 OF oDlg AUTOSORT ON DBLCLICK (Formu(),oBrw:Refresh())
+              ID 111 OF oDlg AUTOSORT ON DBLCLICK (Formu(cPermisos),oBrw:Refresh())
      REDEFINE SAY oBrw:oSeek PROMPT "" ID 113 OF oDlg
      oQryBrw:bOnChangePage := {|| oBrw:Refresh() }
      //oBrw:SetDolphin(oQry,.f.,.t.)
@@ -82,7 +82,7 @@ RETURN
 
 ***************************************
 ** Formulario de altas y modificaciones
-STATIC FUNCTION Formu ()
+STATIC FUNCTION Formu (cPermisos)
 LOCAL oGet := ARRAY(4), oBot := ARRAY(2), oForm, lRta := .f., aCor, base, oQryCon,oQryFac,;
       oBrw1,oBrw2, oQryOrden, nTotPag:=0, nTotFac:=0,oQry , nTotAnt := 0
 
@@ -103,7 +103,7 @@ DEFINE DIALOG oForm TITLE "Cancelacion de pago" RESOURCE "CANPAG" OF oDlg
               COLUMNS "observa","importe";
               HEADERS "Forma pago","Importe";
               SIZES 205,105;
-              ID 201 OF oForm
+              ID 201 OF oForm //ON DBLCLICK CambiarForma(oQry,oQryCon, oBrw1,cPermisos)
     PintaBrw(oBrw1,0)
 
     REDEFINE XBROWSE oBrw2 DATASOURCE oQryFac;
@@ -169,3 +169,50 @@ FOR i := 1 TO LEN(oApp:aVentanas)
 NEXT i
 oApp:aVentanas := ACLONE(aNueva)
 RETURN .t.
+
+//Cambiar forma de pago
+/*STATIC FUNCTION CambiarForma(oQry,oQryCon, oBrw1, cPermisos)
+LOCAL oGet := ARRAY(4), oBot := ARRAY(2), oForm, lRta := .f., aCor, base, oError, oQryP
+IF oQry:checkeado
+   MsgStop("Imposible cambiar forma pago, pago incluido "+chr(10)+"en cierre Nro "+STR(oQry:id_cierre,10),"Error")
+   RETURN nil
+ENDIF   
+DO WHILE .T.
+DEFINE DIALOG oForm TITLE "Modificacion de Concepto de cobro" FROM 05,15 TO 13,65 OF oWnd1
+   
+   @ 07, 05 SAY "Codigo:"         OF oForm PIXEL SIZE 50,20 RIGHT
+   @ 22, 05 SAY "Nombre:"         OF oForm PIXEL SIZE 50,20 RIGHT
+  
+   @ 05, 65 GET oGet[1] VAR base:codigo PICTURE "99999" OF oForm PIXEL RIGHT WHEN(.F.)
+   @ 20, 65 GET oGet[2] VAR base:nombre PICTURE "@!"    OF oForm PIXEL ;
+                VALID(base:nombre<>SPACE(30))  
+   
+   acor := AcepCanc(oForm)
+   @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Grabar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .t.), oForm:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL
+ACTIVATE DIALOG oForm CENTER ON INIT oGet[1]:SetFocus()
+IF !lRta
+   RETURN nil
+ENDIF
+IF base:codigo = 0 
+   MsgStop("Valores no validos","Error")
+   LOOP
+ENDIF
+IF lAlta
+   oQry:GetBlankRow()
+ENDIF
+oQry:oRow := base
+TRY
+  oApp:oServer:BeginTransaction()
+  oQry:Save()
+  oQry:Refresh(.t.)
+  oApp:oServer:CommitTransaction()
+CATCH oError
+    ValidaError(oError)
+  LOOP
+END TRY
+EXIT
+ENDDO
+RETURN nil*/

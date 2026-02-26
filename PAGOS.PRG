@@ -8,7 +8,7 @@
 *************************************************
 MEMVAR oApp
 STATIC oQryBrw, oWnd1, oBrw, oDlg, lEdit := .f., cVentana,oError
-PROCEDURE PAGOS()
+PROCEDURE PAGOS(cPermisos)
 LOCAL oGet, cBuscar := SPACE(50), oBar, hHand, oFol,nFiltro:=0,oBot
 cVentana := PROCNAME()
 IF ASCAN(oApp:aVentanas,cVentana) > 0
@@ -42,7 +42,7 @@ AADD(oApp:aVentanas,cVentana)
          DEFINE BUTTONBAR oBar  SIZE 60,60 OF oWnd1 2010
          DEFINE BUTTON RESOURCE "MODI" OF oBar ;
             TOOLTIP "Modificar Registro"  ;
-            ACTION (Formu(),oBrw:Refresh());
+            ACTION (Formu(cPermisos),oBrw:Refresh());
             PROMPT "Modifica" TOP 
          DEFINE BUTTON RESOURCE "EXCE" OF oBar ;
             TOOLTIP "Exportar a Excel" ;
@@ -76,7 +76,7 @@ RETURN
 
 ***************************************
 ** Formulario de altas y modificaciones
-STATIC FUNCTION Formu ()
+STATIC FUNCTION Formu (cPermisos)
 LOCAL oGet := ARRAY(4), oBot := ARRAY(2), oForm, lRta := .f., aCor, base, oQryCon,oQryFac,;
       oBrw1,oBrw2, oQryOrden, nTotPag:=0, nTotFac:=0,oQry
 oQry   := oApp:oServer:Query( "SELECT p.*, c.codigo AS codcli, c.nombre AS nomcli FROM ge_"+oApp:cId+"pagos p LEFT JOIN ge_"+oApp:cId+"clientes c ON c.codigo = p.cliente "+;
@@ -87,7 +87,7 @@ oQryFac:= oApp:oServer:Query("SELECT *,CONCAT(tipodoc,letra,numfac) AS mostrar F
 DEFINE DIALOG oForm TITLE "Cancelacion de pago" RESOURCE "CANPAG" OF oDlg
 	oForm:lHelpIcon := .f.
 	
-	REDEFINE GET oGet[1] VAR oQry:numero ID 101 OF oForm PICTURE "999999" WHEN(.F.)
+	REDEFINE GET oGet[1] VAR oQry:numero ID 101 OF oForm PICTURE "999999" 
 	REDEFINE GET oGet[2] VAR oQry:fecha  ID 102 OF oForm PICTURE "@D" WHEN(.F.)
 	REDEFINE GET oGet[3] VAR oQry:codcli ID 103 OF oForm PICTURE "999999" WHEN(.F.)
 	REDEFINE GET oGet[4] VAR oQry:nomcli ID 104 OF oForm PICTURE "@!" WHEN(.F.)
@@ -96,7 +96,7 @@ DEFINE DIALOG oForm TITLE "Cancelacion de pago" RESOURCE "CANPAG" OF oDlg
               COLUMNS "observa","importe";
               HEADERS "Forma pago","Importe";
               SIZES 205,105;
-              ID 201 OF oForm
+              ID 201 OF oForm ON DBLCLICK CambiarForma(oQry,oQryCon, oBrw1,cPermisos)
     PintaBrw(oBrw1,0)
 
     REDEFINE XBROWSE oBrw2 DATASOURCE oQryFac;
@@ -108,7 +108,7 @@ DEFINE DIALOG oForm TITLE "Cancelacion de pago" RESOURCE "CANPAG" OF oDlg
     REDEFINE BUTTON oBot[1] ID 301 OF oForm ACTION(lRta:=.t.,oForm:End())
     REDEFINE BUTTON oBot[2] ID 302 OF oForm ACTION(oForm:End())
 
-ACTIVATE DIALOG oForm CENTER ON INIT oBot[1]:SetFocus()
+ACTIVATE DIALOG oForm CENTER ON INIT oBrw1:SetFocus()
 IF !lRta
    RETURN nil
 ENDIF
@@ -190,5 +190,13 @@ NEXT i
 oApp:aVentanas := ACLONE(aNueva)
 RETURN .t.
 
- 
+//Cambiar forma de pago
+STATIC FUNCTION CambiarForma(oQry,oQryCon, oBrw1, cPermisos)
+MSGINFO(cPermisos)
+IF oQry:checkeado
+   MsgStop("Imposible cambiar forma pago, pago incluido "+chr(10)+"en cierre Nro "+STR(oQry:id_cierre,10),"Error")
+   ELSE    
+   msginfo('cambiar')
+ENDIF   
+RETURN nil 
 

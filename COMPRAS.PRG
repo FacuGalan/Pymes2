@@ -675,7 +675,7 @@ DEFINE DIALOG oForm TITLE "Actualizar precios de " RESOURCE "PRECIOCOMP" OF oWnd
                (oGet[15]:cText := STR(oQry3:tasa,6,2) + "%") <> "xxx")) BITMAP "BUSC1"
   REDEFINE GET oGet[15] VAR cIvaNom         ID 116 OF oForm WHEN (.F.)
   REDEFINE GET oGet[16] VAR baseArt:preciocos  ID 117 OF oForm PICTURE "999999999.99";
-                        WHEN((oGet[16]:cText:= nNeto + nNeto * (baseArt:impint/100) +;
+                        WHEN((oGet[16]:cText:= nNeto + baseArt:impint +;
                         nNeto * (baseArt:flete/100) + ((nNeto * oQry3:tasa )/100)) = "-999999")
   REDEFINE GET oGet[17] VAR baseArt:porcentaje ID 118 OF oForm PICTURE "999.99";
                VALID(CalcularPrecio(oGet,baseArt,.t.))
@@ -1299,7 +1299,7 @@ DEFINE DIALOG oForm TITLE "Alta de Articulo" RESOURCE "ABMART1" OF oWnd1
                (oGet[15]:cText := STR(oQry3:tasa,6,2) + "%") <> "xxx")) BITMAP "BUSC1"
   REDEFINE GET oGet[15] VAR cIvaNom         ID 116 OF oForm WHEN (.F.)
   REDEFINE GET oGet[16] VAR base:preciocos  ID 117 OF oForm PICTURE "999999999.99";
-                        WHEN((oGet[16]:cText:= nNeto + nNeto * (base:impint/100) +;
+                        WHEN((oGet[16]:cText:= nNeto + base:impint +;
                         nNeto * (base:flete/100) + ((nNeto * oQry3:tasa )/100)) = "-999999")
   REDEFINE GET oGet[17] VAR base:porcentaje ID 118 OF oForm PICTURE "999.99";
                VALID(CalcularPrecio(oGet,base,.t.))
@@ -1371,9 +1371,17 @@ RETURN nil
 ********* Calular precio venta
 STATIC FUNCTION CalcularPrecio(oGet,base,lventa)
 IF lventa
-   oGet[20]:cText:=INT(base:preciocos + (base:preciocos * base:porcentaje)/100)
+   IF oGet[46]:lChecked
+      oGet[20]:cText:=base:preciocos + (base:preciocos * base:porcentaje)/100
+      ELSE
+      oGet[20]:cText:=INT(base:preciocos + (base:preciocos * base:porcentaje)/100)
+   ENDIF     
 ELSE
-   oGet[19]:cText:=INT(base:preciocos + (base:preciocos * base:porcentajerev)/100)
+   IF oGet[46]:lChecked
+      oGet[19]:cText:=base:preciocos + (base:preciocos * base:porcentajerev)/100
+      ELSE
+      oGet[19]:cText:=INT(base:preciocos + (base:preciocos * base:porcentajerev)/100)
+   ENDIF     
 ENDIF
 RETURN .t.
 

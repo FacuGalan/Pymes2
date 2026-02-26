@@ -324,7 +324,9 @@ RETURN NIL
 STATIC FUNCTION Transferir ()
 LOCAL oGet := ARRAY(6), oBot := ARRAY(2), oForm, lRta := .f., aCor, base, oError,nId,;
       cCaja := SPACE(30), nHacia := oQryPun:codigo, mobserva := SPACE(50)
-      
+IF !ValidarTurno(oWnd1)
+   RETURN nil 
+ENDIF      
    base := oQry:GetBlankRow()
    base:fecha := DATE()
    base:caja:= oApp:prefijo

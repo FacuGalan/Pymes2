@@ -104,6 +104,7 @@ USE BCNBALAN
 nNro := BCNBALAN->nro 
 cPath := ALLTRIM(BCNBALAN->camino)
 cTitulo := BCNBALAN->texto
+CLOSE BCNBALAN 
 FOR i := 1 TO LEN(aDepto1)
     cTexto := cTexto + "C"+;
              STRTRAN(STR(nNro,2),' ','0')+; //Nro de balanza

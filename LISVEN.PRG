@@ -1489,8 +1489,8 @@ ENDIF
 ventas := oApp:oServer:Query("SELECT v.*, c.* FROM ge_"+oApp:cId+"ventas_encab v LEFT JOIN "+;
                              "ge_"+oApp:cId+"clientes c ON v.codcli = c.codigo "+;
                              "WHERE letra <> 'X' AND "+; 
-                             "v.fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
-                             "       v.fecha <= "+ ClipValue2Sql(mhasta) + " ORDER BY v.fecha ")
+                             "v.fecmod >= " + ClipValue2Sql(mdesde) + " AND "+;
+                             "       v.fecmod <= "+ ClipValue2Sql(mhasta) + " ORDER BY v.fecmod ")
 mtexto := ""
 mtexto1:= ""
 DO WHILE !ventas:EOF()
@@ -1504,7 +1504,7 @@ DO WHILE !ventas:EOF()
     oQryDet:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"ventivadet WHERE tipocomp = "+ClipValue2Sql(ventas:ticomp)+;
                              " AND letra = "+ClipValue2Sql(ventas:letra)+" AND numfac = "+ClipValue2Sql(ventas:numcomp))
     mtexto := mtexto +;
-              DTOS(ventas:fecha) + cDoc + "0" + SUBSTR(ventas:numcomp,1,4)  + REPLICATE("0",12)+;
+              DTOS(ventas:fecmod) + cDoc + "0" + SUBSTR(ventas:numcomp,1,4)  + REPLICATE("0",12)+;
               SUBSTR(ventas:numcomp,6,8) + + REPLICATE("0",12)+;
               SUBSTR(ventas:numcomp,6,8) + IF(mcuit=REPLICATE("0",20),"99","80") +;
               mcuit + ;
@@ -1588,7 +1588,7 @@ Procesando(.t.)
 oQry := oApp:oServer:Query(;
 "SELECT "+;
 "    CONCAT(ve.ticomp,ve.letra,ve.numcomp) AS compro, "+;
-"    ve.fecha, "+; 
+"    ve.fecmod as fecha, "+; 
 "    ve.nombre, "+; 
 "    ve.cuit, "+; 
 "    LEFT(ti.nombre,3) AS tip, "+;
@@ -1623,8 +1623,8 @@ oQry := oApp:oServer:Query(;
 "LEFT JOIN ge_"+oApp:cId+"tipoiva ti ON ti.codigo = ve.coniva "+;
 "WHERE ve.letra <> 'X' "+;
 IF(nPunto = 0," "," AND LEFT(numcomp,4) = " + ClipValue2Sql(STRTRAN(STR(nPunto,4)," ","0")))+;
-"AND ve.fecha BETWEEN " + ClipValue2Sql(mdesde) + " AND "+ ClipValue2Sql(mhasta)+" "+;
-"ORDER BY ve.fecha, ve.ticomp, ve.letra, ve.numcomp")
+"AND ve.fecmod BETWEEN " + ClipValue2Sql(mdesde) + " AND "+ ClipValue2Sql(mhasta)+" "+;
+"ORDER BY ve.fecmod, ve.ticomp, ve.letra, ve.numcomp")
 /*"SELECT "+;
 "    CONCAT(ve.ticomp,ve.letra,ve.numcomp) AS compro, "+;
 "    ve.fecha, "+; 
@@ -1742,8 +1742,8 @@ oQry := oApp:oServer:Query(;
 " LEFT JOIN ge_"+oApp:cId+"tipoiva ti ON ti.codigo = ve.coniva  "+;
 " WHERE vd.letra <> 'X' "+;
 IF(nPunto = 0," "," AND LEFT(ve.numcomp,4) = " + ClipValue2Sql(STRTRAN(STR(nPunto,4)," ","0")))+;
-" AND ve.fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
-"     ve.fecha <= "+ ClipValue2Sql(mhasta) +;
+" AND ve.fecmod >= " + ClipValue2Sql(mdesde) + " AND "+;
+"     ve.fecmod <= "+ ClipValue2Sql(mhasta) +;
 " GROUP BY vd.tipocomp,vd.letra,LEFT(ti.nombre,3),ti.nombre,vd.codiva " +;
 " UNION ALL " +;
 "SELECT 1 as codiva,ve.ticomp as tico,ve.letra as let, LEFT(ti.nombre,3) AS tip, ti.nombre as tip1,"+;
@@ -1757,8 +1757,8 @@ IF(nPunto = 0," "," AND LEFT(ve.numcomp,4) = " + ClipValue2Sql(STRTRAN(STR(nPunt
 " LEFT JOIN ge_"+oApp:cId+"tipoiva ti ON ti.codigo = ve.coniva  "+;
 " WHERE ve.letra <> 'X' AND (ve.sobretasa > 0 or ve.iibb > 0) "+;
 IF(nPunto = 0," "," AND LEFT(ve.numcomp,4) = " + ClipValue2Sql(STRTRAN(STR(nPunto,4)," ","0")))+;
-" AND ve.fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
-"     ve.fecha <= "+ ClipValue2Sql(mhasta) +;
+" AND ve.fecmod >= " + ClipValue2Sql(mdesde) + " AND "+;
+"     ve.fecmod <= "+ ClipValue2Sql(mhasta) +;
 " GROUP BY ve.ticomp,ve.letra,LEFT(ti.nombre,3),ti.nombre " )
 /*  
 "SELECT vd.codiva as codiva,ve.ticomp as tico,ve.letra as let, LEFT(ti.nombre,3) AS tip, ti.nombre as tip1,"+;
@@ -1845,12 +1845,12 @@ IF !mrta
    RETURN
 ENDIF
 CursorWait()
-oQry := oApp:oServer:Query("SELECT v.cuit,v.fecha,IF(v.ticomp='NC','C',IF(v.ticomp='FC','F','D')) as tipo,v.letra,"+;
+oQry := oApp:oServer:Query("SELECT v.cuit,v.fecmod as fecha,IF(v.ticomp='NC','C',IF(v.ticomp='FC','F','D')) as tipo,v.letra,"+;
                            " CONCAT(LEFT(v.numcomp,4),RIGHT(v.numcomp,8)) as compro,"+;
                            "v.neto*IF(v.ticomp='NC',-1,1) as neto,v.iibb*IF(v.ticomp='NC',-1,1) as iibb"+;
                            " FROM ge_"+oApp:cId+"ventas_encab v "+;
-                           " WHERE v.fecha >= " + ClipValue2Sql(mdesde) +;
-                           " AND   v.fecha <= " + ClipValue2Sql(mhasta) +;
+                           " WHERE v.fecmod >= " + ClipValue2Sql(mdesde) +;
+                           " AND   v.fecmod <= " + ClipValue2Sql(mhasta) +;
                            " AND   v.iibb > 0 AND v.letra <> 'X'")
   REPORT oRep TITLE "Percepciones entre " + DTOC(mdesde) + " y el " + DTOC(mhasta) ;
          HEADER OemToAnsi(oApp:nomb_emp) , ;

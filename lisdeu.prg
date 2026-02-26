@@ -14,10 +14,10 @@ PROCEDURE RepDeu1()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
       acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(6), oBot1, oBot2, oQryPro,;
       cTodos := "Todos los Proveedores        ", mnompro := cTodos, mdesde := CTOD("01/01/2010"), mhasta := DATE(),;
-      mcodpro := 0, mTotal := 0, cSql
+      mcodpro := 0, mTotal := 0, cSql, lSalto := .t., oGru
 oQryPro:= oApp:oServer:Query("SELECT codigo,nombre, direccion FROM ge_"+oApp:cId+"provee ORDER BY nombre")           
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
-DEFINE DIALOG oDlg1 TITLE "Cuentas corrientes" FROM 03,15 TO 13,70 Of oApp:oWnd
+DEFINE DIALOG oDlg1 TITLE "Cuentas corrientes" FROM 03,15 TO 14,70 Of oApp:oWnd
    acor := AcepCanc(oDlg1)    
    @ 07, 01 SAY "Desde Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
    @ 22, 01 SAY "Hasta Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
@@ -28,7 +28,8 @@ DEFINE DIALOG oDlg1 TITLE "Cuentas corrientes" FROM 03,15 TO 13,70 Of oApp:oWnd
                 VALID(mcodpro = 0 .or. Buscar(oQryPro,oDlg1,oGet[3],oGet[4]));
                 ACTION (oGet[3]:cText:= -1, Buscar(oQryPro,oDlg1,oGet[3],oGet[4])) BITMAP "BUSC1" 
    @ 35,100 GET oGet[4] VAR mnompro PICTURE "@!"  OF oDlg1 PIXEL ;
-            WHEN((oGet[4]:cText := IF(mcodpro=0,cTodos,oQryPro:nombre)) = SPACE(30))              
+            WHEN((oGet[4]:cText := IF(mcodpro=0,cTodos,oQryPro:nombre)) = SPACE(30))
+   @ 50, 65 CHECKBOX oGet[5] VAR lSalto PROMPT "Salto de página por proveedor" OF oDlg1 PIXEL SIZE 100,12 WHEN(mcodpro= 0)
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
@@ -135,7 +136,9 @@ IF mcodpro > 0
            "Cuentas corrientes proveedor" CENTER ;
            FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
            PREVIEW CAPTION  "Cuentas corrientes proveedor"
-    GROUP ON oQry:codpro HEADER "Proveedor: ("+ STR(oQry:codpro) + ") " + ALLTRIM(oQry:nompro) FONT 3 EJECT
+    GROUP oGru ON oQry:codpro HEADER "Proveedor: ("+ STR(oQry:codpro) + ") " + ALLTRIM(oQry:nompro) FONT 3
+    oGru:lEject := IF(lSalto,.t.,.f.)
+
     COLUMN TITLE "Comprobante" DATA oQry:compro    SIZE 15 FONT 1
     COLUMN TITLE "Fecha"       DATA oQry:fecha     SIZE 08 FONT 1
     COLUMN TITLE "Debe"        DATA oQry:debe      PICTURE "9,999,999,999.99" ;
@@ -443,7 +446,7 @@ ENDIF
 
 COLUMN TITLE "Nro.Orden" DATA oQry:numero  PICTURE "99999999" SIZE 08 FONT 1
 COLUMN TITLE "Caja"      DATA oQry:caja       SIZE 03 FONT 1
-COLUMN TITLE "PagÃ³"      DATA oQry:usuario    SIZE 05 FONT 1
+COLUMN TITLE "Pagó"      DATA oQry:usuario    SIZE 05 FONT 1
 COLUMN TITLE "Fecha"     DATA oQry:fecha   SIZE 08 FONT 1
 COLUMN TITLE "Proveedor" DATA oQry:proveedor  SIZE 20 FONT 1
 COLUMN TITLE "Pagado"    DATA oQry:efectivo   PICTURE "9999999999.99" SIZE 10 FONT 2 TOTAL  

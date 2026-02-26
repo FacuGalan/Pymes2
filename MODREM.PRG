@@ -30,7 +30,7 @@ PROCEDURE ModRem(cPermisos)
     + "CREATE TEMPORARY TABLE IF NOT EXISTS remito_det_temp ";
     +"( `CODART` BIGINT(13) NOT NULL, ";
     +"`id` INT(10) NOT NULL,";
-    +"`DETART` VARCHAR(50) NOT NULL,";
+    +"`DETART` VARCHAR(200) NOT NULL,";
     +"`CANTIDAD` DECIMAL(8,2) DEFAULT '0', "+;
     +"`CANTORIG` DECIMAL(8,2) DEFAULT '0', "+;
     +"`CANTDEVO` DECIMAL(8,2) DEFAULT '0', "+;
