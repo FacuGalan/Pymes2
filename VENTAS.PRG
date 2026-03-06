@@ -1780,7 +1780,7 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
                             ClipValue2Sql(oGet[9]:cText)+","+ClipValue2Sql(oGet[12]:cText)+","+ClipValue2Sql(oGet[22]:cText)+","+;
                             ClipValue2Sql(oGet[10]:cText)+","+ClipValue2Sql(oGet[11]:cText)+","+ClipValue2SQL(oGet[37]:cText)+","+;
                             ClipValue2Sql(cCae)+","+ClipValue2Sql(dFecVtoC)+","+ClipValue2Sql(STRTRAN(STR(nTipFor,2)," ","0"))+","+;
-                            ClipValue2Sql(oApp:usuario)+","+ClipValue2SQL(DATE())+","+ClipValue2SQL(oApp:cIp)+","+ClipValue2Sql(cVendedor)+","+;
+                            ClipValue2Sql(oApp:usuario)+","+ClipValue2SQL(oGet[1]:value)+","+ClipValue2SQL(oApp:cIp)+","+ClipValue2Sql(cVendedor)+","+;
                             ClipValue2Sql(nCondVen)+","+ClipValue2Sql(nFormaPag)+","+ ClipValue2SQL(oGet[42]:cText)+","+ClipValue2Sql(lAcopio)+","+;
                             IF(lFacturaD,"TRUE","FALSE")+","+IF(lFacturaD,ClipValue2SQL(nCotiza),"0")+;
                             ",CURTIME(),"+Clipvalue2sql(nPuntos)+","+ClipValue2Sql(nPuntosAcu) +")")        

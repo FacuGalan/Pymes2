@@ -195,7 +195,7 @@ DEFINE DIALOG oDlg1 TITLE IF(lAlta,"Alta","Modificacion") + " de Clientes" FROM 
    @ 35, 60 GET oGet[03] VAR base:direccion OF oDlg1 PIXEL PICTURE "@!"
    @ 50, 60 GET oGet[04] VAR base:telefono  OF oDlg1 PIXEL
    @ 65, 60 GET oGet[05] VAR base:localidad OF oDlg1 PIXEL PICTURE "@!"
-   @ 65,220 GET oGet[06] VAR base:codpos    OF oDlg1 PIXEL RIGHT PICTURE "9999" 
+   @ 65,220 GET oGet[06] VAR base:codpos    OF oDlg1 PIXEL RIGHT //PICTURE "9999" 
    *@ 80,145 GET oGet[07] VAR base:zona      OF oDlg1 PIXEL RIGHT PICTURE "9"
    @ 80, 60 GET oGet[10] VAR base:fecnac    OF oDlg1 PIXEL CENTER PICTURE "@D"
    @ 80,150 GET oGet[08] VAR base:fecing    OF oDlg1 PIXEL CENTER PICTURE "@D"

@@ -234,7 +234,7 @@ LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
       aOrden := {"Departamento","Rubro","Marca","Proveedor"}, nOrden := 1, ;
       aOrdenTabla := {"deptos","rubros","marcas","provee"},aOrdenCampo := {"depto","rubro","marca","prov"},;      
       mvendedor := 0, aVendedores := {"TODOS                  "}, cVendedor := "TODOS                  ",;
-      oQryPun, nCaja := 1, aCaja := {"0 TODAS LAS CAJAS"}, aCajaNr := {0}
+      oQryPun, nCaja := 1, aCaja := {"0 TODAS LAS CAJAS"}, aCajaNr := {0}, lNeedEncab
 oQryCli:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"clientes")     
 oQryMar:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"marcas  ORDER BY nombre")
 oQryPro:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"provee  ORDER BY nombre")
@@ -470,51 +470,62 @@ IF n = 0
 ENDIF
 EXIT
 ENDDO
+CursorWait()
+Procesando(.t.) 
+lNeedEncab := (cDesdeHora <> "00:00:00" .or. cHastaHora <> "23:59:59" .or. cVendedor <> "TODOS")
 nCaja := aCajaNr[nCaja]
-IF !lPorFactura .or. lProv
-   oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS ventas_encab_report AS (SELECT * FROM ge_"+oApp:cId+"ventas_encab LIMIT 0)")
+IF !lPorFactura .or. (lProv .and. lNeedEncab)
+   oApp:oServer:Execute("DROP TEMPORARY TABLE IF EXISTS ventas_encab_report")
+   oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS ventas_encab_report AS (SELECT *,CONCAT(ticomp,letra,numcomp) as compro FROM ge_"+oApp:cId+"ventas_encab LIMIT 0)")
    oApp:oServer:Execute("TRUNCATE ventas_encab_report")
-   oApp:oServer:Execute("INSERT INTO ventas_encab_report (SELECT * FROM ge_"+oApp:cId+"ventas_encab "+;
+   oApp:oServer:Execute("INSERT INTO ventas_encab_report (SELECT *,CONCAT(ticomp,letra,numcomp) as compro FROM ge_"+oApp:cId+"ventas_encab "+;
                      " WHERE fecha >= " + ClipValue2Sql(mdesde) +;
-                     "  AND fecha <= " + ClipValue2Sql(mhasta) + ")" )   
+                     "  AND fecha <= " + ClipValue2Sql(mhasta) + ")" )  
+   oApp:oServer:Execute("ALTER TABLE ventas_encab_report ADD INDEX idx_compro (compro)")
+   oApp:oServer:Execute("ALTER TABLE ventas_encab_report ADD INDEX idx_hora (hora)") 
 ENDIF   
+oApp:oServer:Execute("DROP TEMPORARY TABLE IF EXISTS ventas_det_report")
 oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS ventas_det_report AS (SELECT * FROM ge_"+oApp:cId+"ventas_det LIMIT 0)")
 
 oApp:oServer:Execute("TRUNCATE ventas_det_report")
 oApp:oServer:Execute("INSERT INTO ventas_det_report (SELECT * FROM ge_"+oApp:cId+"ventas_det "+;
                      " WHERE fecha >= " + ClipValue2Sql(mdesde) +;
                      "  AND fecha <= " + ClipValue2Sql(mhasta) + ")")
-
+// Creo indices
+oApp:oServer:Execute("ALTER TABLE ventas_det_report ADD INDEX idx_nrofac (nrofac)")
+oApp:oServer:Execute("ALTER TABLE ventas_det_report ADD INDEX idx_codart (codart)")
+oApp:oServer:Execute("ALTER TABLE ventas_det_report ADD INDEX idx_codcli (codcli)")
 
 IF !lProv .and. !lPorFactura    
     IF !lResu
     cSql := "SELECT v.codart AS codart, v.detart AS detart, a.codigopro as codigopro, d.nombre AS marca, "+;
             "v.cantidad * IF(LEFT(v.nrofac,2)='NC',-1,1) AS cantidad, v.importe * IF(LEFT(v.nrofac,2)='NC',-1,1) AS precio, v.fecha AS fecha,"+;
-            "v.nrofac AS numfac,v.cantidad * v.pcosto * IF(LEFT(v.nrofac,2)='NC',-1,1) AS costo, ve.hora as hora   FROM ventas_det_report v "
+            "v.nrofac AS numfac,v.cantidad * v.pcosto * IF(LEFT(v.nrofac,2)='NC',-1,1) AS costo "+if(lNeedEncab,", ve.hora as hora ","")+" FROM ventas_det_report v "
        ELSE
     cSql := "SELECT v.codart AS codart, v.detart AS detart, a.codigopro as codigopro, d.nombre AS marca,"+;
             "SUM(v.cantidad* IF(LEFT(v.nrofac,2)='NC',-1,1)) AS cantidad, SUM(v.importe * IF(LEFT(v.nrofac,2)='NC',-1,1)) AS precio, ANY_VALUE(v.fecha) AS fecha, "+;
-            "SUM(v.cantidad * v.pcosto * IF(LEFT(v.nrofac,2)='NC',-1,1)) AS costo, ve.hora as hora "+;
+            "SUM(v.cantidad * v.pcosto * IF(LEFT(v.nrofac,2)='NC',-1,1)) AS costo"+if(lNeedEncab,", ve.hora as hora "," ")+;
             "FROM ventas_det_report v "   
     ENDIF
     cSql := cSql + ;
-            "LEFT JOIN ge_"+oApp:cId+"articu a ON v.codart = a.codigo "+;
-            "LEFT JOIN ge_"+oApp:cId+aOrdenTabla[nOrden]+" d ON a."+aOrdenCampo[nOrden]+" = d.codigo "
-    //IF(cVendedor <> "TODOS")
+            "INNER JOIN ge_"+oApp:cId+"articu a ON v.codart = a.codigo "+;
+            "INNER JOIN ge_"+oApp:cId+aOrdenTabla[nOrden]+" d ON a."+aOrdenCampo[nOrden]+" = d.codigo "
+    IF lNeedEncab
             cSql := cSql + ;        
-            "LEFT JOIN ventas_encab_report ve "+;
-            " ON ve.ticomp = LEFT(v.nrofac,2) AND ve.letra = SUBSTR(v.nrofac,3,1) AND RIGHT(v.nrofac,13) = ve.numcomp "
-    //ENDIF
+            "INNER JOIN ventas_encab_report ve "+;
+            " ON v.nrofac = ve.compro "
+    ENDIF
     IF(nCaja <> 0)
             cSql := cSql + ;        
-            " LEFT JOIN (SELECT ticomp,letra,numcomp, caja FROM ge_"+oApp:cId+"concfact GROUP BY ticomp,letra,numcomp) cf "+;
-            " ON cf.ticomp = LEFT(v.nrofac,2) AND cf.letra = SUBSTR(v.nrofac,3,1) AND RIGHT(v.nrofac,13) = cf.numcomp "
+            " INNER JOIN (SELECT ticomp,letra,numcomp, caja FROM ge_"+oApp:cId+"concfact GROUP BY ticomp,letra,numcomp) cf "+;
+            " ON v.nrofac = CONCAT(cf.ticomp,cf.letra,cf.numcomp) "
     ENDIF        
     cSql := cSql + ;        
             "WHERE v.fecha >= " + ClipValue2Sql(mdesde) +;
             "  AND v.fecha <= " + ClipValue2Sql(mhasta) +;
+            if(lNeedEncab,;
             "  AND ve.hora >= " + ClipValue2Sql(cDesdeHora)+;
-            "  AND ve.hora <= " + ClipValue2Sql(cHastaHora)
+            "  AND ve.hora <= " + ClipValue2Sql(cHastaHora),' ')
     IF(cVendedor <> "TODOS")
        IF !oApp:usua_es_vendedor       
           cSql := cSql +" AND "+ IF(cVendedor = "TODOS","TRUE"," ve.vendedor = " + ClipValue2Sql(cVendedor)) 
@@ -538,9 +549,7 @@ IF !lProv .and. !lPorFactura
        ENDIF   
        ELSE
        cSql := cSql + " ORDER BY d.nombre, v.detart"
-    ENDIF   
-    CursorWait()
-    Procesando(.t.)
+    ENDIF      
     oQry = oApp:oServer:Query(cSql)
     Procesando(.f.)
          DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-10
@@ -566,7 +575,9 @@ IF !lProv .and. !lPorFactura
     IF !lResu
        COLUMN TITLE "Nro.Fact." DATA oQry:numfac   SIZE 15 FONT 1
        COLUMN TITLE "Fecha"     DATA oQry:fecha    PICTURE "@D"   SIZE 8 FONT 1
+       IF lNeedEncab
        COLUMN TITLE "Hora"      DATA oQry:hora     SIZE 7 FONT 1   
+       ENDIF
        ELSE
        COLUMN TITLE "Articulo" DATA oQry:detart   SIZE 30 FONT 1
        COLUMN TITLE "Codigo"   DATA oQry:codart   SIZE 12 FONT 1
@@ -598,10 +609,10 @@ ELSE
               "SUM(v.cantidad*v.pcosto* IF(LEFT(v.nrofac,2)='NC',-1,1)) AS costo, ve.hora as hora "+;
               " FROM ventas_det_report v "
       cSql := cSql + ;
-              "LEFT JOIN ge_"+oApp:cId+"articu a ON v.codart = a.codigo "+;        
-              "LEFT JOIN ge_"+oApp:cId+"clientes d ON v.codcli = d.codigo "+;
-              "LEFT JOIN ventas_encab_report ve "+;
-              " ON ve.ticomp = LEFT(v.nrofac,2) AND ve.letra = SUBSTR(v.nrofac,3,1) AND RIGHT(v.nrofac,13) = ve.numcomp "+;
+              "INNER JOIN ge_"+oApp:cId+"articu a ON v.codart = a.codigo "+;        
+              "INNER JOIN ge_"+oApp:cId+"clientes d ON v.codcli = d.codigo "+;
+              "INNER JOIN ventas_encab_report ve "+;
+              " ON ve.compro = v.nrofac "+;
               "WHERE v.fecha >= " + ClipValue2Sql(mdesde) +;
               "  AND v.fecha <= " + ClipValue2Sql(mhasta) +;  
               "  AND ve.hora >= " + ClipValue2Sql(cDesdeHora)+;
@@ -614,8 +625,6 @@ ELSE
         cSql := cSql + " AND "+ IF(cVendedor = "TODOS","TRUE"," ve.vendedor = " + ClipValue2Sql(cVendedor)) 
       ENDIF               
       cSql := cSql + " GROUP BY v.codcli,v.codart ORDER BY d.nombre, v.detart"
-      CursorWait()
-      Procesando(.t.)
       oQry = oApp:oServer:Query(cSql)
       Procesando(.f.)
            DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-10
@@ -665,10 +674,10 @@ ELSE
               "cf.observa as formapag, ve.hora "+;
               " FROM ventas_det_report v "
     cSql := cSql + ;              
-              "LEFT JOIN ge_"+oApp:cId+"clientes c ON c.codigo = v.codcli "+;
-              "LEFT JOIN ge_"+oApp:cId+"ventas_encab ve ON v.nrofac = CONCAT(ve.ticomp,ve.letra,ve.numcomp) "+; 
-              "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+; 
-              "LEFT JOIN (SELECT CONCAT(ticomp,letra, numcomp) AS compro, "+;
+              "INNER JOIN ge_"+oApp:cId+"clientes c ON c.codigo = v.codcli "+;
+              "INNER JOIN ge_"+oApp:cId+"ventas_encab ve ON v.nrofac = ve.compro "+; 
+              "INNER JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+; 
+              "INNER JOIN (SELECT CONCAT(ticomp,letra, numcomp) AS compro, "+;
                                " GROUP_CONCAT(observa) AS observa "+;
                                "FROM ge_"+oApp:cId+"concfact WHERE fecha>="+ClipValue2Sql(mdesde)+" AND "+;
                                " fecha <= "+ClipValue2Sql(mhasta)+;
@@ -680,11 +689,9 @@ ELSE
               " AND a.prov IN " + cProvee + " AND a.depto IN "+cDepto+ " AND a.empresa IN "+cEmpresa+;
               " AND "+IF(nTipo1 = 3," TRUE ",IF(nTipo1 = 1," SUBSTR(v.nrofac,3,1) <> 'X' "," SUBSTR(v.nrofac,3,1) = 'X' "))+;              
               IF(nCliente = 0,""," AND v.codcli = " + ClipValue2Sql(nCliente))+;
-              "  AND ve.hora >= " + ClipValue2Sql(cDesdeHora)+;
-              "  AND ve.hora <= " + ClipValue2Sql(cHastaHora)+;
-              " ORDER BY v.fecha,v.nrofac"
-    CursorWait()
-    Procesando(.t.)
+              IF(lNeedEncab,"  AND ve.hora >= " + ClipValue2Sql(cDesdeHora)+;
+              "  AND ve.hora <= " + ClipValue2Sql(cHastaHora) , '')+;
+              " ORDER BY v.fecha,v.nrofac"    
     oQry = oApp:oServer:Query(cSql)
     Procesando(.f.)
            DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
