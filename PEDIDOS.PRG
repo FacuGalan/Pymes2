@@ -30,7 +30,7 @@ cDialog:= "ABMS"
 oQryPar:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros LIMIT 1")
 oQryBrw:= oApp:oServer:Query("SELECT p.nuevo, p.id,p.CODCLI,p.CLIENTE,p.FECHA,p.PARAFECHA,p.Observa,"+;
                              "p.VENDEDOR,p.ESTADO,ROUND(SUM(pd.cantidad * pd.punitario * (1-pd.descup/100)),2) as total, "+;
-                             "CONCAT(c.direccion,' ',IF(c.localidad is null,'',c.localidad)) AS direccion, "+;
+                             "CONCAT(c.direccion,' ',IF(c.localidad is null,'',c.localidad)) AS direccion, c.codpos as codpos, "+;
                              "p.facturanro as factura FROM ge_"+oApp:cId+"pedidos_encab p "+;
                              "LEFT JOIN ge_"+oApp:cId+"pedidos_det pd ON pd.idpedido = p.id "+;
                              "LEFT JOIN ge_"+oApp:cId+"clientes c ON p.codcli = c.codigo "+;
@@ -84,9 +84,9 @@ oQryBrw:= oApp:oServer:Query("SELECT p.nuevo, p.id,p.CODCLI,p.CLIENTE,p.FECHA,p.
    oWnd1:bResized := { || Incrusta( oWnd1, oDlg, .t.) }
      DEFINE DIALOG oDlg RESOURCE cDialog OF oWnd1
      REDEFINE XBROWSE oBrwG DATASOURCE oQryBrw;
-              COLUMNS "nuevo","id","CODCLI","CLIENTE","direccion","FECHA","PARAFECHA","total","VENDEDOR","ESTADO","observa","Factura";
-              HEADERS "","Nro Pedido","Código Cliente","Nombre","Direccion","Fecha","Para Fecha","Total","Vendedor","Estado","Observaciones","Comprobante";
-              SIZES 30,65,60,250,110,90,90,90,100,100,100,110;
+              COLUMNS "nuevo","id","CODCLI","CLIENTE","direccion","codpos","FECHA","PARAFECHA","total","VENDEDOR","ESTADO","observa","Factura";
+              HEADERS "","Nro Pedido","Código Cliente","Nombre","Direccion","Cod.Pos","Fecha","Para Fecha","Total","Vendedor","Estado","Observaciones","Comprobante";
+              SIZES 30,65,60,250,110,40,90,90,90,100,100,100,110;
               FOOTERS;
               ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu(cPermisos,.f.),oBrwG:Refresh()),.T.))
      REDEFINE SAY oBrwG:oSeek PROMPT "" ID 113 OF oDlg
@@ -101,9 +101,9 @@ oQryBrw:= oApp:oServer:Query("SELECT p.nuevo, p.id,p.CODCLI,p.CLIENTE,p.FECHA,p.
      oBrwG:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar,cPermisos)}
      oBrwG:cSeek := ""
      oBrwG:oSeek:SetText("")
-     oBrwG:aCols[8]:nFooterTypE := AGGR_SUM
+     oBrwG:aCols[9]:nFooterTypE := AGGR_SUM
      oBrwG:Maketotals()
-     PintaBrw(oBrwG,12) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
+     PintaBrw(oBrwG,13) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
      // Activo el dialogo y al iniciar muevo a 0,0
      ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT oDlg:Move(0,0) VALID(oWnd1:End())
    ACTIVATE WINDOW oWnd1 ON INIT Incrusta( oWnd1, oDlg, .T.) VALID(cerrar())
@@ -741,7 +741,7 @@ DEFAULT lVerCli := .T.
 IF lVerCli
   BuscarArt(oQryCli,oDlg2,oGet[08],oGet[09], , , , ,.f.)
   oGet[10]:cText := oQryCli:direccion
-  oGet[11]:ctext := oQryCli:localidad
+  oGet[11]:ctext := alltrim(oQryCli:localidad) + " "+ALLTRIM(oQryCli:codpos)
   oGet[12]:cText := oQryCli:cuit
   oGet[22]:cText := oQryCli:dni
   oGet[31]:cText := oQryCli:descuento
@@ -1048,7 +1048,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
          @ nRow, 9.5 PRINT TO oPrn TEXT "Direccion:" ;
                   SIZE 2.5,1 CM FONT oFont3 ALIGN "R"
          @ nRow, 12.5 PRINT TO oPrn TEXT ALLTRIM(oQryCli:direccion) + " " + ;
-                                               ALLTRIM(oQryCli:localidad) ;
+                                               ALLTRIM(oQryCli:localidad)+" "+ALLTRIM(oQryCli:codpos) ;
                   SIZE 8,1 CM FONT oFont ALIGN "L"
          
          @ 8.2, 01 PRINT TO oPrn TEXT "Codigo" ;

@@ -675,7 +675,7 @@ ELSE
               " FROM ventas_det_report v "
     cSql := cSql + ;              
               "INNER JOIN ge_"+oApp:cId+"clientes c ON c.codigo = v.codcli "+;
-              "INNER JOIN ge_"+oApp:cId+"ventas_encab ve ON v.nrofac = ve.compro "+; 
+              "INNER JOIN ge_"+oApp:cId+"ventas_encab ve ON v.nrofac = CONCAT(ve.ticomp,ve.letra,ve.numcomp) "+; 
               "INNER JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+; 
               "INNER JOIN (SELECT CONCAT(ticomp,letra, numcomp) AS compro, "+;
                                " GROUP_CONCAT(observa) AS observa "+;

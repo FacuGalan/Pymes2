@@ -726,6 +726,7 @@ oQry1 := oApp:oServer:Query( "SELECT lVtoStock, diasalertastock FROM ge_"+oApp:c
 lVtoStock := oQry1:lVtoStock
 nDias := oQry1:diasalertastock
 IF !lVtoStock .or. !oApp:usua_es_supervisor
+   AvisoStock1() 
    RETURN nil 
 ENDIF   
 oQry := oApp:oServer:Query("SELECT s.*, a.nombre FROM ge_"+oApp:cId+"stocklotes s "+;
@@ -753,4 +754,37 @@ IF oQry:nRecCount > 0
    ACTIVATE DIALOG oDlg CENTER ON INIT DlgOnTop( .t.,oDlg:hWnd )
    RELEASE oFont 
 ENDIF
+AvisoStock1()
+RETURN nil
+
+STATIC FUNCTION AvisoStock1()
+LOCAL oQry, oDlg, oSay, oBot, aNueva, i,j, cVentana, oFont, oBrw1, lVtoStock, nDias, oQry1 
+oQry1 := oApp:oServer:Query("SELECT pidestock FROM ge_"+oApp:cId+"punto WHERE ip = " + ClipValue2Sql(oApp:cIp))
+IF !oApp:usua_es_supervisor  .or. oQry1:pidestock = 3 
+   RETURN nil 
+ENDIF   
+oQry := oApp:oServer:Query("SELECT codigo,nombre,stockact,stockmin FROM ge_"+oApp:cId+"articu "+;
+                          " WHERE (stockmin > 0 AND stockmin > stockact) OR stockact < 0")
+
+IF oQry:nRecCount > 0
+   DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-13.5
+   DEFINE DIALOG oDlg TITLE "Alertas Stock Minimo" FROM 09,15 TO 28,135 OF oApp:oWnd
+   oDlg:lHelpIcon := .f.
+   //Reproduzco un sonido que esta guardado en el archivo ringin.wav
+   SndPlaySound("ringin.wav",1)
+   @ 01,001 BITMAP FILE "BITMAPS\ALERT.PNG" SIZE 65,140 ADJUST PIXEL OF oDlg NOBORDER
+   @ 01,080 XBROWSE oBrw1 DATASOURCE oQry SIZE 325,140 OF oDlg PIXEL ;
+       COLUMNS "codigo","nombre","stockact","stockmin";
+       HEADERS "Cidigo","Producto","Stock","Minimo";
+       SIZES   100,350,60,60   
+   PintaBrw(oBrw1,4)
+   oBrw1:nFreeze := 4 
+   oBrw1:CreateFromCode()
+   @01,408 GROUP TO 140,468  PIXEL OF oDlg 
+   @10,423 BUTTON oBot PROMPT "&Salir" OF oDlg SIZE 30,10 ACTION oDlg:End() PIXEL
+   @25,423 BUTTON oBot PROMPT "&Ir a Stock" OF oDlg SIZE 30,10 ACTION (oDlg:End(),MODSTOCK("ABMRE")) PIXEL WHEN(oQry:nRecCount>0)
+   ACTIVATE DIALOG oDlg CENTER ON INIT DlgOnTop( .t.,oDlg:hWnd )
+   RELEASE oFont 
+ENDIF
+
 RETURN nil

@@ -148,9 +148,9 @@ TRY
                           "WHERE r.codart = "+ClipValue2Sql(oQryStock:codart))
       oQryStock:Skip()
   ENDDO
-  cDet := " "+ALLTRIM(oQryBrw:nombre)+" $"+STR(oQryBrw:ptotal)+" "+ALLTRIM(oQryBrw:nomart)
+  cDet := " Cons.Int. "+ALLTRIM(oQryBrw:nombre)+" $"+STR(oQryBrw:ptotal)+" "+ALLTRIM(oQryBrw:nomart)
   oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"emp_consumoint WHERE id = "+ClipValue2Sql(oQryBrw:id))  
-  *Auditar(14,,,cDet)                       
+  Auditar(1,cDet)                       
   oApp:oServer:CommitTransaction()
 CATCH oError
     ValidaError(oError)

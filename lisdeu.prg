@@ -189,9 +189,9 @@ IF !mrta
    RETURN
 ENDIF
 CursorWait()
-     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-9
-     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-9 BOLD
-     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC 
+     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
+     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
+     DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-9 BOLD ITALIC 
 IF !lDetalle
     oQry := oApp:oServer:Query("SELECT c.codpro AS codpro, p.nombre AS nombre, p.direccion AS direccion, "+;
                              " p.telefono AS telefono, "+;

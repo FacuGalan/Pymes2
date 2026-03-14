@@ -444,8 +444,9 @@ oApp:oServer:Execute("TRUNCATE reseta_temp")
 oApp:oServer:NextResult()
 
 oApp:oServer:Execute("INSERT INTO reseta_temp (codart,detart,cantidad,punit,ptotal) "+;
-                   "(SELECT r.codusa,a.nombre,r.cantidad,a.preciocos,(r.cantidad * a.preciocos) "+;
+                   "(SELECT r.codusa,a.nombre,r.cantidad,a.preciocos*if(a.endolares,d.dolar,1),(r.cantidad * a.preciocos*if(a.endolares,d.dolar,1)) "+;
                     "FROM ge_"+oApp:cId+"reseta r LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = r.codusa "+;
+                    "LEFT JOIN ge_"+oApp:cId+"parametros d ON true "+;
                     "WHERE r.codart = "+ClipValue2SQL(base:codigo)+")")
 oApp:oServer:NextResult()
 oQryRes:= oApp:oServer:Query("SELECT * FROM reseta_temp")
@@ -565,8 +566,10 @@ TRY
   oApp:oServer:BeginTransaction()
 oApp:oServer:Execute("INSERT INTO reseta_temp (codart,detart,cantidad,punit,ptotal) "+;
                    "(SELECT "+ClipValue2SQL(oGet[2]:cText)+",a.nombre,"+ClipValue2Sql(oGet[4]:cText)+;
-                   ",a.preciocos,"+ClipValue2Sql(oGet[4]:cText)+"*a.preciocos "+;
-                    "FROM ge_"+oApp:cId+"articu a WHERE codigo = "+ClipValue2Sql(oGet[2]:cText)+")")
+                   ",a.preciocos*IF(a.endolares,d.dolar,1),"+ClipValue2Sql(oGet[4]:cText)+"*a.preciocos*IF(a.endolares,d.dolar,1) "+;                   
+                    "FROM ge_"+oApp:cId+"articu a "+;
+                    " LEFT JOIN ge_"+oApp:cId+"parametros d ON true  "+;
+                    " WHERE a.codigo = "+ClipValue2Sql(oGet[2]:cText)+")")
 CATCH oError
     ValidaError(oError)
 END TRY

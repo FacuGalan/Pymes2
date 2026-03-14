@@ -106,7 +106,7 @@ RETURN NIL
 ** Formulario de altas y modificaciones
 STATIC FUNCTION Formu ( lAlta)
 LOCAL oGet := ARRAY(9), oBot := ARRAY(6),oQryPar,oQryEnt,oQryPro, oForm, lRta := .f., aCor, base, oError,;
-      oBrw1, oBrw2, oFont, nCod
+      oBrw1, oBrw2, oFont, nCod, nAnt := 0
 
 oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS `transi_artp` ("+;
                            "`codart` BIGINT(14) NOT NULL,"+;
@@ -131,6 +131,7 @@ IF lAlta
    oApp:oServer:NextResult()
 ENDIF
 oQryPar:= oApp:oServer:Query("SELECT * FROM transi_artp")
+nAnt := oQryPar:nRecCount
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 DO WHILE .T.
 DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Fragancias, gustos y sabores";
@@ -177,7 +178,7 @@ TRY
                        "SELECT "+ClipValue2Sql(base:codigo)+",codart FROM transi_artp")   
   oQry:Refresh()
   oApp:oServer:CommitTransaction()
-  IF !lAlta
+  IF !lAlta .and. nAnt > 0
      nCod := oApp:oServer:Query("SELECT * FROM transi_artp WHERE nuevo = 0"):GetRowObj():codart
      base := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu WHERE codigo = "+STR(nCod)):GetRowObj()
      ActualizarGrupo(base)

@@ -165,8 +165,9 @@ nMultiplica:= nHacer / oQryArtP:cantprod
 oApp:oServer:Execute("TRUNCATE reseta_temp1")
 oApp:oServer:Execute("INSERT INTO reseta_temp1 (codart,detart,cantidad,punit,ptotal,stock) "+;
                      "(SELECT r.codusa,a.nombre,r.cantidad*"+ClipValue2Sql(nMultiplica)+;
-                     ",a.preciocos,r.cantidad*a.preciocos*"+ClipValue2Sql(nMultiplica)+", a.stockact "+;
+                     ",a.preciocos*if(a.endolares,d.dolar,1),r.cantidad*a.preciocos*"+ClipValue2Sql(nMultiplica)+"*if(a.endolares,d.dolar,1), a.stockact "+;
                      "FROM ge_"+oApp:cId+"reseta r LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = r.codusa "+;
+                     "LEFT JOIN ge_"+oApp:cId+"parametros d ON true "+;
                      "WHERE r.codart = " + ClipValue2Sql(oQryArtP:codigo)+")")
 oQryHace:Refresh()
 oBrw2:Refresh()
@@ -191,8 +192,9 @@ IF oQryArtP:produccion = .f.
 ENDIF
 oApp:oServer:Execute("DELETE FROM reseta_temp")
 oApp:oServer:Execute("INSERT INTO reseta_temp (codart,detart,cantidad,punit,ptotal) "+;
-                     "(SELECT r.codusa,a.nombre,r.cantidad,a.preciocos,r.cantidad*a.preciocos "+;
+                     "(SELECT r.codusa,a.nombre,r.cantidad,a.preciocos*if(a.endolares,d.dolar,1),r.cantidad*a.preciocos*if(a.endolares,d.dolar,1) "+;
                      "FROM ge_"+oApp:cId+"reseta r LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = r.codusa "+;
+                     "LEFT JOIN ge_"+oApp:cId+"parametros d ON true "+;
                      "WHERE r.codart = " + ClipValue2Sql(oQryArtP:codigo)+")")
 oQryRes:Refresh()
 oBrw1:Refresh()
@@ -200,8 +202,9 @@ oBrw1:MakeTotals()
 oApp:oServer:Execute("DELETE FROM reseta_temp1")
 oApp:oServer:Execute("TRUNCATE reseta_temp1")
 oApp:oServer:Execute("INSERT INTO reseta_temp1 (codart,detart,cantidad,punit,ptotal) "+;
-                     "(SELECT r.codusa,a.nombre,r.cantidad,a.preciocos,r.cantidad*a.preciocos "+;
+                     "(SELECT r.codusa,a.nombre,r.cantidad,a.preciocos*if(a.endolares,d.dolar,1),r.cantidad*a.preciocos*if(a.endolares,d.dolar,1) "+;
                      "FROM ge_"+oApp:cId+"reseta r LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = r.codusa "+;
+                     "LEFT JOIN ge_"+oApp:cId+"parametros d ON true "+;
                      "WHERE r.codart = " + ClipValue2Sql(oQryArtP:codigo)+")")
 oQryHace:Refresh()
 oBrw2:Refresh()

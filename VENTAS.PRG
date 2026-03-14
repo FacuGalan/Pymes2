@@ -2271,10 +2271,11 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
   oQryIvaDet, aCor,cCondVen,cFormaPag, nDesFac, oQryP , nRow1, nHoja , oQryPar1, cDomicilioFiscal, nBultos,;
   lImprimio_promo, lAgrupa, nCopiaCC := 0, aOriginal := {"ORIGINAL","DUPLICADO","TRIPLICADO","CUADRUPLICADO","QUINTUPLICADO","SEXTUPLICADO"} 
 DEFAULT aMetodosPago := {}  
-  oQryVen1 := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"ventas_encab  "+;                                 
-                                 "WHERE ticomp = " + ClipValue2Sql(cTipoDoc)+;
-                                 " AND letra = "+Clipvalue2sql(LEFT(cNumComp,1))+;
-                                 " AND numcomp = " + ClipValue2Sql(RIGHT(cNumComp,13)))
+  oQryVen1 := oApp:oServer:Query("SELECT v.*,c.codpos FROM ge_"+oApp:cId+"ventas_encab v "+;
+                                 " LEFT JOIN ge_"+oApp:cId+"clientes c ON c.codigo = v.codcli "+;
+                                 "WHERE v.ticomp = " + ClipValue2Sql(cTipoDoc)+;
+                                 " AND v.letra = "+Clipvalue2sql(LEFT(cNumComp,1))+;
+                                 " AND v.numcomp = " + ClipValue2Sql(RIGHT(cNumComp,13)))
   IF oQryVen1:endolares 
      nIndiceDolar := oQryVen1:cotiza
      cSigno := "u$s"
@@ -2412,7 +2413,7 @@ DEFAULT aMetodosPago := {}
              @ nRow, 9.5 PRINT TO oPrn TEXT "Direccion:" ;
                       SIZE 2.5,.5 CM FONT oFont3 ALIGN "R"
              @ nRow, 12.5 PRINT TO oPrn TEXT ALLTRIM(oQryVen1:direccion) + " " + ;
-                                                   ALLTRIM(oQryVen1:localidad) ;
+                                                   ALLTRIM(oQryVen1:localidad) + " "+ ALLTRIM(oQryVen1:codpos);
                       SIZE 8,1 CM FONT oFont  
              @ 6.5, 01 PRINT TO oPrn TEXT "Condicion venta:" ;
                       SIZE 3,.5 CM FONT oFont3 ALIGN "R"
@@ -3966,10 +3967,11 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
       lAgrupa, oQryIvaDet, aCor,cCondVen,cFormaPag, oQryP, nRow1, nHoja, nDesFac, nBultos, lComan,;
       lImprimio_promo := .f., nCopiaCC := 0, aOriginal := {"ORIGINAL","DUPLICADO","TRIPLICADO","CUADRUPLICADO","QUINTUPLICADO","SEXTUPLICADO"}
 DEFAULT aMetodosPago := {}      
-   oQryVen1 := oApp:oServer:Query("SELECT *  FROM ge_"+oApp:cId+"ventas_encab "+;
-                                 " WHERE ticomp = " + ClipValue2Sql(cTipoDoc)+;
-                                 " AND letra = "+Clipvalue2sql(LEFT(cNumComp,1))+;
-                                 " AND numcomp = " + ClipValue2Sql(RIGHT(cNumComp,13)))
+   oQryVen1 := oApp:oServer:Query("SELECT v.*,c.codpos  FROM ge_"+oApp:cId+"ventas_encab v "+;
+                                 " LEFT JOIN ge_"+ oApp:cId+"clientes c ON c.codigo = v.codcli "+;
+                                 " WHERE v.ticomp = " + ClipValue2Sql(cTipoDoc)+;
+                                 " AND v.letra = "+Clipvalue2sql(LEFT(cNumComp,1))+;
+                                 " AND v.numcomp = " + ClipValue2Sql(RIGHT(cNumComp,13)))
    oQryPar := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros")
    oApp:cDestinoMail := oApp:oServer:Query("SELECT mail FROM ge_"+oApp:cId+"clientes WHERE codigo = "+ClipValue2Sql(oQryVen1:codcli)):mail
    IF oQryVen1:nRecCount = 0
@@ -4088,7 +4090,7 @@ DEFAULT aMetodosPago := {}
              @ nRow, 9.5 PRINT TO oPrn TEXT "Direccion:" ;
                       SIZE 2.5,.5 CM FONT oFont3 ALIGN "R"
              @ nRow, 12.5 PRINT TO oPrn TEXT ALLTRIM(oQryVen1:direccion) + " " + ;
-                                                   ALLTRIM(oQryVen1:localidad) ;
+                                                   ALLTRIM(oQryVen1:localidad) + " " + ALLTRIM(oQryVen1:codpos) ;
                       SIZE 8,1 CM FONT oFont 
              @ 6.5, 01 PRINT TO oPrn TEXT "Condicion venta:" ;
                       SIZE 3,.5 CM FONT oFont3 ALIGN "R"

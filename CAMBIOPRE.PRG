@@ -225,7 +225,11 @@ Procesando(.t.)
                                                     "a.precioven,a.iva,a.porcentajerev,a.reventa "+;
                         "FROM ge_"+oApp:cId+"articu a "+;
                         "LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = a.iva "+;
-                        "LEFT JOIN (SELECT r.codart,SUM(r.cantidad*a1.preciocos) AS costo FROM ge_"+oApp:cId+"reseta r LEFT JOIN ge_"+oApp:cId+"articu a1 ON a1.codigo = r.codusa AND a1.mprima = TRUE GROUP BY r.codart) res "+;
+                        "LEFT JOIN "+;
+                        " (SELECT r.codart,SUM(r.cantidad*a1.preciocos*if(a1.endolares,d.dolar,1)) AS costo "+;
+                        " FROM ge_"+oApp:cId+"reseta r "+;
+                        " LEFT JOIN ge_"+oApp:cId+"articu a1 ON a1.codigo = r.codusa AND a1.mprima = TRUE "+;
+                        " LEFT JOIN ge_"+oApp:cId+"parametros d ON TRUE GROUP BY r.codart) res "+;
                         "ON res.codart = a.codigo "+;
                         "WHERE a.produccion = TRUE AND res.costo IS NOT NULL)") 
    oApp:oServer:Execute( "CREATE TEMPORARY TABLE IF NOT EXISTS temp (SELECT * FROM proped_temp)")

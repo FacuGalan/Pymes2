@@ -98,13 +98,14 @@ RETURN
 
 
 STATIC FUNCTION Formu(lAlta)
-LOCAL oGet:=ARRAY(48),oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTipoComp, nBultos:=0,;
+LOCAL oGet:=ARRAY(49),oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTipoComp, nBultos:=0,;
       cNomPro,  cCuit, cConIva, cNomCue, nDeuda, nCodArt, cDetArt, nCantidad, oError, i, lAgenda := .f.,;
       nPunit, nPTotal, cNomRet1, cNomRet2, cNomRet3, cNomRet4, cNomRet5, oDlg1, oQryDoc,nRenglon,;
       nSaldoIni:=0, nImporteIni:=0,oQryCodigos,nMaximo,nOrden, lPuedeCobrar, oQryPedPen, cInPed, cNumCompAnt,;
       dCierrecompras := oApp:oServer:Query( "SELECT cierrecompra FROM ge_"+oApp:cId+"parametros"):cierrecompra,;
       lVtoStock := oApp:oServer:Query( "SELECT lVtoStock FROM ge_"+oApp:cId+"parametros"):lVtoStock,;
-      lTilda_computaiva := oApp:oServer:Query( "SELECT Tilda_computaiva FROM ge_"+oApp:cId+"parametros"):tilda_computaiva
+      lTilda_computaiva := oApp:oServer:Query( "SELECT Tilda_computaiva FROM ge_"+oApp:cId+"parametros"):tilda_computaiva,;
+      lOcultar_no_vendibles := .f.
 lUsoPedido := {} 
 lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHERE (usuario="+;
         ClipValue2SQL(oApp:usuario)+ " AND modulo = 'ORDPAG' AND permisos = 'ABMRE') ORDER BY codigo"):nRecCount > 0
@@ -279,6 +280,8 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
     REDEFINE GET oGet[16] VAR base:observa    ID 125 OF oDlg1 PICTURE "@!"
 
     REDEFINE CHECKBOX oGet[22] VAR lNoComputarIVA   ID 4027 OF oDlg1 WHEN(oQryComprasDet:RecCount() = 0)
+
+    REDEFINE CHECKBOX oGet[49] VAR lOcultar_no_vendibles   ID 4021 OF oDlg1 WHEN(lAlta)
 
     REDEFINE GET oGet[17] VAR baseDet:codart  ID 126 OF oDlg1; 
                  VALID(basedet:codart = 0 .OR. ValidaArt(oDlg1,oGet));
@@ -879,16 +882,17 @@ RETURN .f.
 
 **********************************************************************************************
 STATIC FUNCTION ValidaArtP(oWnd1,oGet,lBuscar)
-LOCAL oQryArt2, lEncontro, oQryArtP, oDlg1, oBrwC, aCor, oBot1,oBot2, nBultos := 1
+LOCAL oQryArt2, lEncontro, oQryArtP, oDlg1, oBrwC, aCor, oBot1,oBot2, nBultos := 1,;
+      lOcultar_no_vendibles := IF(oGet[49]:lChecked,' a.nosale IS FALSE ',' TRUE ')
 
     oQryArt2 := oApp:oServer:Query("SELECT a.codigopro AS codigo,a.nombre AS nombre,a.codigo AS codart,"+;
                                   " i.nombre AS cNomIva, i.tasa AS tasaiva, a.iva AS codiva, "+;
                                   "a.siniva,a.precossiva, a.uxbulto as uxb, a.pxbulto as pxb FROM ge_"+oApp:cId+"articu a "+;
                                   "LEFT JOIN ge_"+oApp:cId+"ivas i ON a.iva = i.codigo "+;
-                                  "WHERE a.codigopro = " + ClipValue2SQL(oGet[15]:cText)+;
+                                  "WHERE "+lOcultar_no_vendibles+" AND (a.codigopro = " + ClipValue2SQL(oGet[15]:cText)+;
                                    " OR a.codigo IN "+;
                                   " (SELECT codart FROM ge_"+oApp:cId+"codpro WHERE codarp = "+;
-                                  ClipValue2SQL(oGet[15]:cText)+ " AND codpro = "+ ClipValue2SQL(oGet[7]:cText)+")")
+                                  ClipValue2SQL(oGet[15]:cText)+ " AND codpro = "+ ClipValue2SQL(oGet[7]:cText)+"))")
 
     IF oQryArt2:RecCount() = 0 
        lEncontro := .f.
@@ -896,8 +900,8 @@ LOCAL oQryArt2, lEncontro, oQryArtP, oDlg1, oBrwC, aCor, oBot1,oBot2, nBultos :=
           oQryArt2 := oApp:oServer:Query("SELECT a.codigopro AS codigo,a.nombre AS nombre,a.codigo AS codart, i.nombre AS cNomIva, i.tasa AS tasaiva, a.iva AS codiva, "+;
                                   "a.siniva,a.precossiva, a.uxbulto as uxb, a.pxbulto as pxb FROM ge_"+oApp:cId+"articu a "+;
                                   "LEFT JOIN ge_"+oApp:cId+"ivas i ON a.iva = i.codigo "+;
-                                  "WHERE a.codigopro = " + ClipValue2SQL(oGet[15]:cText))
-          BuscarArt(oQryArt2,oWnd1,oGet[15],oGet[18],"true","(a.codigopro IS NOT NULL)")
+                                  "WHERE "+lOcultar_no_vendibles+" AND a.codigopro = " + ClipValue2SQL(oGet[15]:cText))
+          BuscarArt(oQryArt2,oWnd1,oGet[15],oGet[18],"true","(a.codigopro IS NOT NULL AND "+lOcultar_no_vendibles+" )")
           lEncontro := .t.
        ENDIF       
        ELSE 
@@ -984,20 +988,21 @@ RETURN .t.
 
 **********************************************************************************************
 STATIC FUNCTION ValidaArt(oDlg1,oGet)   
-    LOCAL oQryArt , nBultos := 1
+    LOCAL oQryArt , nBultos := 1,;
+    lOcultar_no_vendibles := IF(oGet[49]:lChecked,' nosale IS FALSE ',' TRUE ')
     IF basedet:codart > 0
         oQryArt := oApp:oServer:Query("SELECT codigo,nombre,iva,codigopro,precossiva,siniva,uxbulto,pxbulto "+;
                                   "  FROM ge_"+oApp:cId+"articu "+;                                  
-                                  "WHERE codigo = " + ClipValue2SQL(basedet:codart))
+                                  "WHERE "+lOcultar_no_vendibles+" AND codigo = " + ClipValue2SQL(basedet:codart))
         IF oQryArt:RecCount() = 0 
            oQryArt := oApp:oServer:Query("SELECT codigo,nombre,iva,codigopro,precossiva,siniva,uxbulto,pxbulto "+;
             " FROM ge_"+oApp:cId+"articu limit 100")      
-           BuscarArt(oQryArt,oDlg1,oGet[17],oGet[18])
+           BuscarArt(oQryArt,oDlg1,oGet[17],oGet[18],"true","("+lOcultar_no_vendibles+" )")
         ENDIF
         ELSE 
         oQryArt := oApp:oServer:Query("SELECT codigo,nombre,iva,codigopro,precossiva,siniva,uxbulto,pxbulto "+;
           " FROM ge_"+oApp:cId+"articu limit 100")      
-        BuscarArt(oQryArt,oDlg1,oGet[17],oGet[18])
+        BuscarArt(oQryArt,oDlg1,oGet[17],oGet[18],"true","("+lOcultar_no_vendibles+" )")
     ENDIF    
     nIvaArt:= oQryArt:iva
     IF !EMPTY(oQryArt:codigopro) .and. oQryArt:codigopro <> "0" 

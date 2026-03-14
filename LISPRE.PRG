@@ -84,7 +84,7 @@ RETURN
 ** Formulario de altas y modificaciones
 STATIC FUNCTION Formu ( lAlta)
 LOCAL oGet := ARRAY(9), oBot := ARRAY(7),oQryPar,oQryEnt,oQryPro, oForm, lRta := .f., aCor,  oError,;
-      oBrw1,oBrw2,oFont,aListas:={"Lista 1","Lista 2","Precio de costo"}, oGetSeek, cSeek := SPACE(60)
+      oBrw1,oBrw2,oFont,aListas:={"Lista 1","Lista 2","Precio de costo","Costo Sin IVA"}, oGetSeek, cSeek := SPACE(60)
 lFiltra := .f.
 oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS `transi_lispre` ("+;
                            "`codigo` BIGINT(13) NOT NULL,"+;
@@ -159,7 +159,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de lista de precio
    oBrw1:aCols[4]:lAutoSave := .t.
    oBrw1:aCols[4]:nEditType := EDIT_GET  
    oBrw1:aCols[4]:bOnPostEdit := {|oCol, xVal, nKey | CambiaPrecio(xval,oQryPar),oBrw1:Refresh()}
-   oBrw1:aCols[5]:bStrData := {|| IF(oQryPar:RecCount()>0,IF(oQryPar:numpre=1,'Lista 1',IF(oQryPar:numpre=2,'Lista 2','Precio costo')),nil)}
+   oBrw1:aCols[5]:bStrData := {|| IF(oQryPar:RecCount()>0,IF(oQryPar:numpre=1,'Lista 1',IF(oQryPar:numpre=2,'Lista 2',IF(oQryPar:numpre=3,'Precio costo',"Costo sin IVA"))),nil)}
 
    oBrw1:bKeyDown := { |nKey| IF (nKey == VK_DELETE,(BorrarArt(oQryPar:codigo),oQryPar:Refresh(),oBrw1:Refresh()),)}
    oBrw1:aCols[6]:bEditValue:= {|| IF(oQryPar:nosale,'Inactivo',' ') }  
@@ -272,7 +272,7 @@ RETURN nil
 **** AGREGAR ARTICULOS CON FILTRADO
 STATIC FUNCTION AgregaArtGen(oForm)
 LOCAL oDlgA,oError,oQryArt,nArticu:=0,cNomArt:=SPACE(50),oGet:=ARRAY(12),oQryAux,;
-      oBot:=ARRAY(2),acor:=ARRAY(4),lRta:=.f.,lBorrar:=.f., aListas := {"precioven","reventa","preciocos"},;
+      oBot:=ARRAY(2),acor:=ARRAY(4),lRta:=.f.,lBorrar:=.f., aListas := {"precioven","reventa","preciocos","precossiva"},;
       cLista:=aListas[base:lista_base],lBorrarFilt:=.f.,;
       nCodProv:=0,cNomProv:="TODOS"+SPACE(45),oQryProv:= oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"provee"),;
       nCodMar:=0,cNomMar:="TODOS"+SPACE(25),oQryMar:= oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"marcas"),;
@@ -367,7 +367,7 @@ RETURN nil
 STATIC FUNCTION AgregaArt(oForm)
 LOCAL oDlgA,oError,oQryArt,nArticu:=0,cNomArt:=SPACE(50),oGet1,oGet2,oGet3,oGet4,oGet5,lBorrar,;
       oBot:=ARRAY(2),acor:=ARRAY(4),lRta:=.f.,nPrecio:=0,nPrecioBase:=0,;
-      aListas := {"precioven","reventa","preciocos"},;
+      aListas := {"precioven","reventa","preciocos","precossiva"},;
       cLista:=aListas[base:lista_base]
 oQryArt:= oApp:oServer:Query("SELECT a.codigo AS codigo,a.nombre AS nombre,m.nombre AS Marca, "+;
                               "r.nombre AS Rubro, a."+cLista+" AS preciobase FROM ge_"+oApp:cId+"articu a "+;
