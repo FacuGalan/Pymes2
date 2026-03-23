@@ -1493,7 +1493,7 @@ ACTIVATE DIALOG oDlg1 CENTER
 IF !mrta
    RETURN nil
 ENDIF                      
-ventas := oApp:oServer:Query("SELECT v.*, c.* FROM ge_"+oApp:cId+"ventas_encab v LEFT JOIN "+;
+ventas := oApp:oServer:Query("SELECT v.*, c.cuit FROM ge_"+oApp:cId+"ventas_encab v LEFT JOIN "+;
                              "ge_"+oApp:cId+"clientes c ON v.codcli = c.codigo "+;
                              "WHERE letra <> 'X' AND "+; 
                              "v.fecmod >= " + ClipValue2Sql(mdesde) + " AND "+;
