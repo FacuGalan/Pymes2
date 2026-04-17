@@ -1158,7 +1158,11 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                oQryDet1:Skip()
          NEXT    
          @ y, 1 PRINT TO oPrn TEXT ALLTRIM(oGet[42]:cText) ;
-                          SIZE 18,3 CM FONT oFont ALIGN "L"   
+                          SIZE 18,3 CM FONT oFont ALIGN "L" LASTROW y 
+         IF base:parafecha <> base:fecha                           
+            @ y, 1 PRINT TO oPrn TEXT "Pedido para el "+DTOC(base:parafecha) ;
+                          SIZE 18,3 CM FONT oFont ALIGN "L" LASTROW y 
+         ENDIF
          @ 23.0,1  PRINT TO oPrn TEXT IF(!empty(base:vendedor),"Vendedor: "+ALLTRIM(base:vendedor),"") ;
                       SIZE 5,.5 CM FONT oFont3     
          IF lConImporte                         

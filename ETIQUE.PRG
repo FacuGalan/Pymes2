@@ -16,7 +16,7 @@ STATIC oQryFue, oQryEti, oBrw, nOrientation, nWidthPage, nHeightPage,;
 #define MARGEN_INF    0.10
 #define MARGEN_LAT    0.15
 
-PROCEDURE planil
+PROCEDURE planil(cPermisos, nListaPre)
 LOCAL aFon1, aFon2, aFon3, nCol1 := 0, nCol2 := 0, nCol3:= 0, lCodBarra :=.f., mbarra1,;
       oSay1, oSay2, oSay3, oBot1, oBot2, oDlg1, oDlg2, oDlg3, oFld,;
       oBot01,oBot02,oBot03,oBot04,oBot05,oBot06, oBot07, oBot08, oBot09, oBot10, oBot11, oLbx,;
@@ -31,6 +31,7 @@ LOCAL aFon1, aFon2, aFon3, nCol1 := 0, nCol2 := 0, nCol3:= 0, lCodBarra :=.f., m
       aMod := {"Modelo 1","Modelo 2","Modelo 3"}, mmod := 1, oCom1,  oFont, oError, aUnit,;
       lSinDecimales := .f., nDecimales := 2,nAncho, ;
       aOrientacion := {"Vertical","Horizontal"}, oCom2
+DEFAULT nListaPre := 0      
 nOrientation := 1
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 oQryFue  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"fuentes")
@@ -66,6 +67,13 @@ oApp:oServer:Execute("TRUNCATE etiqueT")
 oApp:oServer:NextResult()
 oQryEti  := oApp:oServer:Query( "SELECT * FROM etiqueT")
 oQryEti:Zap()
+IF nListaPre > 0
+   oApp:oServer:Execute("INSERT INTO etiqueT (codigo,nombre,precioven,reventa,neto,neto2,cant,horamod,fecmod) "+;
+    " (SELECT a.codigo, a.nombre, l.precio, 0 , round(l.precio /1.21,2), 0, 1 , a.horamod, a.fecmod "+;
+    "  FROM (SELECT codart, precio FROM ge_"+oApp:cId+"lispredet WHERE codlis = "+ClipValue2Sql(nListaPre)+") l "+;
+    " LEFT JOIN ge_"+oApp:cId+"articu a ON l.codart = a.codigo WHERE a.nombre IS NOT NULL )")
+    oQryEti:Refresh()
+ENDIF
 
 oFon1 := TFont():New(alltrim(oQryFue:cFace1)  ,oQryFue:nWidth1  ,oQryFue:nHeight1 ,.f.,oQryFue:lBold1,;
                    oQryFue:nEscape1,oQryFue:norienta1,oQryFue:nWeight1 ,oQryFue:lItalic1,;

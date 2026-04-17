@@ -89,15 +89,15 @@ DO WHILE .T.
     REDEFINE BUTTON oBot ID 201 OF oDlg ACTION (Filtrar()) 
 
     REDEFINE XBROWSE oBrw1 DATASOURCE oQry;
-              COLUMNS "NUMCOMP","FECHA","CODCLI","NOMBRE","NETO","IVA","IMPORTE","CONCEPTOS";
-              HEADERS "Numero","Fecha","Cliente","Nombre","Neto","I.V.A","Importe","Conceptos";
+              COLUMNS "TICOMP","NUMCOMP","FECHA","CODCLI","NOMBRE","NETO","IVA","IMPORTE","CONCEPTOS";
+              HEADERS "Cp","Numero","Fecha","Cliente","Nombre","Neto","I.V.A","Importe","Conceptos";
               FOOTERS ;
-              PICTURE "9999-99999999","@D","999999","@!","9,999,999,999.99","9,999,999,999.99","9,999,999,999.99","@!";
-              SIZES 90,70,60,270,90,90,100,200 ID 301 OF oDlg ON DBLCLICK IF(oQry:Reccount()>0,Facturar(),nil)
+              PICTURE "!!","9999-99999999","@D","999999","@!","9,999,999,999.99","9,999,999,999.99","9,999,999,999.99","@!";
+              SIZES 20,90,70,60,270,90,90,100,200 ID 301 OF oDlg ON DBLCLICK IF(oQry:Reccount()>0,Facturar(),nil)
     PintaBrw(oBrw1,0)
-    oBrw1:aCols[5]:nFooterTypE := AGGR_SUM
     oBrw1:aCols[6]:nFooterTypE := AGGR_SUM
     oBrw1:aCols[7]:nFooterTypE := AGGR_SUM
+    oBrw1:aCols[8]:nFooterTypE := AGGR_SUM
     oBrw1:MakeTotals()
 
     REDEFINE SAY oSay ID 401 
@@ -147,7 +147,7 @@ oApp:oServer:Execute("INSERT INTO facturacion_temp(ticomp,letra,numcomp,codcli,f
                      " FROM ge_"+oApp:cId+"ventas_encab v"+;
                      " LEFT JOIN ge_"+oApp:cId+"pagfac pf ON pf.ticomp = v.ticomp AND pf.letra = v.letra AND pf.numcomp = v.numcomp "+;
                      " LEFT JOIN ge_"+oApp:cId+"pagcon pc ON pc.numero = pf.numero "+;
-                     " WHERE v.ticomp = 'FC' AND v.letra = 'X' AND v.importe > 0 AND "+;
+                     " WHERE v.ticomp IN ('FC','FR') AND v.letra = 'X' AND v.importe > 0 AND "+;
                      " v.fecha >= "+ClipValue2Sql(dFecDesde)+" AND v.fecha <= "+ClipValue2Sql(dFecHasta)+" "+;
                      IF(nImpDesde>0,"AND v.importe >= "+ClipValue2Sql(nImpDesde)," ")+" "+;
                      IF(nImpHasta>0,"AND v.importe <= "+ClipValue2Sql(nImpHasta)," ")+" "+;
@@ -190,7 +190,7 @@ dFecVtoC:= DATE()
 cCae:= ""
 nTipFor:=01
 IF nTipoFecha = 1 
-    oQryValid:= oApp:oServer:Query("SELECT numcomp FROM ge_"+oApp:cId+"ventas_encab WHERE ticomp = 'FC' AND letra <> 'X' "+;
+    oQryValid:= oApp:oServer:Query("SELECT numcomp FROM ge_"+oApp:cId+"ventas_encab WHERE ticomp IN ('FC','FR') AND letra <> 'X' "+;
                                          "AND LEFT(numcomp,4) = "+ClipValue2Sql(cPuntoVta)+" AND fecmod > "+ClipValue2Sql(oQry:fecha))
 
     IF oQryValid:reccount() > 0
@@ -205,7 +205,7 @@ oQryPar:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros")
 oQryCliAux:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"clientes WHERE codigo = "+ClipValue2Sql(oQry:codcli))
 cLetra:=IF(oQryPar:coniva<>6,IF(oQryCliAux:coniva>2 .and. oQryCliAux:coniva <> 6,"B","A"),"C")
 
-oQryIva:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"ventivadet WHERE tipocomp = 'FC' AND letra = 'X' AND numfac = "+ClipValue2Sql(oQry:numcomp))
+oQryIva:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"ventivadet WHERE tipocomp = "+ClipValue2Sql(oQry:ticomp)+" AND letra = 'X' AND numfac = "+ClipValue2Sql(oQry:numcomp))
 DO WHILE !oQryIva:Eof()
       AADD(aTablaIva,{oQryIva:codiva,oQryIva:neto,oQryIva:iva})
    oQryIva:Skip()
@@ -224,23 +224,23 @@ TRY
         oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"ventas_encab SET numcomp = "+ClipValue2Sql(cNumComp)+",letra = "+ClipValue2Sql(cLetra)+","+;
                              "cae = "+ClipValue2Sql(cCae)+",fecvto = "+ClipValue2Sql(dFecVtoC)+","+;
                              "tipfor = "+ClipValue2Sql(STRTRAN(STR(nTipFor,2)," ","0"))+",fecmod = "+ClipValue2Sql(dFecha)+" "+;
-                             "WHERE ticomp = 'FC' AND letra = 'X' AND numcomp = "+ClipValue2Sql(oQry:numcomp))
+                             "WHERE ticomp = "+ClipValue2Sql(oQry:ticomp)+" AND letra = 'X' AND numcomp = "+ClipValue2Sql(oQry:numcomp))
 
-        oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"ventas_det SET nrofac = "+ClipValue2Sql("FC"+cLetra+cNumComp)+" "+;
-                             "WHERE nrofac = "+ClipValue2Sql("FCX"+oQry:numcomp))
+        oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"ventas_det SET nrofac = "+ClipValue2Sql(oQry:ticomp+cLetra+cNumComp)+" "+;
+                             "WHERE nrofac = "+ClipValue2Sql(oQry:ticomp+"X"+oQry:numcomp))
 
         oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"ventas_cuota SET numero = "+ClipValue2Sql(cNumComp)+",letra = "+ClipValue2Sql(cLetra)+" "+;
-                             "WHERE tipo = 'FC' AND letra = 'X' AND numero = "+ClipValue2Sql(oQry:numcomp))
+                             "WHERE tipo = "+ClipValue2Sql(oQry:ticomp)+" AND letra = 'X' AND numero = "+ClipValue2Sql(oQry:numcomp))
 
 
         oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"ventivadet SET numfac = "+ClipValue2Sql(cNumComp)+",letra = "+ClipValue2Sql(cLetra)+" "+;
-                             "WHERE tipocomp = 'FC' AND letra = 'X' AND numfac = "+ClipValue2Sql(oQry:numcomp))
+                             "WHERE tipocomp = "+ClipValue2Sql(oQry:ticomp)+" AND letra = 'X' AND numfac = "+ClipValue2Sql(oQry:numcomp))
 
         oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"concfact SET numcomp = "+ClipValue2Sql(cNumComp)+",letra = "+ClipValue2Sql(cLetra)+" "+;
-                             "WHERE ticomp = 'FC' AND letra = 'X' AND numcomp = "+ClipValue2Sql(oQry:numcomp))
+                             "WHERE ticomp = "+ClipValue2Sql(oQry:ticomp)+" AND letra = 'X' AND numcomp = "+ClipValue2Sql(oQry:numcomp))
 
         oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"pagfac SET numcomp = "+ClipValue2Sql(cNumComp)+",letra = "+ClipValue2Sql(cLetra)+" "+;
-                             "WHERE ticomp = 'FC' AND letra = 'X' AND numcomp = "+ClipValue2Sql(oQry:numcomp))
+                             "WHERE ticomp = "+ClipValue2Sql(oQry:ticomp)+" AND letra = 'X' AND numcomp = "+ClipValue2Sql(oQry:numcomp))
         oApp:oServer:CommitTransaction()
 CATCH oErr
       MsgStop("Error al grabar"+CHR(10)+oErr:description,"Error")
@@ -249,7 +249,7 @@ CATCH oErr
 END TRY
 Procesando(.f.)
 IF lImprimir
-    PrintFactuElec('FC',cLetra+cNumComp)
+    PrintFactuElec(oQry:ticomp,cLetra+cNumComp)
 ELSE 
     oGetF[3]:cText:= oApp:oServer:Query("SELECT SUM(importe*IF(ticomp='NC',-1,1)) AS suma FROM ge_"+oApp:cId+"ventas_encab "+;
     "WHERE letra <> 'X' AND MONTH(fecmod) = "+ClipValue2Sql(nMesF)+" AND YEAR(fecmod) = "+ClipValue2Sql(nAnioF)):suma

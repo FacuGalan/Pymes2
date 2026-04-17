@@ -53,7 +53,11 @@ oQry  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"lispre ORDER BY nombr
          DEFINE BUTTON RESOURCE "PROMO" OF oBar ;
             TOOLTIP "Promociones"  ;
             ACTION (oWnd1:End(),Promociones(cPermisos));
-            PROMPT "Promos" TOP WHEN("A"$cPermisos)   
+            PROMPT "Promos" TOP WHEN("A"$cPermisos)
+         DEFINE BUTTON RESOURCE "ETIQUE" OF oBar ;
+            TOOLTIP "Etiquetas"  ;
+            ACTION (oWnd1:End(),Planil(cPermisos,oQry:codigo));
+            PROMPT "Etiquetas" TOP WHEN("R"$cPermisos)      
 
             // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;

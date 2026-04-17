@@ -736,11 +736,11 @@ oQry := oApp:oServer:Query("SELECT s.*, a.nombre FROM ge_"+oApp:cId+"stocklotes 
 IF oQry:nRecCount > 0
    AADD(oApp:aVentanas,cVentana)
    DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-13.5
-   DEFINE DIALOG oDlg TITLE "Alertas Stock" FROM 09,15 TO 28,135 OF oApp:oWnd
+   DEFINE DIALOG oDlg TITLE "Alertas Vencimientos Stock" FROM 09,15 TO 28,135 OF oApp:oWnd
    oDlg:lHelpIcon := .f.
    //Reproduzco un sonido que esta guardado en el archivo ringin.wav
    SndPlaySound("ringin.wav",1)
-   @ 01,001 BITMAP FILE "BITMAPS\ALERT.PNG" SIZE 65,140 ADJUST PIXEL OF oDlg NOBORDER
+   @ 01,001 XIMAGE RESOURCE "ALERT1" SIZE 80,140 OF oDlg NOBORDER
    @ 01,080 XBROWSE oBrw1 DATASOURCE oQry SIZE 325,140 OF oDlg PIXEL ;
        COLUMNS "id","fechavto","nombre","restan";
        HEADERS "id","Fecha","Producto","Restantes";
@@ -772,7 +772,7 @@ IF oQry:nRecCount > 0
    oDlg:lHelpIcon := .f.
    //Reproduzco un sonido que esta guardado en el archivo ringin.wav
    SndPlaySound("ringin.wav",1)
-   @ 01,001 BITMAP FILE "BITMAPS\ALERT.PNG" SIZE 65,140 ADJUST PIXEL OF oDlg NOBORDER
+   @ 01,001 XIMAGE RESOURCE "ALERT2" SIZE 80,140  OF oDlg NOBORDER
    @ 01,080 XBROWSE oBrw1 DATASOURCE oQry SIZE 325,140 OF oDlg PIXEL ;
        COLUMNS "codigo","nombre","stockact","stockmin";
        HEADERS "Cidigo","Producto","Stock","Minimo";

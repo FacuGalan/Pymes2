@@ -11,7 +11,7 @@ MEMVAR oApp
 STATIC oQryBrw,oQry, oQry2, oQry3, oQry4, oQry5, oQry6, oQry7 ,;
        oWnd1, oBrw, oDlg, cVentana,oBrw1, oQryArt,oQryPun , lTipoArt, nActivos,cWhere, dDesde, dHasta
 PROCEDURE Artic(cPermisos)
-LOCAL oBar, hHand, oGetSeek, cSeek := SPACE(50), oPop2, oPop3
+LOCAL oBar, hHand, oGetSeek, cSeek := SPACE(50), oPop2, oPop3, oPop4
 cVentana := PROCNAME()
 IF ASCAN(oApp:aVentanas,cVentana) > 0
    hHand := ASCAN(oApp:aVentanas,cVentana)
@@ -42,6 +42,10 @@ MENU oPop3 POPUP
      IF "A"$cPermisos
         MENUITEM "Historial de ventas"    ACTION (HistorialVentas(),oGetSeek:SetFocus())
      ENDIF   
+ENDMENU
+MENU oPop4 POPUP
+     MENUITEM "Listar recetas"  ACTION (RepRecetas(),oGetSeek:SetFocus())
+     MENUITEM "Duplicar Receta" ACTION DuplicarReceta()
 ENDMENU
 
    oQry2  := oApp:oServer:Query( "SELECT codigo,nombre,alias FROM ge_"+oApp:cId+"provee ORDER BY codigo")
@@ -106,7 +110,7 @@ ENDMENU
          DEFINE BUTTON RESOURCE "PROD" OF oBar ;
             TOOLTIP "Reporte de Recetas"  ;
             ACTION (RepRecetas(),oGetSeek:SetFocus());
-            PROMPT "Lista Rec." TOP WHEN("R"$cPermisos)         
+            PROMPT "Lista Rec." TOP WHEN("R"$cPermisos)    MENU oPop4
          // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;
             TOOLTIP "Cerrar Ventana" ;
@@ -427,10 +431,10 @@ RETURN .f.
 
 *************************************************************************************************************
 ********* Modificar reseta del articulo 
-FUNCTION Reseta(base,oForm,lReceta)
+FUNCTION Reseta(base,oForm,lReceta, mcodigo_duplica)
 LOCAL oDlgR,oGet:=ARRAY(5),oBot:=ARRAY(5),oBrwRes,oQryRes,nPara:=base:cantprod,oQryArt,;
       nCodart:=0,cDetArt:=SPACE(30),nCantidad:=1,nTotal:=0,oFontTotal,lRta:=.F.,oError
-DEFAULT lReceta := .t.      
+DEFAULT lReceta := .t., mcodigo_duplica := 0      
 oApp:oServer:Execute("";
     + "CREATE TEMPORARY TABLE IF NOT EXISTS reseta_temp ";
     +"( `CODART` BIGINT(14) NOT NULL,";  
@@ -447,7 +451,7 @@ oApp:oServer:Execute("INSERT INTO reseta_temp (codart,detart,cantidad,punit,ptot
                    "(SELECT r.codusa,a.nombre,r.cantidad,a.preciocos*if(a.endolares,d.dolar,1),(r.cantidad * a.preciocos*if(a.endolares,d.dolar,1)) "+;
                     "FROM ge_"+oApp:cId+"reseta r LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = r.codusa "+;
                     "LEFT JOIN ge_"+oApp:cId+"parametros d ON true "+;
-                    "WHERE r.codart = "+ClipValue2SQL(base:codigo)+")")
+                    "WHERE r.codart = "+ClipValue2SQL(IF(mcodigo_duplica>0,mcodigo_duplica, base:codigo))+")")
 oApp:oServer:NextResult()
 oQryRes:= oApp:oServer:Query("SELECT * FROM reseta_temp")
 oQryArt:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu"+IF(lReceta," WHERE  mprima IS TRUE",""))
@@ -498,7 +502,7 @@ DEFINE DIALOG oDlgR RESOURCE "RESETA" OF oForm TITLE IF(lReceta,"Receta Producci
 ACTIVATE DIALOG oDlgR CENTER ON INIT oGet[1]:SetFocus()
 
 IF !lRta
-  RETURN nil 
+  RETURN .f. 
 ENDIF
 IF lReceta
     base:cantprod:= nPara
@@ -533,7 +537,7 @@ IF lReceta
 ENDIF
 EXIT
 ENDDO
-RETURN nil
+RETURN .t.
 
 *************************************************
 STATIC FUNCTION ActualizarCosto(base,nTotal,nPara)
@@ -664,7 +668,7 @@ REDEFINE GET oGet[01] VAR base:codigo PICTURE "99999999999999" ID 100 OF oForm
   REDEFINE GROUP oGru[1] ID 401 OF oForm
   REDEFINE CHECKBOX oGet[44] VAR base:mprima      ID 4007 OF oForm
   REDEFINE CHECKBOX oGet[45] VAR base:produccion  ID 4008 OF oForm
-  REDEFINE BUTTON oBot[3] ID 4009 OF oForm ACTION (Reseta(base,oForm),oGet[06]:Refresh()) WHEN (base:produccion)
+  REDEFINE BUTTON oBot[3] ID 4009 OF oForm ACTION (Reseta(base,oForm,.t.,oQryBrw:codigo),oGet[06]:Refresh()) WHEN (base:produccion)
   
 
   REDEFINE GET oGet[04] VAR base:prov ID 104 OF oForm PICTURE "99999";
@@ -750,7 +754,7 @@ REDEFINE GET oGet[01] VAR base:codigo PICTURE "99999999999999" ID 100 OF oForm
   REDEFINE GET oGet[32] VAR base:stockact   ID 133 OF oForm PICTURE "99999999.99"
   REDEFINE GET oGet[33] VAR base:stockide   ID 134 OF oForm PICTURE "99999999.99"
   REDEFINE CHECKBOX oGet[53] VAR base:stockotro  ID 4005 OF oForm WHEN(.f.)
-  REDEFINE BUTTON oBot[8] ID 4015 OF oForm ACTION (Reseta(base,oForm,.f.)) WHEN (.f.)
+  REDEFINE BUTTON oBot[8] ID 4015 OF oForm ACTION (Reseta(base,oForm,.f.,oQryBrw:codigo)) WHEN (.f.)
 
   REDEFINE GET oGet[54] VAR base:condicioncompra   ID 4020 OF oForm 
 
@@ -1782,3 +1786,43 @@ DEFINE DIALOG oDlg TITLE "Info del Producto" FROM 09,15 TO 28,135 OF oApp:oWnd
    @10,423 BUTTON oBot PROMPT "&Salir" OF oDlg SIZE 30,10 ACTION oDlg:End() PIXEL   
 ACTIVATE DIALOG oDlg CENTER 
 RETURN nil
+
+******************************************
+** Duplicar Recetas
+STATIC FUNCTION DuplicarReceta()
+LOCAL mcodigo := 0, base, oQry, mcant
+LOCAL oDlgH, acor:= ARRAY(4), mrta:=.F., oBot1, oBot2,;
+      i, oError, cSql, oGet1, oGet2       
+oQry:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu WHERE codigo = " + ClipValue2Sql(oQryBrw:codigo))
+IF !oQry:produccion .and. !oQry:stockotro
+   MsgInfo("Ese producto no es produccion ni stock de otro","Atencion")
+   RETURN nil 
+ENDIF   
+DO WHILE .T.
+    DEFINE DIALOG oDlgH TITLE "Duplicar Receta de Articulos" FROM 03,15 TO 10,65
+       acor := AcepCanc(oDlgH)    
+       @ 07,05 SAY "Codigo a Copiar:" OF oDlgH SIZE 60,12 PIXEL RIGHT  
+       @ 05,70 GET oGet2 VAR mcodigo        OF oDlgH PIXEL PICTURE "99999999999999" RIGHT
+       @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Buscar" OF oDlgH SIZE 30,10 ;
+               ACTION ((mrta := .t.), oDlgH:End() ) PIXEL
+       @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlgH SIZE 30,10 ;
+               ACTION ((mrta := .f.), oDlgH:End() ) PIXEL CANCEL
+    ACTIVATE DIALOG oDlgH CENTER 
+    IF !mrta
+       RETURN nil 
+    ENDIF   
+    IF oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"reseta WHERE codart = "+str(mcodigo)):nRecCount = 0
+       MsgInfo("Ese producto no tiene receta","Atencion")
+       LOOP
+    ENDIF
+    mcant := oApp:oServer:Query("SELECT cantprod FROM ge_"+oApp:cId+"articu WHERE codigo = "+str(mcodigo)):cantprod
+    EXIT 
+ENDDO
+oQry:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu WHERE codigo = " + ClipValue2Sql(oQryBrw:codigo))
+base := oQry:GetRowObj()
+base:cantprod := mcant
+IF Reseta(base,oWnd1,base:produccion,mcodigo)   
+   oQry:cantprod := mcant
+   oQry:Save()
+ENDIF   
+RETURN NIL

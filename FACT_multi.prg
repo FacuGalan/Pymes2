@@ -732,7 +732,7 @@ LOCAL nNumero,cNumComp,cLetra:=IF(oApp:tipo_iva<>6,IF(nCondicion = 1 .or. nCondi
       nNumDep, nPunLocal, nSaldoCta, oTransferencias,;
       nCodCue := 0, nNumOpe := 0, cObserva1:="Pago por Pos "+SPACE(255), oQryTransf,;
       nCodCue2 := 0, nNumOpe2 := 0, cObserva2:="Pago por Pos "+SPACE(255),;
-      nPuntos := 0, nPuntosAcu := 0, cSQL
+      nPuntos := 0, nPuntosAcu := 0, cSQL, aMetodosPago := {}
 nTransf:= oApp:oServer:Query("SELECT SUM(importe) AS monto FROM formapag_temp WHERE tipopag = 2"):monto
 oTransferencias:= oApp:oServer:Query("SELECT f1.* FROM formapag_temp f1 LEFT JOIN ge_"+oApp:cId+"forpag f2 ON f2.codigo = f1.codforma WHERE f1.tipopag = 2 AND f2.codcue = 0")
 IF nTransf > 0
@@ -1013,17 +1013,19 @@ cNumComp := STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNumero,8)," ","0")
       oApp:oServer:RollBack()
       RETURN .F.
  END TRY
+aMetodosPago := oApp:oServer:Query("SELECT * FROM formapag_temp"):FillArray(,{"FORMAPAG","IMPORTE"})
+aadd(aMetodosPago, {"VUELTO",nVuelto})
 IF !lFisc
    IF oQryPar:pregunta_ticket
         IF MsgYesNo("¿Desea imprimir el ticket no fiscal?","Atencion!")
-          FacturaNoFiscal('FC',cLetra+cNumComp)
+          FacturaNoFiscal('FC',cLetra+cNumComp,aMetodosPago)
         ENDIF
       ELSE   
-      FacturaNoFiscal('FC',cLetra+cNumComp)
+      FacturaNoFiscal('FC',cLetra+cNumComp,aMetodosPago)
    ENDIF
    ELSE 
    IF oQryPun:tipofac = 1
-      PrintFactuElec('FC',cLetra+cNumComp) 
+      PrintFactuElec('FC',cLetra+cNumComp,aMetodosPago) 
    ENDIF
 ENDIF
 oQryPendi:Refresh()

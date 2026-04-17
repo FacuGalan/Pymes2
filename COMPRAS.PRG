@@ -1192,6 +1192,10 @@ TRY
    oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"compivadet WHERE tipocomp = " + ClipValue2Sql(oQryBrw:tipocomp)+" "+;
                        "AND letra = " + ClipValue2Sql(oQryBrw:letra)+" "+;
                        "AND codpro = " + ClipValue2Sql(oQryBrw:codpro)+" "+;
+                       "AND numfac = " + ClipValue2Sql(oQryBrw:numfac))  
+   oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"compretdet WHERE tipocomp = " + ClipValue2Sql(oQryBrw:tipocomp)+" "+;
+                       "AND letra = " + ClipValue2Sql(oQryBrw:letra)+" "+;
+                       "AND codpro = " + ClipValue2Sql(oQryBrw:codpro)+" "+;
                        "AND numfac = " + ClipValue2Sql(oQryBrw:numfac))        
   oApp:oServer:CommitTransaction()
   oQryBrw:Refresh(.f.)

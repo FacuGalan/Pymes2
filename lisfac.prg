@@ -522,8 +522,8 @@ DO WHILE !oQryUsu:Eof()
    oQryUsu:Skip()
 ENDDO
 // Defino los distintos tipos de letra
-     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-10
-     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-10 BOLD
+     DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
+     DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
      DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10
      DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 // Pongo el cursor con el reloj
@@ -657,6 +657,7 @@ ELSE
       COLUMN TITLE "M.Pago"           DATA oQry:mpago  PICTURE "99999999.99" SIZE 10 FONT 2 TOTAL
       COLUMN TITLE "Retenciones"      DATA oQry:reten  PICTURE "99999999.99" SIZE 10 FONT 2 TOTAL
       COLUMN TITLE "Importe"          DATA oQry:total  PICTURE "99999999.99" SIZE 10 FONT 2 TOTAL
+      COLUMN TITLE "Anticipos"        DATA oQry:anti   PICTURE "99999999.99" SIZE 10 FONT 2 TOTAL
       IF !lPorTurno
          COLUMN TITLE "Cierre"         DATA oQry:id_cierre  SIZE 06 FONT 1
       ENDIF

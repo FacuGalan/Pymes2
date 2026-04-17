@@ -502,7 +502,7 @@ RETURN NIL
 ********************************************
 ** Alertas
 FUNCTION Alertas(lPrimerVez)
-LOCAL oQry, oDlg, oSay, oBot, aNueva, i,j, cVentana, oFont, oBrw1
+LOCAL oQry, oDlg, oSay, oBot := ARRAY(6), aNueva, i,j, cVentana, oFont, oBrw1
 DEFAULT lPrimerVez := .f.
 cVentana := PROCNAME()
 IF ASCAN(oApp:aVentanas,cVentana) > 0
@@ -520,29 +520,29 @@ IF oQry:nRecCount > 0
    oDlg:lHelpIcon := .f.
    //Reproduzco un sonido que esta guardado en el archivo ringin.wav
    SndPlaySound("ringin.wav",1)
-   @ 01,001 BITMAP FILE "BITMAPS\ALERT.PNG" SIZE 65,140 ADJUST PIXEL OF oDlg NOBORDER
+   @ 00,000 XIMAGE RESOURCE "ALERT" SIZE 80,140 OF oDlg NOBORDER 
    @ 01,080 XBROWSE oBrw1 DATASOURCE oQry SIZE 325,140 OF oDlg PIXEL ;
        COLUMNS "id","fecha","hora","horafin","motivo","contacto","estado","alerta";
        HEADERS "id","Fecha","Hora","Hasta","Motivo","Cliente","Hecha?","Alerta?";
        SIZES   25,65,45,45,225,55,55,55   
    PintaBrw(oBrw1,8)
-   *oBrw1:aCols[6]:bStrData := { || If( oQry:estado, " ","Sin Hacer" ) }
-   oBrw1:aCols[ 7 ]:bEditValue := { || oQry:estado = .T. }
-   *oBrw1:aCols[7]:bStrData := { || If( oQry:alerta, "Con Alerta"," " ) }
-   oBrw1:aCols[ 8 ]:bEditValue := { || oQry:alerta = .T. }
-   oBrw1:aCols[7]:SetCheck(,.t.)
-   oBrw1:aCols[8]:SetCheck(,.t.)
+   oBrw1:aCols[6]:bStrData := { || If( oQry:estado, " ","Sin Hacer" ) }
+   //oBrw1:aCols[ 7 ]:bEditValue := { || oQry:estado = .T. }
+   oBrw1:aCols[7]:bStrData := { || If( oQry:alerta, "Con Alerta"," " ) }
+   //oBrw1:aCols[ 8 ]:bEditValue := { || oQry:alerta = .T. }
+   //oBrw1:aCols[7]:SetCheck(,.t.)
+   //oBrw1:aCols[8]:SetCheck(,.t.)
    oBrw1:nFreeze := 8 
    oBrw1:CreateFromCode()
    @01,408 GROUP TO 140,468  PIXEL OF oDlg 
-   @10,423 BUTTON oBot PROMPT "&Salir" OF oDlg SIZE 30,10 ACTION oDlg:End() PIXEL
-   @25,423 BUTTON oBot PROMPT "&Silenciar" OF oDlg SIZE 30,10 ;
+   @10,423 BUTTON oBot[1] PROMPT "&Salir" OF oDlg SIZE 30,10 ACTION oDlg:End() PIXEL
+   @25,423 BUTTON oBot[2] PROMPT "&Silenciar" OF oDlg SIZE 30,10 ;
     ACTION IF(MsgNoYes("Seguro de sacar alerta?","Atencion"),(oQry:alerta:=.f.,oQry:Save(),oBrw1:Refresh()),.t.);
      PIXEL WHEN(oQry:nRecCount>0)
-   @40,423 BUTTON oBot PROMPT "&Realizada" OF oDlg SIZE 30,10 ;
+   @40,423 BUTTON oBot[3] PROMPT "&Realizada" OF oDlg SIZE 30,10 ;
     ACTION IF(MsgNoYes("Confirma como realizada esta tarea?","Atencion"),;
       (oQry:estado:=.t.,oQry:Save(),oBrw1:Refresh()),.t.) PIXEL WHEN(oQry:nRecCount>0)
-   @55,423 BUTTON oBot PROMPT "&Mover" OF oDlg SIZE 30,10 ;
+   @55,423 BUTTON oBot[4] PROMPT "&Mover" OF oDlg SIZE 30,10 ;
     ACTION IF(Mover(oQry,oDlg),oBrw1:Refresh(),.t.) PIXEL  WHEN(oQry:nRecCount>0)
    // Activo el dialog
    ACTIVATE DIALOG oDlg CENTER ON INIT DlgOnTop( .t.,oDlg:hWnd )

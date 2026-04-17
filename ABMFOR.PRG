@@ -82,6 +82,7 @@ IF lAlta
    base := oQry:GetBlankRow()
    base:codigo := oApp:oServer:GetAutoIncrement("ge_"+oApp:cId+"forpag")
    base:tactil := .f.
+   base:tipo := 1
    ELSE
    base := oQry:GetRowObj()
    oQry:lAppend := .f.
