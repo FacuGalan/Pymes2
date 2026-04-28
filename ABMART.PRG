@@ -281,9 +281,9 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Articulo" RESOU
   REDEFINE GET oGet[16] VAR base:preciocos  ID 117 OF oForm PICTURE "999999999.99";
                         WHEN((oGet[16]:cText:= nNeto + base:impint +;
                         nNeto * (base:flete/100) + ((nNeto * oQry3:tasa )/100)) = "-999999")
-  REDEFINE GET oGet[17] VAR base:porcentaje ID 118 OF oForm PICTURE "999.99";
+  REDEFINE GET oGet[17] VAR base:porcentaje ID 118 OF oForm PICTURE "9999.99";
                VALID(CalcularPrecio(oGet,base,.t.))
-  REDEFINE GET oGet[18] VAR base:porcentajerev  ID 119 OF oForm PICTURE "999.99";
+  REDEFINE GET oGet[18] VAR base:porcentajerev  ID 119 OF oForm PICTURE "9999.99";
                VALID(CalcularPrecio(oGet,base,.f.))
   REDEFINE GET oGet[19] VAR base:reventa    ID 120 OF oForm PICTURE "999999999.999"
   REDEFINE GET oGet[20] VAR base:precioven  ID 121 OF oForm PICTURE "999999999.999"
@@ -733,9 +733,9 @@ REDEFINE GET oGet[01] VAR base:codigo PICTURE "99999999999999" ID 100 OF oForm
   REDEFINE GET oGet[16] VAR base:preciocos  ID 117 OF oForm PICTURE "999999999.99";
                         WHEN((oGet[16]:cText:= nNeto + base:impint +;
                         nNeto * (base:flete/100) + ((nNeto * oQry3:tasa )/100)) = "-999999")
-  REDEFINE GET oGet[17] VAR base:porcentaje ID 118 OF oForm PICTURE "999.99";
+  REDEFINE GET oGet[17] VAR base:porcentaje ID 118 OF oForm PICTURE "9999.99";
                VALID(CalcularPrecio(oGet,base,.t.))
-  REDEFINE GET oGet[18] VAR base:porcentajerev  ID 119 OF oForm PICTURE "999.99";
+  REDEFINE GET oGet[18] VAR base:porcentajerev  ID 119 OF oForm PICTURE "9999.99";
                VALID(CalcularPrecio(oGet,base,.f.))
   REDEFINE GET oGet[19] VAR base:reventa    ID 120 OF oForm PICTURE "999999999.99"
   REDEFINE GET oGet[20] VAR base:precioven  ID 121 OF oForm PICTURE "999999999.99"

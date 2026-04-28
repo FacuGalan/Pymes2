@@ -129,6 +129,7 @@ IF lAlta
                      "SELECT p.codart,a.nombre,0 FROM ge_"+oApp:cId+"gruposdet p LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = p.codart "+;
                      "WHERE p.codgru = " + ClipValue2Sql(oQry:codigo))
    oApp:oServer:NextResult()
+   oQryPro:lAppend := .f.
 ENDIF
 oQryPar:= oApp:oServer:Query("SELECT * FROM transi_artp")
 nAnt := oQryPar:nRecCount
@@ -144,7 +145,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Fragancias, gus
    @ 05, 40 GET oGet[1] VAR base:codigo PICTURE "99999" OF oForm PIXEL RIGHT WHEN(.F.)
    @ 20, 40 GET oGet[2] VAR base:nombre PICTURE "@!"    OF oForm PIXEL ;
                 VALID(base:nombre<>SPACE(30))  
-   @ 70,243 BUTTON oBot[3] PROMPT "+" SIZE 12,12 OF oForm PIXEL ACTION(AgregaArt(oForm),oQryPar:Refresh(),;
+   @ 70,243 BUTTON oBot[3] PROMPT "+" SIZE 12,12 OF oForm PIXEL ACTION(AgregaArt(oForm,base:codigo),oQryPar:Refresh(),;
                                                                        oBrw1:Refresh())   
    @ 45, 05 XBROWSE oBrw1 DATASOURCE oQryPar ;
            COLUMNS "codart","nomart";
@@ -213,7 +214,7 @@ RETURN nil
 
 
 *******************************************************************************
-STATIC FUNCTION AgregaArt(oForm)
+STATIC FUNCTION AgregaArt(oForm,nGru)
 LOCAL oDlgA,oError,oQryArt,nArticu:=0,cNomArt:=SPACE(30),oGet1,oGet2,;
       oBot:=ARRAY(2),acor:=ARRAY(4),lRta:=.f.
 oQryArt:= oApp:oServer:Query("SELECT codigo,nombre,precioven,reventa,stockact,stockmin,stockotro FROM ge_"+oApp:cId+"articu")
@@ -233,6 +234,11 @@ DEFINE DIALOG oDlgA TITLE "Seleccione el articulo" FROM 05,15 TO 12,70 OF oForm
 ACTIVATE DIALOG oDlgA CENTER ON INIT oGet1:SetFocus()
 IF !lRta
    RETURN nil
+ENDIF
+IF oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"gruposdet WHERE codgru <> "+ClipValue2Sql(nGru)+" AND "+;
+                      " codart = " + ClipValue2Sql(nArticu)):nRecCount > 0 
+   MsgStop("Este artículo está en otro grupo, imposible agregar","Error")
+   RETURN nil 
 ENDIF
 TRY
   oApp:oServer:BeginTransaction() 

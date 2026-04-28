@@ -9,7 +9,7 @@ FUNCTION Punto()
 LOCAL oGet1, oGet2, oGet3, oGet4, oGet5, oGet6, oGet7, oGet8, oGet9, oGet10,;
       oGet11, oGet12, oGet13, oGet14, oGet15, oGet16, oGet17, oGet18, oGet19, oGet20, ;
       oGet21, oGet22, oGet23, oGet24, oGet25, oGet26, oGet27, oGet28, oGet29, oGet30, oGet31, oGet32, oGet33,;
-      oGet34, oGet35, oGet36, oGet37,;
+      oGet34, oGet35, oGet36, oGet37, oGet38,;
       oBot1, oBot2, oBot3, oDlg1, base, hHand, oQry, oError, aCor, mrta := .f.,;
       aCobrar := {"Cobro Salon","Cobro distribucion","Cobro ambos"}, oFont,;
       aTipos :={"Facturacion electronica","Facturacion con control. fiscal"}, aTipoC:={"Codigo interno","Codigo de barras"},;
@@ -93,7 +93,8 @@ DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 40,75 OF oApp
 
    //Impresora de ticket para el punto de venta
    nImp := IF(EMPTY(base:impresorat),1,ASCAN(aImp,ALLTRIM(base:impresorat)))
-   @140, 10 CHECKBOX oGet17 VAR base:imprimeTic  PROMPT "Usa impresora Ticket" OF oDlg1 PIXEL SIZE 65,12   
+   @125, 10 CHECKBOX oGet17 VAR base:imprimeTic  PROMPT "Usa impresora Ticket" OF oDlg1 PIXEL SIZE 65,12 WHEN !base:dosenuno
+   @140, 10 CHECKBOX oGet37 VAR base:dosenuno  PROMPT "Imprime 2 por hoja" OF oDlg1 PIXEL SIZE 65,12   WHEN !base:imprimeTic
    @140, 85 CHECKBOX oGet18 VAR base:imprimeDat  PROMPT "Imprime encabezado"   OF oDlg1 PIXEL SIZE 65,12
    @140,155 COMBOBOX oGet19 VAR nImp ITEMS aImp  SIZE 65,12 OF oDlg1 PIXEL
    @155, 10 CHECKBOX oGet17 VAR base:tick80  PROMPT "De 80mm" OF oDlg1 PIXEL SIZE 65,12 WHEN(base:imprimeTic)  

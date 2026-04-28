@@ -1720,6 +1720,8 @@ DEFINE DIALOG oDlgC RESOURCE "FORMAPAGT" OF oDlg1
                                        IF(nKey==123,oBot[26]:Click,.F.))))))))}
 ACTIVATE DIALOG oDlgC CENTER ON INIT (PoneFormas(oBot1)) VALID ((nPagadoT:=oBrwPag:aCols[2]:nTotal) >=0)
 IF !lRta
+    nVuelto:= 0
+    nPagado:= 0
     RETURN nil 
 ENDIF
 IF ROUND(oApp:oServer:Query("SELECT SUM(importe) AS monto FROM formapag_temp WHERE tipopag <> 1"):monto,2) > ROUND(nTotal,2) 
@@ -1759,7 +1761,7 @@ IF oBoton:cargo > 0
     ELSE 
     n := Val(oGet1:cText)
     oGet1:cText := 0
-    Buscar(oQryForPag,oBoton,oGet1)
+    Buscar(oQryForPag,oBoton,oGet1,,'1','tactil')
     nRenglon:= oApp:oServer:GetAutoIncrement("formapag_temp")
     cTexto := oQryForPag:nombre
     oGet1:cText := n

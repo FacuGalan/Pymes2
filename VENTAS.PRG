@@ -2349,6 +2349,16 @@ DEFAULT aMetodosPago := {}
            DEFINE FONT oFont5  NAME "ARIAL"       SIZE config:fon*.8,config:fon*1.9 BOLD
            AddFontResource( "i2of5txt.ttf" )
            DEFINE FONT oFont4 NAME "Interleaved 2of5 Text"    SIZE config:fon*1.5, config:fon*5 
+           IF oQryPun = NIL
+              oQryPun := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ClipValue2Sql(oApp:cip))
+           ENDIF
+           IF oQryPun:dosenuno
+              P2x1FacturaElectronica(cTipoDoc, cNumComp, oQryVen1, oQryDet1, oQryIvaDet,;
+                                     oQryP, oQryPar1, config, cCondVen, cFormaPag,;
+                                     nIndiceDolar, cSigno, cDomicilioFiscal, aiva)
+              oApp:cDestinoMail := " "
+              RETURN nil
+           ENDIF   
            PRINT oPrn NAME "Factura "+cTipoDoc+cNumComp PREVIEW MODAL
            oPrn:SetPortrait()
            oPrn:SetPage(9)
@@ -3096,6 +3106,15 @@ DEFAULT dFecVen:= nil, lImpSinIva := .f., lPreciosFinales := .f.
        DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
        DEFINE FONT oFont2  NAME "CALIBRI"     SIZE config:fon*4,config:fon*7 BOLD   
        DEFINE FONT oFont3  NAME "ARIAL"       SIZE config:fon,config:fon*2.5 BOLD
+       IF oQryPun = NIL
+          oQryPun := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ClipValue2Sql(oApp:cip))
+       ENDIF
+       IF oQryPun:dosenuno
+          P2x1Presupuesto(oQryDet, oGet, oBrw, lDolar, dFecVen, cNumcomp,;
+                          lImpSinIva, lPreciosFinales, oQryP, config, aiva)
+          oApp:cDestinoMail := " "
+          RETURN nil 
+       ENDIF   
        PRINT oPrn NAME "Presupuesto "+cNumcomp PREVIEW MODAL
        oPrn:SetPortrait()
        oPrn:SetPage(9)
@@ -3612,6 +3631,15 @@ DEFAULT cFactRemitada:=''
          DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
          DEFINE FONT oFont2  NAME "CALIBRI"     SIZE config:fon*4,config:fon*7 BOLD   
          DEFINE FONT oFont3  NAME "ARIAL"       SIZE config:fon,config:fon*2.5 BOLD
+         IF oQryPun = NIL
+            oQryPun := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ClipValue2Sql(oApp:cip))
+         ENDIF
+         IF oQryPun:dosenuno
+            P2x1Remito(oQryDet, oGet, oBrw, cNumComp, nCodCli, cFactRemitada,;
+                       oQryP, oQryCli, lRta, config, aiva)
+            oApp:cDestinoMail := " "
+            RETURN NIL
+         ENDIF   
          PRINT oPrn NAME "Remito "+cNumcomp  PREVIEW MODAL
          oPrn:SetPortrait()
          oPrn:SetPage(9)
@@ -4025,6 +4053,12 @@ DEFAULT aMetodosPago := {}
            DEFINE FONT oFont5  NAME "ARIAL"       SIZE config:fon*.8,config:fon*1.9 BOLD 
            AddFontResource( "i2of5txt.ttf" )
            DEFINE FONT oFont4 NAME "Interleaved 2of5 Text"    SIZE config:fon*1.5, config:fon*5 
+           IF oQryP:dosenuno
+              P2x1FacturaNoFiscal(cTipoDoc, cNumComp, oQryVen1, oQryDet1, oQryIvaDet,;
+                                  oQryP, oQryPar, config, cCondVen, cFormaPag, aiva)
+              oApp:cDestinoMail := " "
+              RETURN nil 
+           ENDIF   
            PRINT oPrn NAME "Presupuesto "+cNumcomp PREVIEW MODAL
            oPrn:SetPortrait()
            oPrn:SetPage(9)
@@ -4781,6 +4815,15 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
    DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
    DEFINE FONT oFont2  NAME "CALIBRI"     SIZE config:fon*4,config:fon*7 BOLD   
    DEFINE FONT oFont3  NAME "ARIAL"       SIZE config:fon,config:fon*2.5 BOLD
+   IF oQryPun = NIL
+      oQryPun := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ClipValue2Sql(oApp:cip))
+   ENDIF   
+   IF oQryPun:dosenuno
+      P2x1ReimprimirPresu(oQryPresu, oQryDet, oQryCli, cNumcomp, dFecVen, lDolar,;
+                          lImpSinIva, config, aiva)
+      oApp:cDestinoMail := " "
+      RETURN nil
+   ENDIF
    PRINT oPrn NAME "Presupuesto "+cNumcomp PREVIEW MODAL
    oPrn:SetPortrait()
    oPrn:SetPage(9)
@@ -5261,4 +5304,1422 @@ oGet[42]:cText := oBrw:aCols[11]:nTotal
 oGet[19]:Refresh()
 oGet[20]:Refresh()
 oGet[21]:Refresh()
+RETURN nil
+
+
+*****************************************************************************
+*** Impresion 2x1 (A4 apaisado, original y duplicado lado a lado).
+*** Activado por la presencia del archivo 2x1.txt en la carpeta del sistema.
+*** Cada hoja fisica contiene un par de copias (ORIGINAL+DUPLICADO,
+*** TRIPLICADO+CUADRUPLICADO, etc.). Si el detalle no entra en una mitad,
+*** se abre nueva hoja replicando el encabezado en ambos lados.
+*****************************************************************************
+
+STATIC FUNCTION P2x1FacturaElectronica(cTipoDoc, cNumComp, oQryVen1, oQryDet1, oQryIvaDet,;
+                                       oQryP, oQryPar1, config, cCondVen, cFormaPag,;
+                                       nIndiceDolar, cSigno, cDomicilioFiscal, aiva)
+LOCAL i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, oFont5
+LOCAL nBultos, lImprimio_promo, nDesFac
+LOCAL nFx := 0.7, nL, nOffX, nHorzMid
+LOCAL aOriginal := {"ORIGINAL","DUPLICADO","TRIPLICADO","CUADRUPLICADO","QUINTUPLICADO","SEXTUPLICADO"}
+LOCAL nTotalCopias, nPar, nPares, nIdxL, nIdxR, nLadoTope, nIdxCopia
+LOCAL nHoja, nConfigFon
+
+   nConfigFon := config:fon
+   IF nConfigFon < 14
+      nConfigFon := nConfigFon * 2.8
+   ENDIF
+   DEFINE FONT oFont   NAME "ARIAL"   SIZE nConfigFon*nFx,      nConfigFon*2.5*nFx
+   DEFINE FONT oFont1  NAME "CALIBRI" SIZE nConfigFon*1.5*nFx,  nConfigFon*4*nFx   BOLD
+   DEFINE FONT oFont2  NAME "CALIBRI" SIZE nConfigFon*4*nFx,    nConfigFon*7*nFx   BOLD
+   DEFINE FONT oFont3  NAME "ARIAL"   SIZE nConfigFon*nFx,      nConfigFon*2.5*nFx BOLD
+   DEFINE FONT oFont5  NAME "ARIAL"   SIZE nConfigFon*.8*nFx,   nConfigFon*1.9*nFx BOLD
+   AddFontResource("i2of5txt.ttf")
+   DEFINE FONT oFont4  NAME "Interleaved 2of5 Text" SIZE nConfigFon*1.5*nFx, nConfigFon*5*nFx
+
+   nTotalCopias := IF(oQryP:copiafa=1, 2, oQryP:copiafa)
+   nPares := INT((nTotalCopias+1)/2)
+
+   PRINT oPrn NAME "Factura "+cTipoDoc+cNumComp PREVIEW MODAL
+   oPrn:SetLandscape()
+   oPrn:SetPage(9)
+   nHorzMid := oPrn:nHorzRes()/2
+
+   FOR nPar := 1 TO nPares
+       nIdxL := (nPar-1)*2 + 1
+       nIdxR := IF(nIdxL+1 <= nTotalCopias, nIdxL+1, 0)
+       nLadoTope := IF(nIdxR>0, 2, 1)
+       oQryDet1:GoTop()
+       nDesFac := 0
+       nBultos := 0
+       lImprimio_promo := .f.
+       nHoja := 1
+
+       PAGE
+          @ 0,0 PRINT TO oPrn IMAGE "fondofac.jpg" SIZE nHorzMid, oPrn:nVertRes() PIXEL STRETCH GRAY
+          IF nIdxR > 0
+             @ 0, nHorzMid PRINT TO oPrn IMAGE "fondofac.jpg" SIZE nHorzMid, oPrn:nVertRes() PIXEL STRETCH GRAY
+          ENDIF
+          FOR nL := 1 TO nLadoTope
+              nOffX := IF(nL=1, 0, 14.85)
+              nIdxCopia := IF(nL=1, nIdxL, nIdxR)
+              @ 25*nFx, 1*nFx + nOffX PRINT TO oPrn IMAGE "https://app.bcnsoft.com.ar/img/arca.jpg" SIZE 2.5*nFx, 2.2*nFx CM
+              oPrn:CmBox( .5*nFx,  .5*nFx + nOffX, 1.5*nFx, 20.5*nFx + nOffX )
+              oPrn:CmBox( 1.5*nFx, .5*nFx + nOffX, 5*nFx,   20.5*nFx + nOffX )
+              oPrn:CmBox( 5.3*nFx, .5*nFx + nOffX, 7.5*nFx, 20.5*nFx + nOffX )
+              oPrn:CmBox( 8*nFx,   .5*nFx + nOffX, 9*nFx,   20.5*nFx + nOffX )
+              oPrn:CmBox( 22*nFx,  .5*nFx + nOffX, 25*nFx,  20.5*nFx + nOffX )
+              @ .8*nFx, 1.15*nFx + nOffX PRINT TO oPrn TEXT aOriginal[nIdxCopia] ;
+                       SIZE 18*nFx,.9*nFx CM FONT oFont1 ALIGN "C"
+              IF config:x1 = 2 .or. config:x1 = 3
+                 @ 1.6*nFx, .6*nFx + nOffX PRINT TO oPrn IMAGE "logo.jpg" SIZE 8*nFx, 3*nFx CM
+              ENDIF
+              IF config:x1 = 1 .or. config:x1 = 3
+                 @ 2*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oApp:nomb_emp) ;
+                          SIZE 9*nFx,1*nFx CM FONT oFont1 ALIGN "C" LASTROW nRow
+                 @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "Domicilio Comercial:"+cDomicilioFiscal ;
+                          SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+                 @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT aiva[oApp:tipo_iva] ;
+                          SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+              ENDIF
+              oPrn:CmSay( 1.7*nFx, 11*nFx + nOffX, IF(cTipoDoc="FC" .OR. cTipoDoc='FR',"FACTURA",;
+                                                  IF(cTipoDoc="NC","NOTA DE CREDITO","NOTA DE DEBITO")), oFont1 )
+              oPrn:CmBox( 1.5*nFx, 9.4*nFx + nOffX, 2.7*nFx, 10.7*nFx + nOffX )
+              oPrn:CmSay( 1.5*nFx, 9.8*nFx + nOffX, LEFT(cNumComp,1), oFont2 )
+              oPrn:CmSay( 2.3*nFx, 9.5*nFx + nOffX, "Cod:"+oQryVen1:tipfor, oFont )
+              oPrn:CmSay( 2.5*nFx, 11*nFx + nOffX, "Punto de venta:"+SUBSTR(cNumcomp,2,4) + " Comprobante Nro:"+RIGHT(cNumcomp,8), oFont )
+              oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(oQryVen1:fecmod), oFont )
+              oPrn:CmSay( 3.5*nFx, 11*nFx + nOffX, "CUIT:"+oApp:cuit_emp, oFont )
+              oPrn:CmSay( 4.0*nFx, 11*nFx + nOffX, "Ingresos brutos:"+oApp:ingb_emp, oFont )
+              oPrn:CmSay( 4.5*nFx, 11*nFx + nOffX, "Inicio de Actividades:"+DTOC(oApp:inac_emp), oFont )
+              @ 5.5*nFx, 1*nFx + nOffX   PRINT TO oPrn TEXT "C.U.I.T.:" ;
+                       SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 5.5*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT oQryVen1:cuit ;
+                       SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              @ 5.5*nFx, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Razon Social:" ;
+                       SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 5.5*nFx, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryVen1:nombre)+" ("+ALLTRIM(str(oQryVen1:codcli))+")" ;
+                       SIZE 8*nFx,1*nFx CM FONT oFont LASTROW nRow
+              @ 6*nFx, 1*nFx + nOffX  PRINT TO oPrn TEXT "Condicion IVA:" ;
+                       SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 6*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT aIva[oQryVen1:coniva] ;
+                       SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              nRow := IF(nRow<6*nFx, 6*nFx, nRow)
+              @ nRow, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Direccion:" ;
+                       SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ nRow, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryVen1:direccion) + " " + ;
+                                                ALLTRIM(oQryVen1:localidad) + " "+ ALLTRIM(oQryVen1:codpos) ;
+                       SIZE 8*nFx,1*nFx CM FONT oFont
+              @ 6.5*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Condicion venta:" ;
+                       SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 6.5*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(cCondVen) ;
+                       SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              @ 7*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Forma de pago:" ;
+                       SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 7*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(cFormaPag) ;
+                       SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              @ 8.2*nFx, 0.7*nFx + nOffX PRINT TO oPrn TEXT "Codigo" ;
+                       SIZE 2.5*nFx,.9*nFx CM FONT oFont5 ALIGN "L"
+              @ 8.2*nFx, 3.5*nFx + nOffX PRINT TO oPrn TEXT "Descripcion del producto" ;
+                       SIZE 6.5*nFx,.9*nFx CM FONT oFont5 ALIGN "L"
+              @ 8.2*nFx, 10*nFx + nOffX PRINT TO oPrn TEXT "Cantidad" ;
+                       SIZE 2*nFx,.9*nFx CM FONT oFont5 ALIGN "R"
+              IF oApp:usabultosventa
+                 @ 8.2*nFx, 12.05*nFx + nOffX PRINT TO oPrn TEXT "Btos" ;
+                       SIZE .5*nFx,.9*nFx CM FONT oFont5 ALIGN "R"
+              ENDIF
+              @ 8.2*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "Pr.Unitario" ;
+                       SIZE 2*nFx,.9*nFx CM FONT oFont5 ALIGN "R"
+              @ 8.2*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT "Desc." ;
+                       SIZE 1.5*nFx,.9*nFx CM FONT oFont5 ALIGN "C"
+              @ 8.2*nFx, 15.5*nFx + nOffX PRINT TO oPrn TEXT "Subtotal" ;
+                       SIZE 2*nFx,.9*nFx CM FONT oFont5 ALIGN "R"
+              @ 8.2*nFx, 17.5*nFx + nOffX PRINT TO oPrn TEXT "Alic. IVA" ;
+                       SIZE 1*nFx,.9*nFx CM FONT oFont5 ALIGN "C"
+              @ 8.2*nFx, 18.5*nFx + nOffX PRINT TO oPrn TEXT "Subtotal con IVA Incl." ;
+                       SIZE 2*nFx,.9*nFx CM FONT oFont5 ALIGN "C"
+          NEXT nL
+
+          y := 9.2
+          oQryDet1:GoTop()
+          FOR i := 1 TO oQryDet1:nRecCount
+              IF oQryDet1:punit < 0 .and. !lImprimio_promo
+                 FOR nL := 1 TO nLadoTope
+                     nOffX := IF(nL=1, 0, 14.85)
+                     @ (y+.4)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Descuentos Promociones" ;
+                                  SIZE 10*nFx,1*nFx CM FONT oFont ALIGN "TC" LASTROW nRow
+                 NEXT nL
+                 lImprimio_promo := .t.
+                 y := y + .3
+              ENDIF
+              FOR nL := 1 TO nLadoTope
+                  nOffX := IF(nL=1, 0, 14.85)
+                  IF oApp:impcodpro
+                     @ (y-0.07)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT IF(EMPTY(oQryDet1:codigopro),STR(oQryDet1:codart,13),LEFT(oQryDet1:codigopro,13)) ;
+                              SIZE 2.5*nFx,.5*nFx CM FONT oFont5 ALIGN "TL"
+                  ELSE
+                     @ (y-0.07)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet1:codart,13) ;
+                              SIZE 2.5*nFx,.5*nFx CM FONT oFont5 ALIGN "TL"
+                  ENDIF
+                  @ (y-0.07)*nFx, 3.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryDet1:detart)+" "+ALLTRIM(oQryDet1:condicioncompra) ;
+                              SIZE 6.5*nFx,2.5*nFx CM FONT oFont5 LASTROW nRow ALIGN "TL"
+                  @ (y-0.07)*nFx, 10*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet1:cantidad,10,2) ;
+                              SIZE 2*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
+                  IF oApp:usabultosventa
+                     @ (y-0.07)*nFx, 12.05*nFx + nOffX PRINT TO oPrn TEXT;
+                          IF(INT(oQryDet1:bultos) <> oQryDet1:bultos,STR(oQryDet1:bultos,06,1),STR(oQryDet1:bultos,4)) ;
+                              SIZE .5*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
+                  ENDIF
+                  @ (y-0.07)*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT STR(IF(!LEFT(cNumComp,1)$"AM",oQryDet1:punit/nIndiceDolar ,oQryDet1:neton/oQryDet1:cantidad/nIndiceDolar),12,2) ;
+                              SIZE 2*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
+                  @ (y-0.07)*nFx, 14.2*nFx + nOffX PRINT TO oPrn TEXT IF(oQryDet1:descupor > 0,;
+                              ALLTRIM(IF(oQryDet1:descupor = INT(oQryDet1:descupor),;
+                                         STR(INT(oQryDet1:descupor),3),;
+                                         STR(oQryDet1:descupor,6,2)))+"% "+;
+                              IF(oQryPar1:imprimedescuimp, ALLTRIM(STR(oQryDet1:descu,12,2)),"")," ") ;
+                              SIZE 1.8*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
+                  @ (y-0.07)*nFx, 15.5*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet1:subtot/nIndiceDolar,12,2) ;
+                              SIZE 2*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
+                  @ (y-0.07)*nFx, 17.7*nFx + nOffX PRINT TO oPrn TEXT oQryDet1:alicu ;
+                              SIZE .7*nFx,.5*nFx CM FONT oFont5 ALIGN "TC"
+                  @ (y-0.07)*nFx, 18.3*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet1:subtotalciva/nIndiceDolar,12,2) ;
+                              SIZE 2*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
+              NEXT nL
+              IF oApp:usabultosventa
+                 nBultos := nBultos + oQryDet1:bultos
+              ENDIF
+              nDesFac := nDesFac + oQryDet1:descu
+              oQryDet1:Skip()
+              y := (nRow / nFx) + .1
+              IF y > 21 .and. !oQryDet1:Eof()
+                 FOR nL := 1 TO nLadoTope
+                     nOffX := IF(nL=1, 0, 14.85)
+                     @ 23*nFx, 5*nFx + nOffX PRINT TO oPrn TEXT "CONTINUA EN OTRA HOJA" ;
+                                  SIZE 9*nFx,2*nFx CM FONT oFont
+                 NEXT nL
+                 ENDPAGE
+                 nHoja ++
+                 PAGE
+                    @ 0,0 PRINT TO oPrn IMAGE "fondofac.jpg" SIZE nHorzMid, oPrn:nVertRes() PIXEL GRAY
+                    IF nIdxR > 0
+                       @ 0, nHorzMid PRINT TO oPrn IMAGE "fondofac.jpg" SIZE nHorzMid, oPrn:nVertRes() PIXEL GRAY
+                    ENDIF
+                    FOR nL := 1 TO nLadoTope
+                        nOffX := IF(nL=1, 0, 14.85)
+                        nIdxCopia := IF(nL=1, nIdxL, nIdxR)
+                        @ 25*nFx, 1*nFx + nOffX PRINT TO oPrn IMAGE "https://app.bcnsoft.com.ar/img/arca.jpg" SIZE 2.5*nFx, 2.2*nFx CM
+                        oPrn:CmBox( .5*nFx,  .5*nFx + nOffX, 1.5*nFx, 20.5*nFx + nOffX )
+                        oPrn:CmBox( 1.5*nFx, .5*nFx + nOffX, 5*nFx,   20.5*nFx + nOffX )
+                        oPrn:CmBox( 5.3*nFx, .5*nFx + nOffX, 7.5*nFx, 20.5*nFx + nOffX )
+                        oPrn:CmBox( 8*nFx,   .5*nFx + nOffX, 9*nFx,   20.5*nFx + nOffX )
+                        oPrn:CmBox( 22*nFx,  .5*nFx + nOffX, 25*nFx,  20.5*nFx + nOffX )
+                        @ .8*nFx, 1.15*nFx + nOffX PRINT TO oPrn TEXT aOriginal[nIdxCopia]+' Hoja:' + STR(nHoja,1) ;
+                                 SIZE 18*nFx,.9*nFx CM FONT oFont1 ALIGN "C"
+                        IF config:x1 = 2 .or. config:x1 = 3
+                           @ 1.6*nFx, .6*nFx + nOffX PRINT TO oPrn IMAGE "logo.jpg" SIZE 8*nFx, 3*nFx CM
+                        ENDIF
+                        IF config:x1 = 1 .or. config:x1 = 3
+                           @ 2*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oApp:nomb_emp) ;
+                                    SIZE 9*nFx,1*nFx CM FONT oFont1 ALIGN "C" LASTROW nRow
+                           @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "Domicilio Comercial:"+cDomicilioFiscal ;
+                                    SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+                           @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT aiva[oApp:tipo_iva] ;
+                                    SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+                        ENDIF
+                        oPrn:CmSay( 1.7*nFx, 11*nFx + nOffX, IF(cTipoDoc="FC" .OR. cTipoDoc='FR',"FACTURA",;
+                                                          IF(cTipoDoc="NC","NOTA DE CREDITO","NOTA DE DEBITO")), oFont1 )
+                        oPrn:CmBox( 1.5*nFx, 9.4*nFx + nOffX, 2.7*nFx, 10.7*nFx + nOffX )
+                        oPrn:CmSay( 1.5*nFx, 9.8*nFx + nOffX, LEFT(cNumComp,1), oFont2 )
+                        oPrn:CmSay( 2.3*nFx, 9.5*nFx + nOffX, "Cod:"+oQryVen1:tipfor, oFont )
+                        oPrn:CmSay( 2.5*nFx, 11*nFx + nOffX, "Punto de venta:"+SUBSTR(cNumcomp,2,4) + " Comprobante Nro:"+RIGHT(cNumcomp,8), oFont )
+                        oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(oQryVen1:fecmod), oFont )
+                        oPrn:CmSay( 3.5*nFx, 11*nFx + nOffX, "CUIT:"+oApp:cuit_emp, oFont )
+                        oPrn:CmSay( 4.0*nFx, 11*nFx + nOffX, "Ingresos brutos:"+oApp:ingb_emp, oFont )
+                        oPrn:CmSay( 4.5*nFx, 11*nFx + nOffX, "Inicio de Actividades:"+DTOC(oApp:inac_emp), oFont )
+                        @ 5.5*nFx, 1*nFx + nOffX   PRINT TO oPrn TEXT "C.U.I.T.:" ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 5.5*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT oQryVen1:cuit ;
+                                 SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        @ 5.5*nFx, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Razon Social:" ;
+                                 SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 5.5*nFx, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryVen1:nombre)+" ("+ALLTRIM(str(oQryVen1:codcli))+")" ;
+                                 SIZE 8*nFx,1*nFx CM FONT oFont LASTROW nRow
+                        @ 6*nFx, 1*nFx + nOffX  PRINT TO oPrn TEXT "Condicion IVA:" ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 6*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT aIva[oQryVen1:coniva] ;
+                                 SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        nRow := IF(nRow<6*nFx, 6*nFx, nRow)
+                        @ nRow, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Direccion:" ;
+                                 SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ nRow, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryVen1:direccion) + " " + ;
+                                                          ALLTRIM(oQryVen1:localidad) ;
+                                 SIZE 8*nFx,1*nFx CM FONT oFont
+                        @ 6.5*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Condicion venta:" ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 6.5*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(cCondVen) ;
+                                 SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        @ 7*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Forma de pago:" ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 7*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(cFormaPag) ;
+                                 SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        @ 8.2*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Codigo" ;
+                                 SIZE 2.8*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        @ 8.2*nFx, 4*nFx + nOffX PRINT TO oPrn TEXT "Descripcion del producto" ;
+                                 SIZE 7*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        @ 8.2*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Cantidad" ;
+                                 SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "R"
+                        @ 8.2*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT "Pr.Unitario" ;
+                                 SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "R"
+                        @ 8.2*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT "Subtotal" ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
+                    NEXT nL
+                    y := 9.2
+              ENDIF
+          NEXT i
+
+          FOR nL := 1 TO nLadoTope
+              nOffX := IF(nL=1, 0, 14.85)
+              @ (y+.5)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryVen1:observa) + IF(nDesFac>0," Desc."+cSigno+" "+STR(nDesFac/nIndiceDolar,12,2)+ " (IVA Incl.) "," ") ;
+                          SIZE 18*nFx,3*nFx CM FONT oFont ALIGN "L"
+              IF oApp:usabultosventa
+                 @ (y+.5)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Total Bultos:" + STR(nBultos,4) ;
+                          SIZE 3*nFx,1*nFx CM FONT oFont ALIGN "L"
+              ENDIF
+              IF oApp:usareparto
+                 @ 27*nFx, 13*nFx + nOffX PRINT TO oPrn TEXT CodigoBarra(STRTRAN(STR(oQryVen1:codbarra,11)," ","0")) ;
+                          SIZE 6*nFx,1*nFx CM FONT oFont4 ALIGN "R"
+              ENDIF
+              @ 22.5*nFx, 1*nFx + nOffX  PRINT TO oPrn TEXT "Percepcion IIBB "+STR(oQryVen1:percep,6,2)+"% "+cSigno+":" ;
+                          SIZE 5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 22.5*nFx, 6.1*nFx + nOffX PRINT TO oPrn TEXT STR(oQryVen1:IIBB/nIndiceDolar,12,2) ;
+                          SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
+              IF !LEFT(cNumComp,1)$"AM"
+                 @ 22.5*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "Subtotal "+cSigno+":" ;
+                          SIZE 4*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                 @ 22.5*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR((oQryVen1:importe-oQryVen1:sobretasa)/nIndiceDolar,12,2) ;
+                          SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
+                 @ 23*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "Otros Tributos "+cSigno+":" ;
+                          SIZE 4*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                 @ 23*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryVen1:sobretasa/nIndiceDolar,12,2) ;
+                          SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
+                 @ 23.5*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "Total "+cSigno+":" ;
+                          SIZE 4*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                 @ 23.5*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryVen1:importe/nIndiceDolar,12,2) ;
+                          SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
+                 @ 23.7*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Regimen de transparencia fiscal Ley 27.743" ;
+                          SIZE 7*nFx,.5*nFx CM FONT oFont5 ALIGN "R" LASTROW nRow
+                 @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "IVA Contenido: $"+STR(oQryVen1:iva/nIndiceDolar,14,2) + " " ;
+                          SIZE 7*nFx,.5*nFx CM FONT oFont5 ALIGN "R"
+              ELSE
+                 @ 22.5*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "Subtotal "+cSigno+":" ;
+                          SIZE 4*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                 @ 22.5*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryVen1:neto/nIndiceDolar,12,2) ;
+                          SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
+                 @ 23*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "Otros Tributos "+cSigno+":" ;
+                          SIZE 4*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                 @ 23*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryVen1:sobretasa/nIndiceDolar,12,2) ;
+                          SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
+                 y := 23.5
+                 oQryIvaDet:GoTop()
+                 FOR i := 1 TO oQryIvaDet:nRecCount
+                     @ y*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "I.V.A. "+ALLTRIM(oQryIvaDet:nomiva) + " "+cSigno+":" ;
+                              SIZE 4*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                     @ y*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryIvaDet:iva/nIndiceDolar,12,2) ;
+                              SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
+                     oQryIvaDet:Skip()
+                     y := y + .5
+                 NEXT i
+                 @ y*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "Total "+cSigno+":" ;
+                          SIZE 4*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                 @ y*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryVen1:importe/nIndiceDolar,12,2) ;
+                          SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
+              ENDIF
+              IF oQryPar1:imprimevendedor
+                 @ 23.0*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT IF(!empty(oQryVen1:vendedor),"Vendedor: "+ALLTRIM(oQryVen1:vendedor),"") ;
+                          SIZE 5*nFx,.5*nFx CM FONT oFont3
+              ENDIF
+              @ 25.5*nFx, 13*nFx + nOffX PRINT TO oPrn TEXT "CAE Nro:" ;
+                       SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 25.5*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT oQryVen1:cae ;
+                       SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              @ 26*nFx, 13*nFx + nOffX PRINT TO oPrn TEXT "Fecha Vto CAE:" ;
+                       SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 26*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT DTOC(oQryVen1:fecVto) ;
+                       SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              @ 25.5*nFx, 6*nFx + nOffX PRINT TO oPrn IMAGE "FactQR.bmp" SIZE 2.5*nFx, 2.5*nFx CM NOTRANSPARENT LASTROW nRow
+              IF oQryVen1:endolares
+                 @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "Total expresado en PESOS ARGENTINOS, T/C "+STR(oQryVen1:Cotiza,12,2)+" = $ "+STR(oQryVen1:importe ,13,2) ;
+                          SIZE 16*nFx,1*nFx CM FONT oFont5 ALIGN "L" LASTROW nRow
+              ENDIF
+              IF oApp:usar_puntos .and. oQryVen1:codcli > 1
+                 @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "(Puntos venta: "+STR(oQryVen1:puntos,8)+;
+                              " - Acumulados: "+STR(oQryVen1:puntosacu,8)+;
+                              " - Total: "+STR(oQryVen1:puntos+oQryVen1:puntosacu ,8) ;
+                          SIZE 16*nFx,1*nFx CM FONT oFont5 ALIGN "L"
+              ENDIF
+          NEXT nL
+       ENDPAGE
+   NEXT nPar
+   ENDPRINT
+RETURN nil
+
+
+STATIC FUNCTION P2x1Presupuesto(oQryDet, oGet, oBrw, lDolar, dFecVen, cNumcomp,;
+                                lImpSinIva, lPreciosFinales, oQryP, config, aiva)
+LOCAL i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, cCodigopro, nIva
+LOCAL nFx := 0.7, nL, nOffX, nHorzMid, cFondo
+LOCAL nTotalCopias, nPar, nPares, nIdxL, nIdxR, nLadoTope, nIdxCopia
+LOCAL aOriginal := {"ORIGINAL","DUPLICADO","TRIPLICADO","CUADRUPLICADO","QUINTUPLICADO","SEXTUPLICADO"}
+LOCAL nHoja, nConfigFon
+
+   nConfigFon := config:fon
+   DEFINE FONT oFont   NAME "ARIAL"   SIZE nConfigFon*nFx,      nConfigFon*2.5*nFx
+   DEFINE FONT oFont1  NAME "CALIBRI" SIZE nConfigFon*1.5*nFx,  nConfigFon*4*nFx   BOLD
+   DEFINE FONT oFont2  NAME "CALIBRI" SIZE nConfigFon*4*nFx,    nConfigFon*7*nFx   BOLD
+   DEFINE FONT oFont3  NAME "ARIAL"   SIZE nConfigFon*nFx,      nConfigFon*2.5*nFx BOLD
+
+   cFondo := IF(FILE("fondopre.jpg"),"fondopre.jpg","fondofac.jpg")
+   nTotalCopias := MAX(oQryP:copiafb, 1)
+   IF nTotalCopias = 1
+      nTotalCopias := 2
+   ENDIF
+   nPares := INT((nTotalCopias+1)/2)
+
+   PRINT oPrn NAME "Presupuesto "+cNumcomp PREVIEW MODAL
+   oPrn:SetLandscape()
+   oPrn:SetPage(9)
+   nHorzMid := oPrn:nHorzRes()/2
+
+   FOR nPar := 1 TO nPares
+       nIdxL := (nPar-1)*2 + 1
+       nIdxR := IF(nIdxL+1 <= nTotalCopias, nIdxL+1, 0)
+       nLadoTope := IF(nIdxR>0, 2, 1)
+       oQryDet:GoTop()
+       nIva := 0
+       nHoja := 1
+
+       PAGE
+          @ 0,0 PRINT TO oPrn IMAGE cFondo SIZE nHorzMid, oPrn:nVertRes() PIXEL GRAY
+          IF nIdxR > 0
+             @ 0, nHorzMid PRINT TO oPrn IMAGE cFondo SIZE nHorzMid, oPrn:nVertRes() PIXEL GRAY
+          ENDIF
+          FOR nL := 1 TO nLadoTope
+              nOffX := IF(nL=1, 0, 14.85)
+              nIdxCopia := IF(nL=1, nIdxL, nIdxR)
+              oPrn:CmBox( .5*nFx, .5*nFx + nOffX, 1.5*nFx, 20.5*nFx + nOffX )
+              @ .8*nFx, 1.15*nFx + nOffX PRINT TO oPrn TEXT aOriginal[nIdxCopia] ;
+                       SIZE 18*nFx,.9*nFx CM FONT oFont1 ALIGN "C"
+              oPrn:CmBox( 1.5*nFx, .5*nFx + nOffX, 5*nFx,   20.5*nFx + nOffX )
+              oPrn:CmBox( 5.3*nFx, .5*nFx + nOffX, 7.5*nFx, 20.5*nFx + nOffX )
+              oPrn:CmBox( 8*nFx,   .5*nFx + nOffX, 9*nFx,   20.5*nFx + nOffX )
+              oPrn:CmBox( 22*nFx,  .5*nFx + nOffX, 25*nFx,  20.5*nFx + nOffX )
+              IF config:x1 = 2 .or. config:x1 = 3
+                 @ 1.6*nFx, .6*nFx + nOffX PRINT TO oPrn IMAGE "logo.jpg" SIZE 8*nFx, 3*nFx CM
+              ENDIF
+              IF config:x1 = 1 .or. config:x1 = 3
+                 @ 2*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oApp:nomb_emp) ;
+                          SIZE 9*nFx,1*nFx CM FONT oFont1 ALIGN "C" LASTROW nRow
+                 @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "Domicilio Comercial:"+oApp:dire_emp ;
+                          SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+                 @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT aiva[oApp:tipo_iva] ;
+                          SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+              ENDIF
+              oPrn:CmSay( 1.7*nFx, 11*nFx + nOffX, "PRESUPUESTO", oFont1 )
+              oPrn:CmBox( 1.5*nFx, 9.4*nFx + nOffX, 2.7*nFx, 10.7*nFx + nOffX )
+              oPrn:CmSay( 1.5*nFx, 9.8*nFx + nOffX, "X", oFont2 )
+              oPrn:CmSay( 2.0*nFx, 16*nFx + nOffX, "N: "+SUBSTR(cNumcomp,2,16), oFont )
+              oPrn:CmSay( 2.5*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(DATE()), oFont )
+              IF dFecVen <> nil
+                 oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de vencimiento:"+DTOC(dFecVen), oFont )
+              ENDIF
+              oPrn:CmSay( 3.5*nFx, 11*nFx + nOffX, "CUIT:"+oApp:cuit_emp, oFont )
+              oPrn:CmSay( 4.0*nFx, 11*nFx + nOffX, "Ingresos brutos:"+oApp:ingb_emp, oFont )
+              oPrn:CmSay( 4.5*nFx, 11*nFx + nOffX, "Inicio de Actividades:"+DTOC(oApp:inac_emp), oFont )
+              @ 5.5*nFx, 1*nFx + nOffX   PRINT TO oPrn TEXT "C.U.I.T.:" ;
+                       SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 5.5*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT oGet[12]:cText ;
+                       SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              @ 5.5*nFx, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Razon Social:" ;
+                       SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 5.5*nFx, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oGet[9]:cText) + " ("+ALLTRIM(oGet[8]:cText)+")" ;
+                       SIZE 8*nFx,1*nFx CM FONT oFont LASTROW nRow
+              @ 6*nFx, 1*nFx + nOffX  PRINT TO oPrn TEXT "Condicion IVA:" ;
+                       SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 6*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT aIva[oGet[13]:nAt] ;
+                       SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              nRow := IF(nRow<6*nFx, 6*nFx, nRow)
+              @ nRow, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Direccion:" ;
+                       SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ nRow, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oGet[10]:cText) + " " + ALLTRIM(oGet[11]:cText) ;
+                       SIZE 8*nFx,1*nFx CM FONT oFont
+              @ 6.5*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Forma de Pago:" ;
+                       SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 6.5*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT aFormaNom[nFormaPago] ;
+                       SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              @ 8.2*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Codigo" ;
+                       SIZE 2.8*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              @ 8.2*nFx, 4*nFx + nOffX PRINT TO oPrn TEXT "Descripcion del producto" ;
+                       SIZE 7*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              @ 8.2*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Cantidad" ;
+                       SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "R"
+              @ 8.2*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT "Pr.Unit."+IF(oApp:presudiscriva .and. !lImpSinIva .and. !lPreciosFinales," S/IVA","") ;
+                       SIZE 2.1*nFx,.5*nFx CM FONT oFont ALIGN "R"
+              @ 8.2*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT "Subtotal"+IF(oApp:presudiscriva .and. !lImpSinIva .and. !lPreciosFinales," S/IVA","") ;
+                       SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
+          NEXT nL
+
+          y := 9.2
+          oQryDet:GoTop()
+          FOR i := 1 TO oQryDet:nRecCount
+              cCodigopro := ""
+              IF oQryDet:codart > 0
+                 cCodigopro := oApp:oServer:Query("SELECT codigopro FROM ge_"+oApp:cId+"articu WHERE codigo = "+STR(oQryDet:codart)):codigopro
+              ENDIF
+              FOR nL := 1 TO nLadoTope
+                  nOffX := IF(nL=1, 0, 14.85)
+                  IF oApp:impcodpro
+                     @ (y-0.07)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT IF(EMPTY(cCodigopro),STR(oQryDet:codart,13),ALLTRIM(cCodigopro)) ;
+                              SIZE 2.9*nFx,.5*nFx CM FONT oFont ALIGN "TL"
+                  ELSE
+                     @ (y-0.07)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:codart,13) ;
+                              SIZE 2.9*nFx,.5*nFx CM FONT oFont ALIGN "TL"
+                  ENDIF
+                  @ (y-0.07)*nFx, 4*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryDet:detart) ;
+                              SIZE 7*nFx,2.5*nFx CM FONT oFont LASTROW nRow ALIGN "TL"
+                  @ (y-0.07)*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:cantidad,08,2) ;
+                              SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "TR"
+                  IF !oApp:presudiscriva
+                     @ (y-0.07)*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:punit/IF(lDolar,oApp:dolar,1),12,2) ;
+                              SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "TR"
+                     @ (y-0.07)*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:ptotal/IF(lDolar,oApp:dolar,1),12,2) ;
+                              SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "TR"
+                  ELSE
+                     IF !lPreciosFinales
+                        @ (y-0.07)*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:stotal/oQryDet:cantidad/IF(lDolar,oApp:dolar,1),12,2) ;
+                                 SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "TR"
+                        @ (y-0.07)*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:stotal/IF(lDolar,oApp:dolar,1),12,2) ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "TR"
+                     ELSE
+                        @ (y-0.07)*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:ptotal/oQryDet:cantidad/IF(lDolar,oApp:dolar,1),12,2) ;
+                                 SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "TR"
+                        @ (y-0.07)*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:ptotal/IF(lDolar,oApp:dolar,1),12,2) ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "TR"
+                     ENDIF
+                  ENDIF
+              NEXT nL
+              IF oApp:presudiscriva .and. !lPreciosFinales
+                 nIva := nIva + oQryDet:ptotal - oQryDet:stotal
+              ENDIF
+              oQryDet:Skip()
+              y := (nRow / nFx) + .1
+              IF y > 21 .and. !oQryDet:Eof()
+                 FOR nL := 1 TO nLadoTope
+                     nOffX := IF(nL=1, 0, 14.85)
+                     @ 23*nFx, 5*nFx + nOffX PRINT TO oPrn TEXT "CONTINUA EN OTRA HOJA" ;
+                                  SIZE 9*nFx,2*nFx CM FONT oFont
+                 NEXT nL
+                 ENDPAGE
+                 nHoja ++
+                 PAGE
+                    @ 0,0 PRINT TO oPrn IMAGE cFondo SIZE nHorzMid, oPrn:nVertRes() PIXEL GRAY
+                    IF nIdxR > 0
+                       @ 0, nHorzMid PRINT TO oPrn IMAGE cFondo SIZE nHorzMid, oPrn:nVertRes() PIXEL GRAY
+                    ENDIF
+                    FOR nL := 1 TO nLadoTope
+                        nOffX := IF(nL=1, 0, 14.85)
+                        nIdxCopia := IF(nL=1, nIdxL, nIdxR)
+                        oPrn:CmBox( .5*nFx, .5*nFx + nOffX, 1.5*nFx, 20.5*nFx + nOffX )
+                        @ .8*nFx, 1.15*nFx + nOffX PRINT TO oPrn TEXT aOriginal[nIdxCopia]+" (Hoja:"+STR(nHoja,2)+")" ;
+                                 SIZE 18*nFx,.9*nFx CM FONT oFont1 ALIGN "C"
+                        oPrn:CmBox( 1.5*nFx, .5*nFx + nOffX, 5*nFx,   20.5*nFx + nOffX )
+                        oPrn:CmBox( 5.3*nFx, .5*nFx + nOffX, 7.5*nFx, 20.5*nFx + nOffX )
+                        oPrn:CmBox( 8*nFx,   .5*nFx + nOffX, 9*nFx,   20.5*nFx + nOffX )
+                        oPrn:CmBox( 22*nFx,  .5*nFx + nOffX, 25*nFx,  20.5*nFx + nOffX )
+                        IF config:x1 = 2 .or. config:x1 = 3
+                           @ 1.6*nFx, .6*nFx + nOffX PRINT TO oPrn IMAGE "logo.jpg" SIZE 8*nFx, 3*nFx CM
+                        ENDIF
+                        IF config:x1 = 1 .or. config:x1 = 3
+                           @ 2*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oApp:nomb_emp) ;
+                                    SIZE 9*nFx,1*nFx CM FONT oFont1 ALIGN "C" LASTROW nRow
+                           @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "Domicilio Comercial:"+oApp:dire_emp ;
+                                    SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+                           @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT aiva[oApp:tipo_iva] ;
+                                    SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+                        ENDIF
+                        oPrn:CmSay( 2*nFx, 11*nFx + nOffX, "PRESUPUESTO", oFont1 )
+                        oPrn:CmBox( 1.5*nFx, 9.4*nFx + nOffX, 2.7*nFx, 10.7*nFx + nOffX )
+                        oPrn:CmSay( 1.5*nFx, 9.8*nFx + nOffX, "X", oFont2 )
+                        oPrn:CmSay( 2.5*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(DATE()), oFont )
+                        IF dFecVen <> nil
+                           oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de vencimiento:"+DTOC(dFecVen), oFont )
+                        ENDIF
+                        oPrn:CmSay( 3.5*nFx, 11*nFx + nOffX, "CUIT:"+oApp:cuit_emp, oFont )
+                        oPrn:CmSay( 4.0*nFx, 11*nFx + nOffX, "Ingresos brutos:"+oApp:ingb_emp, oFont )
+                        oPrn:CmSay( 4.5*nFx, 11*nFx + nOffX, "Inicio de Actividades:"+DTOC(oApp:inac_emp), oFont )
+                        @ 5.5*nFx, 1*nFx + nOffX   PRINT TO oPrn TEXT "C.U.I.T.:" ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 5.5*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT oGet[12]:cText ;
+                                 SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        @ 5.5*nFx, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Razon Social:" ;
+                                 SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 5.5*nFx, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oGet[9]:cText) + " ("+ALLTRIM(oGet[8]:cText)+")" ;
+                                 SIZE 8*nFx,1*nFx CM FONT oFont LASTROW nRow
+                        @ 6*nFx, 1*nFx + nOffX  PRINT TO oPrn TEXT "Condicion IVA:" ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 6*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT aIva[oGet[13]:nAt] ;
+                                 SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        nRow := IF(nRow<6*nFx, 6*nFx, nRow)
+                        @ nRow, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Direccion:" ;
+                                 SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ nRow, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oGet[10]:cText) + " " + ALLTRIM(oGet[11]:cText) ;
+                                 SIZE 8*nFx,1*nFx CM FONT oFont
+                        @ 6.5*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Condicion:" ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 6.5*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT "Contado" ;
+                                 SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        @ 8.2*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Codigo" ;
+                                 SIZE 2.8*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        @ 8.2*nFx, 4*nFx + nOffX PRINT TO oPrn TEXT "Descripcion del producto" ;
+                                 SIZE 7*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        @ 8.2*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Cantidad" ;
+                                 SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "R"
+                        @ 8.2*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT "Pr.Unit."+IF(oApp:presudiscriva .and. !lImpSinIva," S/IVA","") ;
+                                 SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "R"
+                        @ 8.2*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT "Subtotal"+IF(oApp:presudiscriva .and. !lImpSinIva," S/IVA","") ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
+                    NEXT nL
+                    y := 9.2
+              ENDIF
+          NEXT i
+
+          FOR nL := 1 TO nLadoTope
+              nOffX := IF(nL=1, 0, 14.85)
+              IF lDolar
+                 oPrn:CmSay( y*nFx, 1*nFx + nOffX, "(Los Precios anteriores estan expresados en dolares americanos)", oFont )
+              ENDIF
+              IF lImpSinIva
+                 oPrn:CmSay( (y+.5)*nFx, 1*nFx + nOffX, "(Los Precios anteriores NO INCLUYEN IVA)", oFont )
+              ENDIF
+              @ (y+1)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT oGet[23]:cText ;
+                       SIZE 18*nFx,3*nFx CM FONT oFont ALIGN "L"
+              IF oBrw:aCols[6]:nTotal > 0
+                 @ 23.5*nFx, 1*nFx + nOffX  PRINT TO oPrn TEXT "Descuento General"+IF(lDolar,"u$s","$")+":" ;
+                          SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                 @ 23.5*nFx, 5*nFx + nOffX  PRINT TO oPrn TEXT STR(oBrw:aCols[6]:nTotal/IF(lDolar,oApp:dolar,1),12,2) ;
+                          SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
+              ENDIF
+              IF !oApp:presudiscriva
+                 @ 23.5*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Total presupuesto "+IF(lDolar,"u$s","$")+":" ;
+                          SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                 @ 23.5*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT STR(oGet[21]:value/IF(lDolar,oApp:dolar,1),12,2) ;
+                          SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
+              ELSE
+                 IF !lImpSinIva
+                    IF !lPreciosFinales
+                       @ 23.5*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Tasa gral (IVA) "+IF(lDolar,"u$s","$")+":" ;
+                                SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                       @ 23.5*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT STR(nIva/IF(lDolar,oApp:dolar,1),12,2) ;
+                                SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
+                    ENDIF
+                    @ 24.0*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Total presupuesto "+IF(lDolar,"u$s","$")+":" ;
+                             SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                    @ 24.0*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT STR(oGet[21]:value/IF(lDolar,oApp:dolar,1),12,2) ;
+                             SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
+                 ELSE
+                    @ 24.0*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Total presupuesto "+IF(lDolar,"u$s","$")+":" ;
+                             SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                    @ 24.0*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT STR(oGet[21]:value/IF(lDolar,oApp:dolar,1)-nIva/IF(lDolar,oApp:dolar,1),12,2) ;
+                             SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
+                 ENDIF
+              ENDIF
+              @ 24.0*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Vendedor: "+ALLTRIM(oGet[36]:aItems[oGet[36]:nAt]) ;
+                       SIZE 5*nFx,.5*nFx CM FONT oFont3
+          NEXT nL
+       ENDPAGE
+   NEXT nPar
+   ENDPRINT
+RETURN nil
+
+
+STATIC FUNCTION P2x1Remito(oQryDet, oGet, oBrw, cNumComp, nCodCli, cFactRemitada,;
+                           oQryP, oQryCli, lRta, config, aiva)
+LOCAL i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, cCodigopro, nBultos
+LOCAL nFx := 0.7, nL, nOffX, nHorzMid, cFondo
+LOCAL nTotalCopias, nPar, nPares, nIdxL, nIdxR, nLadoTope, nIdxCopia
+LOCAL aOriginal := {"ORIGINAL","DUPLICADO","TRIPLICADO","CUADRUPLICADO","QUINTUPLICADO","SEXTUPLICADO"}
+LOCAL nHoja, nConfigFon
+
+   nConfigFon := config:fon
+   IF nConfigFon < 14
+      nConfigFon := nConfigFon * 2.8
+   ENDIF
+   DEFINE FONT oFont   NAME "ARIAL"   SIZE nConfigFon*nFx,      nConfigFon*2.5*nFx
+   DEFINE FONT oFont1  NAME "CALIBRI" SIZE nConfigFon*1.5*nFx,  nConfigFon*4*nFx   BOLD
+   DEFINE FONT oFont2  NAME "CALIBRI" SIZE nConfigFon*4*nFx,    nConfigFon*7*nFx   BOLD
+   DEFINE FONT oFont3  NAME "ARIAL"   SIZE nConfigFon*nFx,      nConfigFon*2.5*nFx BOLD
+
+   cFondo := IF(FILE("fondorem.jpg"),"fondorem.jpg","fondofac.jpg")
+   nTotalCopias := MAX(oQryP:copiare, 1)
+   IF nTotalCopias = 1
+      nTotalCopias := 2
+   ENDIF
+   nPares := INT((nTotalCopias+1)/2)
+
+   PRINT oPrn NAME "Remito "+cNumcomp PREVIEW MODAL
+   oPrn:SetLandscape()
+   oPrn:SetPage(9)
+   nHorzMid := oPrn:nHorzRes()/2
+
+   FOR nPar := 1 TO nPares
+       nIdxL := (nPar-1)*2 + 1
+       nIdxR := IF(nIdxL+1 <= nTotalCopias, nIdxL+1, 0)
+       nLadoTope := IF(nIdxR>0, 2, 1)
+       oQryDet:GoTop()
+       nBultos := 0
+       nHoja := 1
+
+       PAGE
+          IF lRta
+             @ 0,0 PRINT TO oPrn IMAGE cFondo SIZE nHorzMid, oPrn:nVertRes() PIXEL GRAY
+             IF nIdxR > 0
+                @ 0, nHorzMid PRINT TO oPrn IMAGE cFondo SIZE nHorzMid, oPrn:nVertRes() PIXEL GRAY
+             ENDIF
+          ENDIF
+          FOR nL := 1 TO nLadoTope
+              nOffX := IF(nL=1, 0, 14.85)
+              nIdxCopia := IF(nL=1, nIdxL, nIdxR)
+              IF lRta
+                 oPrn:CmBox( .5*nFx, .5*nFx + nOffX, 1.5*nFx, 20.5*nFx + nOffX )
+                 @ .8*nFx, 1.15*nFx + nOffX PRINT TO oPrn TEXT aOriginal[nIdxCopia] ;
+                          SIZE 18*nFx,.9*nFx CM FONT oFont1 ALIGN "C"
+                 oPrn:CmBox( 1.5*nFx, .5*nFx + nOffX, 5*nFx,   20.5*nFx + nOffX )
+                 oPrn:CmBox( 5.3*nFx, .5*nFx + nOffX, 7.5*nFx, 20.5*nFx + nOffX )
+                 oPrn:CmBox( 8*nFx,   .5*nFx + nOffX, 9*nFx,   20.5*nFx + nOffX )
+                 IF config:x1 = 2 .or. config:x1 = 3
+                    @ 1.6*nFx, .6*nFx + nOffX PRINT TO oPrn IMAGE "logo.jpg" SIZE 8*nFx, 3*nFx CM
+                 ENDIF
+                 IF config:x1 = 1 .or. config:x1 = 3
+                    @ 2*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oApp:nomb_emp) ;
+                             SIZE 9*nFx,1*nFx CM FONT oFont1 ALIGN "C" LASTROW nRow
+                    @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "Domicilio Comercial:"+oApp:dire_emp ;
+                             SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+                    @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT aiva[oApp:tipo_iva] ;
+                             SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+                 ENDIF
+                 oPrn:CmSay( 1.7*nFx, 11*nFx + nOffX, "REMITO", oFont1 )
+                 oPrn:CmBox( 1.5*nFx, 9.4*nFx + nOffX, 2.7*nFx, 10.7*nFx + nOffX )
+                 oPrn:CmSay( 1.5*nFx, 9.8*nFx + nOffX, "R", oFont2 )
+                 oPrn:CmSay( 2.5*nFx, 11*nFx + nOffX, "Punto de venta:"+LEFT(cNumcomp,4) + " Remito Nro:"+RIGHT(cNumcomp,8), oFont )
+                 oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(DATE()), oFont )
+                 oPrn:CmSay( 3.5*nFx, 11*nFx + nOffX, "CUIT:"+oApp:cuit_emp, oFont )
+                 oPrn:CmSay( 4.0*nFx, 11*nFx + nOffX, "Ingresos brutos:"+oApp:ingb_emp, oFont )
+                 oPrn:CmSay( 4.5*nFx, 11*nFx + nOffX, "Inicio de Actividades:"+DTOC(oApp:inac_emp), oFont )
+              ELSE
+                 @ 3*nFx, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Fecha de emision:" SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "TR"
+                 @ 3*nFx, 12.5*nFx + nOffX PRINT TO oPrn TEXT DTOC(DATE())  SIZE 8*nFx,1*nFx CM FONT oFont ALIGN "TL"
+              ENDIF
+              @ 5.5*nFx, 1*nFx + nOffX   PRINT TO oPrn TEXT "C.U.I.T.:" ;
+                       SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 5.5*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryCli:cuit) ;
+                       SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              @ 5.5*nFx, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Razon Social:" ;
+                       SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 5.5*nFx, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryCli:nombre) + " ("+ALLTRIM(STR(oQryCli:codigo))+")" ;
+                       SIZE 8*nFx,1*nFx CM FONT oFont LASTROW nRow
+              @ 6*nFx, 1*nFx + nOffX  PRINT TO oPrn TEXT "Condicion IVA:" ;
+                       SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 6*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT aIva[IF(oQryCli:coniva<>0,oQryCli:coniva,5)] ;
+                       SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              nRow := IF(nRow<6*nFx, 6*nFx, nRow)
+              @ nRow, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Direccion:" ;
+                       SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ nRow, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryCli:direccion) + " " + ALLTRIM(oQryCli:localidad) ;
+                       SIZE 8*nFx,1*nFx CM FONT oFont
+              @ 8.2*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Codigo" ;
+                       SIZE 2.8*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              @ 8.2*nFx, 4*nFx + nOffX PRINT TO oPrn TEXT "Descripcion del producto" ;
+                       SIZE 7*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              @ 8.2*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT "Cantidad" ;
+                       SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "R"
+              IF oApp:usabultosventa
+                 @ 8.2*nFx, 18*nFx + nOffX PRINT TO oPrn TEXT "Btos" ;
+                          SIZE 1*nFx,.5*nFx CM FONT oFont ALIGN "R"
+              ENDIF
+          NEXT nL
+
+          y := 9.2
+          oQryDet:GoTop()
+          FOR i := 1 TO oQryDet:nRecCount
+              cCodigopro := ""
+              IF oQryDet:codart > 0
+                 cCodigopro := oApp:oServer:Query("SELECT codigopro FROM ge_"+oApp:cId+"articu WHERE codigo = "+STR(oQryDet:codart)):codigopro
+              ENDIF
+              FOR nL := 1 TO nLadoTope
+                  nOffX := IF(nL=1, 0, 14.85)
+                  IF oApp:impcodpro
+                     @ (y-0.07)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT IF(EMPTY(cCodigopro),STR(oQryDet:codart,13),ALLTRIM(cCodigopro)) ;
+                              SIZE 2.9*nFx,.5*nFx CM FONT oFont ALIGN "TL"
+                  ELSE
+                     @ (y-0.07)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:codart,13) ;
+                              SIZE 2.9*nFx,.5*nFx CM FONT oFont ALIGN "TL"
+                  ENDIF
+                  @ (y-0.07)*nFx, 4*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryDet:detart) ;
+                              SIZE 7*nFx,2.5*nFx CM FONT oFont LASTROW nRow ALIGN "TL"
+                  @ (y-0.07)*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:cantidad,08,2) ;
+                              SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "TR"
+                  IF oApp:usabultosventa
+                     @ (y-0.07)*nFx, 18*nFx + nOffX PRINT TO oPrn TEXT;
+                          IF(INT(oQryDet:bultos) <> oQryDet:bultos,STR(oQryDet:bultos,06,1),STR(oQryDet:bultos,4)) ;
+                              SIZE 1*nFx,.5*nFx CM FONT oFont ALIGN "TR"
+                  ENDIF
+              NEXT nL
+              IF oApp:usabultosventa
+                 nBultos := nBultos + oQryDet:bultos
+              ENDIF
+              oQryDet:Skip()
+              y := (nRow / nFx) + .1
+              IF y > 23 .and. !oQryDet:Eof()
+                 ENDPAGE
+                 PAGE
+                    IF lRta
+                       @ 0,0 PRINT TO oPrn IMAGE cFondo SIZE nHorzMid, oPrn:nVertRes() PIXEL GRAY
+                       IF nIdxR > 0
+                          @ 0, nHorzMid PRINT TO oPrn IMAGE cFondo SIZE nHorzMid, oPrn:nVertRes() PIXEL GRAY
+                       ENDIF
+                    ENDIF
+                    FOR nL := 1 TO nLadoTope
+                        nOffX := IF(nL=1, 0, 14.85)
+                        nIdxCopia := IF(nL=1, nIdxL, nIdxR)
+                        IF lRta
+                           oPrn:CmBox( .5*nFx, .5*nFx + nOffX, 1.5*nFx, 20.5*nFx + nOffX )
+                           @ .8*nFx, 1.15*nFx + nOffX PRINT TO oPrn TEXT aOriginal[nIdxCopia] ;
+                                    SIZE 18*nFx,.9*nFx CM FONT oFont1 ALIGN "C"
+                           oPrn:CmBox( 1.5*nFx, .5*nFx + nOffX, 5*nFx,   20.5*nFx + nOffX )
+                           oPrn:CmBox( 5.3*nFx, .5*nFx + nOffX, 7.5*nFx, 20.5*nFx + nOffX )
+                           oPrn:CmBox( 8*nFx,   .5*nFx + nOffX, 9*nFx,   20.5*nFx + nOffX )
+                           IF config:x1 = 2 .or. config:x1 = 3
+                              @ 1.6*nFx, .6*nFx + nOffX PRINT TO oPrn IMAGE "logo.jpg" SIZE 8*nFx, 3*nFx CM
+                           ENDIF
+                           IF config:x1 = 1 .or. config:x1 = 3
+                              @ 2*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oApp:nomb_emp) ;
+                                       SIZE 9*nFx,1*nFx CM FONT oFont1 ALIGN "C" LASTROW nRow
+                              @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "Domicilio Comercial:"+oApp:dire_emp ;
+                                       SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+                              @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT aiva[oApp:tipo_iva] ;
+                                       SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+                           ENDIF
+                           oPrn:CmSay( 1.7*nFx, 11*nFx + nOffX, "REMITO", oFont1 )
+                           oPrn:CmBox( 1.5*nFx, 9.4*nFx + nOffX, 2.7*nFx, 10.7*nFx + nOffX )
+                           oPrn:CmSay( 1.5*nFx, 9.8*nFx + nOffX, "R", oFont2 )
+                           oPrn:CmSay( 2.5*nFx, 11*nFx + nOffX, "Punto de venta:"+LEFT(cNumcomp,4) + " Remito Nro:"+RIGHT(cNumcomp,8), oFont )
+                           oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(DATE()), oFont )
+                           oPrn:CmSay( 3.5*nFx, 11*nFx + nOffX, "CUIT:"+oApp:cuit_emp, oFont )
+                           oPrn:CmSay( 4.0*nFx, 11*nFx + nOffX, "Ingresos brutos:"+oApp:ingb_emp, oFont )
+                           oPrn:CmSay( 4.5*nFx, 11*nFx + nOffX, "Inicio de Actividades:"+DTOC(oApp:inac_emp), oFont )
+                        ELSE
+                           @ 3*nFx, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Fecha de emision:" SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "TR"
+                           @ 3*nFx, 12.5*nFx + nOffX PRINT TO oPrn TEXT DTOC(DATE())  SIZE 8*nFx,1*nFx CM FONT oFont ALIGN "TL"
+                        ENDIF
+                        @ 5.5*nFx, 1*nFx + nOffX   PRINT TO oPrn TEXT "C.U.I.T.:" ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 5.5*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryCli:cuit) ;
+                                 SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        @ 5.5*nFx, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Razon Social:" ;
+                                 SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 5.5*nFx, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryCli:nombre) + " ("+ALLTRIM(STR(oQryCli:codigo))+")" ;
+                                 SIZE 8*nFx,1*nFx CM FONT oFont LASTROW nRow
+                        @ 6*nFx, 1*nFx + nOffX  PRINT TO oPrn TEXT "Condicion IVA:" ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 6*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT aIva[IF(oQryCli:coniva<>0,oQryCli:coniva,5)] ;
+                                 SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        nRow := IF(nRow<6*nFx, 6*nFx, nRow)
+                        @ nRow, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Direccion:" ;
+                                 SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ nRow, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryCli:direccion) + " " + ALLTRIM(oQryCli:localidad) ;
+                                 SIZE 8*nFx,1*nFx CM FONT oFont
+                        @ 8.2*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Codigo" ;
+                                 SIZE 2.8*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        @ 8.2*nFx, 4*nFx + nOffX PRINT TO oPrn TEXT "Descripcion del producto" ;
+                                 SIZE 7*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        @ 8.2*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT "Cantidad" ;
+                                 SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "R"
+                        IF oApp:usabultosventa
+                           @ 8.2*nFx, 18*nFx + nOffX PRINT TO oPrn TEXT "Btos" ;
+                                    SIZE 1*nFx,.5*nFx CM FONT oFont ALIGN "R"
+                        ENDIF
+                    NEXT nL
+                    y := 9.2
+              ENDIF
+          NEXT i
+
+          FOR nL := 1 TO nLadoTope
+              nOffX := IF(nL=1, 0, 14.85)
+              IF oGet <> nil
+                 @ y*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT oGet[23]:cText ;
+                          SIZE 18*nFx,3*nFx CM FONT oFont ALIGN "L" LASTROW nRow
+                 y := nRow / nFx
+              ENDIF
+              IF LEN(cFactRemitada) > 0
+                 @ y*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Factura remitada: "+ALLTRIM(cFactRemitada) ;
+                          SIZE 18*nFx,3*nFx CM FONT oFont ALIGN "L" LASTROW nRow
+                 y := nRow / nFx
+              ENDIF
+              IF oApp:usabultosventa
+                 @ y*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Total Bultos:"+STR(nBultos,4) ;
+                          SIZE 3*nFx,1*nFx CM FONT oFont ALIGN "L"
+              ENDIF
+          NEXT nL
+       ENDPAGE
+   NEXT nPar
+   ENDPRINT
+RETURN nil
+
+
+STATIC FUNCTION P2x1FacturaNoFiscal(cTipoDoc, cNumComp, oQryVen1, oQryDet1, oQryIvaDet,;
+                                    oQryP, oQryPar, config, cCondVen, cFormaPag, aiva)
+LOCAL i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, oFont5
+LOCAL nBultos, lImprimio_promo, nDesFac
+LOCAL nFx := 0.7, nL, nOffX, nHorzMid, cFondo
+LOCAL aOriginal := {"ORIGINAL","DUPLICADO","TRIPLICADO","CUADRUPLICADO","QUINTUPLICADO","SEXTUPLICADO"}
+LOCAL nTotalCopias, nPar, nPares, nIdxL, nIdxR, nLadoTope, nIdxCopia
+LOCAL nHoja, nConfigFon
+
+   nConfigFon := config:fon
+   DEFINE FONT oFont   NAME "ARIAL"   SIZE nConfigFon*nFx,      nConfigFon*2.5*nFx
+   DEFINE FONT oFont1  NAME "CALIBRI" SIZE nConfigFon*1.5*nFx,  nConfigFon*4*nFx   BOLD
+   DEFINE FONT oFont2  NAME "CALIBRI" SIZE nConfigFon*4*nFx,    nConfigFon*7*nFx   BOLD
+   DEFINE FONT oFont3  NAME "ARIAL"   SIZE nConfigFon*nFx,      nConfigFon*2.5*nFx BOLD
+   DEFINE FONT oFont5  NAME "ARIAL"   SIZE nConfigFon*.8*nFx,   nConfigFon*1.9*nFx BOLD
+   AddFontResource("i2of5txt.ttf")
+   DEFINE FONT oFont4  NAME "Interleaved 2of5 Text" SIZE nConfigFon*1.5*nFx, nConfigFon*5*nFx
+
+   cFondo := IF(oQryP:imprimeDat,"fondofac.jpg","fondonof.jpg")
+   nTotalCopias := IF(oQryP:copiafb=1, 2, oQryP:copiafb)
+   nPares := INT((nTotalCopias+1)/2)
+
+   PRINT oPrn NAME "Presupuesto "+cNumcomp PREVIEW MODAL
+   oPrn:SetLandscape()
+   oPrn:SetPage(9)
+   nHorzMid := oPrn:nHorzRes()/2
+
+   FOR nPar := 1 TO nPares
+       nIdxL := (nPar-1)*2 + 1
+       nIdxR := IF(nIdxL+1 <= nTotalCopias, nIdxL+1, 0)
+       nLadoTope := IF(nIdxR>0, 2, 1)
+       oQryDet1:GoTop()
+       nDesFac := 0
+       nBultos := 0
+       lImprimio_promo := .f.
+       nHoja := 1
+
+       PAGE
+          @ 0,0 PRINT TO oPrn IMAGE cFondo SIZE nHorzMid, oPrn:nVertRes() PIXEL GRAY
+          IF nIdxR > 0
+             @ 0, nHorzMid PRINT TO oPrn IMAGE cFondo SIZE nHorzMid, oPrn:nVertRes() PIXEL GRAY
+          ENDIF
+          FOR nL := 1 TO nLadoTope
+              nOffX := IF(nL=1, 0, 14.85)
+              nIdxCopia := IF(nL=1, nIdxL, nIdxR)
+              oPrn:CmBox( .5*nFx,  .5*nFx + nOffX, 1.5*nFx, 20.5*nFx + nOffX )
+              oPrn:CmBox( 1.5*nFx, .5*nFx + nOffX, 5*nFx,   20.5*nFx + nOffX )
+              oPrn:CmBox( 5.3*nFx, .5*nFx + nOffX, 7.5*nFx, 20.5*nFx + nOffX )
+              oPrn:CmBox( 8*nFx,   .5*nFx + nOffX, 9*nFx,   20.5*nFx + nOffX )
+              oPrn:CmBox( 22*nFx,  .5*nFx + nOffX, 25*nFx,  20.5*nFx + nOffX )
+              @ .8*nFx, 1.15*nFx + nOffX PRINT TO oPrn TEXT aOriginal[nIdxCopia] ;
+                       SIZE 18*nFx,.9*nFx CM FONT oFont1 ALIGN "C"
+              IF oQryP:imprimeDat
+                 IF config:x1 = 2 .or. config:x1 = 3
+                    @ 1.6*nFx, .6*nFx + nOffX PRINT TO oPrn IMAGE "logo.jpg" SIZE 8*nFx, 3*nFx CM
+                 ENDIF
+                 IF config:x1 = 1 .or. config:x1 = 3
+                    @ 2*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oApp:nomb_emp) ;
+                             SIZE 9*nFx,1*nFx CM FONT oFont1 ALIGN "C" LASTROW nRow
+                    @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "Domicilio Comercial:"+oApp:dire_emp ;
+                             SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+                    @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT aiva[oApp:tipo_iva] ;
+                             SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+                 ENDIF
+              ENDIF
+              oPrn:CmSay( 1.7*nFx, 11*nFx + nOffX, ALLTRIM(oQryPar:textonofiscal)+IF(cTipoDoc="NC"," NC",""), oFont1 )
+              oPrn:CmBox( 1.5*nFx, 9.4*nFx + nOffX, 2.7*nFx, 10.7*nFx + nOffX )
+              oPrn:CmSay( 1.5*nFx, 9.8*nFx + nOffX, oQryPar:letranofiscal, oFont2 )
+              oPrn:CmSay( 2.5*nFx, 11*nFx + nOffX, "Punto de venta:"+SUBSTR(cNumcomp,2,4) + " Comprobante Nro:"+RIGHT(cNumcomp,8), oFont )
+              oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(oQryVen1:fecha), oFont )
+              IF oQryP:imprimeDat
+                 oPrn:CmSay( 3.5*nFx, 11*nFx + nOffX, "CUIT:"+oApp:cuit_emp, oFont )
+                 oPrn:CmSay( 4.0*nFx, 11*nFx + nOffX, "Ingresos brutos:"+oApp:ingb_emp, oFont )
+                 oPrn:CmSay( 4.5*nFx, 11*nFx + nOffX, "Inicio de Actividades:"+DTOC(oApp:inac_emp), oFont )
+              ENDIF
+              @ 5.5*nFx, 1*nFx + nOffX   PRINT TO oPrn TEXT "C.U.I.T.:" ;
+                       SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 5.5*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT oQryVen1:cuit ;
+                       SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              @ 5.5*nFx, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Razon Social:" ;
+                       SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 5.5*nFx, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryVen1:nombre)+" ("+ALLTRIM(str(oQryVen1:codcli))+")" ;
+                       SIZE 8*nFx,1*nFx CM FONT oFont LASTROW nRow
+              @ 6*nFx, 1*nFx + nOffX  PRINT TO oPrn TEXT "Condicion IVA:" ;
+                       SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 6*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT aIva[oQryVen1:coniva] ;
+                       SIZE 6*nFx,.5*nFx CM FONT oFont
+              nRow := IF(nRow<6*nFx, 6*nFx, nRow)
+              @ nRow, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Direccion:" ;
+                       SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ nRow, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryVen1:direccion) + " " + ALLTRIM(oQryVen1:localidad) + " " + ALLTRIM(oQryVen1:codpos) ;
+                       SIZE 8*nFx,1*nFx CM FONT oFont
+              @ 6.5*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Condicion venta:" ;
+                       SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 6.5*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(cCondVen) ;
+                       SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              @ 7*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Forma de pago:" ;
+                       SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 7*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(cFormaPag) ;
+                       SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              @ 8.2*nFx, 0.7*nFx + nOffX PRINT TO oPrn TEXT "Codigo" ;
+                       SIZE 2.5*nFx,.9*nFx CM FONT oFont5 ALIGN "L"
+              @ 8.2*nFx, 3.5*nFx + nOffX PRINT TO oPrn TEXT "Descripcion del producto" ;
+                       SIZE 6.5*nFx,.9*nFx CM FONT oFont5 ALIGN "L"
+              @ 8.2*nFx, 10*nFx + nOffX PRINT TO oPrn TEXT "Cantidad" ;
+                       SIZE 2*nFx,.9*nFx CM FONT oFont5 ALIGN "R"
+              IF oApp:usabultosventa
+                 @ 8.2*nFx, 12.05*nFx + nOffX PRINT TO oPrn TEXT "Btos" ;
+                          SIZE .5*nFx,.9*nFx CM FONT oFont5 ALIGN "R"
+              ENDIF
+              @ 8.2*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "Pr.Unitario" ;
+                       SIZE 2*nFx,.9*nFx CM FONT oFont5 ALIGN "R"
+              @ 8.2*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT "Desc.%" ;
+                       SIZE 1.5*nFx,.9*nFx CM FONT oFont5 ALIGN "C"
+              @ 8.2*nFx, 15.5*nFx + nOffX PRINT TO oPrn TEXT "Subtotal" ;
+                       SIZE 2*nFx,.9*nFx CM FONT oFont5 ALIGN "R"
+          NEXT nL
+
+          y := 9.2
+          oQryDet1:GoTop()
+          FOR i := 1 TO oQryDet1:nRecCount
+              IF oQryDet1:punit < 0 .and. !lImprimio_promo
+                 FOR nL := 1 TO nLadoTope
+                     nOffX := IF(nL=1, 0, 14.85)
+                     @ (y+.4)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Descuentos Promociones" ;
+                                  SIZE 10*nFx,1*nFx CM FONT oFont ALIGN "TC" LASTROW nRow
+                 NEXT nL
+                 lImprimio_promo := .t.
+                 y := y + .3
+              ENDIF
+              FOR nL := 1 TO nLadoTope
+                  nOffX := IF(nL=1, 0, 14.85)
+                  IF oApp:impcodpro
+                     @ (y-0.07)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT IF(EMPTY(oQryDet1:codigopro),STR(oQryDet1:codart,13),LEFT(oQryDet1:codigopro,13)) ;
+                              SIZE 2.5*nFx,.5*nFx CM FONT oFont5 ALIGN "TL"
+                  ELSE
+                     @ (y-0.07)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet1:codart,13) ;
+                              SIZE 2.5*nFx,.5*nFx CM FONT oFont5 ALIGN "TL"
+                  ENDIF
+                  @ (y-0.07)*nFx, 3.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryDet1:detart)+" "+ALLTRIM(oQryDet1:condicioncompra) ;
+                              SIZE 6.5*nFx,2.5*nFx CM FONT oFont5 LASTROW nRow ALIGN "TL"
+                  @ (y-0.07)*nFx, 10*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet1:cantidad,10,2) ;
+                              SIZE 2*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
+                  IF oApp:usabultosventa
+                     @ (y-0.07)*nFx, 12.05*nFx + nOffX PRINT TO oPrn TEXT;
+                          IF(INT(oQryDet1:bultos) <> oQryDet1:bultos,STR(oQryDet1:bultos,06,1),STR(oQryDet1:bultos,4)) ;
+                              SIZE .5*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
+                  ENDIF
+                  @ (y-0.07)*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT STR(IF(LEFT(cNumComp,1)<>"A",oQryDet1:punit,oQryDet1:neton/oQryDet1:cantidad),12,2) ;
+                              SIZE 2*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
+                  @ (y-0.07)*nFx, 14.2*nFx + nOffX PRINT TO oPrn TEXT IF(oQryDet1:descupor > 0,;
+                              ALLTRIM(IF(oQryDet1:descupor = INT(oQryDet1:descupor),;
+                                         STR(INT(oQryDet1:descupor),3),;
+                                         STR(oQryDet1:descupor,6,2)))+"% "+;
+                              IF(oQryPar:imprimedescuimp,ALLTRIM(STR(oQryDet1:descu,12,2)),"")," ") ;
+                              SIZE 1.8*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
+                  @ (y-0.07)*nFx, 15.5*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet1:subtot,12,2) ;
+                              SIZE 2*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
+              NEXT nL
+              IF oApp:usabultosventa
+                 nBultos := nBultos + oQryDet1:bultos
+              ENDIF
+              nDesFac := nDesFac + oQryDet1:descu
+              oQryDet1:Skip()
+              y := (nRow / nFx) + .1
+              IF y > 21 .and. !oQryDet1:Eof()
+                 FOR nL := 1 TO nLadoTope
+                     nOffX := IF(nL=1, 0, 14.85)
+                     @ 23*nFx, 5*nFx + nOffX PRINT TO oPrn TEXT "CONTINUA EN OTRA HOJA" ;
+                                  SIZE 9*nFx,2*nFx CM FONT oFont
+                 NEXT nL
+                 ENDPAGE
+                 nHoja ++
+                 PAGE
+                    @ 0,0 PRINT TO oPrn IMAGE cFondo SIZE nHorzMid, oPrn:nVertRes() PIXEL GRAY
+                    IF nIdxR > 0
+                       @ 0, nHorzMid PRINT TO oPrn IMAGE cFondo SIZE nHorzMid, oPrn:nVertRes() PIXEL GRAY
+                    ENDIF
+                    FOR nL := 1 TO nLadoTope
+                        nOffX := IF(nL=1, 0, 14.85)
+                        nIdxCopia := IF(nL=1, nIdxL, nIdxR)
+                        oPrn:CmBox( .5*nFx,  .5*nFx + nOffX, 1.5*nFx, 20.5*nFx + nOffX )
+                        oPrn:CmBox( 1.5*nFx, .5*nFx + nOffX, 5*nFx,   20.5*nFx + nOffX )
+                        oPrn:CmBox( 5.3*nFx, .5*nFx + nOffX, 7.5*nFx, 20.5*nFx + nOffX )
+                        oPrn:CmBox( 8*nFx,   .5*nFx + nOffX, 9*nFx,   20.5*nFx + nOffX )
+                        oPrn:CmBox( 22*nFx,  .5*nFx + nOffX, 25*nFx,  20.5*nFx + nOffX )
+                        @ .8*nFx, 1.15*nFx + nOffX PRINT TO oPrn TEXT aOriginal[nIdxCopia] ;
+                                 SIZE 18*nFx,.9*nFx CM FONT oFont1 ALIGN "C"
+                        IF oQryP:imprimeDat
+                           IF config:x1 = 2 .or. config:x1 = 3
+                              @ 1.6*nFx, .6*nFx + nOffX PRINT TO oPrn IMAGE "logo.jpg" SIZE 8*nFx, 3*nFx CM
+                           ENDIF
+                           IF config:x1 = 1 .or. config:x1 = 3
+                              @ 2*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oApp:nomb_emp) ;
+                                       SIZE 9*nFx,1*nFx CM FONT oFont1 ALIGN "C" LASTROW nRow
+                              @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "Domicilio Comercial:"+oApp:dire_emp ;
+                                       SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+                              @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT aiva[oApp:tipo_iva] ;
+                                       SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+                           ENDIF
+                        ENDIF
+                        oPrn:CmSay( 1.7*nFx, 11*nFx + nOffX, ALLTRIM(oQryPar:textonofiscal)+IF(cTipoDoc="NC"," NC",""), oFont1 )
+                        oPrn:CmBox( 1.5*nFx, 9.4*nFx + nOffX, 2.7*nFx, 10.7*nFx + nOffX )
+                        oPrn:CmSay( 1.5*nFx, 9.8*nFx + nOffX, oQryPar:letranofiscal, oFont2 )
+                        oPrn:CmSay( 2.5*nFx, 11*nFx + nOffX, "Punto de venta:"+SUBSTR(cNumcomp,2,4) + " Comprobante Nro:"+RIGHT(cNumcomp,8), oFont )
+                        oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(oQryVen1:fecha), oFont )
+                        IF oQryP:imprimeDat
+                           oPrn:CmSay( 3.5*nFx, 11*nFx + nOffX, "CUIT:"+oApp:cuit_emp, oFont )
+                           oPrn:CmSay( 4.0*nFx, 11*nFx + nOffX, "Ingresos brutos:"+oApp:ingb_emp, oFont )
+                           oPrn:CmSay( 4.5*nFx, 11*nFx + nOffX, "Inicio de Actividades:"+DTOC(oApp:inac_emp), oFont )
+                        ENDIF
+                        @ 5.5*nFx, 1*nFx + nOffX   PRINT TO oPrn TEXT "C.U.I.T.:" ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 5.5*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT oQryVen1:cuit ;
+                                 SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        @ 5.5*nFx, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Razon Social:" ;
+                                 SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 5.5*nFx, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryVen1:nombre)+" ("+ALLTRIM(str(oQryVen1:codcli))+")" ;
+                                 SIZE 8*nFx,1*nFx CM FONT oFont LASTROW nRow
+                        @ 6*nFx, 1*nFx + nOffX  PRINT TO oPrn TEXT "Condicion IVA:" ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 6*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT aIva[oQryVen1:coniva] ;
+                                 SIZE 6*nFx,.5*nFx CM FONT oFont
+                        nRow := IF(nRow<6*nFx, 6*nFx, nRow)
+                        @ nRow, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Direccion:" ;
+                                 SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ nRow, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryVen1:direccion) + " " + ALLTRIM(oQryVen1:localidad) ;
+                                 SIZE 8*nFx,1*nFx CM FONT oFont
+                        @ 6.5*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Condicion venta:" ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 6.5*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(cCondVen) ;
+                                 SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        @ 7*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Forma de pago:" ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 7*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(cFormaPag) ;
+                                 SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        @ 8.2*nFx, 0.7*nFx + nOffX PRINT TO oPrn TEXT "Codigo" ;
+                                 SIZE 2.5*nFx,.9*nFx CM FONT oFont5 ALIGN "L"
+                        @ 8.2*nFx, 3.5*nFx + nOffX PRINT TO oPrn TEXT "Descripcion del producto" ;
+                                 SIZE 6.5*nFx,.9*nFx CM FONT oFont5 ALIGN "L"
+                        @ 8.2*nFx, 10*nFx + nOffX PRINT TO oPrn TEXT "Cantidad" ;
+                                 SIZE 2*nFx,.9*nFx CM FONT oFont5 ALIGN "R"
+                        @ 8.2*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "Pr.Unitario" ;
+                                 SIZE 2*nFx,.9*nFx CM FONT oFont5 ALIGN "R"
+                        @ 8.2*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT "Desc.%" ;
+                                 SIZE 1.5*nFx,.9*nFx CM FONT oFont5 ALIGN "C"
+                        @ 8.2*nFx, 15.5*nFx + nOffX PRINT TO oPrn TEXT "Subtotal" ;
+                                 SIZE 2*nFx,.9*nFx CM FONT oFont5 ALIGN "R"
+                    NEXT nL
+                    y := 9.2
+              ENDIF
+          NEXT i
+
+          FOR nL := 1 TO nLadoTope
+              nOffX := IF(nL=1, 0, 14.85)
+              IF oApp:usabultosventa
+                 @ (y+.5)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Total Bultos:" + STR(nBultos,4) ;
+                          SIZE 3*nFx,1*nFx CM FONT oFont ALIGN "L"
+              ENDIF
+              IF oApp:usareparto
+                 @ 27*nFx, 13*nFx + nOffX PRINT TO oPrn TEXT CodigoBarra(STRTRAN(STR(oQryVen1:codbarra,11)," ","0")) ;
+                          SIZE 6*nFx,1*nFx CM FONT oFont4 ALIGN "R"
+              ENDIF
+              IF nDesFac > 0
+                 @ (y+1)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(STRTRAN(oQryVen1:observa,"PUNTO DE VENTA","")) ;
+                          SIZE 18*nFx,3*nFx CM FONT oFont LASTROW nRow ALIGN "L"
+                 @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "Descuento Gral:"+STR(nDesFac,12,2) ;
+                          SIZE 18*nFx,3*nFx CM FONT oFont ALIGN "L"
+              ELSE
+                 @ (y+1)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(STRTRAN(oQryVen1:observa,"PUNTO DE VENTA","")) ;
+                          SIZE 18*nFx,3*nFx CM FONT oFont LASTROW nRow ALIGN "L"
+              ENDIF
+              @ 23.0*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT IF(!empty(oQryVen1:vendedor),"Vendedor: "+ALLTRIM(oQryVen1:vendedor),"") ;
+                       SIZE 5*nFx,.5*nFx CM FONT oFont3
+              @ 23.5*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "Total $:" ;
+                       SIZE 4*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 23.5*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryVen1:importe,12,2) ;
+                       SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R" LASTROW nRow
+              IF oApp:usar_puntos .and. oQryVen1:codcli > 1
+                 @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "(Puntos venta: "+STR(oQryVen1:puntos,8)+;
+                              " - Acumulados: "+STR(oQryVen1:puntosacu,8)+;
+                              " - Total: "+STR(oQryVen1:puntos+oQryVen1:puntosacu ,8) ;
+                          SIZE 16*nFx,1*nFx CM FONT oFont5  ALIGN "L"
+              ENDIF
+          NEXT nL
+       ENDPAGE
+   NEXT nPar
+   ENDPRINT
+RETURN nil
+
+
+STATIC FUNCTION P2x1ReimprimirPresu(oQryPresu, oQryDet, oQryCli, cNumcomp, dFecVen, lDolar,;
+                                    lImpSinIva, config, aiva)
+LOCAL i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, cCodigopro, nIva, nDescuP
+LOCAL nFx := 0.7, nL, nOffX, nHorzMid, cFondo
+LOCAL nTotalCopias := 2, nPar, nPares, nIdxL, nIdxR, nLadoTope, nIdxCopia
+LOCAL aOriginal := {"ORIGINAL","DUPLICADO","TRIPLICADO","CUADRUPLICADO","QUINTUPLICADO","SEXTUPLICADO"}
+LOCAL nHoja, nConfigFon
+
+   nConfigFon := config:fon
+   DEFINE FONT oFont   NAME "ARIAL"   SIZE nConfigFon*nFx,      nConfigFon*2.5*nFx
+   DEFINE FONT oFont1  NAME "CALIBRI" SIZE nConfigFon*1.5*nFx,  nConfigFon*4*nFx   BOLD
+   DEFINE FONT oFont2  NAME "CALIBRI" SIZE nConfigFon*4*nFx,    nConfigFon*7*nFx   BOLD
+   DEFINE FONT oFont3  NAME "ARIAL"   SIZE nConfigFon*nFx,      nConfigFon*2.5*nFx BOLD
+
+   cFondo := IF(FILE("fondopre.jpg"),"fondopre.jpg","fondofac.jpg")
+   nPares := INT((nTotalCopias+1)/2)
+
+   PRINT oPrn NAME "Presupuesto "+cNumcomp PREVIEW MODAL
+   oPrn:SetLandscape()
+   oPrn:SetPage(9)
+   nHorzMid := oPrn:nHorzRes()/2
+
+   FOR nPar := 1 TO nPares
+       nIdxL := (nPar-1)*2 + 1
+       nIdxR := IF(nIdxL+1 <= nTotalCopias, nIdxL+1, 0)
+       nLadoTope := IF(nIdxR>0, 2, 1)
+       oQryDet:GoTop()
+       nIva := 0
+       nDescuP := 0
+       nHoja := 1
+
+       PAGE
+          @ 0,0 PRINT TO oPrn IMAGE cFondo SIZE nHorzMid, oPrn:nVertRes() PIXEL GRAY
+          IF nIdxR > 0
+             @ 0, nHorzMid PRINT TO oPrn IMAGE cFondo SIZE nHorzMid, oPrn:nVertRes() PIXEL GRAY
+          ENDIF
+          FOR nL := 1 TO nLadoTope
+              nOffX := IF(nL=1, 0, 14.85)
+              nIdxCopia := IF(nL=1, nIdxL, nIdxR)
+              oPrn:CmBox( .5*nFx, .5*nFx + nOffX, 1.5*nFx, 20.5*nFx + nOffX )
+              @ .8*nFx, 1.15*nFx + nOffX PRINT TO oPrn TEXT aOriginal[nIdxCopia] ;
+                       SIZE 18*nFx,.9*nFx CM FONT oFont1 ALIGN "C"
+              oPrn:CmBox( 1.5*nFx, .5*nFx + nOffX, 5*nFx,   20.5*nFx + nOffX )
+              oPrn:CmBox( 5.3*nFx, .5*nFx + nOffX, 7.5*nFx, 20.5*nFx + nOffX )
+              oPrn:CmBox( 8*nFx,   .5*nFx + nOffX, 9*nFx,   20.5*nFx + nOffX )
+              oPrn:CmBox( 22*nFx,  .5*nFx + nOffX, 25*nFx,  20.5*nFx + nOffX )
+              IF config:x1 = 2 .or. config:x1 = 3
+                 @ 1.6*nFx, .6*nFx + nOffX PRINT TO oPrn IMAGE "logo.jpg" SIZE 8*nFx, 3*nFx CM
+              ENDIF
+              IF config:x1 = 1 .or. config:x1 = 3
+                 @ 2*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oApp:nomb_emp) ;
+                          SIZE 9*nFx,1*nFx CM FONT oFont1 ALIGN "C" LASTROW nRow
+                 @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "Domicilio Comercial:"+oApp:dire_emp ;
+                          SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+                 @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT aiva[oApp:tipo_iva] ;
+                          SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+              ENDIF
+              oPrn:CmSay( 1.7*nFx, 11*nFx + nOffX, "PRESUPUESTO", oFont1 )
+              oPrn:CmBox( 1.5*nFx, 9.4*nFx + nOffX, 2.7*nFx, 10.7*nFx + nOffX )
+              oPrn:CmSay( 1.5*nFx, 9.8*nFx + nOffX, "X", oFont2 )
+              oPrn:CmSay( 2.0*nFx, 16*nFx + nOffX, "N: "+cNumcomp, oFont )
+              oPrn:CmSay( 2.5*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(oQryPresu:fecha), oFont )
+              IF dFecVen <> nil
+                 oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de vencimiento:"+DTOC(dFecVen), oFont )
+              ENDIF
+              oPrn:CmSay( 3.5*nFx, 11*nFx + nOffX, "CUIT:"+oApp:cuit_emp, oFont )
+              oPrn:CmSay( 4.0*nFx, 11*nFx + nOffX, "Ingresos brutos:"+oApp:ingb_emp, oFont )
+              oPrn:CmSay( 4.5*nFx, 11*nFx + nOffX, "Inicio de Actividades:"+DTOC(oApp:inac_emp), oFont )
+              @ 5.5*nFx, 1*nFx + nOffX   PRINT TO oPrn TEXT "C.U.I.T.:" ;
+                       SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 5.5*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT oQryPresu:cuit ;
+                       SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              @ 5.5*nFx, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Razon Social:" ;
+                       SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 5.5*nFx, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryPresu:nombre) ;
+                       SIZE 8*nFx,1*nFx CM FONT oFont LASTROW nRow
+              @ 6*nFx, 1*nFx + nOffX  PRINT TO oPrn TEXT "Condicion IVA:" ;
+                       SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ 6*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT aIva[oQryPresu:coniva] ;
+                       SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              nRow := IF(nRow<6*nFx, 6*nFx, nRow)
+              @ nRow, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Direccion:" ;
+                       SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+              @ nRow, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryPresu:direccion) + " " + ALLTRIM(oQryPresu:localidad) ;
+                       SIZE 8*nFx,1*nFx CM FONT oFont
+              @ 8.2*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Codigo" ;
+                       SIZE 2.8*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              @ 8.2*nFx, 4*nFx + nOffX PRINT TO oPrn TEXT "Descripcion del producto" ;
+                       SIZE 7*nFx,.5*nFx CM FONT oFont ALIGN "L"
+              @ 8.2*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Cantidad" ;
+                       SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "R"
+              @ 8.2*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT "Pr.Unit."+IF(oApp:presudiscriva .and. !lImpSinIva," S/IVA","") ;
+                       SIZE 2.1*nFx,.5*nFx CM FONT oFont ALIGN "R"
+              @ 8.2*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT "Subtotal"+IF(oApp:presudiscriva .and. !lImpSinIva," S/IVA","") ;
+                       SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
+          NEXT nL
+
+          y := 9.2
+          oQryDet:GoTop()
+          FOR i := 1 TO oQryDet:nRecCount
+              cCodigopro := ""
+              IF oQryDet:codart > 0
+                 cCodigopro := oApp:oServer:Query("SELECT codigopro FROM ge_"+oApp:cId+"articu WHERE codigo = "+STR(oQryDet:codart)):codigopro
+              ENDIF
+              FOR nL := 1 TO nLadoTope
+                  nOffX := IF(nL=1, 0, 14.85)
+                  IF oApp:impcodpro
+                     @ (y-0.07)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT IF(EMPTY(cCodigopro),STR(oQryDet:codart,13),ALLTRIM(cCodigopro)) ;
+                              SIZE 2.9*nFx,.5*nFx CM FONT oFont ALIGN "TL"
+                  ELSE
+                     @ (y-0.07)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:codart,13) ;
+                              SIZE 2.9*nFx,.5*nFx CM FONT oFont ALIGN "TL"
+                  ENDIF
+                  @ (y-0.07)*nFx, 4*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryDet:detart) ;
+                              SIZE 7*nFx,2.5*nFx CM FONT oFont LASTROW nRow ALIGN "TL"
+                  @ (y-0.07)*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:cantidad,08,2) ;
+                              SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "TR"
+                  IF !oApp:presudiscriva
+                     @ (y-0.07)*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:punit/IF(lDolar,oApp:dolar,1),12,2) ;
+                              SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "TR"
+                     @ (y-0.07)*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:importe/IF(lDolar,oApp:dolar,1),12,2) ;
+                              SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "TR"
+                  ELSE
+                     @ (y-0.07)*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:neto/oQryDet:cantidad/IF(lDolar,oApp:dolar,1),12,2) ;
+                              SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "TR"
+                     @ (y-0.07)*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:neto/IF(lDolar,oApp:dolar,1),12,2) ;
+                              SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "TR"
+                  ENDIF
+              NEXT nL
+              IF oApp:presudiscriva
+                 nIva := nIva + oQryDet:importe - oQryDet:neto
+              ENDIF
+              nDescuP := nDescuP + oQryDet:descu
+              oQryDet:Skip()
+              y := (nRow / nFx) + .1
+              IF y > 21 .and. !oQryDet:Eof()
+                 FOR nL := 1 TO nLadoTope
+                     nOffX := IF(nL=1, 0, 14.85)
+                     @ 23*nFx, 5*nFx + nOffX PRINT TO oPrn TEXT "CONTINUA EN OTRA HOJA" ;
+                                  SIZE 9*nFx,2*nFx CM FONT oFont
+                 NEXT nL
+                 ENDPAGE
+                 nHoja ++
+                 PAGE
+                    @ 0,0 PRINT TO oPrn IMAGE cFondo SIZE nHorzMid, oPrn:nVertRes() PIXEL GRAY
+                    IF nIdxR > 0
+                       @ 0, nHorzMid PRINT TO oPrn IMAGE cFondo SIZE nHorzMid, oPrn:nVertRes() PIXEL GRAY
+                    ENDIF
+                    FOR nL := 1 TO nLadoTope
+                        nOffX := IF(nL=1, 0, 14.85)
+                        nIdxCopia := IF(nL=1, nIdxL, nIdxR)
+                        oPrn:CmBox( .5*nFx, .5*nFx + nOffX, 1.5*nFx, 20.5*nFx + nOffX )
+                        @ .8*nFx, 1.15*nFx + nOffX PRINT TO oPrn TEXT aOriginal[nIdxCopia]+" (Hoja:"+STR(nHoja,2)+")" ;
+                                 SIZE 18*nFx,.9*nFx CM FONT oFont1 ALIGN "C"
+                        oPrn:CmBox( 1.5*nFx, .5*nFx + nOffX, 5*nFx,   20.5*nFx + nOffX )
+                        oPrn:CmBox( 5.3*nFx, .5*nFx + nOffX, 7.5*nFx, 20.5*nFx + nOffX )
+                        oPrn:CmBox( 8*nFx,   .5*nFx + nOffX, 9*nFx,   20.5*nFx + nOffX )
+                        oPrn:CmBox( 22*nFx,  .5*nFx + nOffX, 25*nFx,  20.5*nFx + nOffX )
+                        IF config:x1 = 2 .or. config:x1 = 3
+                           @ 1.6*nFx, .6*nFx + nOffX PRINT TO oPrn IMAGE "logo.jpg" SIZE 8*nFx, 3*nFx CM
+                        ENDIF
+                        IF config:x1 = 1 .or. config:x1 = 3
+                           @ 2*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oApp:nomb_emp) ;
+                                    SIZE 9*nFx,1*nFx CM FONT oFont1 ALIGN "C" LASTROW nRow
+                           @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "Domicilio Comercial:"+oApp:dire_emp ;
+                                    SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+                           @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT aiva[oApp:tipo_iva] ;
+                                    SIZE 9*nFx,1*nFx CM FONT oFont LASTROW nRow ALIGN "C"
+                        ENDIF
+                        oPrn:CmSay( 1.7*nFx, 11*nFx + nOffX, "PRESUPUESTO", oFont1 )
+                        oPrn:CmBox( 1.5*nFx, 9.4*nFx + nOffX, 2.7*nFx, 10.7*nFx + nOffX )
+                        oPrn:CmSay( 1.5*nFx, 9.8*nFx + nOffX, "X", oFont2 )
+                        oPrn:CmSay( 2.0*nFx, 16*nFx + nOffX, "N: "+cNumcomp, oFont )
+                        oPrn:CmSay( 2.5*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(oQryPresu:fecha), oFont )
+                        IF dFecVen <> nil
+                           oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de vencimiento:"+DTOC(dFecVen), oFont )
+                        ENDIF
+                        oPrn:CmSay( 3.5*nFx, 11*nFx + nOffX, "CUIT:"+oApp:cuit_emp, oFont )
+                        oPrn:CmSay( 4.0*nFx, 11*nFx + nOffX, "Ingresos brutos:"+oApp:ingb_emp, oFont )
+                        oPrn:CmSay( 4.5*nFx, 11*nFx + nOffX, "Inicio de Actividades:"+DTOC(oApp:inac_emp), oFont )
+                        @ 5.5*nFx, 1*nFx + nOffX   PRINT TO oPrn TEXT "C.U.I.T.:" ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 5.5*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT oQryCli:cuit ;
+                                 SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        @ 5.5*nFx, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Razon Social:" ;
+                                 SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 5.5*nFx, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryCli:nombre) + " ("+ALLTRIM(STR(oQryCli:codigo))+")" ;
+                                 SIZE 8*nFx,1*nFx CM FONT oFont LASTROW nRow
+                        @ 6*nFx, 1*nFx + nOffX  PRINT TO oPrn TEXT "Condicion IVA:" ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ 6*nFx, 4.1*nFx + nOffX PRINT TO oPrn TEXT aIva[oQryCli:coniva] ;
+                                 SIZE 6*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        nRow := IF(nRow<6*nFx, 6*nFx, nRow)
+                        @ nRow, 9.5*nFx + nOffX PRINT TO oPrn TEXT "Direccion:" ;
+                                 SIZE 2.5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                        @ nRow, 12.5*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(oQryCli:direccion) + " " + ALLTRIM(oQryCli:localidad) ;
+                                 SIZE 8*nFx,1*nFx CM FONT oFont
+                        @ 8.2*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Codigo" ;
+                                 SIZE 2.8*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        @ 8.2*nFx, 4*nFx + nOffX PRINT TO oPrn TEXT "Descripcion del producto" ;
+                                 SIZE 7*nFx,.5*nFx CM FONT oFont ALIGN "L"
+                        @ 8.2*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Cantidad" ;
+                                 SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "R"
+                        @ 8.2*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT "Pr.Unit."+IF(oApp:presudiscriva .and. !lImpSinIva," S/IVA","") ;
+                                 SIZE 2.1*nFx,.5*nFx CM FONT oFont ALIGN "R"
+                        @ 8.2*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT "Subtotal"+IF(oApp:presudiscriva .and. !lImpSinIva," S/IVA","") ;
+                                 SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
+                    NEXT nL
+                    y := 9.2
+              ENDIF
+          NEXT i
+
+          FOR nL := 1 TO nLadoTope
+              nOffX := IF(nL=1, 0, 14.85)
+              IF lDolar
+                 oPrn:CmSay( y*nFx, 1*nFx + nOffX, "(Los Precios anteriores estan expresados en dolares americanos)", oFont )
+              ENDIF
+              IF lImpSinIva
+                 oPrn:CmSay( (y+.5)*nFx, 1*nFx + nOffX, "(Los Precios anteriores NO INCLUYEN IVA)", oFont )
+              ENDIF
+              @ (y+1)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT oQryPresu:observa ;
+                       SIZE 18*nFx,3*nFx CM FONT oFont ALIGN "L"
+              IF nDescuP > 0
+                 @ 23.5*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Descuento General"+IF(lDolar,"u$s","$")+":" ;
+                          SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                 @ 23.5*nFx, 5*nFx + nOffX PRINT TO oPrn TEXT STR(nDescuP/IF(lDolar,oApp:dolar,1),12,2) ;
+                          SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
+              ENDIF
+              IF !oApp:presudiscriva
+                 @ 23.5*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Total presupuesto "+IF(lDolar,"u$s","$")+":" ;
+                          SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                 @ 23.5*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT STR(oQryPresu:importe/IF(lDolar,oApp:dolar,1),12,2) ;
+                          SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
+              ELSE
+                 IF !lImpSinIva
+                    @ 23.5*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Tasa gral (IVA) "+IF(lDolar,"u$s","$")+":" ;
+                             SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                    @ 23.5*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT STR(nIva/IF(lDolar,oApp:dolar,1),12,2) ;
+                             SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
+                    @ 24.0*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Total presupuesto "+IF(lDolar,"u$s","$")+":" ;
+                             SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                    @ 24.0*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT STR(oQryPresu:importe/IF(lDolar,oApp:dolar,1),12,2) ;
+                             SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
+                 ELSE
+                    @ 24.0*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Total presupuesto "+IF(lDolar,"u$s","$")+":" ;
+                             SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
+                    @ 24.0*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT STR(oQryPresu:importe/IF(lDolar,oApp:dolar,1)-nIva/IF(lDolar,oApp:dolar,1),12,2) ;
+                             SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
+                 ENDIF
+              ENDIF
+              @ 24.0*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Vendedor: "+ALLTRIM(oQryPresu:vendedor) ;
+                       SIZE 5*nFx,.5*nFx CM FONT oFont3
+          NEXT nL
+       ENDPAGE
+   NEXT nPar
+   ENDPRINT
 RETURN nil

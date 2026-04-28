@@ -150,7 +150,7 @@ DEFINE DIALOG oDlg1 TITLE "Impresion de Etiquetas de precios" FROM 05,15 TO 37,1
    @ 05, 255 SAY "Modelo" OF oDlg1 PIXEL SIZE 60,10
    @ 13, 255 COMBOBOX oCom1 VAR mmod ITEMS aMod SIZE 60,12 PIXEL ;
          OF oDlg1 ;
-         ON CHANGE  refrefont(mmod,oSay1,oSay2,oSay3,oGet1,oGet2)
+         ON CHANGE  refrefont(mmod,oSay1,oSay2,oSay3,oGet1,oGet2,aSay)
 
    @ 25, 255 SAY "Fuente Nombre articulo" OF oDlg1 PIXEL SIZE 60,10
    @ 35, 255 SAY aSay[1] PROMPT aText[1] SIZE 120,20 OF oDlg1 PIXEL BORDER COLOR oQryFue:color1
@@ -724,7 +724,7 @@ RETURN .t.
 
 
 *** Refrescar los fonts segun el modelo de etiqueta
-STATIC FUNCTION RefreFont(mmod,oSay1,oSay2,oSay3,oGet1,oGet2)
+STATIC FUNCTION RefreFont(mmod,oSay1,oSay2,oSay3,oGet1,oGet2,aSay)
 LOCAL oF1,oF2,oF3
 oQryFue:GOTO(mmod)
 oF1 := TFont():New(alltrim(oQryFue:cFace1)  ,oQryFue:nWidth1  ,oQryFue:nHeight1 ,.f.,oQryFue:lBold1,;
@@ -742,12 +742,18 @@ oF3:= TFont():New(alltrim(oQryFue:cFace3)  ,oQryFue:nWidth3  ,oQryFue:nHeight3 ,
 oSay1:nClrText := oQryFue:color1
 oSay2:nClrText := oQryFue:color2
 oSay3:nClrText := oQryFue:color3
+aSay[1]:nClrText := oQryFue:color1
+aSay[2]:nClrText := oQryFue:color2
+aSay[3]:nClrText := oQryFue:color3
 oSay1:SetFont(oF1)
 oSay2:SetFont(oF2)
 oSay3:SetFont(oF3)
 oSay1:Refresh()
 oSay2:Refresh()
 oSay3:Refresh()
+aSay[1]:Refresh()
+aSay[2]:Refresh()
+aSay[3]:Refresh()
 oGet1:cText := oQryFue:nMaxFil
 oGet2:cText := oQryFue:nMaxCol
 oGet1:Refresh()

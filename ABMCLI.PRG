@@ -18,8 +18,9 @@ PROCEDURE Clientes(cPermisos)
       RETURN
    ENDIF
    AADD(oApp:aVentanas,cVentana)
-   oQry  := oApp:oServer:Query("SELECT c.*,v.nombre AS nomven FROM ge_"+oApp:cId+"clientes c "+;
+   oQry  := oApp:oServer:Query("SELECT c.*,v.nombre AS nomven, lp.nombre as nomlis FROM ge_"+oApp:cId+"clientes c "+;
                                "LEFT JOIN ge_"+oApp:cId+"vendedores v ON c.vendedor = v.codigo "+;
+                               "LEFT JOIN ge_"+oApp:cId+"lispre lp ON c.lispreesp = lp.codigo "+;
                                "WHERE c.CODIGO > 1 ORDER BY c.NOMBRE ")
    // Defino el dialogo tomado del recurso ABM
    oApp:oIco:Refresh()
@@ -84,15 +85,16 @@ PROCEDURE Clientes(cPermisos)
       
      DEFINE DIALOG oDlg RESOURCE "ABMS" OF oWnd1
       REDEFINE XBROWSE oBrw DATASOURCE oQry;
-         COLUMNS "codigo","nombre","alias","dni", "CUIT", "Direccion","localidad","Telefono","fecult","nomven";
-         HEADERS "Codigo","Nombre y Apellido","Alias","DNI", "CUIT", "Direccion","Localidad","Telefono","Ultima Compra","Vendedor";
-         SIZES 100,290,60,60,90,210,200,120,290;
+         COLUMNS "codigo","nombre","alias","dni", "CUIT", "Direccion","localidad","Telefono","fecult","nomven",'lispre','nomlis';
+         HEADERS "Codigo","Nombre y Apellido","Alias","DNI", "CUIT", "Direccion","Localidad","Telefono","Ultima Compra","Vendedor","Lista Base","Lista Esp.";
+         SIZES 100,290,60,60,90,210,200,120,200,100,200;
          ID 111 OF oDlg AUTOSORT ON DBLCLICK IF("M"$cPermisos,(Formu( .f.),oBrw:Refresh()),nil)
      
       REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg
       oQry:bOnChangePage := {|| oBrw:Refresh() }
+      oBrw:nFreeze:= 2
       //oBrw:SetDolphin(oQry,.f.,.t.)
-      PintaBrw(oBrw,8)
+      PintaBrw(oBrw,10)
       oDlg:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar, oBrw,cPermisos,6)}
       oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt(oQry, oGetSeek, oBrw, nKey,"c.codigo > 1",'c') }
       // Activo el dialogo y al iniciar muevo a 0,0
@@ -366,6 +368,11 @@ mrta := MsgNoYes("Seguro de eliminar"+CHR(10)+;
                  "el registro codigo Nro:"+STR(nNum),"Atencion")
 IF !mrta
    RETURN nil
+   ELSE 
+   IF oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"ventas_encab WHERE codcli = "+ClipValue2Sql(nNum)):nRecCount > 0
+      MsgStop("IMPOSIBLE BORRAR, el cliente tiene ventas asociadas","Error")
+      RETURN nil
+   ENDIF   
 ENDIF
 TRY
   oApp:oServer:BeginTransaction()
