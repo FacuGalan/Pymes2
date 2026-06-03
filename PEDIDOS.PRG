@@ -965,7 +965,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                 "IVA Responsable Inscripto – Agente de Percepción",;
                 "Pequeño Contribuyente Eventual","Monotributista Social",;
                 "Pequeño Contribuyente Eventual Social","IVA NO Alcanzado"},oQryDet1,;
-      i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, config, oQryCli, lRta := .F.,;
+      i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont5, config, oQryCli, lRta := .F.,;
       oQryP :=  oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip)),;
       lConImporte := .t., lPreguntaSinImporte := oApp:oServer:Query("SELECT pedidossinimporte FROM ge_"+oApp:cId+"parametros"):pedidossinimporte
    IF base:codcli = nil
@@ -985,10 +985,19 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
    oApp:cDestinoMail := oApp:oServer:Query("SELECT mail FROM ge_"+oApp:cId+"clientes WHERE codigo = "+ClipValue2Sql(base:codcli)):mail
    IF !lRta
        ** PEDIDOS
-       DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon,config:fon*2.5
+       /*DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon,config:fon*2.5
        DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
        DEFINE FONT oFont2  NAME "CALIBRI"     SIZE config:fon*4,config:fon*7 BOLD   
-       DEFINE FONT oFont3  NAME "ARIAL"       SIZE config:fon,config:fon*2.5 BOLD
+       DEFINE FONT oFont3  NAME "ARIAL"       SIZE config:fon,config:fon*2.5 BOLD*/
+       IF config:fon < 14
+          config:fon := config:fon * 2.8
+       ENDIF
+           DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon,config:fon*2.5
+           DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
+           DEFINE FONT oFont2  NAME "CALIBRI"     SIZE config:fon*4,config:fon*7 BOLD
+           DEFINE FONT oFont3  NAME "ARIAL"       SIZE config:fon,config:fon*2.5 BOLD
+           DEFINE FONT oFont5  NAME "ARIAL"       SIZE config:fon*.8,config:fon*1.9 BOLD
+
        PRINT oPrn NAME "Pedido"  PREVIEW MODAL
        oPrn:SetPortrait()
        oPrn:SetPage(9)
@@ -1052,36 +1061,36 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                   SIZE 8,1 CM FONT oFont ALIGN "L"
          
          @ 8.2, 01 PRINT TO oPrn TEXT "Codigo" ;
-                          SIZE 2.8,.5 CM FONT oFont ALIGN "R"
+                          SIZE 2.8,.5 CM FONT oFont5 ALIGN "R"
          @ 8.2, 04 PRINT TO oPrn TEXT "Descripcion del producto" ;
-                  SIZE 7,.5 CM FONT oFont ALIGN "L"
+                  SIZE 7,.5 CM FONT oFont5 ALIGN "L"
          @ 8.2, 11 PRINT TO oPrn TEXT "Cantidad" ;
-                  SIZE 2,.5 CM FONT oFont ALIGN "R"
+                  SIZE 2,.5 CM FONT oFont5 ALIGN "R"
          IF lConImporte         
          @ 8.2, 14 PRINT TO oPrn TEXT "Pr.Unitario" ;
-                  SIZE 2,.5 CM FONT oFont ALIGN "R"
+                  SIZE 2,.5 CM FONT oFont5 ALIGN "R"
          @ 8.2, 17 PRINT TO oPrn TEXT "Subtotal" ;
-                  SIZE 3,.5 CM FONT oFont ALIGN "R"
+                  SIZE 3,.5 CM FONT oFont5 ALIGN "R"
          ENDIF    
          y := 9.2
          oQryDet1:GoTop()
          FOR i = 1 TO oQryDet1:nRecCount          
                @ y, 01 PRINT TO oPrn TEXT STR(oQryDet1:codart,13) ;
-                  SIZE 2.8,.5 CM FONT oFont ALIGN "R"
+                  SIZE 2.8,.5 CM FONT oFont5 ALIGN "R"
                @ y+0.06, 04 PRINT TO oPrn TEXT ALLTRIM(oQryDet1:detart) ;
-                  SIZE 7,1.5 CM FONT oFont LASTROW nRow
+                  SIZE 7,1.5 CM FONT oFont5 LASTROW nRow
                @ y, 11 PRINT TO oPrn TEXT STR(oQryDet1:cantidad,08,2) ;
-                  SIZE 2,.5 CM FONT oFont ALIGN "R"  
+                  SIZE 2,.5 CM FONT oFont5 ALIGN "R"  
                IF lConImporte   
                @ y, 14 PRINT TO oPrn TEXT oQryDet1:ptotal/oqrydet1:cantidad ;
-                          SIZE 2,.5 CM FONT oFont ALIGN "R"
+                          SIZE 2,.5 CM FONT oFont5 ALIGN "R"
                @ y, 17 PRINT TO oPrn TEXT oQryDet1:ptotal;
-                    SIZE 3,.5 CM FONT oFont ALIGN "R"             
+                    SIZE 3,.5 CM FONT oFont5 ALIGN "R"             
                ENDIF
                y := nRow + .1
                IF y > 21
                     @ 23, 05 PRINT TO oPrn TEXT "CONTINUA EN OTRA HOJA";
-                      SIZE 9,2 CM FONT oFont
+                      SIZE 9,2 CM FONT oFont5
                     ENDPAGE 
                     PAGE
                      nRow := (oPrn:nHorzRes() / 80) / 47
@@ -1142,16 +1151,16 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                               SIZE 8,1 CM FONT oFont ALIGN "L"
                      
                      @ 8.2, 01 PRINT TO oPrn TEXT "Codigo" ;
-                                      SIZE 2.8,.5 CM FONT oFont ALIGN "R"
+                                      SIZE 2.8,.5 CM FONT oFont5 ALIGN "R"
                      @ 8.2, 04 PRINT TO oPrn TEXT "Descripcion del producto" ;
-                              SIZE 7,.5 CM FONT oFont ALIGN "L"
+                              SIZE 7,.5 CM FONT oFont5 ALIGN "L"
                      @ 8.2, 11 PRINT TO oPrn TEXT "Cantidad" ;
-                              SIZE 2,.5 CM FONT oFont ALIGN "R"
+                              SIZE 2,.5 CM FONT oFont5 ALIGN "R"
                      IF lConImporte
                      @ 8.2, 14 PRINT TO oPrn TEXT "Pr.Unitario" ;
-                              SIZE 2,.5 CM FONT oFont ALIGN "R"
+                              SIZE 2,.5 CM FONT oFont5 ALIGN "R"
                      @ 8.2, 17 PRINT TO oPrn TEXT "Subtotal" ;
-                              SIZE 3,.5 CM FONT oFont ALIGN "R"
+                              SIZE 3,.5 CM FONT oFont5 ALIGN "R"
                      ENDIF    
                      y := 9.2
                  ENDIF

@@ -75,7 +75,7 @@ RETURN
 ***************************************
 ** Formulario de altas y modificaciones
 STATIC FUNCTION Formu ( lAlta)
-LOCAL oGet := ARRAY(10), oBot := ARRAY(2), oForm, lRta := .f., aCor, base, oError,poriva,;
+LOCAL oGet := ARRAY(11), oBot := ARRAY(2), oForm, lRta := .f., aCor, base, oError,poriva,;
       aTipos:={"Efectivo","Transferencia","Cheque","Tarjeta","Cuenta Corriente","Mercado Pago"},;
       oQryCue:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"cuentas"),cNomCue:=SPACE(100)
 IF lAlta
@@ -95,7 +95,7 @@ IF lAlta
 ENDIF
 DO WHILE .T.
 DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Formas de pago";
-       FROM 05,15 TO 19,65 OF oWnd1
+       FROM 05,15 TO 21,65 OF oWnd1
    
    @ 07, 05 SAY "Codigo:"         OF oForm PIXEL SIZE 50,20 RIGHT
    @ 22, 05 SAY "Nombre:"         OF oForm PIXEL SIZE 50,20 RIGHT
@@ -105,7 +105,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Formas de pago"
   
    @ 05, 60 GET oGet[1] VAR base:codigo PICTURE "99999" OF oForm PIXEL RIGHT WHEN(.F.)
    @ 20, 60 GET oGet[2] VAR base:nombre PICTURE "@!"    OF oForm PIXEL ;
-                VALID(base:nombre<>SPACE(30))
+                VALID(base:nombre<>SPACE(30))   
    @ 35, 60 COMBOBOX oGet[3] VAR base:tipo ITEMS aTipos OF oForm PIXEL SIZE 55,12
    @ 50, 60 GET oGet[4] VAR base:incremento PICTURE "999.99" OF oForm PIXEL RIGHT 
    @ 65, 60 GET oGet[9] VAR base:codcue OF oForm PIXEL PICTURE "999" SIZE 25,12 RIGHT WHEN(base:tipo = 2);
@@ -114,6 +114,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Formas de pago"
    @ 65,90 GET oGet[10] VAR cNomCue OF oForm PIXEL PICTURE "@S20" ;
               WHEN((oGet[10]:cText := IF(base:codcue=0,'SIN ASIGNAR CUENTA',cNomCue)) = 'x-x-x-x-')
    @ 05,130 CHECKBOX oGet[5] VAR base:tactil OF oForm PIXEL PROMPT "Visible en tactil" SIZE 150,12  
+   @ 80,05  CHECKBOX oGet[11] VAR base:lFiscal OF oForm PIXEL PROMPT "Es una forma de pago Fiscal" SIZE 150,12 
 
    
    acor := AcepCanc(oForm)

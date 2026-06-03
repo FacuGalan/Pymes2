@@ -213,11 +213,12 @@ LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, cOrden, oFont,;
       aRub, aMar, oBrwMar, oBrwRub, cMarca, cRubro, oGru, oCol, oError, mfecha := DATE(), lAFecha := .f.,;
       aFiltro := {"Todos los productos","Solo mayor a cero","Solo negativos","Solo Faltantes"}, nFiltro := 2,;
       nTipoArt := 1, aTipoArt := {"Todos los tipos","Solo productos","Solo Materia prima"}, lNoVendibles := .t.,;
-      nCodPro := 0, cNomPro := SPACE(30), oQryPro
+      nCodPro := 0, cNomPro := SPACE(30), oQryPro, oQryLis, nCodLis := 0, cNomLis := SPACE(30)
 CursorWait()      
 oQryMar:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"deptos  ORDER BY nombre")
 oQryPro:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"provee  ORDER BY nombre")
 oQryRub:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"rubros  ORDER BY nombre")
+oQryLis:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"lispre  ORDER BY nombre")
 oQryArt := oApp:oServer:Query("SELECT  a.nombre AS Nombre, a.codigo AS Codigo,"+;
                               "d.nombre AS Depto_Descr, r.nombre AS Rubro_Descr, a.preciocos AS Precio_Costo, "+;                              
                               "a.stockact AS Stock, ROUND(a.stockact * a.preciocos,2) AS ValorizaCost, "+;
@@ -295,6 +296,11 @@ DEFINE DIALOG oDlg1 TITLE "Listado de Stock" FROM 03,15 TO 35,90
                 VALID(nCodPro = 0 .or. Buscar(oQryPro,oDlg1,oGet[1],oGet[2]));
                 ACTION (oGet[01]:cText:= -1, Buscar(oQryPro,oDlg1,oGet[1],oGet[2])) BITMAP "BUSC1"
    @ 185,130 GET oGet[02] VAR cNomPro          PIXEL OF oDlg1 WHEN (.F.)
+   @ 202,130 SAY "Lista Precio:" OF oDlg1 PIXEL SIZE 40,12
+   @ 200,172 GET oGet[03] VAR nCodLis OF oDlg1 PICTURE "99999" RIGHT SIZE 30,12 PIXEL;
+                VALID(nCodLis = 0 .or. Buscar(oQryLis,oDlg1,oGet[3],oGet[4]));
+                ACTION (oGet[03]:cText:= -1, Buscar(oQryLis,oDlg1,oGet[3],oGet[4])) BITMAP "BUSC1"
+   @ 215,130 GET oGet[04] VAR cNomLis          PIXEL OF oDlg1 WHEN (.F.)
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
@@ -307,13 +313,24 @@ IF lAFecha
    LisStockAFecha(mfecha,lNoVendibles,nFiltro, nTipoArt, nOrden2, aOrden, nCodPro)
    RETURN nil 
 ENDIF
-cSql :=  "SELECT  a.nombre AS Nombre, a.codigo AS Codigo,"+;
+IF nCodLis = 0
+   cSql :=  "SELECT  a.nombre AS Nombre, a.codigo AS Codigo,"+;
                               "d.nombre AS Depto_Descr, r.nombre AS Rubro_Descr, a.preciocos AS Precio_Costo, "+;                              
                               "a.stockact AS Stock, ROUND(a.stockact * a.preciocos,2) AS ValorizaCost, "+;
                               " ROUND(a.stockact * a.precioven,2) AS ValorizaVent , a.stockmin as StockMin, a.stockide as StockIde "+;
                               "FROM ge_"+oApp:cId+"articu a "+;
                               "LEFT JOIN ge_"+oApp:cId+"rubros r ON r.codigo = a.rubro "+;
                               "LEFT JOIN ge_"+oApp:cId+"deptos d ON d.codigo = a.depto "
+   ELSE 
+   cSql :=  "SELECT  a.nombre AS Nombre, a.codigo AS Codigo,"+;
+                              "d.nombre AS Depto_Descr, r.nombre AS Rubro_Descr, a.preciocos AS Precio_Costo, "+;                              
+                              "a.stockact AS Stock, ROUND(a.stockact * a.preciocos,2) AS ValorizaCost, "+;
+                              " ROUND(a.stockact * if(l.precio IS NULL OR l.precio = 0,a.precioven,l.precio),2) AS ValorizaVent , a.stockmin as StockMin, a.stockide as StockIde "+;
+                              "FROM ge_"+oApp:cId+"articu a "+;
+                              "LEFT JOIN ge_"+oApp:cId+"rubros r ON r.codigo = a.rubro "+;
+                              "LEFT JOIN ge_"+oApp:cId+"deptos d ON d.codigo = a.depto "+;
+                              "LEFT JOIN ge_"+oApp:cId+"lispredet l ON l.codlis = "+ClipValue2Sql(nCodLis)+" AND l.codart = a.codigo "
+ENDIF   
 cMarca := "("
 FOR i := 1 TO LEN(aMar)
     IF aMar[i,1]

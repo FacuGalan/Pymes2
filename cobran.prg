@@ -959,6 +959,9 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
       RETURN nil
    ENDIF      
    config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
+   IF config:fon < 14
+      config:fon := config:fon * 2.8
+   ENDIF
    ** FACTURACION CON FORMATO PARA FACTURA ELECTRONICA
    DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon,config:fon*2.5
    DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
@@ -1022,9 +1025,9 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
 
 	   @ 8.2, 01 PRINT TO oPrn TEXT "Comprobante" ;
               SIZE 5,.5 CM FONT oFont ALIGN "L"
-       @ 8.2, 7 PRINT TO oPrn TEXT "Cuota" ;
+     @ 8.2, 7 PRINT TO oPrn TEXT "Cuota" ;
               SIZE 2,.5 CM FONT oFont ALIGN "L"
-       @ 8.2, 11 PRINT TO oPrn TEXT "Importe" ;
+     @ 8.2, 11 PRINT TO oPrn TEXT "Importe" ;
               SIZE 4,.5 CM FONT oFont ALIGN "R"
              
 	   y := 9.2

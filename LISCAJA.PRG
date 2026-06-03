@@ -20,12 +20,26 @@ ENDIF
 AADD(oApp:aVentanas,cVentana)
 
    CursorWait()   
-   oQry  := oApp:oServer:Query( "SELECT c.id,c.fecha,c.saldo,c.caja,c.hora,c.observa,cd.debe,"+;
-    "cd.haber,cd.efectivo FROM ge_"+oApp:cId+"cajadiaria c "+;
-    "LEFT JOIN "+;
-    "(SELECT id_caja, SUM(debe) AS debe,SUM(haber) AS haber,SUM(efectivo) AS efectivo "+;
-    " FROM ge_"+oApp:cId+"cajadiaria_det WHERE LEFT(concepto,1) <> '*'  GROUP BY id_caja) cd ON cd.id_caja = c.id "+;
-    IF(oApp:usua_es_supervisor,""," WHERE c.caja = "+str(oApp:prefijo)) +" "+;
+   oQry := oApp:oServer:Query( ;
+    "SELECT c.id, c.fecha, c.saldo, c.caja, c.hora, c.observa, "+;
+    "cd.debe, cd.haber, cd.efectivo, a.USUARIO "+;
+    "FROM ge_"+oApp:cId+"cajadiaria c "+;
+    "LEFT JOIN ("+;
+    "  SELECT id_caja, SUM(debe) AS debe, SUM(haber) AS haber, SUM(efectivo) AS efectivo "+;
+    "  FROM ge_"+oApp:cId+"cajadiaria_det "+;
+    "  WHERE LEFT(concepto,1) <> '*' "+;
+    "  GROUP BY id_caja"+;
+    ") cd ON cd.id_caja = c.id "+;
+    "LEFT JOIN ge_"+oApp:cId+"auditoria a ON a.ID = ("+;
+    "  SELECT a2.ID FROM ge_"+oApp:cId+"auditoria a2 "+;
+    "  WHERE a2.TIPO = 5 "+;
+    "    AND a2.FECHA = c.fecha "+;
+    "    AND CAST(TRIM(SUBSTRING_INDEX(a2.DESCRIPCION, 'Caja', -1)) AS UNSIGNED) = c.caja "+;
+    "    AND ABS(TIME_TO_SEC(a2.HORA) - TIME_TO_SEC(c.hora)) <= 60 "+;
+    "  ORDER BY ABS(TIME_TO_SEC(a2.HORA) - TIME_TO_SEC(c.hora)) ASC "+;
+    "  LIMIT 1"+;
+    ") "+;
+    IF(oApp:usua_es_supervisor, "", "WHERE c.caja = "+str(oApp:prefijo)) +" "+;
     "ORDER BY c.id DESC ")
    
    // Defino el dialogo tomado del recurso ABMCAJA
@@ -55,7 +69,11 @@ AADD(oApp:aVentanas,cVentana)
          DEFINE BUTTON RESOURCE "IMPR" OF oBar ;
             TOOLTIP "Imprimir Planilla"  ;
             ACTION oBrw:Report("Reporte de Cierres",.T.,.F.);
-            PROMPT "Reporte" TOP WHEN(oQry:RecCount()>0 .and. "R"$cPermisos)    
+            PROMPT "Reporte" TOP WHEN(oQry:RecCount()>0 .and. "R"$cPermisos)
+         DEFINE BUTTON RESOURCE "FILT" OF oBar ;
+            TOOLTIP "Filtrar Registros"  ;
+            ACTION Filt();
+            PROMPT "Filtrar" TOP WHEN(oApp:usua_es_supervisor)    
          // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;
             TOOLTIP "Cerrar Ventana" ;
@@ -65,13 +83,16 @@ AADD(oApp:aVentanas,cVentana)
    oWnd1:bResized := { || Incrusta( oWnd1, oDlg, .t.) }
    DEFINE DIALOG oDlg RESOURCE "ABMS" OF oWnd1
         REDEFINE XBROWSE oBrw DATASOURCE oQry;
-              COLUMNS "Id","caja","fecha","hora","debe","haber","saldo","efectivo","observa";
-              HEADERS "Cierre","Caja","Fecha","Hora","Ingresos","Egresos","Falt/Sob","Efectivo","Observaciones";
-              SIZES   80,80,80,80,80,80,80,80,100;
+              COLUMNS "Id","caja","fecha","hora","debe","haber","saldo","efectivo","observa","usuario";
+              HEADERS "Cierre","Caja","Fecha","Hora","Ingresos","Egresos","Falt/Sob","Efectivo","Observaciones","Usuario";
+              FOOTERS;
+              SIZES   80,80,80,80,80,80,80,80,100,80;
               ID 111 OF oDlg  ON DBLCLICK IF("A"$cPermisos,(EditarObs( oQry:id),oBrw:Refresh()),nil)
      REDEFINE SAY oBrw:oSeek PROMPT "" ID 113 OF oDlg 
      oQry:bOnChangePage := {|| oBrw:Refresh() }
-     PintaBrw(oBrw,9) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE     
+     oBrw:aCols[7]:nFooterTypE := AGGR_SUM
+     oBrw:MakeTotals()
+     PintaBrw(oBrw,10) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE     
      // Activo el dialogo y al iniciar muevo a 0,0
      ACTIVATE DIALOG oDlg NOWAIT ON INIT oDlg:Move(0,0) VALID(oWnd1:End())
    ACTIVATE WINDOW oWnd1 ON INIT Incrusta( oWnd1, oDlg, .T.) VALID(cerrar())
@@ -285,4 +306,63 @@ TRY
 CATCH oError
     ValidaError(oError)  
 END TRY
+RETURN nil
+
+
+STATIC FUNCTION Filt()
+LOCAL acor, oDlg1, oGet3, oGet4, oGet5, oBot1, oBot2, mrta := .f., mdesde := DATE(), ;
+      mhasta := DATE(), cUsua:= oApp:usuario, aUsua:={},;
+      oQryUsu:=oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"usuarios")
+      
+oQryUsu:GoTop()
+AADD(aUsua,"TODOS")
+DO WHILE !oQryUsu:Eof()
+   AADD(aUsua,oQryUsu:usuario)
+   oQryUsu:Skip()
+ENDDO
+DEFINE DIALOG oDlg1 TITLE "Filtrar Turnos por usuario" FROM 03,15 TO 13,60 ;
+       OF oApp:oWnd
+   acor := AcepCanc(oDlg1)
+   
+   @ 07, 05 SAY "Desde Fecha:" OF oDlg1 PIXEL SIZE 50,12 RIGHT
+   @ 22, 05 SAY "Hasta Fecha:" OF oDlg1 PIXEL SIZE 50,12 RIGHT
+   @ 37, 05 SAY "Usuario:" OF oDlg1 PIXEL SIZE 50,12 RIGHT
+   
+   @ 05, 60 GET oGet3 VAR mdesde  OF oDlg1 PIXEL 
+   @ 20, 60 GET oGet4 VAR mhasta  OF oDlg1 PIXEL VALID(mhasta >= mdesde)
+   
+   @ 35, 60 COMBOBOX oGet5 VAR cUsua OF oDlg1 PIXEL ITEMS aUsua SIZE 60,12
+   @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Filtrar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .f.), oDlg1:End() ) PIXEL
+ACTIVATE DIALOG oDlg1 CENTER 
+IF !mrta
+   RETURN nil
+ENDIF
+oQry := oApp:oServer:Query( ;
+    "SELECT c.id, c.fecha, c.saldo, c.caja, c.hora, c.observa, "+;
+    "cd.debe, cd.haber, cd.efectivo, a.USUARIO "+;
+    "FROM ge_"+oApp:cId+"cajadiaria c "+;
+    "LEFT JOIN ("+;
+    "  SELECT id_caja, SUM(debe) AS debe, SUM(haber) AS haber, SUM(efectivo) AS efectivo "+;
+    "  FROM ge_"+oApp:cId+"cajadiaria_det "+;
+    "  WHERE LEFT(concepto,1) <> '*' "+;
+    "  GROUP BY id_caja"+;
+    ") cd ON cd.id_caja = c.id "+;
+    "LEFT JOIN ge_"+oApp:cId+"auditoria a ON a.ID = ("+;
+    "  SELECT a2.ID FROM ge_"+oApp:cId+"auditoria a2 "+;
+    "  WHERE a2.TIPO = 5 "+;
+    "    AND a2.FECHA = c.fecha "+;
+    "    AND CAST(TRIM(SUBSTRING_INDEX(a2.DESCRIPCION, 'Caja', -1)) AS UNSIGNED) = c.caja "+;
+    "    AND ABS(TIME_TO_SEC(a2.HORA) - TIME_TO_SEC(c.hora)) <= 60 "+;
+    "  ORDER BY ABS(TIME_TO_SEC(a2.HORA) - TIME_TO_SEC(c.hora)) ASC "+;
+    "  LIMIT 1"+;
+    ") "+;
+    " WHERE "+IF(cUsua <> 'Todos',"a.usuario = "+ClipValue2Sql(cUsua)+" AND "," ")+;
+    "c.fecha >= "+ClipValue2Sql(mdesde)+ " AND c.fecha <= "+ClipValue2Sql(mhasta)+ " "+; 
+    "ORDER BY c.id DESC ")
+oBrw:oMySql:= oQry
+oBrw:MakeTotals()
+oBrw:Refresh()
 RETURN nil

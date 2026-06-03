@@ -351,7 +351,7 @@ LOCAL i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, config, nTotal
    DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
    DEFINE FONT oFont2  NAME "CALIBRI"     SIZE config:fon*4,config:fon*7 BOLD
    DEFINE FONT oFont3  NAME "ARIAL"       SIZE config:fon,config:fon*2.5 BOLD
-   
+   oApp:cDestinoMail := oApp:oServer:Query("SELECT mail FROM ge_"+oApp:cId+"provee WHERE codigo = "+ClipValue2Sql(base:codpro)):mail
    PRINT oPrn NAME "Orden de Compra" PREVIEW MODAL
    oPrn:SetPortrait()
    oPrn:SetPage(9)
@@ -448,6 +448,7 @@ LOCAL i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, config, nTotal
        ENDPAGE
      NEXT x
    ENDPRINT
+   oApp:cDestinoMail := " "
 RETURN nil
 
 

@@ -339,24 +339,24 @@ DO WHILE .T.
   REDEFINE CHECKBOX oGet[45] VAR vproduccion  ID 4008 OF oFilt
 
   REDEFINE GET oGet[04] VAR vprov ID 104 OF oFilt ;
-               VALID(EMPTY(oGet[04]:cText) .or. Buscar(oQry2,oFilt,oGet[04],oGet[05]));
-               ACTION (oGet[04]:cText:= 0, Buscar(oQry2,oFilt,oGet[04],oGet[05])) BITMAP "BUSC1"
+               VALID(EMPTY(oGet[04]:cText) .or. BuscarArt(oQry2,oFilt,oGet[04],oGet[05]));
+               ACTION (oGet[04]:cText:= 0, BuscarArt(oQry2,oFilt,oGet[04],oGet[05])) BITMAP "BUSC1"
   REDEFINE GET oGet[05] VAR cProve          ID 105 OF oFilt WHEN (.F.)
   REDEFINE GET oGet[21] VAR vmarca ID 122 OF oFilt ;
-               VALID(EMPTY(oGet[21]:cText) .or. Buscar(oQry4,oFilt,oGet[21],oGet[22]));
-               ACTION (oGet[21]:cText:= 0, Buscar(oQry4,oFilt,oGet[21],oGet[22])) BITMAP "BUSC1"
+               VALID(EMPTY(oGet[21]:cText) .or. BuscarArt(oQry4,oFilt,oGet[21],oGet[22]));
+               ACTION (oGet[21]:cText:= 0, BuscarArt(oQry4,oFilt,oGet[21],oGet[22])) BITMAP "BUSC1"
   REDEFINE GET oGet[22] VAR cMarc      ID 123 OF oFilt WHEN (.F.)
   REDEFINE GET oGet[23] VAR vrubro ID 124 OF oFilt ;
-               VALID(EMPTY(oGet[23]:cText) .or. Buscar(oQry5,oFilt,oGet[23],oGet[24]));
-               ACTION (oGet[23]:cText:= 0, Buscar(oQry5,oFilt,oGet[23],oGet[24])) BITMAP "BUSC1"
+               VALID(EMPTY(oGet[23]:cText) .or. BuscarArt(oQry5,oFilt,oGet[23],oGet[24]));
+               ACTION (oGet[23]:cText:= 0, BuscarArt(oQry5,oFilt,oGet[23],oGet[24])) BITMAP "BUSC1"
   REDEFINE GET oGet[24] VAR cRub ID 125 OF oFilt WHEN (.F.)
   REDEFINE GET oGet[27] VAR vempresa ID 126 OF oFilt ;
-               VALID(EMPTY(oGet[27]:cText) .or. Buscar(oQry7,oFilt,oGet[27],oGet[28]));
-               ACTION (oGet[27]:cText:= 0, Buscar(oQry7,oFilt,oGet[27],oGet[28])) BITMAP "BUSC1"
+               VALID(EMPTY(oGet[27]:cText) .or. BuscarArt(oQry7,oFilt,oGet[27],oGet[28]));
+               ACTION (oGet[27]:cText:= 0, BuscarArt(oQry7,oFilt,oGet[27],oGet[28])) BITMAP "BUSC1"
   REDEFINE GET oGet[28] VAR cEmp ID 127 OF oFilt WHEN (.F.)
   REDEFINE GET oGet[25] VAR vdepto ID 128 OF oFilt ;
-               VALID(EMPTY(oGet[25]:cText) .or. Buscar(oQry6,oFilt,oGet[25],oGet[26]));
-               ACTION (oGet[25]:cText:= 0, Buscar(oQry6,oFilt,oGet[25],oGet[26])) BITMAP "BUSC1"
+               VALID(EMPTY(oGet[25]:cText) .or. BuscarArt(oQry6,oFilt,oGet[25],oGet[26]));
+               ACTION (oGet[25]:cText:= 0, BuscarArt(oQry6,oFilt,oGet[25],oGet[26])) BITMAP "BUSC1"
   REDEFINE GET oGet[26] VAR cDept ID 129 OF oFilt WHEN (.F.)
 
   
@@ -378,9 +378,9 @@ DO WHILE .T.
   REDEFINE GET oGet[12] VAR vimpint ID 113 OF oFilt 
   REDEFINE GET oGet[13] VAR vflete ID 114 OF oFilt 
   REDEFINE GET oGet[14] VAR viva ID 115 OF oFilt ;
-              VALID(EMPTY(oGet[14]:cText) .or. (Buscar(oQry3,oFilt,oGet[14],oGet[15]) .and. ;             
+              VALID(EMPTY(oGet[14]:cText) .or. (BuscarArt(oQry3,oFilt,oGet[14],oGet[15]) .and. ;             
                ((oGet[15]:cText := STR(oQry3:tasa,6,2) + "%") <> "xxx"))  );
-               ACTION (oGet[14]:cText:= 0, Buscar(oQry3,oFilt,oGet[14],oGet[15]),;             
+               ACTION (oGet[14]:cText:= 0, BuscarArt(oQry3,oFilt,oGet[14],oGet[15]),;             
                (oGet[15]:cText := STR(oQry3:tasa,6,2) + "%") <> "xxx" ) BITMAP "BUSC1"
   REDEFINE GET oGet[15] VAR cIvaNom ID 116 OF oFilt WHEN (.F.)
   REDEFINE GET oGet[16] VAR vpreciocos ID 117 OF oFilt 
@@ -487,7 +487,7 @@ LOCAL oQryProv
 
 oQryProv:= oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"provee WHERE codigo = " +ClipValue2Sql(oGet:value))
 IF oQryProv:RecCount() = 0
-  Buscar(oQryProv,oGet, oGet)
+  BuscarArt(oQryProv,oGet, oGet)
 ENDIF
 RETURN .t.
 
@@ -662,17 +662,18 @@ RETURN .t.
 ** Mas Opciones 
 STATIC FUNCTION MasOpciones()
 LOCAL i := 0
-LOCAL oGet := ARRAY(5), oBot := ARRAY(2), oForm, lRta := .F., aCor, base, oError, oQry,;
+LOCAL oGet := ARRAY(5), oBot := ARRAY(2), oForm, lRta := .F., aCor, base, oError, oQry, lDesc := .t.,;
       nRedondeo := 2,;
       aRedondeo := {"Sin Redondear","Entero","Multiplo de 10","Multiplo de 50","Multiplo de 100"},;
       aDescu := {"desc1","desc2","desc3","desc4","desc5"}, nDescu := 1, nDescuento := 0, nAVenta := 1,;
       aAventa := {"Manterner utilidad y aplicar a venta","Modificar la utilidad (no aplica a venta)"}
 DEFINE DIALOG oForm TITLE "Cargar Descuentos Global";
-       FROM 05,15 TO 14,70 OF oDlg FONT oApp:oFont
+       FROM 05,15 TO 14,75 OF oDlg FONT oApp:oFont
    @ 07, 05 SAY "Cargar Descuento a:"   OF oForm PIXEL SIZE 60,12 RIGHT
-   @ 05, 70 COMBOBOX oGet[3] VAR nDescu ITEMS aDescu OF oForm PIXEL SIZE 55,12
-   @ 05,130 SAY "%" OF oForm PIXEL SIZE 10,12
-   @ 05,152 GET oGet[4] VAR nDescuento PICTURE "99.99" OF oForm PIXEL RIGHT
+   @ 05, 70 COMBOBOX oGet[3] VAR nDescu ITEMS aDescu OF oForm PIXEL SIZE 55,12 WHEN(lDesc)
+   @ 05,130 SAY "%" OF oForm PIXEL SIZE 10,12   
+   @ 05,152 GET oGet[4] VAR nDescuento PICTURE "999.99" OF oForm PIXEL RIGHT WHEN(lDesc)
+   @ 05,180 CHECKBOX oGet[4] VAR lDesc PROMPT "Aplica Dto" SIZE 35,10 PIXEL 
    @ 22, 05 SAY "Redondear?:"   OF oForm PIXEL SIZE 40,12 RIGHT
    @ 20, 70 COMBOBOX oGet[1] VAR nRedondeo ITEMS aRedondeo OF oForm PIXEL SIZE 55,12
    @ 37, 05 SAY "Como aplica?:"   OF oForm PIXEL SIZE 40,12 RIGHT
@@ -689,7 +690,9 @@ IF !lRta
    RETURN nil 
 ENDIF   
 Procesando(.t.)
-    oApp:oServer:Execute("UPDATE proped_temp SET "+aDescu[nDescu]+" = "+ClipValue2Sql(nDescuento))
+    IF lDesc
+       oApp:oServer:Execute("UPDATE proped_temp SET "+aDescu[nDescu]+" = "+ClipValue2Sql(nDescuento))
+    ENDIF
     // Actualizo los valores 
     IF nAVenta = 1
       oApp:oServer:Execute("UPDATE proped_temp p LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = p.codiva "+;

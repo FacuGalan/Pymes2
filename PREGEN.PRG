@@ -300,24 +300,24 @@ DO WHILE .T.
   REDEFINE CHECKBOX oGet[45] VAR vproduccion  ID 4008 OF oFilt
 
   REDEFINE GET oGet[04] VAR vprov ID 104 OF oFilt ;
-               VALID(EMPTY(oGet[04]:cText) .or. Buscar(oQry2,oFilt,oGet[04],oGet[05]));
-               ACTION (oGet[04]:cText:= 0, Buscar(oQry2,oFilt,oGet[04],oGet[05])) BITMAP "BUSC1"
+               VALID(EMPTY(oGet[04]:cText) .or. BuscarArt(oQry2,oFilt,oGet[04],oGet[05]));
+               ACTION (oGet[04]:cText:= 0, BuscarArt(oQry2,oFilt,oGet[04],oGet[05])) BITMAP "BUSC1"
   REDEFINE GET oGet[05] VAR cProve          ID 105 OF oFilt WHEN (.F.)
   REDEFINE GET oGet[21] VAR vmarca ID 122 OF oFilt ;
-               VALID(EMPTY(oGet[21]:cText) .or. Buscar(oQry4,oFilt,oGet[21],oGet[22]));
-               ACTION (oGet[21]:cText:= 0, Buscar(oQry4,oFilt,oGet[21],oGet[22])) BITMAP "BUSC1"
+               VALID(EMPTY(oGet[21]:cText) .or. BuscarArt(oQry4,oFilt,oGet[21],oGet[22]));
+               ACTION (oGet[21]:cText:= 0, BuscarArt(oQry4,oFilt,oGet[21],oGet[22])) BITMAP "BUSC1"
   REDEFINE GET oGet[22] VAR cMarc      ID 123 OF oFilt WHEN (.F.)
   REDEFINE GET oGet[23] VAR vrubro ID 124 OF oFilt ;
-               VALID(EMPTY(oGet[23]:cText) .or. Buscar(oQry5,oFilt,oGet[23],oGet[24]));
-               ACTION (oGet[23]:cText:= 0, Buscar(oQry5,oFilt,oGet[23],oGet[24])) BITMAP "BUSC1"
+               VALID(EMPTY(oGet[23]:cText) .or. BuscarArt(oQry5,oFilt,oGet[23],oGet[24]));
+               ACTION (oGet[23]:cText:= 0, BuscarArt(oQry5,oFilt,oGet[23],oGet[24])) BITMAP "BUSC1"
   REDEFINE GET oGet[24] VAR cRub ID 125 OF oFilt WHEN (.F.)
   REDEFINE GET oGet[27] VAR vempresa ID 126 OF oFilt ;
-               VALID(EMPTY(oGet[27]:cText) .or. Buscar(oQry7,oFilt,oGet[27],oGet[28]));
-               ACTION (oGet[27]:cText:= 0, Buscar(oQry7,oFilt,oGet[27],oGet[28])) BITMAP "BUSC1"
+               VALID(EMPTY(oGet[27]:cText) .or. BuscarArt(oQry7,oFilt,oGet[27],oGet[28]));
+               ACTION (oGet[27]:cText:= 0, BuscarArt(oQry7,oFilt,oGet[27],oGet[28])) BITMAP "BUSC1"
   REDEFINE GET oGet[28] VAR cEmp ID 127 OF oFilt WHEN (.F.)
   REDEFINE GET oGet[25] VAR vdepto ID 128 OF oFilt ;
-               VALID(EMPTY(oGet[25]:cText) .or. Buscar(oQry6,oFilt,oGet[25],oGet[26]));
-               ACTION (oGet[25]:cText:= 0, Buscar(oQry6,oFilt,oGet[25],oGet[26])) BITMAP "BUSC1"
+               VALID(EMPTY(oGet[25]:cText) .or. BuscarArt(oQry6,oFilt,oGet[25],oGet[26]));
+               ACTION (oGet[25]:cText:= 0, BuscarArt(oQry6,oFilt,oGet[25],oGet[26])) BITMAP "BUSC1"
   REDEFINE GET oGet[26] VAR cDept ID 129 OF oFilt WHEN (.F.)
 
   
@@ -339,9 +339,9 @@ DO WHILE .T.
   REDEFINE GET oGet[12] VAR vimpint ID 113 OF oFilt 
   REDEFINE GET oGet[13] VAR vflete ID 114 OF oFilt 
   REDEFINE GET oGet[14] VAR viva ID 115 OF oFilt ;
-              VALID(EMPTY(oGet[14]:cText) .or. (Buscar(oQry3,oFilt,oGet[14],oGet[15]) .and. ;             
+              VALID(EMPTY(oGet[14]:cText) .or. (BuscarArt(oQry3,oFilt,oGet[14],oGet[15]) .and. ;             
                ((oGet[15]:cText := STR(oQry3:tasa,6,2) + "%") <> "xxx"))  );
-               ACTION (oGet[14]:cText:= 0, Buscar(oQry3,oFilt,oGet[14],oGet[15]),;             
+               ACTION (oGet[14]:cText:= 0, BuscarArt(oQry3,oFilt,oGet[14],oGet[15]),;             
                (oGet[15]:cText := STR(oQry3:tasa,6,2) + "%") <> "xxx" ) BITMAP "BUSC1"
   REDEFINE GET oGet[15] VAR cIvaNom ID 116 OF oFilt WHEN (.F.)
   REDEFINE GET oGet[16] VAR vpreciocos ID 117 OF oFilt 
@@ -465,8 +465,8 @@ DEFINE DIALOG oForm TITLE "Cambio de Precios por Excel " FROM 03,15 TO 35,140
    PintaBrw(oBrwTmp,0)   
 
    @ 05, 70 GET oGet[01] VAR mcodpro     OF oForm PICTURE "999999" PIXEL SIZE 25,12 RIGHT;
-                         VALID(Buscar(oQryPro,oForm,oGet[1],oGet[2]));
-                         ACTION (oGet[1]:cText:= 0, Buscar(oQryPro,oForm,oGet[1],oGet[2])) BITMAP "BUSC1"  
+                         VALID(BuscarArt(oQryPro,oForm,oGet[1],oGet[2]));
+                         ACTION (oGet[1]:cText:= 0, BuscarArt(oQryPro,oForm,oGet[1],oGet[2])) BITMAP "BUSC1"  
    @ 05,105 GET oGet[02] VAR cNomPro         OF oForm PIXEL PICTURE "@!" WHEN(.F.)    
    @ 05,300 BUTTON oBot[1] PROMPT "&Pegar" OF oForm SIZE 30,10 ;
            ACTION (Procesando(.t.),oBrwTmp:Paste(),Recalc(oBrwTmp),Procesando(.f.)) PIXEL WHEN( mcodpro>0)

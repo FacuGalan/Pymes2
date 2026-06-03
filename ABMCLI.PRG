@@ -232,7 +232,7 @@ DEFINE DIALOG oDlg1 TITLE IF(lAlta,"Alta","Modificacion") + " de Clientes" FROM 
    IF !lAlta
       IF base:saldo > 0
          @ 20,250 SAY "SALDO A FAVOR $: " + STR(base:saldo,12,2) OF oDlg1 SIZE 90,12 COLOR CLR_RED PIXEL
-         @ 40,250 BTNBMP oBot3 PROMPT "&Devolver"+CHR(10)+"Anticipo" OF oDlg1 SIZE 32,32 FLAT ;
+         @ 40,255 BTNBMP oBot3 PROMPT "&Devolver"+CHR(10)+"Anticipo" OF oDlg1 SIZE 32,32 FLAT ;
            ACTION (DevolverAnt(base,oDlg1),oDlg1:End() ) PIXEL 
       ENDIF
    ENDIF

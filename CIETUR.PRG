@@ -404,7 +404,7 @@ IF lComan
    oQry:GoTop()
    IF !lPrev
        PRINT oPr
-       REPORT oPrn TITLE "Cierre de turno" + DTOC(oQry:fecha) + " Caja:"+ STR(oQry:caja,4) + " Cierre Nro:"+STR(nId,4) ;       
+       REPORT oPrn TITLE "Cierre de turno " + DTOC(oQry:fecha) + " Caja:"+ STR(oQry:caja,4) + " Cierre Nro:"+STR(nId,4) ;       
            HEADER ALLTRIM(OemToAnsi(oApp:nomb_emp)) CENTER ;       
            FOOTER "Firma operador:____________________    Firma del Encargado:_____________________",;
                   "Observac.: "+alltrim(cObserva);

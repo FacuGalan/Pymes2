@@ -273,9 +273,9 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Articulo" RESOU
   REDEFINE GET oGet[12] VAR base:impint     ID 113 OF oForm PICTURE "99999.99"
   REDEFINE GET oGet[13] VAR base:flete      ID 114 OF oForm PICTURE "99999.9"
   REDEFINE GET oGet[14] VAR base:iva        ID 115 OF oForm PICTURE "99";
-               VALID(Buscar(oQry3,oForm,oGet[14]) .and. ;             
+               VALID(BuscarArt(oQry3,oForm,oGet[14]) .and. ;             
                (oGet[15]:cText := STR(oQry3:tasa,6,2) + "%") <> "xxx");
-               ACTION  (oGet[14]:cText:= 0, (Buscar(oQry3,oForm,oGet[14]) .and. ;             
+               ACTION  (oGet[14]:cText:= 0, (BuscarArt(oQry3,oForm,oGet[14]) .and. ;             
                (oGet[15]:cText := STR(oQry3:tasa,6,2) + "%") <> "xxx")) BITMAP "BUSC1"
   REDEFINE GET oGet[15] VAR cIvaNom         ID 116 OF oForm WHEN (.F.)
   REDEFINE GET oGet[16] VAR base:preciocos  ID 117 OF oForm PICTURE "999999999.99";
@@ -672,24 +672,24 @@ REDEFINE GET oGet[01] VAR base:codigo PICTURE "99999999999999" ID 100 OF oForm
   
 
   REDEFINE GET oGet[04] VAR base:prov ID 104 OF oForm PICTURE "99999";
-                VALID(Buscar(oQry2,oForm,oGet[4],oGet[5]));
-                ACTION (oGet[04]:cText:= 0, Buscar(oQry2,oForm,oGet[4],oGet[5])) BITMAP "BUSC1"
+                VALID(BuscarArt(oQry2,oForm,oGet[4],oGet[5]));
+                ACTION (oGet[04]:cText:= 0, BuscarArt(oQry2,oForm,oGet[4],oGet[5])) BITMAP "BUSC1"
   REDEFINE GET oGet[05] VAR cProve          ID 105 OF oForm WHEN (.F.)
   REDEFINE GET oGet[21] VAR base:marca      ID 122 OF oForm PICTURE "9999";
-               VALID(Buscar(oQry4,oForm,oGet[21],oGet[22]));
-               ACTION (oGet[21]:cText:= 0, Buscar(oQry4,oForm,oGet[21],oGet[22])) BITMAP "BUSC1"
+               VALID(BuscarArt(oQry4,oForm,oGet[21],oGet[22]));
+               ACTION (oGet[21]:cText:= 0, BuscarArt(oQry4,oForm,oGet[21],oGet[22])) BITMAP "BUSC1"
   REDEFINE GET oGet[22] VAR cMarc           ID 123 OF oForm WHEN (.F.)
   REDEFINE GET oGet[23] VAR base:rubro      ID 124 OF oForm PICTURE "9999";
-               VALID(Buscar(oQry5,oForm,oGet[23],oGet[24]));
-               ACTION (oGet[23]:cText:= 0, Buscar(oQry5,oForm,oGet[23],oGet[24])) BITMAP "BUSC1"
+               VALID(BuscarArt(oQry5,oForm,oGet[23],oGet[24]));
+               ACTION (oGet[23]:cText:= 0, BuscarArt(oQry5,oForm,oGet[23],oGet[24])) BITMAP "BUSC1"
   REDEFINE GET oGet[24] VAR cRub            ID 125 OF oForm WHEN (.F.)
   REDEFINE GET oGet[27] VAR base:empresa    ID 126 OF oForm PICTURE "9999";
-               VALID(Buscar(oQry7,oForm,oGet[27],oGet[28]));
-               ACTION (oGet[27]:cText:= 0, Buscar(oQry7,oForm,oGet[27],oGet[28])) BITMAP "BUSC1"
+               VALID(BuscarArt(oQry7,oForm,oGet[27],oGet[28]));
+               ACTION (oGet[27]:cText:= 0, BuscarArt(oQry7,oForm,oGet[27],oGet[28])) BITMAP "BUSC1"
   REDEFINE GET oGet[28] VAR cEmp            ID 127 OF oForm WHEN (.F.)
   REDEFINE GET oGet[25] VAR base:depto      ID 128 OF oForm PICTURE "9999";
-               VALID(Buscar(oQry6,oForm,oGet[25],oGet[26]));
-               ACTION (oGet[25]:cText:= 0, Buscar(oQry6,oForm,oGet[25],oGet[26])) BITMAP "BUSC1"
+               VALID(BuscarArt(oQry6,oForm,oGet[25],oGet[26]));
+               ACTION (oGet[25]:cText:= 0, BuscarArt(oQry6,oForm,oGet[25],oGet[26])) BITMAP "BUSC1"
   REDEFINE GET oGet[26] VAR cDept           ID 129 OF oForm WHEN (.F.)
 
   REDEFINE BUTTON oBot[4] ID 301 OF oForm ACTION AltaMar()
@@ -725,9 +725,9 @@ REDEFINE GET oGet[01] VAR base:codigo PICTURE "99999999999999" ID 100 OF oForm
   REDEFINE GET oGet[12] VAR base:impint     ID 113 OF oForm PICTURE "999.99"
   REDEFINE GET oGet[13] VAR base:flete      ID 114 OF oForm PICTURE "99999.9"
   REDEFINE GET oGet[14] VAR base:iva        ID 115 OF oForm PICTURE "99";
-               VALID(Buscar(oQry3,oForm,oGet[14]) .and. ;             
+               VALID(BuscarArt(oQry3,oForm,oGet[14]) .and. ;             
                (oGet[15]:cText := STR(oQry3:tasa,6,2) + "%") <> "xxx");
-               ACTION  (oGet[14]:cText:= 0, (Buscar(oQry3,oForm,oGet[14]) .and. ;             
+               ACTION  (oGet[14]:cText:= 0, (BuscarArt(oQry3,oForm,oGet[14]) .and. ;             
                (oGet[15]:cText := STR(oQry3:tasa,6,2) + "%") <> "xxx")) BITMAP "BUSC1"
   REDEFINE GET oGet[15] VAR cIvaNom         ID 116 OF oForm WHEN (.F.)
   REDEFINE GET oGet[16] VAR base:preciocos  ID 117 OF oForm PICTURE "999999999.99";
@@ -940,24 +940,24 @@ DEFINE DIALOG oFilt TITLE "Filtrado de Articulo" RESOURCE "ABMART1" OF oWnd1
   REDEFINE CHECKBOX oGet[45] VAR vproduccion  ID 4008 OF oFilt
 
   REDEFINE GET oGet[04] VAR vprov ID 104 OF oFilt ;
-               VALID(EMPTY(oGet[04]:cText) .or. Buscar(oQry2,oFilt,oGet[04],oGet[05]));
-               ACTION (oGet[04]:cText:= 0, Buscar(oQry2,oFilt,oGet[04],oGet[05])) BITMAP "BUSC1"
+               VALID(EMPTY(oGet[04]:cText) .or. BuscarArt(oQry2,oFilt,oGet[04],oGet[05]));
+               ACTION (oGet[04]:cText:= 0, BuscarArt(oQry2,oFilt,oGet[04],oGet[05])) BITMAP "BUSC1"
   REDEFINE GET oGet[05] VAR cProve          ID 105 OF oFilt WHEN (.F.)
   REDEFINE GET oGet[21] VAR vmarca ID 122 OF oFilt ;
-               VALID(EMPTY(oGet[21]:cText) .or. Buscar(oQry4,oFilt,oGet[21],oGet[22]));
-               ACTION (oGet[21]:cText:= 0, Buscar(oQry4,oFilt,oGet[21],oGet[22])) BITMAP "BUSC1"
+               VALID(EMPTY(oGet[21]:cText) .or. BuscarArt(oQry4,oFilt,oGet[21],oGet[22]));
+               ACTION (oGet[21]:cText:= 0, BuscarArt(oQry4,oFilt,oGet[21],oGet[22])) BITMAP "BUSC1"
   REDEFINE GET oGet[22] VAR cMarc      ID 123 OF oFilt WHEN (.F.)
   REDEFINE GET oGet[23] VAR vrubro ID 124 OF oFilt ;
-               VALID(EMPTY(oGet[23]:cText) .or. Buscar(oQry5,oFilt,oGet[23],oGet[24]));
-               ACTION (oGet[23]:cText:= 0, Buscar(oQry5,oFilt,oGet[23],oGet[24])) BITMAP "BUSC1"
+               VALID(EMPTY(oGet[23]:cText) .or. BuscarArt(oQry5,oFilt,oGet[23],oGet[24]));
+               ACTION (oGet[23]:cText:= 0, BuscarArt(oQry5,oFilt,oGet[23],oGet[24])) BITMAP "BUSC1"
   REDEFINE GET oGet[24] VAR cRub ID 125 OF oFilt WHEN (.F.)
   REDEFINE GET oGet[27] VAR vempresa ID 126 OF oFilt ;
-               VALID(EMPTY(oGet[27]:cText) .or. Buscar(oQry7,oFilt,oGet[27],oGet[28]));
-               ACTION (oGet[27]:cText:= 0, Buscar(oQry7,oFilt,oGet[27],oGet[28])) BITMAP "BUSC1"
+               VALID(EMPTY(oGet[27]:cText) .or. BuscarArt(oQry7,oFilt,oGet[27],oGet[28]));
+               ACTION (oGet[27]:cText:= 0, BuscarArt(oQry7,oFilt,oGet[27],oGet[28])) BITMAP "BUSC1"
   REDEFINE GET oGet[28] VAR cEmp ID 127 OF oFilt WHEN (.F.)
   REDEFINE GET oGet[25] VAR vdepto ID 128 OF oFilt ;
-               VALID(EMPTY(oGet[25]:cText) .or. Buscar(oQry6,oFilt,oGet[25],oGet[26]));
-               ACTION (oGet[25]:cText:= 0, Buscar(oQry6,oFilt,oGet[25],oGet[26])) BITMAP "BUSC1"
+               VALID(EMPTY(oGet[25]:cText) .or. BuscarArt(oQry6,oFilt,oGet[25],oGet[26]));
+               ACTION (oGet[25]:cText:= 0, BuscarArt(oQry6,oFilt,oGet[25],oGet[26])) BITMAP "BUSC1"
   REDEFINE GET oGet[26] VAR cDept ID 129 OF oFilt WHEN (.F.)
 
   
@@ -979,9 +979,9 @@ DEFINE DIALOG oFilt TITLE "Filtrado de Articulo" RESOURCE "ABMART1" OF oWnd1
   REDEFINE GET oGet[12] VAR vimpint ID 113 OF oFilt 
   REDEFINE GET oGet[13] VAR vflete ID 114 OF oFilt 
   REDEFINE GET oGet[14] VAR viva ID 115 OF oFilt ;
-              VALID(EMPTY(oGet[14]:cText) .or. (Buscar(oQry3,oFilt,oGet[14],oGet[15]) .and. ;             
+              VALID(EMPTY(oGet[14]:cText) .or. (BuscarArt(oQry3,oFilt,oGet[14],oGet[15]) .and. ;             
                ((oGet[15]:cText := STR(oQry3:tasa,6,2) + "%") <> "xxx"))  );
-               ACTION (oGet[14]:cText:= 0, Buscar(oQry3,oFilt,oGet[14],oGet[15]),;             
+               ACTION (oGet[14]:cText:= 0, BuscarArt(oQry3,oFilt,oGet[14],oGet[15]),;             
                (oGet[15]:cText := STR(oQry3:tasa,6,2) + "%") <> "xxx" ) BITMAP "BUSC1"
   REDEFINE GET oGet[15] VAR cIvaNom ID 116 OF oFilt WHEN (.F.)
   REDEFINE GET oGet[16] VAR vpreciocos ID 117 OF oFilt 
@@ -1172,8 +1172,8 @@ DEFINE DIALOG oForm TITLE "Alta de Rubros";
    @ 20, 60 GET oGet[2] VAR base:nombre PICTURE "@!"    OF oForm PIXEL ;
                 VALID(base:nombre<>SPACE(30))     
    @ 35, 60 GET oGet[3] VAR base:depto  PICTURE "9999" RIGHT OF oForm SIZE 25,12 PIXEL;
-                VALID(Buscar(oQry6,oForm,oGet[03],oGet[04]));
-                ACTION (oGet[03]:cText:= 0, Buscar(oQry6,oForm,oGet[03],oGet[04])) BITMAP "BUSC1" 
+                VALID(BuscarArt(oQry6,oForm,oGet[03],oGet[04]));
+                ACTION (oGet[03]:cText:= 0, BuscarArt(oQry6,oForm,oGet[03],oGet[04])) BITMAP "BUSC1" 
    @ 35, 90 GET oGet[4] VAR cNomDep    PICTURE "@!" OF oForm PIXEL WHEN(.F.)   
    
    acor := AcepCanc(oForm)
@@ -1689,7 +1689,7 @@ REPORT oRep TITLE "Reporte de Recetas ";
 GROUP oGru ON oQry:codart HEADER "Para "+STR(oQry:cantprod,14)+" "+ ALLTRIM(oQry:nombre) + " ("+STR(oQry:codart)+")" FOOTER "Totales"  FONT 2   
   COLUMN TITLE "Codigo"         DATA oQry:codusa     PICTURE "99999999999999" SIZE 12 FONT 1
   COLUMN TITLE "Materia Prima"  DATA oQry:materia    SIZE 30 FONT 1
-  COLUMN TITLE "Cantidad"       DATA oQry:cantidad   PICTURE "999999.99" SIZE 08 FONT 1 
+  COLUMN TITLE "Cantidad"       DATA oQry:cantidad   PICTURE "999999.999" SIZE 08 FONT 1 
   COLUMN TITLE "Costo"          DATA oQry:pcosto     SIZE 10 FONT 1 
   COLUMN TITLE "Total Costo"    DATA oQry:precio     SIZE 10 PICTURE "9999999999.99" FONT 1 TOTAL
 
