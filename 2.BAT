@@ -1,4 +1,4 @@
 cd..
-COPY FUENTES\BCN.EXE
+COPY FUENTES2\BCN.EXE
 BCN.exe
-cd fuentes
+cd fuentes2

@@ -670,6 +670,7 @@ ELSE
              "Cobranzas" CENTER ;
              FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
              PREVIEW CAPTION  "Cobranzas"
+      oRep:oDevice:SetPage(5)       
       IF lPorTurno
          GROUP ON oQry:id_cierre HEADER "Cierre de caja N° "+ IF(oQry:id_cierre=0,"Caja Activa",STR(oQry:id_cierre));
             FOOTER "Total Cierre" FONT 3

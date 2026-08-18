@@ -26,6 +26,10 @@
    #define New  _New
 #endif
 
+//----------------------------------------------------------------
+// Variable est√°tica para controlar cancelaci√≥n
+//----------------------------------------------------------------
+STATIC lCancelarExportReport := .f.
 //----------------------------------------------------------------------------//
 
 CLASS TReport
@@ -35,7 +39,7 @@ CLASS TReport
         aDataHeight, aClrText
    DATA bFor, bWhile, bInit, bEnd, bStartLine, bEndLine, bStartPage, ;
         bEndPage, bStartGroup, bEndGroup, bSkip, bStdFont, bPreview, ;
-        bChange, bPostEnd, bPostPage, bPostGroup, bStartRecord
+        bChange, bPostEnd, bPostPage, bPostGroup, bStartRecord, bToExcel
    DATA cRptFile, cResName, cFile, cName, cPageTotal, cGrandTotal,;
         cCharPattern
    DATA nWidth, nHeight, nMargin, nRow, nPage, nMaxTitle, nMaxData,;
@@ -304,7 +308,7 @@ METHOD New( aTitle, aHead, aFoot, aFont, aPen, lSummary, cRptFile, ;
    ::nHeight := ::oDevice:nVertRes()
 
    /*
-   Calcular nß de pixels por pulgada del device
+   Calcular n¬ß de pixels por pulgada del device
    Calculation of pixels per inch of the device
    */
 
@@ -345,7 +349,7 @@ METHOD New( aTitle, aHead, aFoot, aFont, aPen, lSummary, cRptFile, ;
 
    /*
    Crear nuevos fonts basandonos en el Device para ajustar
-   el tama§o de los mismos al device elegido
+   el tama¬§o de los mismos al device elegido
    Create new fonts based on the Device, adjusting the size
    the same as the selected device
    */
@@ -391,7 +395,7 @@ METHOD New( aTitle, aHead, aFoot, aFont, aPen, lSummary, cRptFile, ;
    endif
 
    /*
-   Crear Matriz de colores para impresi¢n de texto
+   Crear Matriz de colores para impresi¬¢n de texto
    Create Matrix of colors for the printing of text
    */
 
@@ -400,7 +404,7 @@ METHOD New( aTitle, aHead, aFoot, aFont, aPen, lSummary, cRptFile, ;
    AEval( ::aClrText, {|val,elem| ::aClrText[ elem ] := CLR_BLACK } )
 
    /*
-   Establecer margenes de impresi¢n a 0,2 pulgadas
+   Establecer margenes de impresi¬¢n a 0,2 pulgadas
    Establish default margins for printing at 0.2 inches all around
    */
 
@@ -666,7 +670,7 @@ METHOD Grid ( nHeight, nRow, cChar ) CLASS TReport
       next
    else
       if cChar == nil
-         cChar := "≥"
+         cChar := "¬≥"
       endif
 
       for nfor := 1 to nCols
@@ -709,8 +713,8 @@ METHOD Separator ( nPen, nRow) CLASS TReport
 
       cSeparator := ""
       AEval( ::aColumns,;
-         {|val| cSeparator += Replicate( "ƒ", Val:nWidth) + "≈" } )
-      cSeparator := "√" + Substr( cSeparator,1, Len( cSeparator ) - 1 ) + "¥"
+         {|val| cSeparator += Replicate( "√Ñ", Val:nWidth) + "√Ö" } )
+      cSeparator := "√É" + Substr( cSeparator,1, Len( cSeparator ) - 1 ) + "¬¥"
       ::oDevice:Say( nRow, nLeft - ::nSeparator, cSeparator )
       ::Shadow( ::nStdLineHeight )
       ::nRow += ::nStdLineHeight
@@ -805,8 +809,8 @@ METHOD Activate( bFor, bWhile, bInit, bEnd, bStartPage, ;
        ::bPostGroup  := bPostGroup
 
    /*
-   Si hay una condiciÛn for y ademas grupos entonces
-   nos posicionamos en el primer registro v·lido
+   Si hay una condici√≥n for y ademas grupos entonces
+   nos posicionamos en el primer registro v√°lido
    if there is a condition for in addition to groups, then
    position us in the first valid record
    */
@@ -843,7 +847,7 @@ METHOD Activate( bFor, bWhile, bInit, bEnd, bStartPage, ;
    endif
 
    /*
-   Creaci¢n de la ventana de impresi¢n
+   Creaci¬¢n de la ventana de impresi¬¢n
    Creation of the window for printing
    */
 
@@ -901,7 +905,7 @@ METHOD Play() CLASS TReport
    nGroups  := Len( ::aGroups )
 
    /*
-   Comienzo de la Impresi¢n
+   Comienzo de la Impresi¬¢n
    Commence printing
    */
 
@@ -940,7 +944,7 @@ METHOD Play() CLASS TReport
       SysRefresh()
 
       /*
-      Comprobar condiciÛn for
+      Comprobar condici√≥n for
       Check condition of FOR
       */
 
@@ -950,7 +954,7 @@ METHOD Play() CLASS TReport
       endif
 
       /*
-      CondiciÛn de Grupo
+      Condici√≥n de Grupo
       Condition of group
       */
 
@@ -969,7 +973,7 @@ METHOD Play() CLASS TReport
       Body of the report
       */
 
-      // si hay un code-block de evaluaciÛn por cada registro a procesar llamarlo
+      // si hay un code-block de evaluaci√≥n por cada registro a procesar llamarlo
       // if there is a codeblock for evaluating each record, to process to name it
 
       if ::bStartRecord != nil
@@ -1092,7 +1096,7 @@ METHOD Stabilize() CLASS TReport
    endif
 
    /*
-   Calculo del tama§o del separador de columnas
+   Calculo del tama¬§o del separador de columnas
    Calculation of the size of the separation of the columns
    */
 
@@ -1101,14 +1105,14 @@ METHOD Stabilize() CLASS TReport
    endif
 
    /*
-   C·lculo del alto standard de una linea
+   C√°lculo del alto standard de una linea
    Calculation of the standard height of one line
    */
 
    ::nStdLineHeight := ::oDevice:GetTextHeight( ::cCharPattern, ::aFont[ Eval( ::bStdFont ) ] )
 
    /*
-   C·lculo del n˙mero maximo de titulos y datos pasados a los objetos
+   C√°lculo del n√∫mero maximo de titulos y datos pasados a los objetos
    columna
    Calculation of the maximum number of titles and data passed to the column
    objects
@@ -1198,7 +1202,7 @@ METHOD Stabilize() CLASS TReport
    AEval( ::aColumns, {|Val| If( Val:lGrid, ::lGrid := .t., nil ) } )
 
    /*
-   C·lculo del ancho del listado
+   C√°lculo del ancho del listado
    Calculation of the width of the report
    */
 
@@ -1253,7 +1257,7 @@ METHOD Stabilize() CLASS TReport
    endif
 
    /*
-   Si el listado es m†s ancho que la p†gina advertirlo
+   Si el listado es m¬†s ancho que la p¬†gina advertirlo
    if the report is wider than the page, give a warning
    */
 
@@ -1344,7 +1348,7 @@ METHOD Stabilize() CLASS TReport
    next
 
    /*
-   Calcular m·ximo alto de cada linea de datos
+   Calcular m√°ximo alto de cada linea de datos
    Calculate maximum height of each line of data
    */
 
@@ -1357,7 +1361,7 @@ METHOD Stabilize() CLASS TReport
    next
 
    /*
-   Calcular coordenadas de impresi¢n de datos
+   Calcular coordenadas de impresi¬¢n de datos
    Calculate coordinates for printing of data
    */
 
@@ -1823,9 +1827,9 @@ METHOD TotalLine( nType, nGrid) CLASS TReport
    nJoin      := If( ::lJoin, ::nSeparator / 2, 0 )
    nGridRow   := 0
    nGridHeight := 0
-   cChar      := "≥"
-   cLeft      := "¿"
-   cRight     := "Ÿ"
+   cChar      := "¬≥"
+   cLeft      := "√Ä"
+   cRight     := "√ô"
 
    nColumns = Len( ::aColumns )
 
@@ -1866,19 +1870,19 @@ METHOD TotalLine( nType, nGrid) CLASS TReport
 
          do case
             case nGrid == GRID_ABOVE
-                 cChar  := "¡"
-                 cLeft  := "¿"
-                 cRight := "Ÿ"
+                 cChar  := "√Å"
+                 cLeft  := "√Ä"
+                 cRight := "√ô"
 
             case nGrid == GRID_BELOW
-                 cChar  := "¬"
-                 cLeft  := "⁄"
-                 cRight := "ø"
+                 cChar  := "√Ç"
+                 cLeft  := "√ö"
+                 cRight := "¬ø"
 
             case nGrid == GRID_ABOBEL
-                 cChar  := "≈"
-                 cLeft  := "√"
-                 cRight := "¥"
+                 cChar  := "√Ö"
+                 cLeft  := "√É"
+                 cRight := "¬¥"
          endcase
 
          ::Grid( nGridHeight, nGridRow, cChar )
@@ -1887,7 +1891,7 @@ METHOD TotalLine( nType, nGrid) CLASS TReport
 
             ::oDevice:Say( ::nRow,;
                            ::aCols[ nFor ],;
-                           Replicate("ƒ", ::aColumns[ nFor ]:nWidth),;
+                           Replicate("√Ñ", ::aColumns[ nFor ]:nWidth),;
                            ::aFont[ Eval( ::bStdFont ) ],;
                            ::aColumns[ nFor ]:nWidth )
 
@@ -1952,19 +1956,19 @@ METHOD TotalLine( nType, nGrid) CLASS TReport
 
          do case
             case nGrid == GRID_ABOVE
-                 cChar  := "œ"
-                 cLeft  := "‘"
-                 cRight := "æ"
+                 cChar  := "√è"
+                 cLeft  := "√î"
+                 cRight := "¬æ"
 
             case nGrid == GRID_BELOW
-                 cChar  := "—"
-                 cLeft  := "’"
-                 cRight := "∏"
+                 cChar  := "√ë"
+                 cLeft  := "√ï"
+                 cRight := "¬∏"
 
             case nGrid == GRID_ABOBEL
-                 cChar  := "ÿ"
-                 cLeft  := "∆"
-                 cRight := "µ"
+                 cChar  := "√ò"
+                 cLeft  := "√Ü"
+                 cRight := "¬µ"
          endcase
 
          ::Grid( nGridHeight, nGridRow, cChar )
@@ -1973,7 +1977,7 @@ METHOD TotalLine( nType, nGrid) CLASS TReport
 
             ::oDevice:Say( ::nRow,;
                            ::aCols[ nFor ],;
-                           Replicate( "Õ", ::aColumns[ nFor ]:nWidth ),;
+                           Replicate( "√ç", ::aColumns[ nFor ]:nWidth ),;
                            ::aFont[ Eval( ::bStdFont ) ],;
                            ::aColumns[ nFor ]:nWidth )
 
@@ -2026,27 +2030,36 @@ METHOD ToExcel( bProgress ) CLASS TReport
    local oExcel, oBook, oSheet, oRange
    local nRow, nFirstRow, nLastRow
    local nCols, nCol, nLines, nLine, oCol, cPic, cAdr, nFont, aFont
-   local aValues //, aMemos := {}, aPics := {}
-   local lTotal   := .f., lMemo := .t.
+   local aValues
+   local lTotal := .f., lMemo := .t.
    local nRowHeight, nMemoHeight
    local nMergeCols
    local lGroup, nGroups, aGrpVal, aGrpFtr, aGrpRow, nGrp, cGrp, oRng
-   local nDataRows   := 0
+   local nDataRows := 0
+   local aProg, oDlgProg, oMeter, oTextProg
+   local uValue
 
-   oExcel   := ExcelObj()
+   oExcel := ExcelObj()
    if oExcel == nil
       MsgAlert( "Excel not installed" )
       return self
    endif
-   oBook    := oExcel:WorkBooks:Add()
-   oSheet   := oBook:ActiveSheet
 
-   nCols    := Len( ::aColumns )
-   nMergeCols  := nCols          // columns that can be merged for group headings
-   oRange   := oSheet:Range( oSheet:Columns( 1 ), oSheet:Columns( nCols ) )
+   // === ESTADO DE EXCEL DURANTE LA CARGA ===
+   BEGIN SEQUENCE
+      oExcel:ScreenUpdating := .f.
+      oExcel:DisplayAlerts  := .f.
+      oExcel:EnableEvents   := .f.
+   RECOVER
+   END SEQUENCE
+
+   oBook  := oExcel:WorkBooks:Add()
+   oSheet := oBook:ActiveSheet
+   nCols  := Len( ::aColumns )
+   nMergeCols := nCols
+   oRange := oSheet:Range( oSheet:Columns( 1 ), oSheet:Columns( nCols ) )
 
    DEFAULT ::bFor := { || .t. }, ::bWhile := { || ! eof() }
-
    ::Init()
 
    ::xlSetFont( oSheet:Cells, ::aFont[ 1 ] )
@@ -2056,196 +2069,303 @@ METHOD ToExcel( bProgress ) CLASS TReport
    ::xlHeader( oSheet:PageSetup )
    ::xlFooter( oSheet:PageSetup )
 
-   aValues  := Array( nCols )
-   aFont    := Array( nCols )
-   lGroup   := ( nGroups := Len( ::aGroups ) ) > 0
+   aValues := Array( nCols )
+   aFont   := Array( nCols )
+
+   lGroup := ( nGroups := Len( ::aGroups ) ) > 0
    if lGroup
-      aGrpVal        := Array( nGroups )
-      aGrpFtr        := Array( nGroups )
-      aGrpRow        := Array( nGroups )
+      aGrpVal := Array( nGroups )
+      aGrpFtr := Array( nGroups )
+      aGrpRow := Array( nGroups )
    endif
 
    for nCol := 1 to nCols
-      oCol  := ::aColumns[ nCol ]
-      aFont[ nCol ]  := Eval( oCol:bDataFont )
-      if aFont[ nCol ] > 1
-         ::xlSetFont( oSheet:Columns[ nCol ], ::aFont[ aFont[ nCol ] ] )
-      endif
-      if oCol:lMemo .or. oCol:lImage
-         oSheet:Columns( nCol ):ColumnWidth  := If( Empty( oCol:nSize ), 20, oCol:nSize )
-      endif
-      if oCol:lMemo
-         oSheet:Columns( nCol ):WrapText     := .t.
-         lMemo       := .t.
-      endif
+      oCol := ::aColumns[ nCol ]
+      aFont[ nCol ] := Eval( oCol:bDataFont )
+      BEGIN SEQUENCE
+         if aFont[ nCol ] > 1
+            ::xlSetFont( oSheet:Columns[ nCol ], ::aFont[ aFont[ nCol ] ] )
+         endif
+         if oCol:lMemo .or. oCol:lImage
+            oSheet:Columns( nCol ):ColumnWidth := If( Empty( oCol:nSize ), 20, oCol:nSize )
+         endif
+         if oCol:lMemo
+            oSheet:Columns( nCol ):WrapText := .t.
+            lMemo := .t.
+         endif
+      RECOVER
+      END SEQUENCE
    next
 
-   // Column Headers
-   nRow     := Len( ::oTitle:aLine ) + 1
-   nLines   := 1
+   // === ENCABEZADOS DE COLUMNA ===
+   nRow := Len( ::oTitle:aLine ) + 1
+   nLines := 1
    AEval( ::aColumns, { |o| nLines := Max( nLines, Len( o:aTitle ) ) } )
-   WITH OBJECT oRange:Rows( nRow ):Borders( xlEdgeTop )
-      :LineStyle        := xlContinuous   // 1
-      :Weight           := xlMedium
-   END
+
+   BEGIN SEQUENCE
+      WITH OBJECT oRange:Rows( nRow ):Borders( xlEdgeTop )
+         :LineStyle := xlContinuous
+         :Weight    := xlMedium
+      END
+   RECOVER
+   END SEQUENCE
+
    for nLine := 1 to nLines
       for nCol := 1 to nCols
-         oCol  := ::aColumns[ nCol ]
+         oCol := ::aColumns[ nCol ]
          if Len( oCol:aTitle ) >= nLine
-            aValues[ nCol ]   := Eval( oCol:aTitle[ nLine ] )
+            uValue := Eval( oCol:aTitle[ nLine ] )
+            // Convertir caracteres si es texto
+            if ValType( uValue ) == 'C'
+               aValues[ nCol ] := AnsiToOem( AllTrim( uValue ) )
+            else
+               aValues[ nCol ] := uValue
+            endif
          else
-            aValues[ nCol ]   := nil
+            aValues[ nCol ] := nil
          endif
          if ( nFont := Eval( oCol:bTitleFont ) ) != aFont[ nCol ]
-            ::xlSetFont( oRange:Cells( nRow, nCol ), ::aFont[ nFont ] )
+            BEGIN SEQUENCE
+               ::xlSetFont( oRange:Cells( nRow, nCol ), ::aFont[ nFont ] )
+            RECOVER
+            END SEQUENCE
          endif
       next nCol
-      oRange:Rows( nRow ):Value := aValues
+      BEGIN SEQUENCE
+         oRange:Rows( nRow ):Value := aValues
+      RECOVER
+      END SEQUENCE
       nRow++
    next nLine
-   WITH OBJECT oRange:Rows( nRow - 1 ):Borders( xlEdgeBottom )
-      :LineStyle        := xlContinuous   // 1
-      :Weight           := xlThin
-   END
-   nRow++
-   cAdr  := oSheet:Range( oSheet:Rows( 1 ), oSheet:Rows( nRow ) ):Address
-   oSheet:PageSetUp:PrintTitleRows  := cAdr
 
-   // Column formats
-   for nCol := 1 to nCols
-      oCol     := ::aColumns[ nCol ]
-      cPic     := oCol:aPicture[ 1 ]
-
-      WITH OBJECT oRange:Columns( nCol )
-
-         :HorizontalAlignment := If( oCol:nPad == RPT_CENTER, -4108, If( oCol:nPad == RPT_RIGHT, -4152, -4131 ) )
-         SWITCH ValType( Eval( oCol:aData[ 1 ] ) )
-         case 'C'
-            oRange:Columns( nCol ):NumberFormat := "@"
-            exit
-         case 'N'
-            :NumberFormat     := "##0"
-            :HorizontalAlignment := xlRight
-            if "." $ cPic
-               :NumberFormat  += SubStr( cPic, At( ".", cPic ) )
-            endif
-            if "," $ cPic
-               :NumberFormat  := "#," + :NumberFormat
-            endif
-            exit
-         case 'D'
-            :HorizontalAlignment := xlRight
-         END
-
+   BEGIN SEQUENCE
+      WITH OBJECT oRange:Rows( nRow - 1 ):Borders( xlEdgeBottom )
+         :LineStyle := xlContinuous
+         :Weight    := xlThin
       END
+   RECOVER
+   END SEQUENCE
+   nRow++
+
+   cAdr := oSheet:Range( oSheet:Rows( 1 ), oSheet:Rows( nRow ) ):Address
+   BEGIN SEQUENCE
+      oSheet:PageSetUp:PrintTitleRows := cAdr
+   RECOVER
+   END SEQUENCE
+
+   // === FORMATOS DE COLUMNA ===
+   for nCol := 1 to nCols
+      oCol := ::aColumns[ nCol ]
+      cPic := oCol:aPicture[ 1 ]
+      BEGIN SEQUENCE
+         WITH OBJECT oRange:Columns( nCol )
+            :HorizontalAlignment := If( oCol:nPad == RPT_CENTER, -4108, If( oCol:nPad == RPT_RIGHT, -4152, -4131 ) )
+            SWITCH ValType( Eval( oCol:aData[ 1 ] ) )
+            case 'C'
+               // Formato General en lugar de "@" para evitar problemas con textos largos
+               oRange:Columns( nCol ):NumberFormat := "General"
+               if oCol:lMemo
+                  oRange:Columns( nCol ):WrapText := .t.
+               endif
+               exit
+            case 'N'
+               :HorizontalAlignment := xlRight
+               if "." $ cPic
+                  // Contar cu√°ntos decimales tiene el picture (los caracteres despu√©s del punto)
+                  :NumberFormat := "#,##0." + Replicate( "0", Len( cPic ) - At( ".", cPic ) )
+               else
+                  :NumberFormat := "#,##0"
+               endif
+               exit
+            case 'D'
+               :NumberFormat := "dd/mm/yyyy"
+               :HorizontalAlignment := xlRight
+               exit
+            END
+         END
+      RECOVER
+      END SEQUENCE
    next
 
-   nLines   := 1
+   nLines := 1
    AEval( ::aColumns, { |o,i| nLines := Max( nLines, Len( o:aData ) ), ;
-                           If( o:lTotal, ( lTotal := .t., If( nMergeCols >= i, ;
-                                    nMergeCols := i - 1, nil ) ), nil ) } )
+                              If( o:lTotal, ( lTotal := .t., If( nMergeCols >= i, ;
+                                       nMergeCols := i - 1, nil ) ), nil ) } )
 
-   // Main Data
-   nFirstRow   := nRow
-   nLastRow    := nRow - 1
-   do while Eval( ::bWhile )
+   // === DI√ÅLOGO DE PROGRESO ===
+   aProg     := CrearProgresoReport()
+   oDlgProg  := aProg[ 1 ]
+   oMeter    := aProg[ 2 ]
+   oTextProg := aProg[ 3 ]
+
+   // === DATOS PRINCIPALES ===
+   nFirstRow := nRow
+   nLastRow  := nRow - 1
+
+   do while Eval( ::bWhile ) .and. ! lCancelarExportReport
+
       if Eval( ::bFor )
 
-         // Handle Groups
+         // === GRUPOS ===
          if lGroup
-            nLastRow    := nRow - 1
-            // check ending of groups
+            nLastRow := nRow - 1
+            // Cierre de grupos
             for nGrp := nGroups to 1 step -1
-               cGrp  := Eval( ::aGroups[ nGrp ]:bGroup )
+               cGrp := Eval( ::aGroups[ nGrp ]:bGroup )
                if cGrp != aGrpVal[ nGrp ]
                   if aGrpVal[ nGrp ] != nil
+                     BEGIN SEQUENCE
+                        WITH OBJECT ( oRng := oSheet:Range( oRange:Cells( nRow, 1 ), oRange:Cells( nRow, nMergeCols ) ) )
+                           :MergeCells := .t.
+                           // aplicar conversi√≥n si es texto
+                           if ValType( aGrpFtr[ nGrp ] ) == 'C'
+                              :Value := AnsiToOem( aGrpFtr[ nGrp ] )
+                           else
+                              :Value := aGrpFtr[ nGrp ]
+                           endif
+                           if nGrp > 1
+                              :InsertIndent( nGrp - 1 )
+                           endif
+                        END
+                        nFont := Eval( ::aGroups[ nGrp ]:bFootFont )
+                        if nFont != aFont[ 1 ]
+                           ::xlSetFont( oRng, ::aFont[ nFont ] )
+                        endif
+                     RECOVER
+                     END SEQUENCE
+                     for nCol := 1 to nCols
+                        oCol := ::aColumns[ nCol ]
+                        if oCol:lTotal
+                           BEGIN SEQUENCE
+                              cAdr := oSheet:Range( oSheet:Cells( aGrpRow[ nGrp ], nCol ), ;
+                                                    oSheet:Cells( nLastRow, nCol ) ):Address( .f., .f. )
+                              oSheet:Cells( nRow, nCol ):FormulaLocal := "=SUBTOTALES(9;" + cAdr + ")"
+                              nFont := Eval( oCol:bTotalFont )
+                              if nFont != aFont[ nCol ]
+                                 ::xlSetFont( oSheet:Cells( nRow, nCol ), ::aFont[ nFont ] )
+                              endif
+                           RECOVER
+                           END SEQUENCE
+                        endif
+                     next nCol
+                     nRow++
+                  endif
+                  aGrpRow[ nGrp ] := nil
+                  aGrpVal[ nGrp ] := cGrp
+               endif
+            next nGrp
+            // Apertura de grupos
+            for nGrp := 1 to nGroups
+               if aGrpRow[ nGrp ] == nil
+                  BEGIN SEQUENCE
                      WITH OBJECT ( oRng := oSheet:Range( oRange:Cells( nRow, 1 ), oRange:Cells( nRow, nMergeCols ) ) )
-                        :MergeCells       := .t.
-                        :Value            := aGrpFtr[ nGrp ]
+                        :MergeCells := .t.
+                        uValue := Eval( ::aGroups[ nGrp ]:bHeader )
+                        if ValType( uValue ) == 'C'
+                           :Value := AnsiToOem( uValue )
+                        else
+                           :Value := uValue
+                        endif
                         if nGrp > 1
                            :InsertIndent( nGrp - 1 )
                         endif
                      END
-                     nFont    := Eval( ::aGroups[ nGrp ]:bFootFont )
+                     nFont := Eval( ::aGroups[ nGrp ]:bHeadFont )
                      if nFont != aFont[ 1 ]
                         ::xlSetFont( oRng, ::aFont[ nFont ] )
                      endif
-                     for nCol := 1 to nCols
-                        oCol  := ::aColumns[ nCol ]
-                        if oCol:lTotal
-                           cAdr  := oSheet:Range( oSheet:Cells( aGrpRow[ nGrp ], nCol ), ;
-                                                  oSheet:Cells( nLastRow, nCol ) ):Address( .f., .f. )
-                           oSheet:Cells( nRow, nCol ):FormulaLocal := "=SUBTOTALES(9;" + cAdr + ")"
-                           nFont := Eval( oCol:bTotalFont )
-                           if nFont != aFont[ nCol ]
-                              ::xlSetFont( oSheet:Cells( nRow, nCol ), ::aFont[ nFont ] )
-                           endif
-                        endif
-                     next nCol
-                     nRow++
-                  endif // if aGrpVal[ nGrp ] != nil
-                  aGrpRow[ nGrp ]   := nil  // this group ended
-                  aGrpVal[ nGrp ]   := cGrp  // retain the new value
-               endif // change in group value
-            next nGrp
-            // check start of groups
-            for nGrp := 1 to nGroups
-               if aGrpRow[ nGrp ] == nil // start this group
-                  WITH OBJECT ( oRng := oSheet:Range( oRange:Cells( nRow, 1 ), oRange:Cells( nRow, nMergeCols ) ) )
-                     :MergeCells       := .t.
-                     :Value            := Eval( ::aGroups[ nGrp ]:bHeader )
-                     if nGrp > 1
-                        :InsertIndent( nGrp - 1 )
-                     endif
-                  END
-                  nFont    := Eval( ::aGroups[ nGrp ]:bHeadFont )
-                  if nFont != aFont[ 1 ]
-                     ::xlSetFont( oRng, ::aFont[ nFont ] )
-                  endif
+                  RECOVER
+                  END SEQUENCE
                   nRow++
                endif
             next nGrp
             for nGrp := 1 to nGroups
                if aGrpRow[ nGrp ] == nil
-                  aGrpRow[ nGrp ]   := nRow  // memorize the start row of group
+                  aGrpRow[ nGrp ] := nRow
                endif
             next
+         endif
 
-         endif // if lGroup
-
-         // normal data
+         // === FILA NORMAL DE DATOS ===
          for nLine := 1 to nLines
             for nCol := 1 to nCols
-               oCol  := ::aColumns[ nCol ]
-               if Len( oCol:aData ) >= nLine .and. !oCol:lImage
-                  aValues[ nCol ]   := Eval( oCol:aData[ nLine ] )
-                  if ValType( aValues[ nCol ] ) == 'C'
-                     aValues[ nCol ]   := Trim( aValues[ nCol ] )
-                     elseif ValType( aValues[ nCol ] ) $ "DT" .and. Year( aValues[ nCol ] ) < 1900
-                     aValues[ nCol ]   := nil // If nil also gives error please try AdoNull() instead of nil
-                  endif
-                  else
-                  aValues[ nCol ]   := nil
+               oCol := ::aColumns[ nCol ]
+               if Len( oCol:aData ) >= nLine .and. ! oCol:lImage
+                  uValue := Eval( oCol:aData[ nLine ] )
+
+                  // Manejo de valores: nulos, undefined, fechas inv√°lidas
+                  DO CASE
+                  CASE uValue == nil .or. ValType( uValue ) == 'U'
+                     aValues[ nCol ] := nil
+
+                  CASE ValType( uValue ) == 'C'
+                     // Texto: trim + conversi√≥n de caracteres
+                     uValue := AllTrim( uValue )
+                     if Empty( uValue )
+                        aValues[ nCol ] := nil
+                     else
+                        aValues[ nCol ] := AnsiToOem( uValue )
+                     endif
+
+                  CASE ValType( uValue ) == 'M'
+                     uValue := AllTrim( uValue )
+                     if Empty( uValue )
+                        aValues[ nCol ] := nil
+                     else
+                        aValues[ nCol ] := AnsiToOem( uValue )
+                     endif
+
+                  CASE ValType( uValue ) $ "DT"
+                     // Fecha vac√≠a o anterior a 1900 ‚Üí nil
+                     if Empty( uValue ) .or. Year( uValue ) < 1900
+                        aValues[ nCol ] := nil
+                     else
+                        aValues[ nCol ] := uValue
+                     endif
+
+                  CASE ValType( uValue ) == 'L'
+                     aValues[ nCol ] := If( uValue, "SI", "NO" )
+
+                  OTHERWISE
+                     aValues[ nCol ] := uValue
+                  ENDCASE
+               else
+                  aValues[ nCol ] := nil
                endif
+
                if ( nFont := Eval( oCol:bDataFont ) ) != aFont[ nCol ]
-                  ::xlSetFont( oRange:Cells( nRow, nCol ), ::aFont[ nFont ] )
+                  BEGIN SEQUENCE
+                     ::xlSetFont( oRange:Cells( nRow, nCol ), ::aFont[ nFont ] )
+                  RECOVER
+                  END SEQUENCE
                endif
             next
-            oRange:Rows( nRow ):Value  := aValues
-            // Handle Memo Height in multi-line report
+
+            BEGIN SEQUENCE
+               oRange:Rows( nRow ):Value := aValues
+            RECOVER
+            END SEQUENCE
+
+            // Manejo de altura para memos en multi-line
             if lMemo .and. nLines > 1
                if nLine == 1
-                  nMemoHeight    := oSheet:Rows( nRow ):RowHeight
-                  oSheet:Rows( nRow ):RowHeight := nRowHeight
+                  BEGIN SEQUENCE
+                     nMemoHeight := oSheet:Rows( nRow ):RowHeight
+                     oSheet:Rows( nRow ):RowHeight := nRowHeight
+                  RECOVER
+                  END SEQUENCE
                endif
                if nLine == nLines
                   for nCol := 1 to nCols
                      if ::aColumns[ nCol ]:lMemo
-                        oSheet:Range( oSheet:Cells( nRow - nLines + 1, nCol ), ;
-                                      oSheet:Cells( nRow, nCol ) ):MergeCells := .t.
-                        if nMemoHeight > nLines * nRowHeight
-                           oSheet:Rows( nRow ):RowHeight := nMemoHeight - ( nLines - 1 ) * nRowHeight
-                        endif
+                        BEGIN SEQUENCE
+                           oSheet:Range( oSheet:Cells( nRow - nLines + 1, nCol ), ;
+                                         oSheet:Cells( nRow, nCol ) ):MergeCells := .t.
+                           if nMemoHeight > nLines * nRowHeight
+                              oSheet:Rows( nRow ):RowHeight := nMemoHeight - ( nLines - 1 ) * nRowHeight
+                           endif
+                        RECOVER
+                        END SEQUENCE
                      endif
                   next
                endif
@@ -2253,104 +2373,193 @@ METHOD ToExcel( bProgress ) CLASS TReport
             nRow++
          next
       endif
-      // group footers
+
       if lGroup
          for nGrp := 1 to nGroups
-            aGrpFtr[ nGrp ]   := Eval( ::aGroups[ nGrp ]:bFooter )
+            aGrpFtr[ nGrp ] := Eval( ::aGroups[ nGrp ]:bFooter )
          next
       endif
+
       ::Skip( 1 )
       nDataRows++
-      if bProgress != nil .and. nDataRows % 100 == 0
-         Eval( bProgress, nDataRows, Self )
-         SysRefresh()
+
+      // === ACTUALIZACI√ìN DE PROGRESO ===
+      if nDataRows % 50 == 0
+         BEGIN SEQUENCE
+            oMeter:Set( nDataRows )
+            oTextProg:SetText( "Procesando registros: " + LTrim( Str( nDataRows ) ) )
+            SysRefresh()
+         RECOVER
+         END SEQUENCE
+         // Mantener compatibilidad con bProgress original
+         if bProgress != nil
+            Eval( bProgress, nDataRows, Self )
+         endif
       endif
    enddo
 
+   // === CIERRE DE GRUPOS AL FINAL ===
    if lGroup
-      nLastRow    := nRow - 1
-      // end all groups
+      nLastRow := nRow - 1
       for nGrp := nGroups to 1 step -1
-         WITH OBJECT ( oRng := oSheet:Range( oRange:Cells( nRow, 1 ), oRange:Cells( nRow, nMergeCols ) ) )
-            :MergeCells       := .t.
-            :Value            := aGrpFtr[ nGrp ]
-            if nGrp > 1
-               :InsertIndent( nGrp - 1 )
-            endif
-         END
-         nFont    := Eval( ::aGroups[ nGrp ]:bFootFont )
-         if nFont != aFont[ 1 ]
-            ::xlSetFont( oRng, ::aFont[ nFont ] )
-         endif
-         for nCol := 1 to nCols
-            oCol  := ::aColumns[ nCol ]
-            if oCol:lTotal
-               cAdr  := oSheet:Range( oSheet:Cells( aGrpRow[ nGrp ], nCol ), ;
-                                      oSheet:Cells( nLastRow, nCol ) ):Address( .f., .f. )
-               oSheet:Cells( nRow, nCol ):FormulaLocal := "=SUBTOTALES(9;" + cAdr + ")"
-               nFont    := Eval( oCol:bTotalFont )
-               if nFont != aFont[ nCol ]
-                  ::xlSetFont( oSheet:Cells( nRow, nCol ), ::aFont[ nFont ] )
+         BEGIN SEQUENCE
+            WITH OBJECT ( oRng := oSheet:Range( oRange:Cells( nRow, 1 ), oRange:Cells( nRow, nMergeCols ) ) )
+               :MergeCells := .t.
+               if ValType( aGrpFtr[ nGrp ] ) == 'C'
+                  :Value := AnsiToOem( aGrpFtr[ nGrp ] )
+               else
+                  :Value := aGrpFtr[ nGrp ]
                endif
+               if nGrp > 1
+                  :InsertIndent( nGrp - 1 )
+               endif
+            END
+            nFont := Eval( ::aGroups[ nGrp ]:bFootFont )
+            if nFont != aFont[ 1 ]
+               ::xlSetFont( oRng, ::aFont[ nFont ] )
+            endif
+         RECOVER
+         END SEQUENCE
+         for nCol := 1 to nCols
+            oCol := ::aColumns[ nCol ]
+            if oCol:lTotal
+               BEGIN SEQUENCE
+                  cAdr := oSheet:Range( oSheet:Cells( aGrpRow[ nGrp ], nCol ), ;
+                                        oSheet:Cells( nLastRow, nCol ) ):Address( .f., .f. )
+                  oSheet:Cells( nRow, nCol ):FormulaLocal := "=SUBTOTALES(9;" + cAdr + ")"
+                  nFont := Eval( oCol:bTotalFont )
+                  if nFont != aFont[ nCol ]
+                     ::xlSetFont( oSheet:Cells( nRow, nCol ), ::aFont[ nFont ] )
+                  endif
+               RECOVER
+               END SEQUENCE
             endif
          next nCol
          nRow++
       next nGrp
+   endif
 
-   endif // if lGroup
-
+   // === TOTALES GENERALES ===
    if lTotal
       for nCol := 1 to nCols
-         oCol     := ::aColumns[ nCol ]
+         oCol := ::aColumns[ nCol ]
          if oCol:lTotal
-            WITH OBJECT oSheet:Cells( nRow, nCol )
+            BEGIN SEQUENCE
                oSheet:Cells( nRow, nCol ):FormulaLocal := "=SUBTOTALES( 9; " + ;
                   oSheet:Range( oSheet:Cells( nFirstRow, nCol ), ;
                   oSheet:Cells( nRow - 1, nCol ) ):Address( .f., .f. ) + ")"
-            END
-            if ( nFont := Eval( oCol:bTotalFont ) ) != aFont[ nCol ]
-               ::xlSetFont( oSheet:Cells( nRow, nCol ), ::aFont[ nFont ] )
-            endif
+               if ( nFont := Eval( oCol:bTotalFont ) ) != aFont[ nCol ]
+                  ::xlSetFont( oSheet:Cells( nRow, nCol ), ::aFont[ nFont ] )
+               endif
+            RECOVER
+            END SEQUENCE
          endif
       next
    endif
 
-   WITH OBJECT oRange:Rows( nRow )
-      if lTotal
-         WITH OBJECT :Borders( xlTop )
-            :LineStyle        := xlContinuous   // 1
-            :Weight           := xlThin
+   BEGIN SEQUENCE
+      WITH OBJECT oRange:Rows( nRow )
+         if lTotal
+            WITH OBJECT :Borders( xlTop )
+               :LineStyle := xlContinuous
+               :Weight    := xlThin
+            END
+         endif
+         WITH OBJECT :Borders( xlBottom )
+            :LineStyle := xlContinuous
+            :Weight    := xlMedium
          END
-      endif
-      WITH OBJECT :Borders( xlBottom )
-         :LineStyle        := xlContinuous   // 1
-         :Weight           := xlMedium
       END
-   END
+   RECOVER
+   END SEQUENCE
 
+   // === AUTOFIT (solo columnas que no son memo/image) ===
    for nCol := 1 to nCols
-      oCol        := ::aColumns[ nCol ]
+      oCol := ::aColumns[ nCol ]
       if !( oCol:lMemo .or. oCol:lImage )
-         oSheet:Columns( nCol ):AutoFit()
+         BEGIN SEQUENCE
+            oSheet:Columns( nCol ):AutoFit()
+         RECOVER
+         END SEQUENCE
       endif
    next
 
-   cAdr  := oSheet:Range( oRange:Rows( nFirstRow ), oRange:Rows( nRow ) ):Address()
-   oSheet:PageSetUp:PrintArea := cAdr
+   cAdr := oSheet:Range( oRange:Rows( nFirstRow ), oRange:Rows( nRow ) ):Address()
+   BEGIN SEQUENCE
+      oSheet:PageSetUp:PrintArea := cAdr
+   RECOVER
+   END SEQUENCE
 
-   // Write Title
+   // === T√çTULO DEL REPORTE ===
    for nLine := 1 to Len( ::oTitle:aLine )
-      WITH OBJECT oRange:Rows( nLine )
-         :MergeCells          := .t.
-         :Value               := Eval( ::oTitle:aLine[ nLine ] )
-         :HorizontalAlignment := { xlLeft, xlRight, xlCenter }[ ::oTitle:aPad[ nLine ] ]
-      END
-      ::xlSetFont( oRange:Rows( nLine ), ::aFont[ Eval( ::oTitle:aFont[ nLine ] ) ] )
+      BEGIN SEQUENCE
+         WITH OBJECT oRange:Rows( nLine )
+            :MergeCells := .t.
+            uValue := Eval( ::oTitle:aLine[ nLine ] )
+            if ValType( uValue ) == 'C'
+               :Value := AnsiToOem( uValue )
+            else
+               :Value := uValue
+            endif
+            :HorizontalAlignment := { xlLeft, xlRight, xlCenter }[ ::oTitle:aPad[ nLine ] ]
+         END
+         ::xlSetFont( oRange:Rows( nLine ), ::aFont[ Eval( ::oTitle:aFont[ nLine ] ) ] )
+      RECOVER
+      END SEQUENCE
    next
 
-   oExcel:Visible   := .t.
+   // === CERRAR DI√ÅLOGO DE PROGRESO ===
+   if oDlgProg != nil
+      BEGIN SEQUENCE
+         oDlgProg:End()
+      RECOVER
+      END SEQUENCE
+   endif
+
+   // === RESTAURAR ESTADO Y MOSTRAR ===
+   BEGIN SEQUENCE
+      oExcel:EnableEvents  := .t.
+      oExcel:DisplayAlerts := .t.
+   RECOVER
+   END SEQUENCE
+
+   BEGIN SEQUENCE
+      oExcel:Visible        := .T.
+      oExcel:ScreenUpdating := .t.
+      ShowWindow( oExcel:hWnd, 3 )
+      BringWindowToTop( oExcel:hWnd )
+      SysRefresh()
+   RECOVER
+   END SEQUENCE
 
 return nil
+
+
+//----------------------------------------------------------------
+// Crea el di√°logo con barra de progreso para reportes
+//----------------------------------------------------------------
+STATIC FUNCTION CrearProgresoReport()
+
+   local oDlg, oMeter, nValue := 0, oText
+
+   lCancelarExportReport := .f.
+
+   DEFINE DIALOG oDlg TITLE "Exportando a Excel..." ; 
+          FROM 03,20 TO 13,70 
+
+   @ 10, 10 SAY oText PROMPT "Procesando registros: 0" ;
+            SIZE 170, 12 PIXEL OF oDlg UPDATE
+
+   @ 30, 10 METER oMeter VAR nValue TOTAL 50000 ;
+            SIZE 170, 15 PIXEL OF oDlg
+
+   @ 55, 140 BUTTON "Cancelar" ;
+            SIZE 30, 12 PIXEL OF oDlg ;
+            ACTION ( lCancelarExportReport := .t. )
+
+   ACTIVATE DIALOG oDlg CENTERED NOWAIT
+
+return { oDlg, oMeter, oText }
 
 //----------------------------------------------------------------------------//
 

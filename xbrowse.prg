@@ -111,7 +111,7 @@ static nxlLangID, cxlTrue := "=(1=1)", cxlFalse := "=(1=0)", cxlSum, lxlEnglish 
 
 static bXBrowse
 
-STATIC lCancelarExport := .f.
+static lCancelarExport := .f.
 
 //----------------------------------------------------------------------------//
 
@@ -8390,8 +8390,8 @@ METHOD ToHtml( cHtml, lShow ) CLASS TXBrowse
 
 return cHtml
 
+//----------------------------------------------------------------------------//
 
-//----------------------------------------------------------------
 METHOD ToExcel( bProgress, nGroupBy, aCols, lShow ) CLASS TXBrowse
 
    local oExcel, oBook, oSheet, oWin
@@ -8399,27 +8399,31 @@ METHOD ToExcel( bProgress, nGroupBy, aCols, lShow ) CLASS TXBrowse
    local uBookMark, nRow
    local nDataRows
    local cFormat
+   local cDecSep := '.', cMilSep := ','   // separadores efectivos de Excel (se leen abajo)
    local aTotals  := {}, lAnyTotals := .f.
    local aWidths  := {}
    local oRange
 
-   DEFAULT lShow := .t.
+   DEFAULT lShow  := .t.
 
    if lExcelInstl == .f.
+      // already checked and found excel not installed
       if lCalcInstl == .f.
+         // already checked and found Open Office Calc also is not installed
          return Self
       else
          return ::ToCalc( bProgress, nGroupBy,,, aCols )
       endif
    endif
 
-   nDataRows := EVAL( ::bKeyCount )
+   nDataRows   := EVAL( ::bKeyCount )
    if nDataRows == 0
       MsgInfo( "No hay datos para exportar", "Exportar a Excel" )
       return Self
    endif
 
-   DEFAULT aCols := ::GetVisibleCols()
+   DEFAULT aCols         := ::GetVisibleCols()
+
    if Empty( aCols )
       return Self
    endif
@@ -8433,42 +8437,77 @@ METHOD ToExcel( bProgress, nGroupBy, aCols, lShow ) CLASS TXBrowse
          return ::ToCalc( bProgress, nGroupBy, , , aCols )
       endif
    endif
-   lExcelInstl := .t.
+   lExcelInstl    := .t.
 
    if nxlLangID == nil
       SetExcelLanguage( oExcel )
    endif
 
    // === ESTADO DE EXCEL DURANTE LA CARGA (propiedades seguras) ===
-   BEGIN SEQUENCE
+   BEGIN SEQUENCE WITH { |e| Break( e ) }
       oExcel:ScreenUpdating := .f.
       oExcel:DisplayAlerts  := .f.
       oExcel:EnableEvents   := .f.
+      // Bloquea teclado/mouse en Excel durante la carga: si el usuario
+      // entra a la hoja en plena exportacion (Excel ya visible con otro
+      // libro abierto), Excel rechaza las llamadas OLE (0x800A03EC)
+      oExcel:Interactive    := .f.
    RECOVER
    END SEQUENCE
 
-   oBook  := oExcel:WorkBooks:Add()
-   oSheet := oBook:ActiveSheet
+   BEGIN SEQUENCE WITH { |e| Break( e ) }
+      oBook   := oExcel:WorkBooks:Add()
+      oSheet  := oBook:ActiveSheet
+   RECOVER
+      // Excel colgado u ocupado: restaurar estado y salir sin exportar
+      BEGIN SEQUENCE WITH { |e| Break( e ) }
+         oExcel:Interactive    := .t.
+         oExcel:EnableEvents   := .t.
+         oExcel:DisplayAlerts  := .t.
+         oExcel:ScreenUpdating := .t.
+      RECOVER
+      END SEQUENCE
+      MsgAlert( "No se pudo crear el libro de Excel." + CRLF + ;
+                "Cierre los libros abiertos o reinicie Excel y reintente.", ;
+                "Exportar a Excel" )
+      return Self
+   END SEQUENCE
 
-   uBookMark := EVAL( ::bBookMark )
-   nRow      := 1
-   nCol      := 0
-   aWidths   := Array( Len( aCols ) )
+   uBookMark   := EVAL( ::bBookMark )
+
+   nRow     := 1
+   nCol     := 0
+   aWidths  := Array( Len( aCols ) )
+
+   // === SEPARADORES EFECTIVOS DE EXCEL (segun la config regional del cliente) ===
+   // International( 3 ) = separador decimal, International( 4 ) = separador de miles.
+   // Reflejan la config REAL en uso (sistema o custom), sea coma o punto. Con esto
+   // armamos la mascara en notacion LOCAL y la asignamos via NumberFormatLocal, para
+   // que el numero se MUESTRE igual que en el sistema. NumberFormat "US" NO sirve:
+   // Excel reinterpreta el '.' de la mascara como separador de miles cuando el
+   // cliente tiene punto de miles, y un stock 1,000 termina mostrandose como 0,001.
+   BEGIN SEQUENCE WITH { |e| Break( e ) }
+      cDecSep := oExcel:International( 3 )
+      cMilSep := oExcel:International( 4 )
+   RECOVER
+   END SEQUENCE
+   if Empty( cDecSep ) ; cDecSep := '.' ; endif
+   if Empty( cMilSep ) ; cMilSep := ',' ; endif
 
    // === ENCABEZADOS Y FORMATOS DE COLUMNA ===
    for nXCol := 1 TO Len( aCols )
       oCol := aCols[ nXCol ]
       nCol++
 
-      BEGIN SEQUENCE
-         oSheet:Cells( nRow, nCol ):Value := AnsiToOem(oCol:cHeader)
+      BEGIN SEQUENCE WITH { |e| Break( e ) }
+         oSheet:Cells( nRow, nCol ):Value := AnsiToOem( oCol:cHeader )
       RECOVER
       END SEQUENCE
 
       cType := oCol:cDataType
 
       if ::nDataType != DATATYPE_ARRAY
-         BEGIN SEQUENCE
+         BEGIN SEQUENCE WITH { |e| Break( e ) }
             DO CASE
             CASE Empty( cType )
                // Si no hay tipo definido, tratamos como texto
@@ -8478,7 +8517,7 @@ METHOD ToExcel( bProgress, nGroupBy, aCols, lShow ) CLASS TXBrowse
                   aWidths[ nCol ] := Min( 60, oCol:nWidth / 5 )
                   oSheet:Columns( nCol ):ColumnWidth := aWidths[ nCol ]
                endif
-               
+
             CASE cType == 'C' .or. cType == 'M'
                // Columnas de texto/memo: forzar formato texto
                oSheet:Columns( nCol ):NumberFormat := "General"
@@ -8490,29 +8529,32 @@ METHOD ToExcel( bProgress, nGroupBy, aCols, lShow ) CLASS TXBrowse
                if ! Empty( oCol:nDataStrAlign )
                   oSheet:Columns( nCol ):HorizontalAlignment := If( lAnd( oCol:nDataStrAlign, AL_CENTER ), -4108, -4152 )
                endif
-               
+
             CASE cType == 'N'
-               cFormat := Dbf2ExcelNumFormat( oCol:cEditPicture )
-               // Sanear: si viene con # sin separadores ni ceros, usar formato estándar
-               if Empty( cFormat ) .or. "#," $ cFormat == .f. .and. "0" $ cFormat == .f.
-                  cFormat := "#,##0.00"
-               endif
-               // Reemplazar ##0 huérfano por #,##0
-               cFormat := StrTran( cFormat, "##0", "#,##0" )
-               oSheet:Columns( nCol ):NumberFormat := cFormat
+               // Mascara en notacion LOCAL, armada con los separadores REALES que
+               // usa el Excel del cliente (cDecSep / cMilSep, leidos arriba via
+               // International). Se asigna con NumberFormatLocal para que el valor
+               // se muestre igual que en el sistema. Antes se usaba NumberFormat con
+               // mascara "US" ("#,##0.000") suponiendo que Excel la traducia sola,
+               // pero cuando el cliente tiene punto de miles Excel toma el '.' de la
+               // mascara como separador de miles y un stock 1,000 se veia como 0,001.
+               cFormat := PictToLocalNumFormat( oCol:cEditPicture, cDecSep, cMilSep )
+               oSheet:Columns( nCol ):NumberFormatLocal := cFormat
                oSheet:Columns( nCol ):HorizontalAlignment := -4152
-               
+
             CASE cType == 'D'
+               // Tambien NumberFormat en codigos ingleses (d/m/y): Excel los
+               // traduce y muestra segun la configuracion regional local.
                if ValType( oCol:cEditPicture ) == 'C' .and. Left( oCol:cEditPicture, 1 ) != '@'
                   oSheet:Columns( nCol ):NumberFormat := Lower( oCol:cEditPicture )
                else
                   oSheet:Columns( nCol ):NumberFormat := "dd/mm/yyyy"
                endif
                oSheet:Columns( nCol ):HorizontalAlignment := -4152
-               
+
             CASE cType $ 'LPF'
-               // lógico, picture, file: formato general
-               
+               // logico, picture, file: formato general
+
             OTHERWISE
                if ::nDataType != DATATYPE_ARRAY
                   oSheet:Columns( nCol ):NumberFormat := "@"
@@ -8527,7 +8569,7 @@ METHOD ToExcel( bProgress, nGroupBy, aCols, lShow ) CLASS TXBrowse
       endif
 
       if cType != nil .and. cType $ 'PFM'
-         BEGIN SEQUENCE
+         BEGIN SEQUENCE WITH { |e| Break( e ) }
             aWidths[ nCol ] := oCol:nWidth / 7.5
             oSheet:Columns( nCol ):ColumnWidth := aWidths[ nCol ]
             oSheet:Rows( "2:" + LTrim(Str( ::nLen + 1 )) ):RowHeight := ::nRowHeight
@@ -8540,7 +8582,7 @@ METHOD ToExcel( bProgress, nGroupBy, aCols, lShow ) CLASS TXBrowse
    next nXCol
 
    // Borde del encabezado
-   BEGIN SEQUENCE
+   BEGIN SEQUENCE WITH { |e| Break( e ) }
       oRange := oSheet:Range( oSheet:Cells( 1, 1 ), oSheet:Cells( 1, Len( aCols ) ) )
       oRange:Borders( 9 ):LineStyle := 1
       oRange:Borders( 9 ):Weight    := -4138
@@ -8548,12 +8590,15 @@ METHOD ToExcel( bProgress, nGroupBy, aCols, lShow ) CLASS TXBrowse
    END SEQUENCE
 
    // === CARGA DE DATOS ===
+   // Siempre celda por celda via OLE, SIN clipboard: no depende del
+   // estado de Excel (otra hoja abierta, colgada o en edicion) ni de
+   // que nadie pise el portapapeles durante la exportacion.
    if Empty( ::aSelected ) .or. Len( ::aSelected ) == 1
 
       Eval( ::bGoTop )
 
       if ::oRs != nil .AND. Len( aCols ) == ::oRs:Fields:Count()
-         BEGIN SEQUENCE
+         BEGIN SEQUENCE WITH { |e| Break( e ) }
             ::oRs:MoveFirst()
             oSheet:Cells( 2, 1 ):CopyFromRecordSet( ::oRs )
             ::oRs:MoveFirst()
@@ -8570,7 +8615,7 @@ METHOD ToExcel( bProgress, nGroupBy, aCols, lShow ) CLASS TXBrowse
    endif
 
    // === FORMATOS POST-CARGA ===
-   BEGIN SEQUENCE
+   BEGIN SEQUENCE WITH { |e| Break( e ) }
       oSheet:Rows( 1 ):Font:Bold := .T.
       if nRow > 1
          oSheet:Rows( nRow ):Font:Bold := .T.
@@ -8586,19 +8631,20 @@ METHOD ToExcel( bProgress, nGroupBy, aCols, lShow ) CLASS TXBrowse
          endif
       next
       if ! Empty( aTotals )
-         BEGIN SEQUENCE
+         BEGIN SEQUENCE WITH { |e| Break( e ) }
             oSheet:Activate()
             oRange := oSheet:Range( oSheet:Cells( 1, 1 ), oSheet:Cells( nRow - 1, Len( aCols ) ) )
-            oRange:Subtotal( nGroupBy, -4157, aTotals, .t., .f., .t. )
+            oRange:Subtotal( nGroupBy, -4157, aTotals, .t., .f., .t. )   // xlSum = -4157
          RECOVER
          END SEQUENCE
       endif
    else
       nCol := 0
-      BEGIN SEQUENCE
+      BEGIN SEQUENCE WITH { |e| Break( e ) }
+         // xlEdgeBottom = 9, xlEdgeTop = 8, xlEdgeLeft = 8, xlEdgeRight = 10
          oRange := oSheet:Range( oSheet:Cells( nRow, 1 ), oSheet:Cells( nRow, Len( aCols ) ) )
-         oRange:Borders( 8 ):LineStyle := 1
-         oRange:Borders( 8 ):Weight    := -4138
+         oRange:Borders( 8 ):LineStyle := 1      // xlContinuous = 1
+         oRange:Borders( 8 ):Weight    := -4138  // xlThin = 2, xlHairLine = 1, xlThick = 4, xlMedium = -4138
       RECOVER
       END SEQUENCE
 
@@ -8606,7 +8652,7 @@ METHOD ToExcel( bProgress, nGroupBy, aCols, lShow ) CLASS TXBrowse
          oCol := aCols[ nXCol ]
          nCol++
          if oCol:lTotal
-            BEGIN SEQUENCE
+            BEGIN SEQUENCE WITH { |e| Break( e ) }
                cFormula := "SUBTOTAL(" + ;
                   LTrim( Str( FW_DeCode( IfNil( oCol:nFooterType, 0 ), AGGR_SUM, 9, AGGR_MAX, 4, AGGR_MIN, 5, ;
                   AGGR_COUNT, 3, AGGR_AVG, 1, AGGR_STDEV, 7, AGGR_STDEVP, 8, 9 ) ) ) + ;
@@ -8621,7 +8667,7 @@ METHOD ToExcel( bProgress, nGroupBy, aCols, lShow ) CLASS TXBrowse
       next nXCol
 
       if lAnyTotals
-         BEGIN SEQUENCE
+         BEGIN SEQUENCE WITH { |e| Break( e ) }
             oRange:Borders( 9 ):LineStyle := 1
             oRange:Borders( 9 ):Weight    := 4
          RECOVER
@@ -8629,19 +8675,19 @@ METHOD ToExcel( bProgress, nGroupBy, aCols, lShow ) CLASS TXBrowse
       endif
    endif
 
-   // === AJUSTAR ANCHO Y ALINEACIÓN ===
+   // === AJUSTAR ANCHO Y ALINEACION ===
    for nCol := 1 to Len( aCols )
-      BEGIN SEQUENCE
+      BEGIN SEQUENCE WITH { |e| Break( e ) }
          if aWidths[ nCol ] == nil
             oSheet:Columns( nCol ):AutoFit()
          endif
-         oSheet:Columns( nCol ):VerticalAlignment := -4108
+         oSheet:Columns( nCol ):VerticalAlignment := -4108  // xlCenter
       RECOVER
       END SEQUENCE
    next
 
    // === CONGELAR PRIMERA FILA ===
-   BEGIN SEQUENCE
+   BEGIN SEQUENCE WITH { |e| Break( e ) }
       oSheet:Cells( 1, 1 ):Select()
       oWin := oExcel:ActiveWindow
       oWin:SplitRow    := 1
@@ -8653,16 +8699,17 @@ METHOD ToExcel( bProgress, nGroupBy, aCols, lShow ) CLASS TXBrowse
    ::Refresh()
 
    // === RESTAURAR ESTADO Y MOSTRAR ===
-   // ORDEN IMPORTANTE: re-habilitar eventos y alertas primero,
-   // luego hacer visible, y RECIÉN AHÍ activar ScreenUpdating.
-   BEGIN SEQUENCE
+   // ORDEN IMPORTANTE: re-habilitar interaccion, eventos y alertas
+   // primero, luego hacer visible, y RECIEN AHI activar ScreenUpdating.
+   BEGIN SEQUENCE WITH { |e| Break( e ) }
+      oExcel:Interactive   := .t.
       oExcel:EnableEvents  := .t.
       oExcel:DisplayAlerts := .t.
    RECOVER
    END SEQUENCE
 
    if lShow
-      BEGIN SEQUENCE
+      BEGIN SEQUENCE WITH { |e| Break( e ) }
          oExcel:Visible        := .T.
          oExcel:ScreenUpdating := .t.
          ShowWindow( oExcel:hWnd, 3 )
@@ -8671,11 +8718,13 @@ METHOD ToExcel( bProgress, nGroupBy, aCols, lShow ) CLASS TXBrowse
       RECOVER
       END SEQUENCE
    else
-      BEGIN SEQUENCE
+      BEGIN SEQUENCE WITH { |e| Break( e ) }
          oExcel:ScreenUpdating := .t.
       RECOVER
       END SEQUENCE
 #ifndef __XHARBOUR__
+      // SysRefresh() necesario aqui para que Harbour devuelva oSheet
+      // como objeto (ver nota historica 2015-06-02 de FWH)
       SysRefresh()
 #endif
    endif
@@ -8684,9 +8733,8 @@ METHOD ToExcel( bProgress, nGroupBy, aCols, lShow ) CLASS TXBrowse
 
 return oSheet
 
-
 //----------------------------------------------------------------
-// Crea el diálogo con barra de progreso y botón cancelar
+// Crea el dialogo con barra de progreso y boton cancelar
 //----------------------------------------------------------------
 STATIC FUNCTION CrearProgreso( nTotal )
 
@@ -8694,8 +8742,8 @@ STATIC FUNCTION CrearProgreso( nTotal )
 
    lCancelarExport := .f.
 
-   DEFINE DIALOG oDlg TITLE "Exportando a Excel..." ; 
-          FROM 03,20 TO 13,70      
+   DEFINE DIALOG oDlg TITLE "Exportando a Excel..." ;
+          FROM 03,20 TO 13,70
    oDlg:lHelpIcon := .f.
    @ 10, 10 SAY oText PROMPT "Procesando registros: 0 / " + LTrim( Str( nTotal ) ) ;
             SIZE 170, 12 PIXEL OF oDlg UPDATE
@@ -8711,13 +8759,85 @@ STATIC FUNCTION CrearProgreso( nTotal )
 
 return { oDlg, oMeter, oText }
 
+//----------------------------------------------------------------
+// Arma el array de valores de la fila actual del browse, ya
+// convertidos para Excel. NO hace ninguna llamada OLE.
+//----------------------------------------------------------------
+STATIC FUNCTION ArmarFila( aCols )
+
+   local aFila := Array( Len( aCols ) )
+   local nXCol, uValue
+
+   for nXCol := 1 to Len( aCols )
+      BEGIN SEQUENCE WITH { |e| Break( e ) }
+         uValue := EVAL( aCols[ nXCol ]:bEditValue )
+
+         DO CASE
+         CASE uValue == nil .or. ValType( uValue ) == 'U'
+            // nulo o undefined: celda vacia
+         CASE ValType( uValue ) $ 'CM'
+            if ! Empty( uValue )
+               aFila[ nXCol ] := AnsiToOem( AllTrim( uValue ) )
+            endif
+         CASE ValType( uValue ) == 'D' .and. Empty( uValue )
+            // fecha vacia: celda vacia
+         CASE ValType( uValue ) == 'L'
+            aFila[ nXCol ] := If( uValue, "SI", "NO" )
+         OTHERWISE
+            aFila[ nXCol ] := uValue
+         ENDCASE
+      RECOVER
+         // si el codeblock de la columna falla, la celda queda vacia
+      END SEQUENCE
+   next nXCol
+
+return aFila
 
 //----------------------------------------------------------------
-// Escribe los datos celda por celda, SIN clipboard
+// Vuelca una fila entera con UNA sola llamada OLE (tecnica de
+// report.prg / database.prg de FWH). oRange arranca en la fila 2
+// de la hoja, por eso Rows( nRow - 1 ). Si la asignacion en bloque
+// falla (o no hay oRange), cae a escribir celda por celda con el
+// mismo fallback que la version anterior.
+//----------------------------------------------------------------
+STATIC FUNCTION VolcarFila( oRange, oSheet, nRow, aFila )
+
+   local nCol
+   local lOk := .f.
+
+   if oRange != nil
+      BEGIN SEQUENCE WITH { |e| Break( e ) }
+         oRange:Rows( nRow - 1 ):Value := aFila
+         lOk := .t.
+      RECOVER
+      END SEQUENCE
+   endif
+
+   if ! lOk
+      for nCol := 1 to Len( aFila )
+         if aFila[ nCol ] != nil
+            BEGIN SEQUENCE WITH { |e| Break( e ) }
+               oSheet:Cells( nRow, nCol ):Value := aFila[ nCol ]
+            RECOVER
+               // Si esta celda especifica falla, intentar como texto plano
+               BEGIN SEQUENCE WITH { |e| Break( e ) }
+                  oSheet:Cells( nRow, nCol ):Value := AllTrim( cValToChar( aFila[ nCol ] ) )
+               RECOVER
+                  // Si ni asi, queda vacia y se continua
+               END SEQUENCE
+            END SEQUENCE
+         endif
+      next nCol
+   endif
+
+return nil
+
+//----------------------------------------------------------------
+// Escribe los datos fila por fila via OLE, SIN clipboard
 //----------------------------------------------------------------
 STATIC FUNCTION EscribirCellwise( oBrw, oSheet, aCols, nDataRows, bProgress )
 
-   local nRow, nCol, nXCol, oCol, nStep, uValue
+   local nRow, nStep, aFila, oRange
    local lContinue := .t.
    local aProg, oDlgProg, oMeter, oTextProg
 
@@ -8728,56 +8848,29 @@ STATIC FUNCTION EscribirCellwise( oBrw, oSheet, aCols, nDataRows, bProgress )
    oMeter    := aProg[ 2 ]
    oTextProg := aProg[ 3 ]
 
+   // Rango unico sobre toda el area de datos: cada fila se escribe
+   // con una sola asignacion oRange:Rows(n):Value en vez de una
+   // llamada OLE por celda
+   BEGIN SEQUENCE WITH { |e| Break( e ) }
+      oRange := oSheet:Range( oSheet:Cells( 2, 1 ), ;
+                              oSheet:Cells( nDataRows + 1, Len( aCols ) ) )
+   RECOVER
+      oRange := nil
+   END SEQUENCE
+
    nRow  := 2
    nStep := Max( 1, Min( 100, Int( nDataRows / 100 ) ) )
 
    do while nRow <= ( nDataRows + 1 ) .and. lContinue .and. ! lCancelarExport
 
-      nCol := 0
-      for nXCol := 1 to Len( aCols )
-         oCol := aCols[ nXCol ]
-         nCol++
-
-         BEGIN SEQUENCE
-            uValue := EVAL( oCol:bEditValue )
-
-            // Si es nulo o undefined, saltar
-            if uValue == nil .or. ValType( uValue ) == 'U'
-               // skip
-            elseif ValType( uValue ) == 'C' .and. Empty( uValue )
-               // string vacío, skip
-            elseif ValType( uValue ) == 'D' .and. Empty( uValue )
-               // fecha vacía, skip
-            else
-               BEGIN SEQUENCE
-                  DO CASE
-                  CASE ValType( uValue ) $ 'CM'
-                     oSheet:Cells( nRow, nCol ):Value :=  AnsiToOem(ALLTRIM(uValue ))
-                  CASE ValType( uValue ) == 'L'
-                     oSheet:Cells( nRow, nCol ):Value := If( uValue, "SI", "NO" )
-                  OTHERWISE
-                     oSheet:Cells( nRow, nCol ):Value := uValue
-                  ENDCASE
-               RECOVER
-                  // Si esta celda específica falla, intentar como texto plano
-                  BEGIN SEQUENCE
-                     oSheet:Cells( nRow, nCol ):Value :=  AllTrim( cValToChar( uValue ) ) 
-                  RECOVER
-                     // Si ni así, queda vacía y se continúa
-                  END SEQUENCE
-               END SEQUENCE
-            endif
-
-         RECOVER
-         END SEQUENCE
-
-      next nXCol
+      aFila := ArmarFila( aCols )
+      VolcarFila( oRange, oSheet, nRow, aFila )
 
       lContinue := ( oBrw:Skip( 1 ) == 1 )
       nRow++
 
       If ( nRow - 2 ) % nStep == 0
-         BEGIN SEQUENCE
+         BEGIN SEQUENCE WITH { |e| Break( e ) }
             oMeter:Set( nRow - 2 )
             oTextProg:SetText( "Procesando registros: " + LTrim( Str( nRow - 2 ) ) + ;
                                " / " + LTrim( Str( nDataRows ) ) )
@@ -8788,7 +8881,7 @@ STATIC FUNCTION EscribirCellwise( oBrw, oSheet, aCols, nDataRows, bProgress )
    enddo
 
    if oDlgProg != nil
-      BEGIN SEQUENCE
+      BEGIN SEQUENCE WITH { |e| Break( e ) }
          oDlgProg:End()
       RECOVER
       END SEQUENCE
@@ -8796,13 +8889,12 @@ STATIC FUNCTION EscribirCellwise( oBrw, oSheet, aCols, nDataRows, bProgress )
 
 return nRow
 
-
 //----------------------------------------------------------------
-// Escribe filas seleccionadas sin Copy/Paste
+// Escribe filas seleccionadas sin Copy/Paste, fila por fila via OLE
 //----------------------------------------------------------------
 STATIC FUNCTION EscribirSeleccionadas( oBrw, oSheet, aCols )
 
-   local nRow := 2, i, nCol, nXCol, oCol, uValue
+   local nRow := 2, i, aFila, oRange
    local uBookMark := EVAL( oBrw:bBookMark )
    local aProg, oDlgProg, oMeter, oTextProg
    local nTotal := Len( oBrw:aSelected )
@@ -8812,6 +8904,14 @@ STATIC FUNCTION EscribirSeleccionadas( oBrw, oSheet, aCols )
    oMeter    := aProg[ 2 ]
    oTextProg := aProg[ 3 ]
 
+   // Rango unico sobre el area de datos, igual que en EscribirCellwise
+   BEGIN SEQUENCE WITH { |e| Break( e ) }
+      oRange := oSheet:Range( oSheet:Cells( 2, 1 ), ;
+                              oSheet:Cells( nTotal + 1, Len( aCols ) ) )
+   RECOVER
+      oRange := nil
+   END SEQUENCE
+
    for i := 1 to nTotal
 
       if lCancelarExport
@@ -8820,46 +8920,13 @@ STATIC FUNCTION EscribirSeleccionadas( oBrw, oSheet, aCols )
 
       EVAL( oBrw:bBookMark, oBrw:aSelected[ i ] )
 
-      nCol := 0
-      for nXCol := 1 to Len( aCols )
-         oCol := aCols[ nXCol ]
-         nCol++
-
-         BEGIN SEQUENCE
-            uValue := EVAL( oCol:bEditValue )
-
-            if uValue == nil .or. ValType( uValue ) == 'U'
-               // skip
-            elseif ValType( uValue ) == 'C' .and. Empty( uValue )
-               // skip
-            elseif ValType( uValue ) == 'D' .and. Empty( uValue )
-               // skip
-            else
-               BEGIN SEQUENCE
-                  DO CASE
-                  CASE ValType( uValue ) $ 'CM'
-                     oSheet:Cells( nRow, nCol ):Value := AnsiToOem( alltrim(uValue)) 
-                  CASE ValType( uValue ) == 'L'
-                     oSheet:Cells( nRow, nCol ):Value := If( uValue, "SI", "NO" )
-                  OTHERWISE
-                     oSheet:Cells( nRow, nCol ):Value := uValue
-                  ENDCASE
-               RECOVER
-                  BEGIN SEQUENCE
-                     oSheet:Cells( nRow, nCol ):Value := AnsiToOem( AllTrim( cValToChar( uValue ) ) )
-                  RECOVER
-                  END SEQUENCE
-               END SEQUENCE
-            endif
-
-         RECOVER
-         END SEQUENCE
-      next nXCol
+      aFila := ArmarFila( aCols )
+      VolcarFila( oRange, oSheet, nRow, aFila )
 
       nRow++
 
       // Actualizar progreso cada fila (las seleccionadas suelen ser pocas)
-      BEGIN SEQUENCE
+      BEGIN SEQUENCE WITH { |e| Break( e ) }
          oMeter:Set( i )
          oTextProg:SetText( "Procesando registros: " + LTrim( Str( i ) ) + ;
                             " / " + LTrim( Str( nTotal ) ) )
@@ -8871,15 +8938,13 @@ STATIC FUNCTION EscribirSeleccionadas( oBrw, oSheet, aCols )
    EVAL( oBrw:bBookMark, uBookMark )
 
    if oDlgProg != nil
-      BEGIN SEQUENCE
+      BEGIN SEQUENCE WITH { |e| Break( e ) }
          oDlgProg:End()
       RECOVER
       END SEQUENCE
    endif
 
 return nRow
-
-
 
 //----------------------------------------------------------------------------//
 
@@ -9303,7 +9368,7 @@ METHOD ToDbf( cFile, bProgress, aCols, lPrompt ) CLASS TXBrowse
    ::nRowSel   := nRowPos
    ::Refresh()
 
-   if lPrompt .and. MsgYesNo( If( FWSetLanguage() == 2, "Â¿ ", "" ) + ;
+   if lPrompt .and. MsgYesNo( If( FWSetLanguage() == 2, "� ", "" ) + ;
                               FWString( "View" ) + " " + cFile + " ?",;
                               FWString( "Please select" ) )
       XBrowse( cFile )
@@ -10141,6 +10206,74 @@ static function SetExcelLanguage( oExcel )
    endif
 
 return nil
+
+//----------------------------------------------------------------------------//
+// Builds the Excel number format mask in US (neutral) notation.
+// Via OLE, the NumberFormat property always expects English notation
+// ( "#,##0.00" ); Excel then DISPLAYS it using the regional settings of
+// the machine that opens the file. Do not use Dbf2ExcelNumFormat() here:
+// it builds the mask with the localized separators, which is only valid
+// for the NumberFormatLocal property.
+
+static function PictToUSNumFormat( cPic )
+
+   local cRet  := '##0'
+
+   if ! Empty( cPic )
+      if Left( cPic, 1 ) == '@'
+         cPic  := LTrim( AfterAtNum( ' ', cPic, 1 ) )
+      endif
+      do while ' ' $ cPic
+         cPic  := Trim( BeforAtNum( ' ', cPic ) )
+      enddo
+      if '.' $ cPic
+         cRet  += '.' + Replicate( '0', Len( AfterAtNum( '.', cPic ) ) )
+      endif
+      if ',' $ cPic
+         cRet  := '#,' + cRet
+      endif
+   endif
+
+return cRet
+
+//----------------------------------------------------------------------------//
+// Igual que PictToUSNumFormat pero emite la mascara en notacion LOCAL, usando
+// los separadores reales que reporta el Excel del cliente:
+//   cDec = separador decimal ( International( 3 ) )
+//   cMil = separador de miles ( International( 4 ) )
+// El picture de origen (NumPict) es US: '.' = decimal, ',' = agrupacion. Se lee
+// asi y se re-emite con cDec/cMil. Se asigna con NumberFormatLocal.
+//----------------------------------------------------------------------------//
+
+static function PictToLocalNumFormat( cPic, cDec, cMil )
+
+   local nDec   := 0
+   local lGroup := .f.
+   local cRet
+
+   DEFAULT cDec := '.', cMil := ','
+
+   if ! Empty( cPic )
+      if Left( cPic, 1 ) == '@'
+         cPic  := LTrim( AfterAtNum( ' ', cPic, 1 ) )
+      endif
+      do while ' ' $ cPic
+         cPic  := Trim( BeforAtNum( ' ', cPic ) )
+      enddo
+      if '.' $ cPic
+         nDec   := Len( AfterAtNum( '.', cPic ) )
+      endif
+      if ',' $ cPic
+         lGroup := .t.
+      endif
+   endif
+
+   cRet  := If( lGroup, '#' + cMil + '##0', '##0' )
+   if nDec > 0
+      cRet  += cDec + Replicate( '0', nDec )
+   endif
+
+return cRet
 
 //----------------------------------------------------------------------------//
 
@@ -14047,89 +14180,64 @@ return cRet
 
 METHOD ToExcel( oSheet, nRow, nCol ) CLASS TXBrwColumn
 
-   local uVal := ::Value
-   local aBmpPal, hBmp, hBmp2, nHeight, nWidth
+   local uVal     := ::Value
+   local aBmpPal, hBmp, hBmp2, nHeight, nWidth, oClp
 
-   // Fechas/timestamps vacíos: solo aplicar formato y salir
    if ValType( uVal ) $ 'DT' .and. Empty( uVal )
-      BEGIN SEQUENCE
-         oSheet:Cells( nRow, nCol ):NumberFormat := Lower( Set( _SET_DATEFORMAT ) )
-      RECOVER
-      END SEQUENCE
+      oSheet:Cells( nRow, nCol ):NumberFormat   := Lower( Set( _SET_DATEFORMAT ) )
       return Self
    endif
 
-   // Valor nulo o undefined: no escribir nada
-   if uVal == nil .or. ValType( uVal ) == 'U'
-      return Self
-   endif
+   if uVal != nil
 
-   if ::cDataType $ 'PF'
-      // Imágenes: caso especial que mantiene el clipboard (es inevitable acá)
-      BEGIN SEQUENCE
-         aBmpPal := ::oBrw:ReadPalBmpEx( uVal,, .f. )
-         hBmp := aBmpPal[ 1 ]
+      if ::cDataType $ 'PF'
+         aBmpPal    := ::oBrw:ReadPalBmpEx( uVal,, .f. )
+         hBmp := aBmpPal[1]
          if hBmp != 0
-            nHeight := nBmpHeight( hBmp )
-            nWidth  := nBmpWidth( hBmp )
+            nHeight  := nBmpHeight( hBmp )
+            nWidth   := nBmpWidth(  hBmp )
             if nWidth > ::nWidth .or. nHeight > ::oBrw:nRowHeight
                if nWidth > ::nWidth
-                  nHeight *= ( ::nWidth / nWidth )
-                  nWidth  := ::nWidth
+                  nHeight  *= ( ::nWidth / nWidth )
+                  nWidth   := ::nWidth
                endif
                if nHeight > ::oBrw:nRowHeight
-                  nWidth  *= ( ::oBrw:nRowHeight / nHeight )
-                  nHeight := ::oBrw:nRowHeight
+                  nWidth   *= ( ::oBrw:nRowHeight / nHeight )
+                  nHeight  := ::oBrw:nRowHeight
                endif
-               hBmp2 := hBmp
-               hBmp  := ResizeImg( hBmp2, nWidth, nHeight )
+
+               hBmp2       := hBmp
+               hBmp        := ResizeImg( hBmp2, nWidth, nHeight )
                DeleteObject( hBmp2 )
             endif
-            GDIPLUSHBITMAPTOCLIPBOARD( hbmp, ::obrw:hWnd )
+
+            GDIPLUSHBITMAPTOCLIPBOARD ( hbmp, ::obrw:hWnd  )
+
             oSheet:Cells( nRow, nCol ):Select()
+
             oSheet:Paste()
             OpenClipboard( ::oBrw:hWnd )
             EmptyClipboard()
             CloseClipboard()
+
          endif
          DeleteObject( hBmp )
-      RECOVER
-      END SEQUENCE
-   else
-      BEGIN SEQUENCE
-         DO CASE
-         CASE ValType( uVal ) == 'C'
-            uVal := Trim( uVal )
-            if ! Empty( uVal )
-               oSheet:Cells( nRow, nCol ):Value := AnsiToOem( alltrim(uVal) )
+      else
+         if ValType( uVal ) == 'C' .and. IsUtf8( uVal := Trim( uVal ) )
+            oClp     := TClipBoard():New( 1, ::oBrw:oWnd )
+            oClp:SetWideText( UTF8TOUTF16( uVal ) )
+            oSheet:Cells( nRow, nCol ):Select()
+            oSheet:Paste()
+            oClp:Clear()
+            oClp:End()
+         else
+            if ValType( uVal ) $ 'DT' .and. Year( uVal ) < 1900
+               uVal  := DToC( uVal )
             endif
-
-         CASE ValType( uVal ) == 'M'
-            uVal := Trim( uVal )
-            if ! Empty( uVal )
-               oSheet:Cells( nRow, nCol ):Value := AnsiToOem( uVal )
-            endif
-
-         CASE ValType( uVal ) == 'L'
-            oSheet:Cells( nRow, nCol ):Value := If( uVal, "SI", "NO" )
-
-         CASE ValType( uVal ) $ 'DT'
-            if Year( uVal ) < 1900
-               oSheet:Cells( nRow, nCol ):Value := DToC( uVal )
-            else
-               oSheet:Cells( nRow, nCol ):Value := uVal
-            endif
-
-         OTHERWISE
             oSheet:Cells( nRow, nCol ):Value := uVal
-         ENDCASE
-      RECOVER
-         // Si falla, intentar como texto
-         BEGIN SEQUENCE
-            oSheet:Cells( nRow, nCol ):Value := AnsiToOem( AllTrim( cValToChar( uVal ) ) )
-         RECOVER
-         END SEQUENCE
-      END SEQUENCE
+         endif
+
+      endif
    endif
 
 return Self
@@ -15636,4 +15744,6 @@ function CalcLineWH( oWnd, cLine )
    oWnd:ReleaseDC()
 
 return { r - aRect[ 2 ], h }
+
+//----------------------------------------------------------------------------//
 

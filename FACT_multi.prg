@@ -9,7 +9,7 @@ static oDlg, oDlg1, nMesa := 1, oFont, oFontBot, oBrwDet, oQryDet, oQryDep, oQry
        nPagado, nVuelto, cNomArt, nDescu, lConsulta, oQryPag, nAntes,;
        nUltDep, nPriDep, nUltArt, nPriArt, fDepto, nCantidad, dFecha, nCliente, cCliente, nTotal, cVentana, ;
        lMaxi:=.t., nPrecio, lReemplaza, nCondicion, oQryPun, nDescuTot, nRecarTot, oQry2, oQry3, oQry5,;
-       oQryPendi, oBrwPendi, nLista, oQryPar, nLisPre, aFormaNom, aFormaInc, aFormaTip, nFormaPago, oGetDep1, oGetDep2,;
+       oQryPendi, oBrwPendi, nLista, oQryPar, nLisPre, aFormaNom, aFormaInc, aFormaTip, aFormaCod, nFormaPago, oGetDep1, oGetDep2,;
        oGetDep3 , cPermi, lSaleX
 
 //----------------------------------------------------------------//
@@ -159,15 +159,17 @@ lReemplaza:=.t.
    lConsulta:=.f.
    nLista:= oApp:oServer:Query("SELECT lispre FROM ge_"+oApp:cId+"clientes WHERE codigo = "+ClipValue2Sql(nCliente)):lispre
    nLisPre := oApp:oServer:Query("SELECT lispreesp FROM ge_"+oApp:cId+"clientes WHERE codigo = "+ClipValue2Sql(nCliente)):lispreesp
-   oQryFormas:= oApp:oServer:Query("SELECT nombre,incremento,tipo FROM ge_"+oApp:cId+"forpag ORDER BY codigo")
+   oQryFormas:= oApp:oServer:Query("SELECT codigo,nombre,incremento,tipo FROM ge_"+oApp:cId+"forpag ORDER BY codigo")
     aFormaNom:={}
     aFormaInc:={}
     aFormaTip:={}
+    aFormaCod:={}
     oQryFormas:GoTop()
     DO WHILE !oQryFormas:eof()
       AADD(aFormaNom,oQryFormas:nombre)
       AADD(aFormaInc,oQryFormas:incremento)
       AADD(aFormaTip,oQryFormas:tipo)
+      AADD(aFormaCod,oQryFormas:codigo)
       oQryFormas:Skip()
     ENDDO
     nFormaPago:=1 
@@ -226,7 +228,7 @@ ENDIF
                    ACTION (GrabaySigue(nId),oDlg1:End()) WHEN(oQryDet:RecCount()>0)
    REDEFINE BTNBMP oBot[31] ID 302 OF oDlg1 2007 CENTER; //DESCUENTOS
                    PROMPT "&Descuentos";
-                   ACTION(CargaDescu(),oGet[02]:SetFocus()) WHEN("R"$cPermisos)
+                   ACTION(CargaDescu(cPermisos),oGet[02]:SetFocus()) //WHEN("R"$cPermisos)
    REDEFINE BTNBMP oBot[32] ID 303 OF oDlg1 2007 CENTER; //BORRA ITEM
                    PROMPT "&Borrar item [F6]";
                    ACTION BorraItem(cPermisos, oDlg1) WHEN (oQryDet:RecCount()>0)
@@ -1390,9 +1392,19 @@ RETURN nil
 
 *********************************************************************************************************
 **********APLICA DESCUENTOS A LA MESA
-STATIC FUNCTION CargaDescu()
+STATIC FUNCTION CargaDescu(cPermisos)
 LOCAL acor:=ARRAY(4),oDlgD,oGet1:=ARRAY(3),oBot1,oBot2,lRta:=.f.,nDescTemp:=0,nOpcion:=1,;
       aTipos:={"Descuento","Recargo"}, lSoloPuntual := .f., nDescuPun, oFont
+IF !("R"$cPermisos)
+   IF oApp:usar_clave 
+      IF !PedirClave("Ponga la clave de autorización para hacer descuento",oDlg1)
+          RETURN nil        
+      ENDIF
+      ELSE
+      MsgStop("Sin Permiso para descuentos","Atencion")
+      RETURN NIL
+   ENDIF 
+ENDIF
 DEFINE FONT oFont   NAME "ARIAL" SIZE 0,-10
 DEFINE DIALOG oDlgD TITLE "Aplicar descuentos a la venta" OF oDlg1 FROM 05,15 TO 13,55 FONT oFont
   acor := AcepCanc(oDlgD)
@@ -2226,6 +2238,7 @@ oApp:oServer:Execute("";
     +"`FORMAPAG`  VARCHAR(30) NOT NULL,";
     +"`CODFORMA`  INT(2) NOT NULL,";
     +"`IMPORTE`  DECIMAL(12,2) NOT NULL,"+;
+    +"`lfiscal`  TINYINT(1) DEFAULT '0' NOT NULL,"+;
     +" PRIMARY KEY (RENGLON)) ENGINE=INNODB DEFAULT CHARSET=utf8")  
 
 RETURN nil
@@ -2328,9 +2341,26 @@ RETURN .t.
 
 
 STATIC FUNCTION CalcularPromos()
-LOCAL cText, oQryTem, nNeto, nIva, nAux
+LOCAL cText, oQryTem, nNeto, nIva, nAux, nCurCodart, nTierPrio, nCodForma, nTot, oQryFp, oQryIva
+STATIC cPrioChk := ""
 //Borro las promos que cargue
 IF !oApp:oServer:TableExist('ge_'+oApp:cId+"promociones")
+   RETURN nil 
+ENDIF   
+//Auto-reparable: crea la columna prioridad si la tabla existe sin ella (MySQL 5.7 no tiene ADD COLUMN IF NOT EXISTS)
+IF cPrioChk != oApp:cId
+   IF oApp:oServer:Query("SHOW COLUMNS FROM ge_"+oApp:cId+"promociones LIKE 'prioridad'"):nRecCount == 0
+      oApp:oServer:Execute("ALTER TABLE ge_"+oApp:cId+"promociones ADD COLUMN prioridad INT DEFAULT 0 NOT NULL")
+   ENDIF
+   IF oApp:oServer:Query("SHOW COLUMNS FROM ge_"+oApp:cId+"promociones LIKE 'hora_inicio'"):nRecCount == 0
+      oApp:oServer:Execute("ALTER TABLE ge_"+oApp:cId+"promociones ADD COLUMN hora_inicio TIME DEFAULT '00:00:00' NOT NULL")
+   ENDIF
+   IF oApp:oServer:Query("SHOW COLUMNS FROM ge_"+oApp:cId+"promociones LIKE 'hora_fin'"):nRecCount == 0
+      oApp:oServer:Execute("ALTER TABLE ge_"+oApp:cId+"promociones ADD COLUMN hora_fin TIME DEFAULT '23:59:59' NOT NULL")
+   ENDIF
+   cPrioChk := oApp:cId
+ENDIF
+IF oApp:oServer:Query('SELECT id FROM ge_'+oApp:cId+"promociones"):nRecCount == 0
    RETURN nil 
 ENDIF   
 oApp:oServer:Execute("DELETE FROM VENTAS_DET_H1 WHERE ESPROMO = TRUE")
@@ -2343,15 +2373,19 @@ IF nCliente > 1 .and. oApp:oServer:Query("SELECT excluyepromo FROM ge_"+oApp:cId
       prom.CODART,
       prom.TIPO,
       prom.id,
+      prom.prioridad,
       prom.nompromo AS DETART,
       CASE 
           WHEN prom.tipo = 2 AND FLOOR(p.CANTIDAD / prom.cantidad_requerida) > 0 THEN 
               p.cantidad - (FLOOR(p.CANTIDAD / prom.cantidad_requerida) * prom.cantidad_a_pagar + MOD(p.CANTIDAD, prom.cantidad_requerida))
+          WHEN prom.tipo = 5 AND prom.cantidad_minima > 0 THEN
+              FLOOR(p.CANTIDAD / prom.cantidad_minima) * prom.cantidad_minima
           ELSE p.CANTIDAD
       END AS CANTIDAD,
       CASE
           WHEN prom.tipo = 1 THEN p.punit - prom.precio_especial        
           WHEN prom.tipo = 4 AND p.CANTIDAD BETWEEN prom.cantidad_minima AND prom.cantidad_maxima THEN p.punit - prom.precio_unitario
+          WHEN prom.tipo = 5 AND p.CANTIDAD >= prom.cantidad_minima THEN p.punit - prom.precio_unitario
           ELSE p.PUNIT
       END AS PUNIT,    
       CASE
@@ -2367,19 +2401,31 @@ IF nCliente > 1 .and. oApp:oServer:Query("SELECT excluyepromo FROM ge_"+oApp:cId
       ON p.CODART = prom.codart   
   WHERE 
       CURRENT_DATE BETWEEN prom.fecha_inicio AND prom.fecha_fin
+      AND CURTIME() BETWEEN prom.hora_inicio AND prom.hora_fin
       AND (
           (prom.tipo = 1) OR
           (prom.tipo = 2 AND p.CANTIDAD >= prom.cantidad_requerida) OR
           (prom.tipo = 3 AND p.CANTIDAD >= prom.descuento_a_unidad) OR
-          (prom.tipo = 4 AND p.CANTIDAD BETWEEN prom.cantidad_minima AND prom.cantidad_maxima)
+          (prom.tipo = 4 AND p.CANTIDAD BETWEEN prom.cantidad_minima AND prom.cantidad_maxima) OR
+          (prom.tipo = 5 AND prom.cantidad_minima > 0 AND p.CANTIDAD >= prom.cantidad_minima)
       ) 
-      GROUP BY prom.CODART, prom.TIPO)
+      AND @FPSEL@
+      GROUP BY prom.CODART, prom.TIPO, prom.prioridad ORDER BY prom.CODART, prom.prioridad DESC)
   ENDTEXT
   cText := STRTRAN(cText,'ge_000001promociones','ge_'+oApp:cId+'promociones')
+  cText := STRTRAN(cText,'@FPSEL@',"FIND_IN_SET('"+ALLTRIM(STR(IF(EMPTY(aFormaTip[nFormaPago]),0,aFormaTip[nFormaPago])))+"', prom.formapago) > 0")
   oQryTem := oApp:oServer:Query(cText)
   oQryTem:GoTop()
   IF oQryTem:nRecCount > 0
      DO WHILE !oQryTem:Eof()
+        IF oQryTem:codart != nCurCodart
+           nCurCodart := oQryTem:codart
+           nTierPrio  := oQryTem:prioridad
+        ENDIF
+        IF oQryTem:prioridad != nTierPrio
+           oQryTem:Skip()
+           LOOP
+        ENDIF
         DO CASE
            CASE oQryTem:codiva = 3
                 nNeto := oQryTem:punit * oQryTem:cantidad 
@@ -2392,7 +2438,7 @@ IF nCliente > 1 .and. oApp:oServer:Query("SELECT excluyepromo FROM ge_"+oApp:cId
                 nIva  := oQryTem:punit * oQryTem:cantidad  - nNeto
         ENDCASE
         DO CASE 
-           CASE oQryTem:tipo = 1 .or. oQryTem:tipo = 2 .or. oQryTem:tipo = 4
+           CASE oQryTem:tipo = 1 .or. oQryTem:tipo = 2 .or. oQryTem:tipo = 4 .or. oQryTem:tipo = 5
                 oApp:oServer:Execute("INSERT INTO VENTAS_DET_H1 (CODART, DETART, CANTIDAD, PUNIT, "+;
                   +" NETO, DESCUENTO, STOTAL, IVA, CODIVA, PTOTAL, PCOSTO, IMPINT, ESPROMO) VALUES ("+;
                   ClipValue2Sql(oQryTem:codart)+","+Clipvalue2Sql(oQryTem:DETART)+","+;
@@ -2417,7 +2463,34 @@ IF nCliente > 1 .and. oApp:oServer:Query("SELECT excluyepromo FROM ge_"+oApp:cId
         oQryTem:Skip()
      ENDDO
   ENDIF
-ENDIF  
+// === Promos por grupo (mix de sabores / combinada cruzada) ===
+// Va DESPUES de las promos por articulo y ANTES del descuento por forma de pago,
+// asi ese porcentaje se calcula sobre el total ya rebajado por el grupo.
+// Si el modulo nunca se abrio, las tablas no existen y la funcion sale sin hacer nada.
+CalcularPrGrupo("VENTAS_DET_H1", IF(EMPTY(aFormaTip[nFormaPago]),0,aFormaTip[nFormaPago]))
+// === Descuento por forma de pago segun rango de importe (sobre el total resultante) ===
+IF oApp:oServer:TableExist('ge_'+oApp:cId+"forpag_desc")
+   nCodForma := IF(EMPTY(aFormaCod[nFormaPago]),0,aFormaCod[nFormaPago])
+   nTot := oApp:oServer:Query("SELECT IFNULL(SUM(PTOTAL),0) AS t FROM VENTAS_DET_H1"):t
+   oQryFp := oApp:oServer:Query("SELECT porcentaje FROM ge_"+oApp:cId+"forpag_desc "+;
+             "WHERE codfor = "+ClipValue2Sql(nCodForma)+;
+             " AND "+ClipValue2Sql(nTot)+" BETWEEN desde_importe AND hasta_importe LIMIT 1")
+   IF oQryFp:nRecCount > 0 .and. oQryFp:porcentaje > 0
+      oQryIva := oApp:oServer:Query("SELECT CODIVA AS codiva, SUM(NETO) AS net, SUM(IVA) AS iva FROM VENTAS_DET_H1 GROUP BY CODIVA")
+      DO WHILE !oQryIva:Eof()
+         oApp:oServer:Execute("INSERT INTO VENTAS_DET_H1 (CODART,DETART,CANTIDAD,PUNIT,NETO,DESCUENTO,STOTAL,IVA,CODIVA,PTOTAL,PCOSTO,IMPINT,ESPROMO) VALUES (0,"+;
+            ClipValue2Sql("Desc. "+ALLTRIM(aFormaNom[nFormaPago]))+",1,"+;
+            ClipValue2Sql(-(oQryIva:net+oQryIva:iva)*oQryFp:porcentaje/100)+","+;
+            ClipValue2Sql(-oQryIva:net*oQryFp:porcentaje/100)+",0,"+;
+            ClipValue2Sql(-oQryIva:net*oQryFp:porcentaje/100)+","+;
+            ClipValue2Sql(-oQryIva:iva*oQryFp:porcentaje/100)+","+;
+            ClipValue2Sql(oQryIva:codiva)+","+;
+            ClipValue2Sql(-(oQryIva:net+oQryIva:iva)*oQryFp:porcentaje/100)+",0,0,1)")
+         oQryIva:Skip()
+      ENDDO
+   ENDIF
+ENDIF
+ENDIF
 oQryDet:Refresh()
 oBrwDet:Refresh()
 oBrwDet:MakeTotals()

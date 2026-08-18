@@ -230,16 +230,26 @@ STATIC function Show(oQryRes,aPic)
       :MakeTotals()
    END
    PintaBrw(oBrw,0)
-   ACTIVATE DIALOG oDlg CENTERED
+   ACTIVATE DIALOG oDlg CENTERED ON INIT ModificarAncho(oBrw)
    RELEASE FONT oFont
 return nil
 
 STATIC function XbrSetupBar( oBrw,oDlg )   
-      local oBtn
+      local oBtn, i
       @ 05,05 BTNBMP oBtn RESOURCE "EXCE" SIZE 36,36 PIXEL OF oDlg NOBORDER ;
         ACTION oBrw:ToExcel() TOOLTIP "Exportar a Excel"
       @ 05,45 BTNBMP oBtn RESOURCE "REPORT" SIZE 36,36 PIXEL OF oDlg NOBORDER ;
         ACTION oBrw:Report() TOOLTIP "Reporte impreso"  
       @ 05,85 BTNBMP oBtn RESOURCE "SALE" SIZE 36,36 PIXEL OF oDlg NOBORDER ;
-        ACTION oDlg:End() TOOLTIP "Salir"      
+        ACTION oDlg:End() TOOLTIP "Salir"        
 return nil
+
+STATIC FUNCTION ModificarAncho(oBrw)
+/*LOCAL i
+xbrowse(oBrw:aCols)
+FOR i := 1 TO LEN(oBrw:aCols)
+     IF oBrw:aCols[i]:nWidth > 500 
+        oBrw:aCols[i]:nWidth := INT(oBrw:aCols[i]:nWidth/2)
+     ENDIF   
+NEXT i */
+RETURN nil

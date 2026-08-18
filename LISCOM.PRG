@@ -59,7 +59,7 @@ oQry := oApp:oServer:Query("SELECT CONCAT(c.tipocomp, c.letra, c.numfac) AS comp
                          " c.importe*IF(c.tipocomp='NC',-1,1) AS importe, "+;
                          " c.saldo*IF(c.tipocomp='NC',-1,1) AS saldo, "+;
                          " cu.nombre as nomcue, cu.tipo AS tipcue,"+;
-                         " c.usuario, ca.caja "+;
+                         " c.usuario, ca.caja, c.observa "+;
                           " FROM ge_"+oApp:cId+"compras c LEFT JOIN ge_"+oApp:cId+"provee p ON c.codpro = p.codigo "+;
                           " LEFT JOIN ge_"+oApp:cId+"plancont cu ON c.codcue = cu.codigo "+;
                           " LEFT JOIN ge_"+oApp:cId+"punto ca ON c.ip = ca.ip "+;
@@ -95,6 +95,7 @@ COLUMN TITLE "Adeuda"    DATA oQry:saldo     PICTURE "9,999,999,999.99" ;
                          SIZE 10 FONT 2 TOTAL 
 COLUMN TITLE "Cargó"     DATA oQry:usuario   SIZE 7 FONT 1
 COLUMN TITLE "PV"        DATA oQry:caja      SIZE 2 FONT 1
+COLUMN TITLE "Observaciones" DATA oQry:observa SIZE 20 FONT 1
 
 // Digo que el titulo lo escriba con al letra 2
 oRep:oTitle:aFont[1] := {|| 2 }
@@ -118,7 +119,7 @@ LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
       acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(6), oBot1, oBot2,;
       oQryMar, oQryRub, i, aRub, aMar, oBrwMar, oBrwRub, oQryPro, cSql,;
       cMarca, cRubro, oGru, mdesde := DATE(), mhasta := DATE(), lResu := .f., mprov := 0, mnompro := SPACE(30),;
-      cTodos := "----------- Todos -----------", n
+      cTodos := "----------- Todos -----------", n, lPlano := .f.
 oQryMar:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"marcas  ORDER BY nombre")
 oQryRub:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"rubros  ORDER BY nombre")      
 oQryPro:= oApp:oServer:Query( "SELECT codigo,nombre FROM ge_"+oApp:cId+"provee")      
@@ -170,7 +171,8 @@ DEFINE DIALOG oDlg1 TITLE "Compras por articulo" FROM 03,15 TO 27,90
                 ACTION (oGet[3]:cText:= -1, Buscar(oQryPro,oDlg1,oGet[3],oGet[4])) BITMAP "BUSC1" 
    @ 125,145 GET oGet[4] VAR mnompro PICTURE "@!"  OF oDlg1 PIXEL;
                 WHEN((oGet[4]:cText := IF(mprov=0,cTodos,oQryPro:nombre)) = SPACE(30))
-   @ 140, 05 CHECKBOX oGet[5] VAR lResu PROMPT "Mostrar solo resumen"  SIZE 110,10 PIXEL OF oDlg1
+   @ 140, 05 CHECKBOX oGet[5] VAR lResu  PROMPT "Mostrar solo resumen"  SIZE 110,10 PIXEL OF oDlg1
+   @ 140,125 CHECKBOX oGet[6] VAR lPlano PROMPT "Mostrar reporte plano" SIZE 110,10 PIXEL OF oDlg1
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
@@ -244,23 +246,36 @@ REPORT oRep TITLE "Articulos comprados por fecha del " + ;
        "Proveedor: "+ALLTRIM(mnompro) CENTER ;
        FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
        PREVIEW CAPTION  "Articulos comprados por fecha"
-GROUP oGru ON oQry:Rubro HEADER oQry:rubro FOOTER "Totales Rubro"  FONT 3       
-GROUP oGru ON oQry:Marca HEADER oQry:marca FOOTER "Totales Marca"  FONT 2
+IF !lPlano       
+    GROUP oGru ON oQry:Rubro HEADER oQry:rubro FOOTER "Totales Rubro"  FONT 3       
+    GROUP oGru ON oQry:Marca HEADER oQry:marca FOOTER "Totales Marca"  FONT 2
 
-IF !lResu
-   GROUP oGru ON oQry:detart HEADER oQry:detart FOOTER "Totales Articulo"  FONT 3
-ENDIF   
-IF !lResu
-   COLUMN TITLE "Nro.Fact." DATA oQry:numfac   SIZE 15 FONT 1
-   COLUMN TITLE "Fecha"     DATA oQry:fecha    PICTURE "@D"   SIZE 10 FONT 1   
-   ELSE
-   COLUMN TITLE "Articulo" DATA oQry:detart   SIZE 30 FONT 1
-   COLUMN TITLE "Codigo"   DATA oQry:codart   SIZE 06 FONT 1
-ENDIF   
-COLUMN TITLE "Cantidad"  DATA oQry:cantidad PICTURE "999999999" ;
-                            SIZE 10 FONT 2 TOTAL
-COLUMN TITLE "Importe"   DATA oQry:precio ;
-                         PICTURE "9999999999.99" SIZE 12 FONT 2 TOTAL
+    IF !lResu
+       GROUP oGru ON oQry:detart HEADER oQry:detart FOOTER "Totales Articulo"  FONT 3
+    ENDIF   
+    IF !lResu
+       COLUMN TITLE "Nro.Fact." DATA oQry:numfac   SIZE 15 FONT 1
+       COLUMN TITLE "Fecha"     DATA oQry:fecha    PICTURE "@D"   SIZE 10 FONT 1   
+       ELSE
+       COLUMN TITLE "Articulo" DATA oQry:detart   SIZE 30 FONT 1
+       COLUMN TITLE "Codigo"   DATA oQry:codart   SIZE 06 FONT 1
+    ENDIF   
+    COLUMN TITLE "Cantidad"  DATA oQry:cantidad PICTURE "999999999" ;
+                                SIZE 10 FONT 2 TOTAL
+    COLUMN TITLE "Importe"   DATA oQry:precio ;
+                             PICTURE "9999999999.99" SIZE 12 FONT 2 TOTAL
+    ELSE 
+    COLUMN TITLE "Nro.Fact." DATA oQry:numfac   SIZE 15 FONT 1
+    COLUMN TITLE "Fecha"     DATA oQry:fecha    PICTURE "@D"   SIZE 10 FONT 1
+    COLUMN TITLE "Articulo" DATA oQry:detart   SIZE 30 FONT 1
+    COLUMN TITLE "Rubro"    DATA oQry:rubro   SIZE 15 FONT 1
+    COLUMN TITLE "Marca"    DATA oQry:marca   SIZE 15 FONT 1
+    COLUMN TITLE "Codigo"   DATA oQry:codart   SIZE 06 FONT 1
+    COLUMN TITLE "Cantidad"  DATA oQry:cantidad PICTURE "999999999" ;
+                                SIZE 10 FONT 2 TOTAL
+    COLUMN TITLE "Importe"   DATA oQry:precio ;
+                             PICTURE "9999999999.99" SIZE 12 FONT 2 TOTAL
+ENDIF
 // Digo que el titulo lo escriba con al letra 2
 oRep:oTitle:aFont[1] := {|| 3 }
 oRep:bInit := {|| oQry:GoTop() }

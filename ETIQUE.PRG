@@ -7,7 +7,7 @@ MEMVAR oApp
 STATIC oQryFue, oQryEti, oBrw, nOrientation, nWidthPage, nHeightPage,;
        lImprimeLista2,cNombreLista1,cNombreLista2 // Las defino globales para no tener que pasarla a todos lados (CAMBIO FACU)
 
-// Constantes de separaci贸n entre etiquetas y m谩rgenes internos (en CM)
+// Constantes de separaci髇 entre etiquetas y m醨genes internos (en CM)
 // GAP: espacio ENTRE recuadros de etiquetas (evita solapamiento de bordes)
 #define GAP_V         0.30
 #define GAP_H         0.30
@@ -453,7 +453,7 @@ RETURN NIL
 STATIC FUNCTION ImprimirEtiquetaNormal(oPrn, oFon1, oFon2, oFon3, oFon4, ;
                                         nRow, nCol, MaxFil, MaxCol, ;
                                         lLogo, lVto, nDecimales, aSay)
-LOCAL x1, oQryAux, nAncho, nAltoContenido := 0, nAnchoContenido := 0, ;
+LOCAL x1, nRowCod, oQryAux, nAncho, nAltoContenido := 0, nAnchoContenido := 0, ;
       nIniRow := 0, nIniCol := 0
 
    DibujarRecuadro(oPrn, nRow, nCol, MaxFil, MaxCol, ;
@@ -468,12 +468,12 @@ LOCAL x1, oQryAux, nAncho, nAltoContenido := 0, nAnchoContenido := 0, ;
    
    IF lImprimeLista2
       // --- MODO 2 LISTAS ---
-      // Nombre del art铆culo (30%)
+      // Nombre del art韈ulo (30%)
       @ nIniRow, nIniCol;
          PRINT TO oPrn TEXT ALLTRIM(oQryEti:nombre) ;
                 SIZE nAnchoContenido, nAltoContenido * 0.30 CM FONT oFon1 ALIGN "TC" LASTROW x1 COLOR aSay[1]:nClrText
       
-      // T铆tulos de listas (12%)
+      // T韙ulos de listas (12%)
       nAncho := nAnchoContenido / 2
       @ x1, nIniCol;
          PRINT TO oPrn TEXT ALLTRIM(cNombreLista1) ;
@@ -498,22 +498,24 @@ LOCAL x1, oQryAux, nAncho, nAltoContenido := 0, nAnchoContenido := 0, ;
          PRINT TO oPrn TEXT "Sin imp. $" + ALLTRIM(STR(oQryEti:neto2,10,nDecimales)) ;
                 SIZE nAncho, nAltoContenido * 0.18 CM FONT oFon4 ALIGN "TC" LASTROW x1 COLOR aSay[2]:nClrText
       
-      // C贸digo y precio por unidad (20%)
+      // C骴igo y precio por unidad (20%)
       @ x1, nIniCol;
-         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + ALLTRIM(oQryAux:unimed) + " $"+;
-                ALLTRIM(STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
-                " "),"")+ " C骴." +ALLTRIM(STR(oQryEti:codigo))+;
+         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + ALLTRIM(oQryAux:unimed) + " $"+ALLTRIM(STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)),"");
+                SIZE nAncho, nAltoContenido * 0.20 CM FONT oFon3 ALIGN "TC" LASTROW nRowCod COLOR aSay[3]:nClrText
+      @ nRowCod, nIniCol;
+         PRINT TO oPrn TEXT "C骴." +ALLTRIM(STR(oQryEti:codigo))+;
                 IF(lVto," "+DTOC(oQryAux:fecmod),"");
                 SIZE nAncho, nAltoContenido * 0.20 CM FONT oFon3 ALIGN "TC" COLOR aSay[3]:nClrText
       @ x1, nIniCol + nAncho;
-         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + ALLTRIM(oQryAux:unimed) + " $"+;
-                ALLTRIM(STR(oQryEti:reventa*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
-                " "),"")+ " C骴." +ALLTRIM(STR(oQryEti:codigo))+;
+         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + ALLTRIM(oQryAux:unimed) + " $"+ALLTRIM(STR(oQryEti:reventa*oQryAux:entero/oQryAux:medida,12,nDecimales)),"");
+                SIZE nAncho, nAltoContenido * 0.20 CM FONT oFon3 ALIGN "TC" LASTROW nRowCod COLOR aSay[3]:nClrText
+      @ nRowCod, nIniCol + nAncho;
+         PRINT TO oPrn TEXT "C骴." +ALLTRIM(STR(oQryEti:codigo))+;
                 IF(lVto," "+DTOC(oQryAux:fecmod),"");
                 SIZE nAncho, nAltoContenido * 0.20 CM FONT oFon3 ALIGN "TC" COLOR aSay[3]:nClrText
    ELSE
       // --- MODO 1 LISTA ---
-      // Nombre del art铆culo (35%)
+      // Nombre del art韈ulo (35%)
       @ nIniRow, nIniCol;
          PRINT TO oPrn TEXT ALLTRIM(oQryEti:nombre) ;
                 SIZE nAnchoContenido, nAltoContenido * 0.35 CM FONT oFon1 ALIGN "TC" LASTROW x1 COLOR aSay[1]:nClrText
@@ -528,11 +530,12 @@ LOCAL x1, oQryAux, nAncho, nAltoContenido := 0, nAnchoContenido := 0, ;
          PRINT TO oPrn TEXT "Sin imp. $" + ALLTRIM(STR(oQryEti:neto,10,nDecimales)) ;
                 SIZE nAnchoContenido, nAltoContenido * 0.20 CM FONT oFon4 ALIGN "TC" LASTROW x1 COLOR aSay[2]:nClrText
       
-      // C贸digo y precio por unidad (20%)
+      // C骴igo y precio por unidad (20%)
       @ x1, nIniCol;
-         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + ALLTRIM(oQryAux:unimed) + " $"+;
-                ALLTRIM(STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
-                " "),"")+ " C骴." +ALLTRIM(STR(oQryEti:codigo))+;
+         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x " + ALLTRIM(oQryAux:unimed) + " $"+ALLTRIM(STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)),"");
+                SIZE nAnchoContenido, nAltoContenido * 0.20 CM FONT oFon3 ALIGN "TC" LASTROW nRowCod COLOR aSay[3]:nClrText
+      @ nRowCod, nIniCol;
+         PRINT TO oPrn TEXT "C骴." +ALLTRIM(STR(oQryEti:codigo))+;
                 IF(lVto," "+DTOC(oQryAux:fecmod),"");
                 SIZE nAnchoContenido, nAltoContenido * 0.20 CM FONT oFon3 ALIGN "TC" COLOR aSay[3]:nClrText
    ENDIF
@@ -542,12 +545,12 @@ RETURN NIL
 ************************************
 ** Imprime una etiqueta con CARTEL DE OFERTA
 ** Proporciones del contenido (suman 1.0 sobre nAltoContenido):
-**   Con 1 lista: Oferta 0.15 + Nombre 0.30 + Precio 0.25 + SinImp 0.15 + C贸digo 0.15
-**   Con 2 listas: Oferta 0.12 + Nombre 0.23 + T铆tulos 0.10 + Precios 0.20 + SinImp 0.15 + C贸digo 0.20
+**   Con 1 lista: Oferta 0.15 + Nombre 0.30 + Precio 0.25 + SinImp 0.15 + C骴igo 0.15
+**   Con 2 listas: Oferta 0.12 + Nombre 0.23 + T韙ulos 0.10 + Precios 0.20 + SinImp 0.15 + C骴igo 0.20
 STATIC FUNCTION ImprimirEtiquetaOferta(oPrn, oFon1, oFon2, oFon3, oFon4, ;
                                         nRow, nCol, MaxFil, MaxCol, ;
                                         lLogo, lVto, nDecimales, aSay)
-LOCAL x1, oQryAux, nAncho, nAltoContenido := 0, nAnchoContenido := 0, ;
+LOCAL x1, nRowCod, oQryAux, nAncho, nAltoContenido := 0, nAnchoContenido := 0, ;
       nIniRow := 0, nIniCol := 0
 
    DibujarRecuadro(oPrn, nRow, nCol, MaxFil, MaxCol, ;
@@ -567,12 +570,12 @@ LOCAL x1, oQryAux, nAncho, nAltoContenido := 0, nAnchoContenido := 0, ;
          PRINT TO oPrn TEXT " O F E R T A " ;
                 SIZE nAnchoContenido, nAltoContenido * 0.12 CM FONT oFon2 ALIGN "TC" LASTROW x1
       
-      // Nombre del art铆culo (23%)
+      // Nombre del art韈ulo (23%)
       @ x1, nIniCol;
          PRINT TO oPrn TEXT ALLTRIM(oQryEti:nombre) ;
                 SIZE nAnchoContenido, nAltoContenido * 0.23 CM FONT oFon1 ALIGN "TC" LASTROW x1 COLOR aSay[1]:nClrText
       
-      // T铆tulos de listas (10%)
+      // T韙ulos de listas (10%)
       nAncho := nAnchoContenido / 2
       @ x1, nIniCol;
          PRINT TO oPrn TEXT ALLTRIM(cNombreLista1) ;
@@ -597,17 +600,19 @@ LOCAL x1, oQryAux, nAncho, nAltoContenido := 0, nAnchoContenido := 0, ;
          PRINT TO oPrn TEXT "Sin imp. $" + ALLTRIM(STR(oQryEti:neto2,10,nDecimales)) ;
                 SIZE nAncho, nAltoContenido * 0.15 CM FONT oFon4 ALIGN "TC" LASTROW x1 COLOR aSay[2]:nClrText
       
-      // C贸digo y precio por unidad (20%)
+      // C骴igo y precio por unidad (20%)
       @ x1, nIniCol;
-         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x" + ALLTRIM(oQryAux:unimed) + " $" +;
-                ALLTRIM(STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
-                " "),"")+ " C骴." +ALLTRIM(STR(oQryEti:codigo))+;
+         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x" + ALLTRIM(oQryAux:unimed) + " $" +ALLTRIM(STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)),"");
+                SIZE nAncho, nAltoContenido * 0.20 CM FONT oFon3 ALIGN "TC" LASTROW nRowCod COLOR aSay[3]:nClrText
+      @ nRowCod, nIniCol;
+         PRINT TO oPrn TEXT "C骴." +ALLTRIM(STR(oQryEti:codigo))+;
                 IF(lVto," "+DTOC(oQryAux:fecmod),"");
                 SIZE nAncho, nAltoContenido * 0.20 CM FONT oFon3 ALIGN "TC" COLOR aSay[3]:nClrText 
       @ x1, nIniCol + nAncho;
-         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x" + ALLTRIM(oQryAux:unimed) + " $" +;
-                ALLTRIM(STR(oQryEti:reventa*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
-                " "),"")+ " C骴." +ALLTRIM(STR(oQryEti:codigo))+;
+         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x" + ALLTRIM(oQryAux:unimed) + " $" +ALLTRIM(STR(oQryEti:reventa*oQryAux:entero/oQryAux:medida,12,nDecimales)),"");
+                SIZE nAncho, nAltoContenido * 0.20 CM FONT oFon3 ALIGN "TC" LASTROW nRowCod COLOR aSay[3]:nClrText
+      @ nRowCod, nIniCol + nAncho;
+         PRINT TO oPrn TEXT "C骴." +ALLTRIM(STR(oQryEti:codigo))+;
                 IF(lVto," "+DTOC(oQryAux:fecmod),"");
                 SIZE nAncho, nAltoContenido * 0.20 CM FONT oFon3 ALIGN "TC" COLOR aSay[3]:nClrText 
    ELSE
@@ -617,7 +622,7 @@ LOCAL x1, oQryAux, nAncho, nAltoContenido := 0, nAnchoContenido := 0, ;
          PRINT TO oPrn TEXT " O F E R T A " ;
                 SIZE nAnchoContenido, nAltoContenido * 0.15 CM FONT oFon2 ALIGN "TC" LASTROW x1
       
-      // Nombre del art铆culo (30%)
+      // Nombre del art韈ulo (30%)
       @ x1, nIniCol;
          PRINT TO oPrn TEXT ALLTRIM(oQryEti:nombre) ;
                 SIZE nAnchoContenido, nAltoContenido * 0.30 CM FONT oFon1 ALIGN "TC" LASTROW x1 COLOR aSay[1]:nClrText
@@ -632,11 +637,12 @@ LOCAL x1, oQryAux, nAncho, nAltoContenido := 0, nAnchoContenido := 0, ;
          PRINT TO oPrn TEXT "Sin imp. $" + ALLTRIM(STR(oQryEti:neto,10,nDecimales)) ;
                 SIZE nAnchoContenido, nAltoContenido * 0.15 CM FONT oFon4 ALIGN "TC" LASTROW x1 COLOR aSay[2]:nClrText   
       
-      // C贸digo y precio por unidad (15%)
+      // C骴igo y precio por unidad (15%)
       @ x1, nIniCol;
-         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x" + ALLTRIM(oQryAux:unimed) + " $" +;
-                ALLTRIM(STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)+ ;
-                " "),"")+ " C骴." +ALLTRIM(STR(oQryEti:codigo))+;
+         PRINT TO oPrn TEXT IF(!EMPTY(oQryAux:entero),"Precio x" + ALLTRIM(oQryAux:unimed) + " $" +ALLTRIM(STR(oQryEti:precioven*oQryAux:entero/oQryAux:medida,12,nDecimales)),"");
+                SIZE nAnchoContenido, nAltoContenido * 0.15 CM FONT oFon3 ALIGN "TC" LASTROW nRowCod COLOR aSay[3]:nClrText
+      @ nRowCod, nIniCol;
+         PRINT TO oPrn TEXT "C骴." +ALLTRIM(STR(oQryEti:codigo))+;
                 IF(lVto," "+DTOC(oQryAux:fecmod),"");
                 SIZE nAnchoContenido, nAltoContenido * 0.15 CM FONT oFon3 ALIGN "TC" COLOR aSay[3]:nClrText     
    ENDIF
@@ -647,11 +653,11 @@ RETURN NIL
 ** Imprime una etiqueta con CODIGO DE BARRAS
 ** Proporciones del contenido (suman 1.0 sobre nAltoContenido):
 **   Con 1 lista: Nombre 0.35 + Precio 0.25 + CodBarras 0.40
-**   Con 2 listas: Nombre 0.30 + T铆tulos 0.10 + Precios 0.20 + CodBarras 0.40
+**   Con 2 listas: Nombre 0.30 + T韙ulos 0.10 + Precios 0.20 + CodBarras 0.40
 STATIC FUNCTION ImprimirEtiquetaBarras(oPrn, oFon1, oFon2, oFont5, ;
                                         nRow, nCol, MaxFil, MaxCol, ;
                                         lLogo, nDecimales, aSay)
-LOCAL x1, oQryAux, nAncho, nAltoContenido := 0, nAnchoContenido := 0, ;
+LOCAL x1, nRowCod, oQryAux, nAncho, nAltoContenido := 0, nAnchoContenido := 0, ;
       nIniRow := 0, nIniCol := 0, mbarra1
 
    DibujarRecuadro(oPrn, nRow, nCol, MaxFil, MaxCol, ;
@@ -666,12 +672,12 @@ LOCAL x1, oQryAux, nAncho, nAltoContenido := 0, nAnchoContenido := 0, ;
    
    IF lImprimeLista2
       // --- BARRAS + 2 LISTAS ---
-      // Nombre del art铆culo (30%)
+      // Nombre del art韈ulo (30%)
       @ nIniRow, nIniCol;
          PRINT TO oPrn TEXT ALLTRIM(oQryEti:nombre) ;
                 SIZE nAnchoContenido, nAltoContenido * 0.30 CM FONT oFon1 ALIGN "C" LASTROW x1 COLOR aSay[1]:nClrText
       
-      // T铆tulos de listas (10%)
+      // T韙ulos de listas (10%)
       nAncho := nAnchoContenido / 2
       @ x1, nIniCol;
          PRINT TO oPrn TEXT ALLTRIM(cNombreLista1) ;
@@ -689,7 +695,7 @@ LOCAL x1, oQryAux, nAncho, nAltoContenido := 0, nAnchoContenido := 0, ;
                 SIZE nAncho, nAltoContenido * 0.20 CM FONT oFon2 ALIGN "TC" LASTROW x1 COLOR aSay[2]:nClrText
    ELSE
       // --- BARRAS + 1 LISTA ---
-      // Nombre del art铆culo (35%)
+      // Nombre del art韈ulo (35%)
       @ nIniRow, nIniCol;
          PRINT TO oPrn TEXT ALLTRIM(oQryEti:nombre) ;
                 SIZE nAnchoContenido, nAltoContenido * 0.35 CM FONT oFon1 ALIGN "C" LASTROW x1 COLOR aSay[1]:nClrText
@@ -700,7 +706,7 @@ LOCAL x1, oQryAux, nAncho, nAltoContenido := 0, nAnchoContenido := 0, ;
                 SIZE nAnchoContenido, nAltoContenido * 0.25 CM FONT oFon2 ALIGN "C" LASTROW x1 COLOR aSay[2]:nClrText
    ENDIF
    
-   // C贸digo de barras (40%)
+   // C骴igo de barras (40%)
    mbarra1 := STR(oQryEti:codigo,14)
    mbarra1 := STRTRAN(mbarra1," ","0") 
    mbarra1 := CodigoBarra( mbarra1)  
@@ -970,11 +976,12 @@ RETURN "("+cBarr+")"
 
 ********************************
 ** Previsualizacion
-** Usa las mismas funciones de impresi贸n que la impresi贸n real
+** Usa las mismas funciones de impresi髇 que la impresi髇 real
 STATIC FUNCTION Prev(MaxFil,MaxCol, oSay1, oSay2, oSay3, oQryEti, lCodBarra, lLogo, lOferta, lVto,nDecimales)
 LOCAL oFon1, oFon2, oFon3, oFon4,  nRow, nCol, oPrn , i, j , x1, x2, x3, x4, x5, y , h, oQryAux, oFont5, ;
-      mbarra1, aUnit, nAncho, aSay := ARRAY(3)
+      mbarra1, aUnit, nAncho, aSay := ARRAY(3), nEtiq
 oQryEti:GOTOP()
+nEtiq := oQryEti:nRecCount
 oFon1 := TFont():New(oSay1:oFont:cFaceName,oSay1:oFont:nWidth,oSay1:oFont:nHeight,.f.,oSay1:oFont:lBold,;
                    oSay1:oFont:nEscapement,oSay1:oFont:norientation,oSay1:oFont:nWeight,oSay1:oFont:lItalic,;
                    oSay1:oFont:lUnderline,oSay1:oFont:lStrikeout,oSay1:oFont:nCharset,oSay1:oFont:nOutPrecision,;
@@ -995,15 +1002,15 @@ ACTIVATE FONT oFon1
 ACTIVATE FONT oFon2
 ACTIVATE FONT oFon3
 
-// Crear array aSay simulado para la previsualizaci贸n con los colores actuales
+// Crear array aSay simulado para la previsualizaci髇 con los colores actuales
 aSay[1] := oSay1
 aSay[2] := oSay2
 aSay[3] := oSay3
-
+Procesando(.t.)
 IF !lCodBarra
     IF !lOferta
        // ============================================================
-       // PREVIEW NORMAL (sin oferta, sin c贸digo de barras)
+       // PREVIEW NORMAL (sin oferta, sin c骴igo de barras)
        // ============================================================
        PRINT oPrn NAME "Etiquetas de precios" PREVIEW MODAL
           ConfigPagina(oPrn, MaxFil, MaxCol)
@@ -1011,7 +1018,7 @@ IF !lCodBarra
           i := 1
           j := 1
           PAGE
-          FOR h := 1 TO 3
+          FOR h := 1 TO nEtiq
             nRow := 0.8 + ((i-1) * (nHeightPage/MaxFil))
             nCol := 0.8 + ((j-1) * (nWidthPage/MaxCol))
             
@@ -1033,6 +1040,7 @@ IF !lCodBarra
             ENDIF
           NEXT h  
           ENDPAGE
+          Procesando(.f.)
        ENDPRINT
        ELSE 
        // ============================================================
@@ -1044,7 +1052,7 @@ IF !lCodBarra
           i := 1
           j := 1
           PAGE
-          FOR h := 1 TO 3
+          FOR h := 1 TO nEtiq
               nRow := 0.8 + ((i-1) * (nHeightPage/MaxFil))
               nCol := 0.8 + ((j-1) * (nWidthPage/MaxCol))
               
@@ -1066,6 +1074,7 @@ IF !lCodBarra
               ENDIF
           NEXT h  
           ENDPAGE
+          Procesando(.f.)
        ENDPRINT
     ENDIF
     ELSE 
@@ -1080,7 +1089,7 @@ IF !lCodBarra
           i := 1
           j := 1
           PAGE
-          FOR h := 1 TO 3
+          FOR h := 1 TO nEtiq
             nRow := 0.8 + ((i-1) * (nHeightPage/MaxFil))
             nCol := 0.8 + ((j-1) * (nWidthPage/MaxCol))
             
@@ -1101,7 +1110,8 @@ IF !lCodBarra
                j  := 1
             ENDIF
           NEXT h  
-        ENDPAGE       
+        ENDPAGE 
+        Procesando(.f.)      
  ENDPRINT
 ENDIF
 DEACTIVATE FONT oFon1

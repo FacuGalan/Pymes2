@@ -82,7 +82,7 @@ CLASS TPreview
    METHOD ExportToMSWord()
 
 
-   METHOD ExportToMSExcel() INLINE If( ::CanExportToExcel, ::oReport:ToExcel(), ;
+   METHOD ExportToMSExcel() INLINE If( ::CanExportToExcel, ExcelConProgreso( ::oReport ), ;
                             MsgInfo( FWString( "Export to Excel is available only" ) + ;
                             CRLF + ;
                             FWString( "for Reports with ::bInit defined" ), FWString( "Information" ) ) )
@@ -2112,6 +2112,50 @@ function SetCustomPrintPreview( bPreview )
    endif
 
 return bPrev
+
+//----------------------------------------------------------------
+// Exporta el reporte a Excel mostrando un contador de avance.
+// TReport:ToExcel() (report.prg) evalua bProgress cada 100 filas
+// pasando ( nFilasProcesadas, oReport ). Como el reporte se recorre
+// secuencialmente, el total no se conoce de antemano: por eso es un
+// contador y no una barra con porcentaje.
+//----------------------------------------------------------------
+static function ExcelConProgreso( oReport )
+
+   local oDlg, oText
+   local bProgress
+
+   DEFINE DIALOG oDlg TITLE "Exportando a Excel..." ;
+          FROM 03,20 TO 10,70
+   oDlg:lHelpIcon := .f.
+   @ 15, 10 SAY oText PROMPT "Procesando registros: 0" ;
+            SIZE 170, 12 PIXEL OF oDlg UPDATE
+
+   ACTIVATE DIALOG oDlg CENTERED NOWAIT
+
+   // report.prg ya hace SysRefresh() despues de evaluar bProgress
+   bProgress := { | n | oText:SetText( "Procesando registros: " + LTrim( Str( n ) ) ) }
+
+   BEGIN SEQUENCE WITH { |e| Break( e ) }
+      oReport:ToExcel( bProgress )
+   RECOVER
+      // si la exportacion falla, cerrar el dialogo antes de avisar
+      BEGIN SEQUENCE WITH { |e| Break( e ) }
+         oDlg:End()
+         oDlg := nil
+      RECOVER
+      END SEQUENCE
+      MsgAlert( "La exportacion a Excel fallo.", "Exportar a Excel" )
+   END SEQUENCE
+
+   if oDlg != nil
+      BEGIN SEQUENCE WITH { |e| Break( e ) }
+         oDlg:End()
+      RECOVER
+      END SEQUENCE
+   endif
+
+return nil
 
 //----------------------------------------------------------------------------//
 

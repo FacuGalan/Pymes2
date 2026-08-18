@@ -129,7 +129,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Retiro de caja"
    @ 67, 05 SAY "Tipo:"         OF oForm PIXEL SIZE 40,20 RIGHT   
   
    @ 05, 50 GET oGet[1] VAR base:fecha   PICTURE "@D"  OF oForm PIXEL CENTER 
-   @ 20, 50 GET oGet[2] VAR base:importe PICTURE "99999999.99"    OF oForm PIXEL RIGHT;
+   @ 20, 50 GET oGet[2] VAR base:importe PICTURE "999999999.99"    OF oForm PIXEL RIGHT;
                 VALID(base:importe>0)
    @ 35, 50 GET oGet[3] VAR base:caja    PICTURE "999" OF oForm PIXEL RIGHT WHEN(lSuper);
                 VALID(base:caja>0)
@@ -425,7 +425,8 @@ IF !mRta
 ENDIF    
 
 cWhere = " fecha >=" + ClipValue2SQL(vdesde) +;
-      + "  and fecha <= " + ClipValue2SQL(vhasta) ;
+     + "  and fecha <= " + ClipValue2SQL(vhasta) ;
+     + IF(oApp:usua_es_supervisor," "," AND caja = "+str(oApp:prefijo)) +;
      + "  and " + IF(nEstado = 1," TRUE ", IF(nEstado = 2, " tipo = 'I'"," tipo = 'R'")) ;
      + IF(oApp:usua_es_supervisor,"", " AND caja = "+str(oApp:prefijo))
 oQry:SetNewFilter(SET_WHERE,cWhere,.t.)

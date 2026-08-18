@@ -19,7 +19,29 @@ ENDIF
 AADD(oApp:aVentanas,cVentana)
 lVtoStock := oApp:oServer:Query( "SELECT lVtoStock FROM ge_"+oApp:cId+"parametros"):lVtoStock
    CursorWait()
-   oQry  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"articu ORDER BY codigo")
+   IF !lVtoStock
+      oQry  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"articu ORDER BY codigo")
+      ELSE 
+      oQry  := oApp:oServer:Query( "SELECT a.codigo,a.nombre,a.stockact,a.codigopro,sl.fechavto "+;
+               " FROM ge_"+oApp:cId+"articu a "+;
+               " LEFT JOIN (SELECT codart,MIN(fechavto) AS fechavto FROM ge_"+oApp:cId+"stocklotes WHERE restan > 0 GROUP BY codart) sl "+;
+               "    ON a.codigo = sl.codart"+;
+               " ORDER BY a.codigo")
+      // TDolphin re-arma la consulta cada vez que se cambia el orden o el filtro
+      // (SetOrder / SetWhere -> BuildQuery) usando aColumns / aTables / cWhere / cGroup.
+      // Su parser corta por las palabras FROM / WHERE / GROUP sin tener en cuenta el
+      // sub-select del LEFT JOIN, con lo cual pierde el "FROM ge_stocklotes" y da
+      // el error "Unknown column 'codart' in 'field list'" al tocar el encabezado.
+      // Le cargo las partes ya separadas y correctas para que el re-armado funcione.
+      oQry:aColumns := {"a.codigo","a.nombre","a.stockact","a.codigopro","sl.fechavto"}
+      oQry:aTables  := {"ge_"+oApp:cId+"articu a "+;
+                        "LEFT JOIN (SELECT codart,MIN(fechavto) AS fechavto FROM ge_"+oApp:cId+"stocklotes WHERE restan > 0 GROUP BY codart) sl "+;
+                        "ON a.codigo = sl.codart"}
+      oQry:cWhere   := ""
+      oQry:cGroup   := ""
+      oQry:cHaving  := ""
+      oQry:cOrder   := "a.codigo"
+   ENDIF   
   
    // Defino el dialogo tomado del recurso ABMCAJA
    DEFINE WINDOW oWnd1 MDICHILD TITLE "Modific. manual de stock" ;
@@ -67,15 +89,25 @@ lVtoStock := oApp:oServer:Query( "SELECT lVtoStock FROM ge_"+oApp:cId+"parametro
    oWnd1:bGotFocus := { || oDlg:SetFocus}
    oWnd1:bResized := { || Incrusta( oWnd1, oDlg, .t.) }
    DEFINE DIALOG oDlg RESOURCE "ABMS" OF oWnd1
+        IF !lVtoStock
         REDEFINE XBROWSE oBrw DATASOURCE oQry;
               COLUMNS "Codigo","codigopro","Nombre","Stockact";
               HEADERS "Código articulo","Cod.Prov","Nombre","Stock actual";
               SIZES   100,100,350,80;
               ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu( .f.),oBrw:Refresh()),nil))
+              PintaBrw(oBrw,4) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
+        ELSE 
+        REDEFINE XBROWSE oBrw DATASOURCE oQry;
+              COLUMNS "Codigo","codigopro","Nombre","Stockact","fechavto";
+              HEADERS "Código articulo","Cod.Prov","Nombre","Stock actual","Vencimiento";
+              SIZES   100,100,350,80,80;
+              ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,(Formu( .f.),oBrw:Refresh()),nil))
+              PintaBrw(oBrw,5) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
+        ENDIF      
      REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg
      oGetSeek:bKeyDown := { |nKey,nFlag| FiltraArt(oQry, oGetSeek, oBrw, nKey) }
      oQry:bOnChangePage := {|| oBrw:Refresh() }
-     PintaBrw(oBrw,4) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
+     //PintaBrw(oBrw,4) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
      oBrw:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar, oBrw,cPermisos,3)}
      // Activo el dialogo y al iniciar muevo a 0,0
      ACTIVATE DIALOG oDlg NOWAIT ON INIT (oGetSeek:SetFocus(),oDlg:Move(0,0)) VALID(oWnd1:End())
@@ -86,7 +118,7 @@ RETURN
 *****************************************************************************
 STATIC FUNCTION Formu ()
 LOCAL oGet := ARRAY(5), oBot := ARRAY(2), oForm, lRta := .F., aCor, base, nEntradas:= 0,;
-      nSalidas:= 0, nStock,  dFecha := CTOD('  /  /    ')
+      nSalidas:= 0, nStock,  dFecha := CTOD('  /  /    '), oQryA 
      
       
    base := oQry:GetRowObj()
@@ -99,7 +131,10 @@ IF oApp:oServer:Query("SELECT stockact FROM ge_"+oApp:cId+"articu WHERE codigo =
    oBrw:Refresh()
    RETURN nil 
 ENDIF
-
+oQryA := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"articu WHERE codigo = "+ClipValue2Sql(oQry:codigo))
+   base := oQryA:GetRowObj()
+   base:codigo := oQryA:codigo
+   nStock:= base:StockAct
 
 DEFINE DIALOG oForm TITLE "Modificación manual de stock" FROM 05,10 TO 17,IF(lVtoStock,70,50) OF oWnd1
    acor := AcepCanc(oForm)
@@ -154,6 +189,7 @@ CATCH oError
  MsgInfo(oError:description)
  oApp:oServer:RollBack()   
 END TRY
+oQry:Refresh()
 oBrw:Refresh()
 RETURN nil
 
@@ -176,20 +212,6 @@ FOR i := 1 TO LEN(oApp:aVentanas)
 NEXT i
 oApp:aVentanas := ACLONE(aNueva)
 RETURN .t.
-
-***********************************
-** Baja de registro
-STATIC FUNCTION Baja (  )
-LOCAL mrta := .f.
-IF oQry:codigo = 0
-   RETURN nil
-ENDIF
-mrta := MsgNoYes("Seguro de eliminar","Atencion")
-IF !mrta
-   RETURN nil
-ENDIF
-oQry:Delete()
-RETURN nil
 
 
 *************************************************************************************************************

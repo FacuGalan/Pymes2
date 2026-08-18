@@ -369,7 +369,8 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
     oBrwIvas:aCols[4]:lAutoSave := .t.
     oBrwIvas:aCols[4]:nEditType := EDIT_GET
     *oBrwIvas:aCols[4]:bOnChange := {|| CalcTot(oGet,.F.)}
-    oBrwIvas:aCols[3]:bOnPostEdit := {|oCol, xVal, nKey | (oQryIvaDet:neto:= xVal,oQryIvaDet:iva:= xVal * oQryIvaDet:tasa/100,oQryIvaDet:Save()) }
+    oBrwIvas:aCols[3]:bOnPostEdit := {|oCol, xVal, nKey | (oQryIvaDet:neto:= xVal,oQryIvaDet:iva := xVal * oQryIvaDet:tasa/100,oQryIvaDet:Save()) }
+    oBrwIvas:aCols[4]:bOnPostEdit := {|oCol, xVal, nKey | (oQryIvaDet:iva := xVal,oQryIvaDet:neto:= IF(oQryIvaDet:neto=0,xVal / (oQryIvaDet:tasa/100),oQryIvaDet:neto),oQryIvaDet:Save()) }  
     oBrwIvas:MakeTotals()
 
     //DETALLE DE RETENCIONES --------------------------------------------------------
@@ -645,8 +646,8 @@ RETURN nil
 *****************************************
 ** Actualizar precios de articulo 
 STATIC FUNCTION ActualizaPrecios(oGet1,oWnd)
-LOCAL base1 := oQryComprasDet:GetRowObj(), oForm,oGet:=ARRAY(46),oQryAux,baseArt,oBot:=ARRAY(2),lRta:=.f.,;
-      nNeto:=0,cIvaNom:=SPACE(15),oError, nPrecio
+LOCAL base1 := oQryComprasDet:GetRowObj(), oForm,oGet:=ARRAY(50),oQryAux,baseArt,oBot:=ARRAY(2),lRta:=.f.,;
+      nNeto:=0,cIvaNom:=SPACE(15),oError, nPrecio, oSay := ARRAY(7)
 
 
 oQryAux:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu WHERE codigo = " + ClipValue2Sql(base1:codart))
@@ -659,7 +660,12 @@ nPrecio:=base1:punit
 DO WHILE .T.
 DEFINE DIALOG oForm TITLE "Actualizar precios de " RESOURCE "PRECIOCOMP" OF oWnd
  oForm:lHelpIcon := .f.
- 
+  REDEFINE SAY oSay[6] ID 4070 OF oForm
+  REDEFINE SAY oSay[7] ID 4071 OF oForm
+  REDEFINE GET oGet[49] VAR baseArt:uxbulto    ID 502 OF oForm PICTURE "9999" WHEN (.f.)
+  REDEFINE GET oGet[50] VAR baseArt:pxbulto    ID 503 OF oForm PICTURE "999999999.99";
+               VALID((oGet[06]:cText:= (baseArt:pxbulto/baseArt:uxbulto)) <> "xxx");
+               WHEN oApp:usar_bultos .and. baseArt:uxbulto > 0
   REDEFINE CHECKBOX oGet[46] VAR baseArt:siniva  ID 4003 OF oForm
   REDEFINE GET oGet[06] VAR baseArt:precossiva ID 106 OF oForm PICTURE "999999999.99" 
   REDEFINE GET oGet[07] VAR baseArt:desc1      ID 107 OF oForm PICTURE "999.99"
@@ -760,6 +766,7 @@ TRY
                        " precioven ="+ClipValue2Sql(baseArt:precioven)+","+;
                        " reventa ="+ClipValue2Sql(baseArt:reventa)+","+;
                        " ip ="+ClipValue2Sql(baseArt:ip)+","+;
+                       IF(oApp:usar_bultos .and. baseArt:uxbulto>0," pxbulto = "+ ClipValue2Sql(baseArt:pxbulto)+",","")+;
                        " fecmod ="+ClipValue2Sql(baseArt:fecmod)+","+;
                        " horamod = CURTIME(),"+;
                        " usuario ="+ClipValue2Sql(baseArt:usuario)+" WHERE codigo = "+ClipValue2Sql(baseArt:codigo))

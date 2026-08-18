@@ -9,8 +9,8 @@ FUNCTION Punto()
 LOCAL oGet1, oGet2, oGet3, oGet4, oGet5, oGet6, oGet7, oGet8, oGet9, oGet10,;
       oGet11, oGet12, oGet13, oGet14, oGet15, oGet16, oGet17, oGet18, oGet19, oGet20, ;
       oGet21, oGet22, oGet23, oGet24, oGet25, oGet26, oGet27, oGet28, oGet29, oGet30, oGet31, oGet32, oGet33,;
-      oGet34, oGet35, oGet36, oGet37, oGet38,;
-      oBot1, oBot2, oBot3, oDlg1, base, hHand, oQry, oError, aCor, mrta := .f.,;
+      oGet34, oGet35, oGet36, oGet37, oGet38, oGet39,;
+      oBot1, oBot2, oBot3, oBot4, oDlg1, base, hHand, oQry, oError, aCor, mrta := .f.,;
       aCobrar := {"Cobro Salon","Cobro distribucion","Cobro ambos"}, oFont,;
       aTipos :={"Facturacion electronica","Facturacion con control. fiscal"}, aTipoC:={"Codigo interno","Codigo de barras"},;
       aStock :={"Avisar falta de stock","Prohibir falta de stock","No controlar stock"},;
@@ -80,6 +80,7 @@ DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 40,75 OF oApp
 
    @ 50, 10 COMBOBOX oGet9 VAR base:pidestock ITEMS aStock OF oDlg1 PIXEL SIZE 85,12
    @ 50,150 COMBOBOX oGet14 VAR nCosto ITEMS aCosto OF oDlg1 PIXEL SIZE 85,12
+   @ 65,150 BUTTON oBot4 PROMPT "Conf.Mail" OF oDlg1 SIZE 45,10 ACTION ConfigMail(oDlg1) PIXEL
    @ 75,190 GET oGet21 VAR base:punto  PICTURE "9999" OF oDlg1 PIXEL RIGHT WHEN(base:tipofac = 1)
    @ 90,150 GET oGet22 VAR base:direccionf  PICTURE "@S20" OF oDlg1 PIXEL WHEN(base:tipofac = 1 .and. base:punto > 0)
             
@@ -94,6 +95,9 @@ DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 40,75 OF oApp
    //Impresora de ticket para el punto de venta
    nImp := IF(EMPTY(base:impresorat),1,ASCAN(aImp,ALLTRIM(base:impresorat)))
    @125, 10 CHECKBOX oGet17 VAR base:imprimeTic  PROMPT "Usa impresora Ticket" OF oDlg1 PIXEL SIZE 65,12 WHEN !base:dosenuno
+   @127, 77 SAY "Tamaño Letra:" OF oDlg1 PIXEL SIZE 40,12
+   @125,118 GET oGet39 VAR base:tamaletra PIXEL PICTURE "999" RIGHT OF oDlg1
+   oGet39:cToolTip := "Esto permite que solo en este punto de venta, pueda elegir otro tamaño de letra"
    @140, 10 CHECKBOX oGet37 VAR base:dosenuno  PROMPT "Imprime 2 por hoja" OF oDlg1 PIXEL SIZE 65,12   WHEN !base:imprimeTic
    @140, 85 CHECKBOX oGet18 VAR base:imprimeDat  PROMPT "Imprime encabezado"   OF oDlg1 PIXEL SIZE 65,12
    @140,155 COMBOBOX oGet19 VAR nImp ITEMS aImp  SIZE 65,12 OF oDlg1 PIXEL

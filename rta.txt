@@ -1,0 +1,6 @@
+1) Si, con toda la logica de negocio (precioven o reventa, lispre, descuentos)
+2) Misma logica
+3) La fiscal dependera del tilde que tenga, que se pedira al armar el browse con lo que se va a facturar. La letra es segun la condicion de iva del cliente y la de la empresa (esta en la logica del sistema en ventas). Existe la funcion FacturaElec para hacer la fiscal. La no fiscal es X la letra y el numero depende del punto de venta y de el numero que lleva ese control en ge_xxxxxxpunto que tambien esta en la logica de ventas.prg)
+4) Se graba en ventas_cuota importe y saldo, clientes.saldo no se actualiza, eso es saldo a favor del cliente
+5) Reutiliza la logica, pero ponlo en ese prg (llamemosle ventas_lote.prg) 
+6) Stock baja por ventas_det->cantidad. Numeracion de ge_xxxxxxpunto punto de venta caja y numero de presupu. La fiscal de AFIP con el punto de venta fiscal (tambien esta en la logica de ventas.prg). Si, grilla con clientes y total a facturar y tilde. Va uno a uno con control de generacion todo ok. Si falla el proceso entonces parar y dar mensaje, y salir del proceso. clides no se vacia. Se lanza desde un modulo nuevo que yo me encargo de crear.  

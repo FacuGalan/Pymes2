@@ -70,6 +70,7 @@ CLASS WSAFip
    
    DATA cLastError     // Último mensaje de error
    DATA nLastCode      // Último código de error
+   DATA cRespuestaError INIT "" // Detalle concreto devuelto por ARCA (faultstring/Msg de la "Respuesta de error" del log)
    DATA aErrors        // Array de errores devueltos por WS
    DATA aObservaciones // Array de observaciones
 
@@ -136,6 +137,7 @@ CLASS WSAFip
    METHOD GenerarXMLCAESolicitar() PROTECTED
    METHOD ParseFECAESolicitarResponse(cResponse) PROTECTED
    METHOD SendRequest(cURL, cAction, cXML) PROTECTED
+   METHOD ExtraerDetalleError(cResp) PROTECTED
    METHOD Base64Encode1(cData) PROTECTED
    METHOD Base64Decode1(cData) PROTECTED
    METHOD XMLEncode(cData) PROTECTED
@@ -323,6 +325,9 @@ METHOD Login(cCertFile, cPrivKeyFile, cService) CLASS WSAFip
    ELSE
       ::cLastError := "Error al enviar solicitud de login"
       ::nLastCode := 1003
+      IF !EMPTY(::cRespuestaError)
+         ::cLastError += CRLF + ::cRespuestaError
+      ENDIF
       ::WriteLog("Error al enviar solicitud de login")
    ENDIF
    
@@ -463,6 +468,9 @@ METHOD SFRecuperaLastCMP(nPuntoVta, nTipoComp) CLASS WSAFip
    ELSE
       ::cLastError := "Error al enviar solicitud de último comprobante"
       ::nLastCode := 1006
+      IF !EMPTY(::cRespuestaError)
+         ::cLastError += CRLF + ::cRespuestaError
+      ENDIF
       ::WriteLog("Error al enviar solicitud de último comprobante")
    ENDIF
    
@@ -701,6 +709,9 @@ METHOD Autorizar(nPuntoVta, nTipoComp) CLASS WSAFip
    ELSE
       ::cLastError := "Error al enviar solicitud de autorización"
       ::nLastCode  := 1019
+      IF !EMPTY(::cRespuestaError)
+         ::cLastError += CRLF + ::cRespuestaError
+      ENDIF
       ::WriteLog("Error al enviar solicitud de autorización")
    ENDIF
    
@@ -788,6 +799,9 @@ METHOD ConsultaCAE(nPuntoVta, nTipoComp, nNumComp) CLASS WSAFip
    ELSE
       ::cLastError := "Error al enviar solicitud de consulta de comprobante"
       ::nLastCode := 1022
+      IF !EMPTY(::cRespuestaError)
+         ::cLastError += CRLF + ::cRespuestaError
+      ENDIF
       ::WriteLog("Error al enviar solicitud de consulta de comprobante")
    ENDIF
    
@@ -860,6 +874,9 @@ METHOD GetTiposComprobantes() CLASS WSAFip
    ELSE
       ::cLastError := "Error al obtener tipos de comprobantes"
       ::nLastCode := 1024
+      IF !EMPTY(::cRespuestaError)
+         ::cLastError += CRLF + ::cRespuestaError
+      ENDIF
       ::WriteLog("Error al obtener tipos de comprobantes")
       RETURN NIL
    ENDIF
@@ -1729,7 +1746,19 @@ METHOD ParseFECAESolicitarResponse(cResponse) CLASS WSAFip
       ENDIF
       
       ::WriteLog("Error en solicitud de CAE: " + ::cLastError + " (Código: " + ALLTRIM(STR(::nLastCode)) + ")")
-      MsgStop(::cLastError, "Error")
+
+      // Armar mensaje detallado con todos los errores devueltos por ARCA
+      cErrorMsg := ""
+      FOR nPos := 1 TO LEN(::aErrors)
+         cErrorMsg += "Código " + ALLTRIM(STR(::aErrors[nPos, 1])) + ": " + ::aErrors[nPos, 2]
+         IF nPos < LEN(::aErrors)
+            cErrorMsg += CRLF
+         ENDIF
+      NEXT
+      IF EMPTY(cErrorMsg)
+         cErrorMsg := ::cLastError
+      ENDIF
+      MsgStop(cErrorMsg, "ARCA rechazó la solicitud de CAE")
       RETURN .F.
    ENDIF
    
@@ -1789,13 +1818,23 @@ METHOD ParseFECAESolicitarResponse(cResponse) CLASS WSAFip
       ENDIF
       
       ::WriteLog("No se encontró CAE en la respuesta. Error: " + ::cLastError)
-      
-      // Mostrar el mensaje de error con la observación
-      IF !EMPTY(cErrorMsg)
-         MsgStop(cErrorMsg, "Error en solicitud de CAE")
-      ELSE
-         MsgStop(::cLastError, "Error")
+
+      // Armar mensaje detallado para el usuario (resultado + todas las observaciones)
+      cErrorMsg := "ARCA no otorgó el CAE"
+      IF ::cResultado == "R"
+         cErrorMsg += " (Resultado: Rechazado)"
+      ELSEIF !EMPTY(::cResultado)
+         cErrorMsg += " (Resultado: " + ::cResultado + ")"
       ENDIF
+      IF LEN(::aObservaciones) > 0
+         cErrorMsg += CRLF + "Observaciones:"
+         FOR nPos := 1 TO LEN(::aObservaciones)
+            cErrorMsg += CRLF + "Código " + ALLTRIM(STR(::aObservaciones[nPos, 1])) + ": " + ::aObservaciones[nPos, 2]
+         NEXT
+      ELSE
+         cErrorMsg += CRLF + ::cLastError
+      ENDIF
+      MsgStop(cErrorMsg, "Error en solicitud de CAE")
    ENDIF
    
 RETURN lSuccess
@@ -1810,7 +1849,10 @@ RETURN lSuccess
 METHOD SendRequest(cURL, cAction, cXML) CLASS WSAFip
    LOCAL cResponse := ""
    LOCAL oXMLHTTP, nStatus, oError
-   
+
+   // Limpiar el detalle de error de una petición anterior
+   ::cRespuestaError := ""
+
    // Registra en el log la información de la petición
    ::WriteLog("Enviando solicitud a URL: " + cURL)
    ::WriteLog("SOAPAction: " + cAction)
@@ -1839,22 +1881,75 @@ METHOD SendRequest(cURL, cAction, cXML) CLASS WSAFip
           // Guardar la respuesta para análisis
           //MemoWrit2("wsaa_response.xml", cResponse)
       ELSE
+         // Extraer el detalle concreto del cuerpo de la respuesta (lo que antes solo
+         // quedaba en el log como "Respuesta de error") para mostrarlo al usuario
+         ::cRespuestaError := ::ExtraerDetalleError(oXMLHTTP:ResponseText)
          ::cLastError := "Error en la solicitud HTTP. Estado: " + ALLTRIM(STR(nStatus))
+         IF !EMPTY(::cRespuestaError)
+            ::cLastError += CRLF + ::cRespuestaError
+         ENDIF
          ::nLastCode := nStatus
          ::WriteLog(::cLastError + " - " + oXMLHTTP:StatusText)
          ::WriteLog("Respuesta de error: " + oXMLHTTP:ResponseText)
       ENDIF
-      
+
    CATCH oError
-      ::cLastError := "Error al enviar la solicitud: "+oError:Description      
+      ::cRespuestaError := oError:Description
+      ::cLastError := "Error al enviar la solicitud: "+oError:Description
       ::nLastCode := oError:subcode
       ::WriteLog(::cLastError)
    END
    
    // Liberar recursos
    oXMLHTTP := NIL
-   
+
 RETURN cResponse
+
+/**
+ * ExtraerDetalleError - Saca el mensaje concreto del cuerpo de una respuesta de error
+ *                       (SOAP Fault de WSAA o nodo de error de WSFE) para mostrarlo
+ *                       al usuario, no solo guardarlo en el log.
+ * @param cResp    Cuerpo de la respuesta (ResponseText)
+ * @return String  Mensaje legible, o "" si no se pudo extraer nada
+ */
+METHOD ExtraerDetalleError(cResp) CLASS WSAFip
+   LOCAL cDetalle := "", nIni, nFin
+
+   IF EMPTY(cResp)
+      RETURN ""
+   ENDIF
+
+   // 1) SOAP Fault (WSAA y errores genéricos): <faultstring>...</faultstring>
+   nIni := AT("<faultstring>", cResp)
+   IF nIni > 0
+      nIni += LEN("<faultstring>")
+      nFin := AT("</faultstring>", cResp)
+      IF nFin > nIni
+         cDetalle := SUBSTR(cResp, nIni, nFin - nIni)
+      ENDIF
+   ENDIF
+
+   // 2) Error de negocio WSFE: <Msg>...</Msg>
+   IF EMPTY(cDetalle)
+      nIni := AT("<Msg>", cResp)
+      IF nIni > 0
+         nIni += LEN("<Msg>")
+         nFin := AT("</Msg>", cResp)
+         IF nFin > nIni
+            cDetalle := SUBSTR(cResp, nIni, nFin - nIni)
+         ENDIF
+      ENDIF
+   ENDIF
+
+   // 3) Si no se reconoció el formato, devolver la respuesta cruda acotada
+   IF EMPTY(cDetalle)
+      cDetalle := ALLTRIM(cResp)
+      IF LEN(cDetalle) > 300
+         cDetalle := LEFT(cDetalle, 300) + "..."
+      ENDIF
+   ENDIF
+
+RETURN ALLTRIM(cDetalle)
 
 /**
  * Base64Encode - Codifica en Base64

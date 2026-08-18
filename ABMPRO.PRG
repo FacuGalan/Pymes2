@@ -149,7 +149,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Proveedores";
    IF lAlta
       @07, 90 SAY "CUIT Afip:"   OF oForm PIXEL SIZE 28,12 RIGHT
       @05,121 GET oGet[21] VAR nCuit PICTURE "99999999999"   OF oForm PIXEL SIZE 45,12 RIGHT;
-      VALID(ConsultaCuit(nCuit,oGet,{2,6,4,8,9}))
+      VALID(ConsultaCuit1(nCuit,oGet,{2,6,4,8,9}))
    ENDIF
    @ 05, 65 GET oGet[01] VAR base:codigo     OF oForm PIXEL PICTURE "999999" RIGHT WHEN(.F.)
    @ 20, 65 GET oGet[02] VAR base:nombre     OF oForm PIXEL PICTURE "@!" ;

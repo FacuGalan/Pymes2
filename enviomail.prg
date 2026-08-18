@@ -15,7 +15,34 @@ local cRemitente:= "<"+ALLTRIM(oApp:nomb_emp)+">"
 Local cMensaje := "Envio automatico desde el sistema para Pymes"+CRLF+CRLF+CRLF
 local cSSL := .T., cAuth := .T.
 local cFichero := nil
+local oIni, cIni := ".\mail.ini", lCustom := .F.
 DEFAULT cReplyTo := cDestino, cFile := hb_CurDrive()+":\"+CurDir()+"\ADJUNTO.PDF"
+
+// Si el cliente configuro su propia cuenta de correo en mail.ini, se usa esa.
+// Si no, se sigue usando la cuenta predeterminada del sistema (la de arriba).
+IF File( cIni )
+   INI oIni FILE cIni
+   IF ALLTRIM( oIni:Get( "cuenta", "usar", "0" ) ) == "1" .AND. ;
+      !EMPTY( ALLTRIM( oIni:Get( "cuenta", "usuario", "" ) ) )
+      lCustom   := .T.
+      cSMTP     := IIF( EMPTY( ALLTRIM( oIni:Get( "cuenta", "smtp", "" ) ) ),;
+                        "smtp.gmail.com", ALLTRIM( oIni:Get( "cuenta", "smtp", "" ) ) )
+      cPuerto   := VAL( ALLTRIM( oIni:Get( "cuenta", "puerto", "465" ) ) )
+      IF cPuerto == 0
+         cPuerto := 465
+      ENDIF
+      cSSL      := ( ALLTRIM( oIni:Get( "cuenta", "ssl", "1" ) ) == "1" )
+      cLogin    := ALLTRIM( oIni:Get( "cuenta", "usuario", "" ) )
+      cPassword := STRTRAN( ALLTRIM( oIni:Get( "cuenta", "password", "" ) ), " ", "" )
+   ENDIF
+ENDIF
+
+// Cuando se usa la cuenta propia del cliente, esa cuenta es tambien el
+// remitente y la direccion de respuesta (ReplyTo).
+IF lCustom
+   cRemitente := ALLTRIM( oApp:nomb_emp ) + " <" + cLogin + ">"
+   cReplyTo   := cLogin
+ENDIF
 
 loCfg := CREATEOBJECT( "CDO.Configuration" )
 WITH OBJECT loCfg:Fields
@@ -88,6 +115,76 @@ Procesando(.f.)
 IF isError = .F.
     MsgWait( "Mensaje enviado correctamente a " + cDestino, " A V I S O ",0.2 )
     ELSE
-    MsgStop("ERROR: Se ha producido un error al enviar un mensaje al buzon "+cDestino+CRLF+CRLF+"DescripciÃ³n del Error: "+oError:Description, " E R R O R ")
+    MsgStop("ERROR: Se ha producido un error al enviar un mensaje al buzon "+cDestino+CRLF+CRLF+"Descripción del Error: "+oError:Description, " E R R O R ")
 ENDIF
 return nil
+
+*-------------------------------------------------*
+Function ConfigMail(oWnd)
+*-------------------------------------------------*
+// Editor del archivo mail.ini: permite que el cliente defina la cuenta de
+// correo (Gmail u otra) desde la cual se enviaran los mails. Si deja el
+// usuario/contraseña vacios o destilda la opcion, el sistema sigue usando
+// la cuenta predeterminada.
+
+LOCAL oDlg, acor, oBot := ARRAY(2), lRta := .F.
+LOCAL cIni := ".\mail.ini", oIni
+LOCAL lUsar, lSSL, cSMTP, cPuerto, cUsuario, cPassword
+LOCAL oChkUsar, oChkSSL, oGetSMTP, oGetPuerto, oGetUsu, oGetPass
+
+INI oIni FILE cIni
+lUsar     := ( ALLTRIM( oIni:Get( "cuenta", "usar", "0" ) ) == "1" )
+cSMTP     := PADR( IIF( EMPTY( ALLTRIM( oIni:Get( "cuenta", "smtp", "" ) ) ),;
+                        "smtp.gmail.com", ALLTRIM( oIni:Get( "cuenta", "smtp", "" ) ) ), 50 )
+cPuerto   := PADR( IIF( EMPTY( ALLTRIM( oIni:Get( "cuenta", "puerto", "" ) ) ),;
+                        "465", ALLTRIM( oIni:Get( "cuenta", "puerto", "" ) ) ), 6 )
+lSSL      := ( ALLTRIM( oIni:Get( "cuenta", "ssl", "1" ) ) == "1" )
+cUsuario  := PADR( ALLTRIM( oIni:Get( "cuenta", "usuario", "" ) ), 60 )
+cPassword := PADR( ALLTRIM( oIni:Get( "cuenta", "password", "" ) ), 40 )
+
+DEFINE DIALOG oDlg TITLE "Configuración de la cuenta de correo" ;
+   FROM 05,15 TO 24,80 ICON oApp:oIco FONT oApp:oFont OF oWnd
+oDlg:lHelpIcon := .F.
+
+@ 08,10 CHECKBOX oChkUsar VAR lUsar ;
+   PROMPT "Usar mi propia cuenta para enviar los correos" ;
+   OF oDlg SIZE 230,12 PIXEL
+
+@ 28,10 SAY "Servidor SMTP:" OF oDlg PIXEL SIZE 75,10 RIGHT
+@ 26,90 GET oGetSMTP VAR cSMTP OF oDlg PIXEL SIZE 150,11
+
+@ 44,10 SAY "Puerto:" OF oDlg PIXEL SIZE 75,10 RIGHT
+@ 42,90 GET oGetPuerto VAR cPuerto OF oDlg PIXEL SIZE 40,11 PICTURE "@!"
+@ 43,145 CHECKBOX oChkSSL VAR lSSL PROMPT "Usar SSL" OF oDlg SIZE 60,12 PIXEL
+
+@ 60,10 SAY "Usuario (email):" OF oDlg PIXEL SIZE 75,10 RIGHT
+@ 58,90 GET oGetUsu VAR cUsuario OF oDlg PIXEL SIZE 150,11
+
+@ 76,10 SAY "Contraseña de aplicación:" OF oDlg PIXEL SIZE 75,10 RIGHT
+@ 74,90 GET oGetPass VAR cPassword OF oDlg PIXEL SIZE 150,11
+
+@ 96,10 SAY "Para Gmail: activá la verificación en 2 pasos y generá una " + ;
+            "'contraseña de aplicación'. Si dejás el usuario y la contraseña " + ;
+            "vacíos, se seguirá usando la cuenta predeterminada del sistema."+CHR(10)+ ;
+            "(Solo aplicable a este punto de venta, puede usar un mail x PDV).";
+   OF oDlg PIXEL SIZE 245,30
+
+acor := AcepCanc( oDlg )
+@ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Aceptar" OF oDlg SIZE 30,12 PIXEL ;
+   ACTION ( lRta := .T., oDlg:End() )
+@ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oDlg SIZE 30,12 PIXEL CANCEL ;
+   ACTION ( lRta := .F., oDlg:End() )
+
+ACTIVATE DIALOG oDlg CENTER
+
+IF lRta
+   oIni:Set( "cuenta", "usar",     IIF( lUsar, "1", "0" ) )
+   oIni:Set( "cuenta", "smtp",     ALLTRIM( cSMTP ) )
+   oIni:Set( "cuenta", "puerto",   ALLTRIM( cPuerto ) )
+   oIni:Set( "cuenta", "ssl",      IIF( lSSL, "1", "0" ) )
+   oIni:Set( "cuenta", "usuario",  ALLTRIM( cUsuario ) )
+   oIni:Set( "cuenta", "password", STRTRAN( ALLTRIM( cPassword ), " ", "" ) )
+   MsgInfo( "La configuración de correo se guardá correctamente.", "Aviso" )
+ENDIF
+
+RETURN nil

@@ -71,10 +71,10 @@ PROCEDURE Clientes(cPermisos)
         TOOLTIP "Ficha de Seguimiento"  ;
         ACTION (Fich(), oBrw:Refresh());
         PROMPT "Ficha" TOP WHEN("A"$cPermisos  .or. "M"$cPermisos)
-      /*DEFINE BUTTON RESOURCE "BACKU" OF oBar ;
-        TOOLTIP "Importar Registros"  ;
-        ACTION (Importar(), oBrw:Refresh());
-        PROMPT "Importar" TOP WHEN("A"$cPermisos)*/
+      DEFINE BUTTON RESOURCE "DEPA" OF oBar ;
+        TOOLTIP "Cargar detalle para facturacion por lotes"  ;
+        ACTION DetalleLote();
+        PROMPT "Para lote" TOP WHEN("A"$cPermisos)
       // Este boton cierra la aplicacion
       DEFINE BUTTON RESOURCE "SALE" OF oBar;
         TOOLTIP "Cerrar Ventana" ;
@@ -188,7 +188,7 @@ DEFINE DIALOG oDlg1 TITLE IF(lAlta,"Alta","Modificacion") + " de Clientes" FROM 
    IF lAlta
       @07,290 SAY "CUIT Afip:"   OF oDlg1 PIXEL SIZE 28,12 RIGHT
       @05,320 GET oGet[24] VAR nCuit PICTURE "99999999999"   OF oDlg1 PIXEL SIZE 45,12 RIGHT;
-      VALID(ConsultaCuit(nCuit,oGet,{2,3,5,11,13},@lCambiar))
+      VALID(ConsultaCuit1(nCuit,oGet,{2,3,5,11,13},@lCambiar))
    ENDIF
    
    @ 05, 60 GET oGet[01] VAR base:codigo PICTURE "99999" OF oDlg1 PIXEL WHEN(.F.)
@@ -987,3 +987,113 @@ IF !lRta
 ENDIF
 
 RETURN .T.
+
+
+**********************************************************
+** Carga de articulos para lote 
+STATIC FUNCTION DetalleLote()
+LOCAL lRta := .f., oQryDet, oBot:=ARRAY(6), oError, oQryArt, oGet:=ARRAY(3), oBrw1, oForm, oFont, aCor
+// TABLA TEMPORAL DE DEUDA
+oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS `transi_detalle_lote` ("+;
+                           "`codart` bigint(14) NOT NULL ,"+;
+                           "`detart` VARCHAR(100) DEFAULT ' ' ,"+;
+                           "`cantidad` DECIMAL(12,2) NOT NULL DEFAULT 0.00,"+;                           
+                           "PRIMARY KEY (codart) ) ENGINE=INNODB")
+oApp:oServer:NextResult()
+oApp:oServer:Execute("TRUNCATE transi_detalle_lote")
+oApp:oServer:NextResult()
+oQryArt := oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"articu")
+oQryDet := oApp:oServer:Execute("INSERT INTO transi_detalle_lote (codart,detart,cantidad) "+;
+                              " (SELECT l.codart,a.nombre,l.cantidad FROM ge_"+oApp:cId+"clides l "+;
+                              "  INNER JOIN ge_"+oApp:cId+"articu a ON a.codigo = l.codart " +;
+                              " WHERE codcli = "+ClipValue2Sql(oQry:codigo)+")")
+
+oQryDet:= oApp:oServer:Query("SELECT * FROM transi_detalle_lote")
+
+DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
+DO WHILE .T.
+DEFINE DIALOG oForm TITLE "Articulos para facturacion por lote";
+       FROM 05,15 TO 34,81 OF oWnd1 FONT oFont
+   
+   @ 07, 05 SAY "Cliente:"     OF oForm PIXEL SIZE 30,20 RIGHT
+   @ 22, 05 SAY "Nombre:"     OF oForm PIXEL SIZE 30,20 RIGHT
+   
+   @ 37, 05 SAY "Articulos que participan"  OF oForm PIXEL
+
+   @ 05, 40 GET oGet[1] VAR oQry:codigo PICTURE "99999" OF oForm PIXEL RIGHT WHEN(.F.)
+   @ 20, 40 GET oGet[2] VAR oQry:nombre PICTURE "@!"    OF oForm PIXEL WHEN(.F.)
+
+   
+   @ 35,145 BUTTON oBot[3] PROMPT "+"  SIZE 12,12 OF oForm PIXEL ACTION(AgregaArt(oForm),oQryDet:Refresh(),;
+                                                                       oBrw1:Refresh())   
+   @ 50, 05 XBROWSE oBrw1 DATASOURCE oQryDet ;
+           COLUMNS "codart","detart","cantidad";
+           HEADERS "Codigo","Detalle del articulo","Cantidad";
+           SIZES   100,290,70 OF oForm SIZE 250,120 AUTOSORT PIXEL
+   oBrw1:CreateFromCode()  
+   oBrw1:nFreeze:= 2
+   PintaBrw(oBrw1,0) 
+   oBrw1:aCols[3]:lAutoSave := .t.
+   oBrw1:aCols[3]:nEditType := EDIT_GET     
+
+   oBrw1:bKeyDown := { |nKey| IF (nKey == VK_DELETE,(oQryDet:Delete(),oQryDet:Refresh(),oBrw1:Refresh()),)}
+   acor := AcepCanc(oForm)
+   @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Grabar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .t.), oForm:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL
+   @ 05,200 BUTTON oBot[5] PROMPT "Imprimir" OF oForm SIZE 40,12 ;
+            ACTION (oBrw1:Report("Articulo para "+ALLTRIM(STR(oQry:codigo))+" "+ALLTRIM(oQry:nombre),.T.,.F.),oForm:End()) PIXEL
+   @ 05,150 BUTTON oBot[6] PROMPT "Exportar" OF oForm SIZE 40,12 ;
+            ACTION (oBrw1:ToExcel(),oForm:End()) PIXEL
+   oForm:bKeyDown = { | nKey, nFlags | IF(nKey==120,oBot[1]:Click,.f.)}
+ACTIVATE DIALOG oForm CENTER ON INIT oGet[1]:SetFocus()
+IF !lRta
+   RETURN nil
+ENDIF
+
+TRY
+  oApp:oServer:BeginTransaction()
+  oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"clides WHERE codcli = " + ClipValue2Sql(oQry:codigo))
+  oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"clides (codcli,codart,cantidad) "+;
+                       "( SELECT "+ClipValue2Sql(oQry:codigo)+",codart,cantidad FROM transi_detalle_lote)") 
+  oApp:oServer:CommitTransaction()
+CATCH oError
+    ValidaError(oError)
+  LOOP
+END TRY
+EXIT
+ENDDO
+RETURN nil
+
+STATIC FUNCTION AgregaArt(oForm)
+LOCAL oDlgA,oError,oQryArt, nArticu:=0, cNomArt:=SPACE(50),oGet1, oGet2, oGet3,;
+      oBot:=ARRAY(2), acor:=ARRAY(4), lRta:=.f., nCantidad:=1
+oQryArt:= oApp:oServer:Query("SELECT codigo, nombre FROM ge_"+oApp:cId+"articu") 
+                              
+DEFINE DIALOG oDlgA TITLE "Seleccione el articulo" FROM 05,15 TO 13,90 OF oForm
+   @ 12, 05 SAY "Artículo:" OF oDlgA PIXEL SIZE 40,12 RIGHT  
+   @ 27, 05 SAY "Cantidad:"   OF oDlgA PIXEL SIZE 40,12 RIGHT
+   @ 10, 50 GET oGet1 VAR nArticu OF oDlgA PIXEL PICTURE "99999999999999" SIZE 45,12 RIGHT;
+               VALID(BuscarArt(oQryArt,oDlgA,oGet1,oGet2));
+               ACTION (oGet1:cText:= 0, BuscarArt(oQryArt,oDlgA,oGet1,oGet2)) BITMAP "BUSC1"
+   @ 10,100 GET oGet2 VAR cNomArt OF oDlgA PIXEL PICTURE "@!" WHEN(.f.)
+   @ 25, 50 GET oGet3 VAR nCantidad OF oDlgA PIXEL PICTURE "99999999.99" RIGHT 
+   acor := AcepCanc(oDlgA)
+   @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Agregar" OF oDlgA SIZE 30,10 ;
+           ACTION ((lRta := .t.), oDlgA:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oDlgA SIZE 30,10 ;
+           ACTION ((lRta := .f.), oDlgA:End() ) PIXEL CANCEL  
+    oDlgA:bKeyDown = { | nKey, nFlags | IF(nKey==120,oBot[1]:Click,.f.)} 
+ACTIVATE DIALOG oDlgA CENTER ON INIT oGet1:SetFocus()
+IF !lRta
+   RETURN nil
+ENDIF
+TRY
+  oApp:oServer:BeginTransaction()   
+  oApp:oServer:Insert("transi_detalle_lote",{"codart","detart","cantidad"},{nArticu,cNomArt,ROUND(nCantidad,0)})
+  oApp:oServer:CommitTransaction()
+CATCH oError
+    ValidaError(oError)
+END TRY
+RETURN nil

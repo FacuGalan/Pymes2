@@ -12,8 +12,8 @@ STATIC oWnd1, nTipoEmp, nTipoFac, nTipoDoc, cVentana, oGet, oQryArt, oQryCli, oQ
        oBrw, oSay1,oSay3,cRemitos, oDlg,nCodCli,nTarjeta,nefectivo,oQryPun,nDescArt,nDescArt1,nLista,nConIva,;
        nEfecti, nTarjet, nTransfe, nCheque, nCtaCte, nMPago, nCuotas, nPuntoVta, cLetra,nLisPre,cObserva,nPorIva,cNumComp,;
        cDetArt, nDescuGen, nCodIva, nTotal, nForPag, nRubro, nDeuda,oQryChe,mpagado,manticipo,dFecha,cVendedor,nTipoCli,;
-       nBorrarPend,lUsoPedido,oQryLisPre,aFormaNom,aFormaInc,aFormaTip,nFormaPago, lAcopio, nBorrarPresu,lPedidoUsado,;
-       lFacturaM , lFacturaD, cOrigenNC
+       nBorrarPend,lUsoPedido,oQryLisPre,aFormaNom,aFormaInc,aFormaTip,aFormaCod,nFormaPago, lAcopio, nBorrarPresu,lPedidoUsado,;
+       lFacturaM , lFacturaD, cOrigenNC, lMantener
 
 PROCEDURE Ventas() 
 LOCAL oBot := ARRAY(11), hHand , aTipoIva, aTipoDoc, cNomCli:=SPACE(30), cDireccion:=SPACE(30), cLocalidad:=SPACE(30),;
@@ -48,8 +48,9 @@ ENDDO
 manticipo:= 0
 lFacturaM := .f.
 lFacturaD := .f.
+lMantener := .f.
 nCodCli:=0
-oGet := ARRAY(48) 
+oGet := ARRAY(49) 
 aTipoiva  := {;
 "1 IVA Responsable Inscripto",;
 "2 IVA Responsable no Inscripto",;
@@ -106,7 +107,7 @@ oApp:oServer:Execute("";
     +"( `ID` INT(10) NOT NULL, ";
     +"`TILDE` TINYINT(1),";
     +"`FECHA` DATE NOT NULL,";  
-    +"`VENDEDOR` VARCHAR(15),";
+    +"`VENDEDOR` VARCHAR(40),";
     +"`PARAFECHA` DATE NOT NULL,";
     +"`OBSERVA` TEXT,";
     +"PRIMARY KEY (`ID`)) ENGINE=INNODB DEFAULT CHARSET=utf8")
@@ -115,15 +116,17 @@ oApp:oServer:Execute("";
 oApp:oServer:Execute("INSERT INTO precios_temp (formapag,incremento,importe) "+;
                      "(SELECT nombre,incremento,0 FROM ge_"+oApp:cId+"forpag )")
 */
-oQryFormas:= oApp:oServer:Query("SELECT nombre,incremento,tipo FROM ge_"+oApp:cId+"forpag ORDER BY codigo")
+oQryFormas:= oApp:oServer:Query("SELECT codigo,nombre,incremento,tipo FROM ge_"+oApp:cId+"forpag ORDER BY codigo")
 aFormaNom:={}
 aFormaInc:={}
 aFormaTip:={}
+aFormaCod:={}
 oQryFormas:GoTop()
 DO WHILE !oQryFormas:eof()
   AADD(aFormaNom,oQryFormas:nombre)
   AADD(aFormaInc,oQryFormas:incremento)
   AADD(aFormaTip,oQryFormas:tipo)
+  AADD(aFormaCod,oQryFormas:codigo)
   oQryFormas:Skip()
 ENDDO
 nFormaPago:=1
@@ -196,6 +199,7 @@ ENDIF
     DEFINE DIALOG oDlg RESOURCE "VENTAS" OF oWnd1
     //Fechas y tipo de Comprobante
     REDEFINE GET oGet[01] VAR dFecha ID 176  OF oDlg 
+    REDEFINE CHECKBOX oGet[49] VAR lMantener   OF oDlg ID 4031
     REDEFINE CHECKBOX oGet[44] VAR lAcopio   OF oDlg ID 4023
     REDEFINE CHECKBOX oGet[47] VAR lFacturaM OF oDlg ID 4029
     oGet[47]:cToolTip:= "Regimen Espcial - Para generar comprobantes 'M' en lugar de comprobantes 'A'"
@@ -469,7 +473,7 @@ ENDIF
                        "LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = p.codart "+;
                        "LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = a.iva "+;
                        "WHERE p.idpedido IN (SELECT id FROM pedidos_temp WHERE tilde ) AND p.cantidadreal>0 "+;
-                       " GROUP BY p.codart,p.detart"+if(lUsoPedido,",p.punitario,p.descu","")+ ")")
+                       " GROUP BY p.codart,p.detart"+if(lUsoPedido,",p.punitario,p.descup","")+ ")")
                        
     oQryDet:Refresh() 
     lPedidoUsado:=.t.
@@ -825,6 +829,9 @@ IF oQryDet <> nil
   oQryDet:Zap()
   oBrw:Refresh()
   oBrw:Maketotals()
+  IF !lMantener
+     oGet[01]:cText := DATE()
+  ENDIF   
   oGet[19]:cText := oBrw:aCols[7]:nTotal 
   oGet[20]:cText := oBrw:aCols[8]:nTotal      
   oGet[38]:cText := oBrw:aCols[7]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
@@ -1498,9 +1505,9 @@ IF nTipoDoc<=3
              ELSE 
              nPuntoVta:= oApp:oServer:Query("SELECT prefijo FROM ge_"+oApp:cId+"parametros LIMIT 1"):prefijo
           ENDIF
-          IF cLetra = "A" .and. !ConsultaCuitRapida(val(STRTRAN(oQryCli:cuit,"-","")),oQryCli:coniva)
+          IF (cLetra = "A") .and. !ConsultaCuitRapida(val(STRTRAN(oQryCli:cuit,"-","")),oQryCli:coniva)
              RETURN nil 
-          ENDIF      
+          ENDIF    
           FacturaElec(oGet, nTipoFac, nPuntoVta, nTipoDoc, cLetra, aTablaIva, oBrw, @nNro, @cCae, @dFecVtoC,@nTipFor,,lFacturaD,@nCotiza,@cNotaCre)
           IF nNro = 0
              MsgStop("Fallo el Comunicacion con WebService AFIP","Error")
@@ -2323,7 +2330,7 @@ DEFAULT aMetodosPago := {}
                                    "WHERE v.nrofac = " + ClipValue2Sql(cTipoDoc+cNumComp)+ " GROUP BY v.codiva ")
    IF lAgrupa
        oQryDet1 := oApp:oServer:Query("SELECT vd.codart,vd.detart,SUM(vd.cantidad) AS cantidad,vd.punit,SUM(vd.importe) AS importe,SUM(vd.neto) AS neto,SUM(vd.iva) AS iva,"+;
-                                  "vd.codiva,SUM(vd.neton) AS neton,vd.descu,SUM(vd.impint) AS impint,SUM(vd.bultos) AS bultos,"+;
+                                  "vd.codiva,SUM(vd.neton) AS neton,SUM(vd.descu) AS descu,SUM(vd.impint) AS impint,SUM(vd.bultos) AS bultos,"+;
        "IF(vd.descup>0,vd.descup,0) AS descupor,"+;
        "IF(SUBSTR(nrofac,3,1) = 'A', SUM(neto),SUM(importe)) AS subtot,"+;
        "IF(codiva = 5,'21%',IF(codiva=3,'0%','10.5%')) AS alicu, (i.tasa / 100) as tasa,"+;
@@ -2331,7 +2338,7 @@ DEFAULT aMetodosPago := {}
                                   " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = vd.codart "+;
                                   " LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = vd.codiva "+;
                                   " WHERE nrofac = " + ClipValue2Sql(cTipoDoc+cNumComp)+;
-                                  IF(lAgrupa," GROUP BY vd.codart,vd.punit,vd.descu  ORDER BY vd.id",""))
+                                  IF(lAgrupa," GROUP BY vd.codart,vd.punit,vd.descup  ORDER BY vd.id",""))
        ELSE 
        oQryDet1 := oApp:oServer:Query("SELECT vd.codart,vd.detart,vd.cantidad,vd.punit,vd.importe,vd.neto,vd.iva,"+;
                                   "vd.codiva,vd.neton,vd.descu,vd.impint,vd.bultos,"+;
@@ -2350,9 +2357,13 @@ DEFAULT aMetodosPago := {}
    DO CASE
       CASE !oQryP:imprimeTic
            ** FACTURACION CON FORMATO PARA FACTURA ELECTRONICA
+           IF oQryP:tamaletra > 0
+              config:fon := oQryP:tamaletra
+           ENDIF   
            IF config:fon < 14
               config:fon := config:fon * 2.8
            ENDIF
+           
            DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon,config:fon*2.5
            DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
            DEFINE FONT oFont2  NAME "CALIBRI"     SIZE config:fon*4,config:fon*7 BOLD
@@ -2410,7 +2421,7 @@ DEFAULT aMetodosPago := {}
            oPrn:CmSay( 1.5, 9.8, LEFT(cNumComp,1),oFont2)
            oPrn:CmSay( 2.3, 9.5, "Cod:"+oQryVen1:tipfor,oFont)
            oPrn:CmSay( 2.5, 11, "Punto de venta:"+SUBSTR(cNumcomp,2,4) + " Comprobante Nro:"+RIGHT(cNumcomp,8),oFont)
-           oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(oQryVen1:fecmod),oFont)
+           oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(oQryVen1:fecmod)+" "+ALLTRIM(oQryVen1:hora),oFont)
 
              oPrn:CmSay( 3.5, 11, "CUIT:"+oApp:cuit_emp,oFont)
              oPrn:CmSay( 4.0, 11, "Ingresos brutos:"+oApp:ingb_emp,oFont) 
@@ -2492,23 +2503,23 @@ DEFAULT aMetodosPago := {}
                           SIZE .5,.5 CM FONT oFont5 ALIGN "TR"  
                     nBultos := nBultos + oQryDet1:bultos                          
                  ENDIF     
-                 @ y-0.07, 12 PRINT TO oPrn TEXT STR(IF(!LEFT(cNumComp,1)$"AM",oQryDet1:punit/nIndiceDolar ,oQryDet1:neton/oQryDet1:cantidad/nIndiceDolar),12,2) ;
+                 @ y-0.07, 12 PRINT TO oPrn TEXT TRANSFORM(IF(!LEFT(cNumComp,1)$"AM",oQryDet1:punit/nIndiceDolar ,oQryDet1:neton/oQryDet1:cantidad/nIndiceDolar),"@E 999,999,999.99") ;
                       SIZE 2,.5 CM FONT oFont5 ALIGN "TR"
                  @ y-0.07, 14.2 PRINT TO oPrn TEXT IF(oQryDet1:descupor > 0,;
                            ALLTRIM(IF(oQryDet1:descupor = INT(oQryDet1:descupor),;
                                       STR(INT(oQryDet1:descupor),3),;
                                       STR(oQryDet1:descupor,6,2)))+"% "+;
-                           IF(oQryPar1:imprimedescuimp, ALLTRIM(STR(oQryDet1:descu,12,2)),"")," ") ;
+                           IF(oQryPar1:imprimedescuimp, ALLTRIM(TRANSFORM(oQryDet1:descu,"@E 999,999,999.99")),"")," ") ;
                       SIZE 1.8,.5 CM FONT oFont5 ALIGN "TR" 
-                 @ y-0.07, 15.5 PRINT TO oPrn TEXT STR(oQryDet1:subtot/nIndiceDolar,12,2) ;
+                 @ y-0.07, 15.5 PRINT TO oPrn TEXT  TRANSFORM(oQryDet1:subtot/nIndiceDolar,"@E 999,999,999.99") ;
                       SIZE 2,.5 CM FONT oFont5 ALIGN "TR"
                  @ y-0.07, 17.7 PRINT TO oPrn TEXT oQryDet1:alicu ;
                       SIZE .7,.5 CM FONT oFont5 ALIGN "TC"
-                 @ y-0.07, 18.3 PRINT TO oPrn TEXT STR(oQryDet1:subtotalciva/nIndiceDolar,12,2);
+                 @ y-0.07, 18.3 PRINT TO oPrn TEXT TRANSFORM(oQryDet1:subtotalciva/nIndiceDolar,"@E 999,999,999.99");
                       SIZE 2,.5 CM FONT oFont5 ALIGN "TR"    
                  nDesFac := nDesFac + oQryDet1:descu   
                  oQryDet1:Skip()
-                 y := nRow + .1
+                 y := nRow + .1 + config:salto/10
                  IF y > 21
                     @ 23, 05 PRINT TO oPrn TEXT "CONTINUA EN OTRA HOJA";
                       SIZE 9,2 CM FONT oFont
@@ -2546,7 +2557,7 @@ DEFAULT aMetodosPago := {}
                        oPrn:CmSay( 1.5, 9.8, LEFT(cNumComp,1),oFont2)
                        oPrn:CmSay( 2.3, 9.5, "Cod:"+oQryVen1:tipfor,oFont)
                        oPrn:CmSay( 2.5, 11, "Punto de venta:"+SUBSTR(cNumcomp,2,4) + " Comprobante Nro:"+RIGHT(cNumcomp,8),oFont)
-                       oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(oQryVen1:fecmod),oFont)
+                       oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(oQryVen1:fecmod)+" "+ALLTRIM(oQryVen1:hora),oFont)
 
                        oPrn:CmSay( 3.5, 11, "CUIT:"+oApp:cuit_emp,oFont)
                        oPrn:CmSay( 4.0, 11, "Ingresos brutos:"+oApp:ingb_emp,oFont) 
@@ -2597,7 +2608,7 @@ DEFAULT aMetodosPago := {}
                  ENDIF
               NEXT       
               y := y + .5
-              @ y, 1 PRINT TO oPrn TEXT ALLTRIM(oQryVen1:observa) + IF(nDesFac>0," Desc."+cSigno+" "+STR(nDesFac/nIndiceDolar,12,2)+ " (IVA Incl.) "," ") + ;
+              @ y, 1 PRINT TO oPrn TEXT ALLTRIM(oQryVen1:observa) + IF(nDesFac>0," Desc."+cSigno+" "+TRANSFORM(nDesFac/nIndiceDolar,"@E 999,999,999.99")+ " (IVA Incl.) "," ") + ;
                       IF(oQryVen1:letra = 'A' .and. oQryVen1:coniva = 6,CHR(10)+"El crédito fiscal discriminado en el presente comprobante, sólo podrá ser computado a efectos del Régimen de Sostenimiento e Inclusión Fiscal para Pequeños Contribuyentes de la Ley Nº 27.618","")  ;
                       SIZE 18,3 CM FONT oFont ALIGN "L" LASTROW y
               IF oApp:usabultosventa
@@ -2611,49 +2622,49 @@ DEFAULT aMetodosPago := {}
 
               @ 22.5,1  PRINT TO oPrn TEXT "Percepcion IIBB "+STR(oQryVen1:percep,6,2)+"% "+cSigno+":" ;
                       SIZE 5,.5 CM FONT oFont3 ALIGN "R"
-              @ 22.5,6.1 PRINT TO oPrn TEXT STR(oQryVen1:IIBB/nIndiceDolar,12,2) ;
+              @ 22.5,6.1 PRINT TO oPrn TEXT TRANSFORM(oQryVen1:IIBB/nIndiceDolar,"@E 999,999,999.99") ;
                       SIZE 3,.5 CM FONT oFont ALIGN "R"
               
             IF !LEFT(cNumComp,1)$"AM"    
                  @ 22.5, 12 PRINT TO oPrn TEXT "Subtotal "+cSigno+":" ;
                       SIZE 4,.5 CM FONT oFont3 ALIGN "R"
-                 @ 22.5, 17 PRINT TO oPrn TEXT STR((oQryVen1:importe-oQryVen1:sobretasa)/nIndiceDolar,12,2) ;
+                 @ 22.5, 17 PRINT TO oPrn TEXT TRANSFORM((oQryVen1:importe-oQryVen1:sobretasa)/nIndiceDolar,"@E 999,999,999.99") ;
                       SIZE 3,.5 CM FONT oFont ALIGN "R"
                  @ 23, 12 PRINT TO oPrn TEXT "Otros Tributos "+cSigno+":" ;
                       SIZE 4,.5 CM FONT oFont3 ALIGN "R"
-                 @ 23, 17 PRINT TO oPrn TEXT STR(oQryVen1:sobretasa/nIndiceDolar,12,2) ;
+                 @ 23, 17 PRINT TO oPrn TEXT TRANSFORM(oQryVen1:sobretasa/nIndiceDolar,"@E 999,999,999.99") ;
                       SIZE 3,.5 CM FONT oFont ALIGN "R"
                  @ 23.5, 12 PRINT TO oPrn TEXT "Total "+cSigno+":" ;
                       SIZE 4,.5 CM FONT oFont3 ALIGN "R"
-                 @ 23.5, 17 PRINT TO oPrn TEXT STR(oQryVen1:importe/nIndiceDolar,12,2) ;
+                 @ 23.5, 17 PRINT TO oPrn TEXT TRANSFORM(oQryVen1:importe/nIndiceDolar,"@E 999,999,999.99") ;
                       SIZE 3,.5 CM FONT oFont ALIGN "R"   
                  //Nuevo... Transparencia Fiscal
                  @ 23.7, 01 PRINT TO oPrn TEXT "Regimen de transparencia fiscal al Consumidor (Ley 27.743)" ;
                       SIZE 7,.5 CM FONT oFont5 ALIGN "R" LASTROW y 
-                 @ y   , 01 PRINT TO oPrn TEXT "IVA Contenido: $"+STR(oQryVen1:iva/nIndiceDolar,14,2) + " " ;
+                 @ y   , 01 PRINT TO oPrn TEXT "IVA Contenido: $"+TRANSFORM(oQryVen1:iva/nIndiceDolar,"@E 999,999,999.99") + " " ;
                       SIZE 7,.5 CM FONT oFont5 ALIGN "R" LASTROW y    
                ELSE 
                  @ 22.5, 12 PRINT TO oPrn TEXT "Subtotal "+cSigno+":" ;
                       SIZE 4,.5 CM FONT oFont3 ALIGN "R"
-                 @ 22.5, 17 PRINT TO oPrn TEXT STR(oQryVen1:neto/nIndiceDolar,12,2) ;
+                 @ 22.5, 17 PRINT TO oPrn TEXT TRANSFORM(oQryVen1:neto/nIndiceDolar,"@E 999,999,999.99") ;
                       SIZE 3,.5 CM FONT oFont ALIGN "R"
                  @ 23, 12 PRINT TO oPrn TEXT "Otros Tributos "+cSigno+":" ;
                       SIZE 4,.5 CM FONT oFont3 ALIGN "R"
-                 @ 23, 17 PRINT TO oPrn TEXT STR(oQryVen1:sobretasa/nIndiceDolar,12,2) ;
+                 @ 23, 17 PRINT TO oPrn TEXT TRANSFORM(oQryVen1:sobretasa/nIndiceDolar,"@E 999,999,999.99") ;
                       SIZE 3,.5 CM FONT oFont ALIGN "R"
                  y := 23.5
                oQryIvaDet:GoTop()
                FOR i = 1 TO oQryIvaDet:nRecCount           
                      @ y, 12 PRINT TO oPrn TEXT "I.V.A. "+ALLTRIM(oQryIvaDet:nomiva) + " "+cSigno+":" ;
                       SIZE 4,.5 CM FONT oFont3 ALIGN "R"
-                     @ y, 17 PRINT TO oPrn TEXT STR(oQryIvaDet:iva/nIndiceDolar,12,2) ;
+                     @ y, 17 PRINT TO oPrn TEXT TRANSFORM(oQryIvaDet:iva/nIndiceDolar,"@E 999,999,999.99") ;
                       SIZE 3,.5 CM FONT oFont ALIGN "R" 
                       oQryIvaDet:Skip()        
                      y := y + .5
                NEXT
                @ y, 12 PRINT TO oPrn TEXT "Total "+cSigno+":" ;
                       SIZE 4,.5 CM FONT oFont3 ALIGN "R"
-               @ y, 17 PRINT TO oPrn TEXT STR(oQryVen1:importe/nIndiceDolar,12,2) ;
+               @ y, 17 PRINT TO oPrn TEXT TRANSFORM(oQryVen1:importe/nIndiceDolar,"@E 999,999,999.99") ;
                       SIZE 3,.5 CM FONT oFont ALIGN "R"                  
              ENDIF    
              IF oQryPar1:imprimevendedor
@@ -2700,6 +2711,9 @@ DEFAULT aMetodosPago := {}
            ENDIF
            IF !oApp:tick80
                *********** Impresion de Ticket 48 mm 
+               IF oQryP:tamaletra > 0
+                  config:fon := oQryP:tamaletra
+               ENDIF
                IF config:fon > 25
                   config:fon := config:fon /3
                ENDIF   
@@ -2871,6 +2885,9 @@ DEFAULT aMetodosPago := {}
                NEXT x
               ELSE
                *********** Impresion de Ticket 80 mm 
+               IF oQryP:tamaletra > 0
+                  config:fon := oQryP:tamaletra
+               ENDIF
                IF config:fon > 25
                   config:fon := config:fon /3
                ENDIF   
@@ -3113,6 +3130,12 @@ DEFAULT dFecVen:= nil, lImpSinIva := .f., lPreciosFinales := .f.
    ENDIF 
    IF !oQryP:imprimeTic
        ** PRESUPUESTOS
+       IF oQryP:tamaletra > 0
+          config:fon := oQryP:tamaletra
+       ENDIF
+       IF config:fon < 14
+          config:fon := config:fon * 2.8
+       ENDIF
        DEFINE FONT oFont   NAME "ARIAL"       SIZE config:fon,config:fon*2.5
        DEFINE FONT oFont1  NAME "CALIBRI"     SIZE config:fon*1.5,config:fon*4 BOLD
        DEFINE FONT oFont2  NAME "CALIBRI"     SIZE config:fon*4,config:fon*7 BOLD   
@@ -3162,7 +3185,7 @@ DEFAULT dFecVen:= nil, lImpSinIva := .f., lPreciosFinales := .f.
          oPrn:CmSay( 1.7  , 11, "PRESUPUESTO", oFont1 )   
          oPrn:CmBox( 1.5, 9.4, 2.7, 10.7 )   // Box cuadrito comprobante
          oPrn:CmSay( 1.5, 9.8, "X",oFont2)
-         oPrn:CmSay( 2.0, 16, "N°: "+SUBSTR(cNumcomp,2,16),oFont)         
+         oPrn:CmSay( 2.0, 16, "Nº: "+SUBSTR(cNumcomp,2,16),oFont)         
          oPrn:CmSay( 2.5, 11, "Fecha de emision:"+DTOC(DATE()),oFont)
          IF dFecVen <> nil
              oPrn:CmSay( 3.0, 11, "Fecha de vencimiento:"+DTOC(dFecVen),oFont)
@@ -3227,26 +3250,26 @@ DEFAULT dFecVen:= nil, lImpSinIva := .f., lPreciosFinales := .f.
              @ y-0.07, 11 PRINT TO oPrn TEXT STR(oQryDet:cantidad,08,2) ;
                   SIZE 2,.5 CM FONT oFont ALIGN "TR"
              IF !oApp:presudiscriva     
-                 @ y-0.07, 14 PRINT TO oPrn TEXT STR(oQryDet:punit/IF(lDolar,oApp:dolar,1),12,2) ;
+                 @ y-0.07, 14 PRINT TO oPrn TEXT TRANSFORM(oQryDet:punit/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                       SIZE 2,.5 CM FONT oFont ALIGN "TR"
-                 @ y-0.07, 17 PRINT TO oPrn TEXT STR(oQryDet:ptotal/IF(lDolar,oApp:dolar,1),12,2);
+                 @ y-0.07, 17 PRINT TO oPrn TEXT TRANSFORM(oQryDet:ptotal/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99");
                       SIZE 3,.5 CM FONT oFont ALIGN "TR" 
                  ELSE
                  IF !lPreciosFinales 
-                     @ y-0.07, 14 PRINT TO oPrn TEXT STR(oQryDet:stotal/oQryDet:cantidad/IF(lDolar,oApp:dolar,1),12,2) ;
+                     @ y-0.07, 14 PRINT TO oPrn TEXT TRANSFORM(oQryDet:stotal/oQryDet:cantidad/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                           SIZE 2,.5 CM FONT oFont ALIGN "TR"
-                     @ y-0.07, 17 PRINT TO oPrn TEXT STR(oQryDet:stotal/IF(lDolar,oApp:dolar,1),12,2);
+                     @ y-0.07, 17 PRINT TO oPrn TEXT TRANSFORM(oQryDet:stotal/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99");
                           SIZE 3,.5 CM FONT oFont ALIGN "TR" 
                      nIva := nIva + oQryDet:ptotal - oQryDet:stotal     
                     ELSE 
-                    @ y-0.07, 14 PRINT TO oPrn TEXT STR(oQryDet:ptotal/oQryDet:cantidad/IF(lDolar,oApp:dolar,1),12,2) ;
+                    @ y-0.07, 14 PRINT TO oPrn TEXT TRANSFORM(oQryDet:ptotal/oQryDet:cantidad/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                           SIZE 2,.5 CM FONT oFont ALIGN "TR"
-                     @ y-0.07, 17 PRINT TO oPrn TEXT STR(oQryDet:ptotal/IF(lDolar,oApp:dolar,1),12,2);
+                     @ y-0.07, 17 PRINT TO oPrn TEXT TRANSFORM(oQryDet:ptotal/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99");
                           SIZE 3,.5 CM FONT oFont ALIGN "TR" 
                      nIva := nIva + 0
                  ENDIF   
              ENDIF         
-             y := nRow + .1
+             y := nRow + .1 + config:salto/10
              IF y > 21
                 @ 23, 05 PRINT TO oPrn TEXT "CONTINUA EN OTRA HOJA";
                   SIZE 9,2 CM FONT oFont
@@ -3339,30 +3362,30 @@ DEFAULT dFecVen:= nil, lImpSinIva := .f., lPreciosFinales := .f.
           IF oBrw:aCols[6]:nTotal > 0        
               @ 23.5,01  PRINT TO oPrn TEXT "Descuento General"+IF(lDolar,"u$s","$")+":"  ;
                       SIZE 3.9,.5 CM FONT oFont3 ALIGN "R"
-              @ 23.5,5 PRINT TO oPrn TEXT STR(oBrw:aCols[6]:nTotal/IF(lDolar,oApp:dolar,1),12,2) ;
+              @ 23.5,5 PRINT TO oPrn TEXT TRANSFORM(oBrw:aCols[6]:nTotal/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                   SIZE 4,.5 CM FONT oFont1 ALIGN "L"
           ENDIF    
           IF !oApp:presudiscriva      
               @ 23.5,11  PRINT TO oPrn TEXT "Total presupuesto "+IF(lDolar,"u$s","$")+":"  ;
                       SIZE 3.9,.5 CM FONT oFont3 ALIGN "R"
-              @ 23.5,15 PRINT TO oPrn TEXT STR(oGet[21]:value/IF(lDolar,oApp:dolar,1),12,2) ;
+              @ 23.5,15 PRINT TO oPrn TEXT TRANSFORM(oGet[21]:value/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                       SIZE 4,.5 CM FONT oFont1 ALIGN "L"
               ELSE 
               IF !lImpSinIva 
                   IF !lPreciosFinales
                   @ 23.5,11  PRINT TO oPrn TEXT "Tasa gral (IVA) "+IF(lDolar,"u$s","$")+":"  ;
                           SIZE 3.9,.5 CM FONT oFont3 ALIGN "R"
-                  @ 23.5,15 PRINT TO oPrn TEXT STR(nIva/IF(lDolar,oApp:dolar,1),12,2) ;
+                  @ 23.5,15 PRINT TO oPrn TEXT TRANSFORM(nIva/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                           SIZE 4,.5 CM FONT oFont1 ALIGN "L"
                   ENDIF        
                   @ 24.0,11  PRINT TO oPrn TEXT "Total presupuesto "+IF(lDolar,"u$s","$")+":"  ;
                           SIZE 3.9,.5 CM FONT oFont3 ALIGN "R"
-                  @ 24.0,15 PRINT TO oPrn TEXT STR(oGet[21]:value/IF(lDolar,oApp:dolar,1),12,2) ;
+                  @ 24.0,15 PRINT TO oPrn TEXT TRANSFORM(oGet[21]:value/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                           SIZE 4,.5 CM FONT oFont1 ALIGN "L"
                  ELSE             
                   @ 24.0,11  PRINT TO oPrn TEXT "Total presupuesto "+IF(lDolar,"u$s","$")+":"  ;
                           SIZE 3.9,.5 CM FONT oFont3 ALIGN "R"
-                  @ 24.0,15 PRINT TO oPrn TEXT STR(oGet[21]:value/IF(lDolar,oApp:dolar,1)-nIva/IF(lDolar,oApp:dolar,1),12,2) ;
+                  @ 24.0,15 PRINT TO oPrn TEXT TRANSFORM(oGet[21]:value/IF(lDolar,oApp:dolar,1)-nIva/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                           SIZE 4,.5 CM FONT oFont1 ALIGN "L"
               ENDIF            
           ENDIF 
@@ -3376,7 +3399,10 @@ DEFAULT dFecVen:= nil, lImpSinIva := .f., lPreciosFinales := .f.
        ELSE 
        ** PRESUPUESTO POR COMANDERA 
        IF !oApp:tick80
-           *********** Impresion de Ticket 48 mm 
+           *********** Impresion de Ticket 48 mm
+           IF oQryP:tamaletra > 0
+              config:fon := oQryP:tamaletra
+           ENDIF 
            IF config:fon > 25
               config:fon := config:fon /3
            ENDIF   
@@ -3485,6 +3511,9 @@ DEFAULT dFecVen:= nil, lImpSinIva := .f., lPreciosFinales := .f.
            NEXT x                          
            ELSE 
            ** IMPRESORA DE 80 MM 
+           IF oQryP:tamaletra > 0
+              config:fon := oQryP:tamaletra
+           ENDIF
            IF config:fon > 25
               config:fon := config:fon /3
            ENDIF   
@@ -3611,7 +3640,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                 "Pequeño Contribuyente Eventual Social","IVA no Alcanzado"},;
       i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, config, oQryCli, lRta, cCodigopro , nBultos,;
       oQryP :=  oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip)),;
-      lComan :=.f., cDomicilioFiscal, nRow1
+      lComan :=.f., cDomicilioFiscal, nRow1, dFecha
 DEFAULT cFactRemitada:=''
     IF nCodcli = nil
        nCodcli := oGet[08]:value       
@@ -3628,6 +3657,12 @@ DEFAULT cFactRemitada:=''
       ENDIF
       oQryP:imprimeTic := lComan
     ENDIF 
+    IF cNumComp = "00000000000000000"
+       dFecha := DATE()
+       ELSE 
+       dFecha := oApp:oServer:Query("SELECT fecha FROM ge_"+oApp:cId+"remitos WHERE nrorem = "+;
+                                    Clipvalue2sql('RE'+cNumcomp) + " LIMIT 1"):fecha
+    ENDIF   
     oQryCli := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"clientes WHERE codigo = "+Clipvalue2sql(nCodcli))
     config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
     IF !oQryP:imprimeTic
@@ -3635,6 +3670,9 @@ DEFAULT cFactRemitada:=''
          
          oApp:cDestinoMail := oQryCli:mail
          ** REMITO A4
+         IF oQryP:tamaletra > 0
+            config:fon := oQryP:tamaletra
+         ENDIF
          IF config:fon < 14
             config:fon := config:fon * 2.8
          ENDIF
@@ -3647,7 +3685,7 @@ DEFAULT cFactRemitada:=''
          ENDIF
          IF oQryPun:dosenuno
             P2x1Remito(oQryDet, oGet, oBrw, cNumComp, nCodCli, cFactRemitada,;
-                       oQryP, oQryCli, lRta, config, aiva)
+                       oQryP, oQryCli, lRta, config, aiva,dFecha)
             oApp:cDestinoMail := " "
             RETURN NIL
          ENDIF   
@@ -3689,7 +3727,7 @@ DEFAULT cFactRemitada:=''
                oPrn:CmBox( 1.5, 9.4, 2.7, 10.7 )   // Box cuadrito comprobante
                oPrn:CmSay( 1.5, 9.8, "R",oFont2)
                oPrn:CmSay( 2.5, 11, "Punto de venta:"+LEFT(cNumcomp,4) + " Remito Nro:"+RIGHT(cNumcomp,8),oFont)     
-               oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(DATE()),oFont)
+               oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(dFecha),oFont)
 
                oPrn:CmSay( 3.5, 11, "CUIT:"+oApp:cuit_emp,oFont)
                oPrn:CmSay( 4.0, 11, "Ingresos brutos:"+oApp:ingb_emp,oFont) 
@@ -3758,7 +3796,7 @@ DEFAULT cFactRemitada:=''
                           SIZE 1,.5 CM FONT oFont ALIGN "TR"  
                     nBultos := nBultos + oQryDet:bultos                          
                  ENDIF   
-                 y := nRow + .1
+                 y := nRow + .1 + config:salto/10
                  oQryDet:Skip()
                  IF y > 23
                     ENDPAGE 
@@ -3795,7 +3833,7 @@ DEFAULT cFactRemitada:=''
                        oPrn:CmBox( 1.5, 9.4, 2.7, 10.7 )   // Box cuadrito comprobante
                        oPrn:CmSay( 1.5, 9.8, "R",oFont2)
                        oPrn:CmSay( 2.5, 11, "Punto de venta:"+LEFT(cNumcomp,4) + " Remito Nro:"+RIGHT(cNumcomp,8),oFont)     
-                       oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(DATE()),oFont)
+                       oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(dFecha),oFont)
 
                        oPrn:CmSay( 3.5, 11, "CUIT:"+oApp:cuit_emp,oFont)
                        oPrn:CmSay( 4.0, 11, "Ingresos brutos:"+oApp:ingb_emp,oFont) 
@@ -3857,6 +3895,9 @@ DEFAULT cFactRemitada:=''
          ** Impresion de remitos por comandera
          IF !oApp:tick80
                *********** Impresion de Ticket 48 mm 
+               IF oQryP:tamaletra > 0
+                  config:fon := oQryP:tamaletra
+               ENDIF
                IF config:fon > 25
                   config:fon := config:fon /3
                ENDIF   
@@ -3889,7 +3930,7 @@ DEFAULT cFactRemitada:=''
                                   SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "C"
                      @ nRow, .1 PRINT TO oPrn TEXT cNumcomp ;
                                   SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "C"                 
-                     @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(DATE());
+                     @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(dFecha);
                                   SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "C"                                                  
                      @ nRow, .1 PRINT TO oPrn TEXT ALLTRIM(oQryCli:nombre) + " ("+ALlTRIM(STR(oQryCli:codigo))+")"; 
                                   SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "L"
@@ -3924,6 +3965,9 @@ DEFAULT cFactRemitada:=''
               NEXT x 
               ELSE
                *********** Impresion de Ticket 80 mm 
+               IF oQryP:tamaletra > 0
+                  config:fon := oQryP:tamaletra
+               ENDIF
                IF config:fon > 25
                   config:fon := config:fon /3
                ENDIF   
@@ -3949,7 +3993,7 @@ DEFAULT cFactRemitada:=''
                                   SIZE 7.1,.5 CM FONT oFont1 LASTROW nRow ALIGN "C"
                      @ nRow, .1 PRINT TO oPrn TEXT cNumcomp ;
                                   SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"                 
-                     @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(DATE());
+                     @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(dFecha);
                                   SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"                                                  
                      @ nRow, .1 PRINT TO oPrn TEXT ALLTRIM(oQryCli:nombre) + " ("+ALlTRIM(STR(oQryCli:codigo))+")"; 
                                   SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "L"
@@ -4031,7 +4075,7 @@ DEFAULT aMetodosPago := {}
                                    "WHERE v.nrofac = " + ClipValue2Sql(cTipoDoc+cNumComp)+ " GROUP BY v.codiva ")
    IF lAgrupa
        oQryDet1 := oApp:oServer:Query("SELECT vd.codart,vd.detart,SUM(vd.cantidad) AS cantidad,vd.punit,SUM(vd.importe) AS importe,SUM(vd.neto) AS neto,SUM(vd.iva) AS iva,"+;
-                                  "vd.codiva,SUM(vd.neton) AS neton,vd.descu,SUM(vd.impint) AS impint,SUM(vd.bultos) AS bultos,"+;
+                                  "vd.codiva,SUM(vd.neton) AS neton,SUM(vd.descu) AS descu,SUM(vd.impint) AS impint,SUM(vd.bultos) AS bultos,"+;
        "IF(vd.descup>0,vd.descup,0) AS descupor,"+;
        "IF(SUBSTR(nrofac,3,1) = 'A', SUM(neto),SUM(importe)) AS subtot,"+;
        "IF(codiva = 5,'21%',IF(codiva=3,'0%','10.5%')) AS alicu, (i.tasa / 100) as tasa,"+;
@@ -4112,7 +4156,7 @@ DEFAULT aMetodosPago := {}
              oPrn:CmSay( 1.5, 9.8, oQryPar:letranofiscal,oFont2)
              
              oPrn:CmSay( 2.5, 11, "Punto de venta:"+SUBSTR(cNumcomp,2,4) + " Comprobante Nro:"+RIGHT(cNumcomp,8),oFont)
-             oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(oQryVen1:fecha),oFont)
+             oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(oQryVen1:fecha)+" "+ALLTRIM(oQryVen1:hora),oFont)
              IF oQryP:imprimeDat
                  oPrn:CmSay( 3.5, 11, "CUIT:"+oApp:cuit_emp,oFont)
                  oPrn:CmSay( 4.0, 11, "Ingresos brutos:"+oApp:ingb_emp,oFont) 
@@ -4190,18 +4234,18 @@ DEFAULT aMetodosPago := {}
                           SIZE .5,.5 CM FONT oFont5 ALIGN "TR"  
                     nBultos := nBultos + oQryDet1:bultos                          
                  ENDIF  
-                 @ y-0.07, 12 PRINT TO oPrn TEXT STR(IF(LEFT(cNumComp,1)<>"A",oQryDet1:punit,oQryDet1:neton/oQryDet1:cantidad),12,2) ;
+                 @ y-0.07, 12 PRINT TO oPrn TEXT TRANSFORM(IF(LEFT(cNumComp,1)<>"A",oQryDet1:punit,oQryDet1:neton/oQryDet1:cantidad),"@E 999,999,999.99") ;
                       SIZE 2,.5 CM FONT oFont5 ALIGN "TR"
                  @ y-0.07, 14.2 PRINT TO oPrn TEXT IF(oQryDet1:descupor > 0,;
                            ALLTRIM(IF(oQryDet1:descupor = INT(oQryDet1:descupor),;
                                       STR(INT(oQryDet1:descupor),3),;
                                       STR(oQryDet1:descupor,6,2)))+"% "+;
-                           IF(oQryPar:imprimedescuimp,ALLTRIM(STR(oQryDet1:descu,12,2)),"")," ") ;
+                           IF(oQryPar:imprimedescuimp,ALLTRIM(TRANSFORM(oQryDet1:descu,"@E 999,999,999.99")),"")," ") ;
                       SIZE 1.8,.5 CM FONT oFont5 ALIGN "TR" 
-                 @ y-0.07, 15.5 PRINT TO oPrn TEXT STR(oQryDet1:subtot,12,2) ;
+                 @ y-0.07, 15.5 PRINT TO oPrn TEXT TRANSFORM(oQryDet1:subtot,"@E 999,999,999.99") ;
                       SIZE 2,.5 CM FONT oFont5 ALIGN "TR"
   
-                 y := nRow + .1
+                 y := nRow + .1 + config:salto/10
                  IF y > 21
                     @ 23, 05 PRINT TO oPrn TEXT "CONTINUA EN OTRA HOJA";
                       SIZE 9,2 CM FONT oFont
@@ -4240,7 +4284,7 @@ DEFAULT aMetodosPago := {}
                        oPrn:CmSay( 1.5, 9.8, oQryPar:letranofiscal,oFont2)
                        
                        oPrn:CmSay( 2.5, 11, "Punto de venta:"+SUBSTR(cNumcomp,2,4) + " Comprobante Nro:"+RIGHT(cNumcomp,8),oFont)
-                       oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(oQryVen1:fecha),oFont)
+                       oPrn:CmSay( 3.0, 11, "Fecha de emision:"+DTOC(oQryVen1:fecha)+" "+ALLTRIM(oQryVen1:hora),oFont)
                        IF oQryP:imprimeDat
                            oPrn:CmSay( 3.5, 11, "CUIT:"+oApp:cuit_emp,oFont)
                            oPrn:CmSay( 4.0, 11, "Ingresos brutos:"+oApp:ingb_emp,oFont) 
@@ -4310,7 +4354,7 @@ DEFAULT aMetodosPago := {}
                  y := y + .5
                  @ y, 1 PRINT TO oPrn TEXT ALLTRIM(STRTRAN(oQryVen1:observa,"PUNTO DE VENTA",""));
                                   SIZE 18,3 CM FONT oFont LASTROW nRow ALIGN "L" 
-                 @ nRow, 1 PRINT TO oPrn TEXT "Descuento Gral:"+STR(nDesFac,12,2) ;
+                 @ nRow, 1 PRINT TO oPrn TEXT "Descuento Gral:"+TRANSFORM(nDesFac,"@E 999,999,999.99") ;
                       SIZE 18,3 CM FONT oFont ALIGN "L"
                  ELSE
                  y := y + .5
@@ -4322,7 +4366,7 @@ DEFAULT aMetodosPago := {}
                        
               @ 23.5, 12 PRINT TO oPrn TEXT "Total $:" ;
                       SIZE 4,.5 CM FONT oFont3 ALIGN "R"
-              @ 23.5, 17 PRINT TO oPrn TEXT STR(oQryVen1:importe,12,2) ;
+              @ 23.5, 17 PRINT TO oPrn TEXT TRANSFORM(oQryVen1:importe,"@E 999,999,999.99") ;
                       SIZE 3,.5 CM FONT oFont ALIGN "R" LASTROW nRow
               IF oApp:usar_puntos .and. oQryVen1:codcli > 1
                  @ nRow,1 PRINT TO oPrn TEXT "(Puntos de esta venta: "+STR(oQryVen1:puntos,8)+;
@@ -4345,7 +4389,10 @@ DEFAULT aMetodosPago := {}
            ENDIF 
            IF !oApp:tick80
                *** Impresion 48 mm
-               *********** Impresion de Ticket NO FISCAL 
+               *********** Impresion de Ticket NO FISCAL
+               IF oQryP:tamaletra > 0
+                  config:fon := oQryP:tamaletra
+               ENDIF 
                IF config:fon > 25
                   config:fon := config:fon /3
                ENDIF
@@ -4470,7 +4517,10 @@ DEFAULT aMetodosPago := {}
                NEXT x
               ELSE
                *** Impresion 80 mm
-               *********** Impresion de Ticket NO FISCAL 
+               *********** Impresion de Ticket NO FISCAL
+               IF oQryP:tamaletra > 0
+                  config:fon := oQryP:tamaletra
+               ENDIF 
                IF config:fon > 25
                   config:fon := config:fon /3
                ENDIF
@@ -4873,7 +4923,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
      oPrn:CmSay( 1.7  , 11, "PRESUPUESTO", oFont1 )   
      oPrn:CmBox( 1.5, 9.4, 2.7, 10.7 )   // Box cuadrito comprobante
      oPrn:CmSay( 1.5, 9.8, "X",oFont2)
-     oPrn:CmSay( 2.0, 16, "N°: "+cNumcomp,oFont)         
+     oPrn:CmSay( 2.0, 16, "Nº: "+cNumcomp,oFont)         
      oPrn:CmSay( 2.5, 11, "Fecha de emision:"+DTOC(oQryPresu:fecha),oFont)
      IF dFecVen <> nil
          oPrn:CmSay( 3.0, 11, "Fecha de vencimiento:"+DTOC(dFecVen),oFont)
@@ -4992,7 +5042,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
                oPrn:CmSay( 1.7  , 11, "PRESUPUESTO", oFont1 )   
                oPrn:CmBox( 1.5, 9.4, 2.7, 10.7 )   // Box cuadrito comprobante
                oPrn:CmSay( 1.5, 9.8, "X",oFont2)
-               oPrn:CmSay( 2.0, 16, "N°: "+cNumcomp,oFont)         
+               oPrn:CmSay( 2.0, 16, "Nº: "+cNumcomp,oFont)         
                oPrn:CmSay( 2.5, 11, "Fecha de emision:"+DTOC(oQryPresu:fecha),oFont)
                IF dFecVen <> nil
                    oPrn:CmSay( 3.0, 11, "Fecha de vencimiento:"+DTOC(dFecVen),oFont)
@@ -5177,11 +5227,25 @@ RETURN .t.
 
 //////// Calcular Promos
 STATIC FUNCTION CalcularPromos()
-LOCAL cText, oQryTem, nNeto, nIva, nAux, i
+LOCAL cText, oQryTem, nNeto, nIva, nAux, i, nCurCodart, nTierPrio, nCodForma, nTot, oQryFp, oQryIva
+STATIC cPrioChk := ""
 //Borro las promos que cargue   
 IF !oApp:oServer:TableExist('ge_'+oApp:cId+"promociones")
    RETURN nil 
 ENDIF   
+//Auto-reparable: crea la columna prioridad si la tabla existe sin ella (MySQL 5.7 no tiene ADD COLUMN IF NOT EXISTS)
+IF cPrioChk != oApp:cId
+   IF oApp:oServer:Query("SHOW COLUMNS FROM ge_"+oApp:cId+"promociones LIKE 'prioridad'"):nRecCount == 0
+      oApp:oServer:Execute("ALTER TABLE ge_"+oApp:cId+"promociones ADD COLUMN prioridad INT DEFAULT 0 NOT NULL")
+   ENDIF
+   IF oApp:oServer:Query("SHOW COLUMNS FROM ge_"+oApp:cId+"promociones LIKE 'hora_inicio'"):nRecCount == 0
+      oApp:oServer:Execute("ALTER TABLE ge_"+oApp:cId+"promociones ADD COLUMN hora_inicio TIME DEFAULT '00:00:00' NOT NULL")
+   ENDIF
+   IF oApp:oServer:Query("SHOW COLUMNS FROM ge_"+oApp:cId+"promociones LIKE 'hora_fin'"):nRecCount == 0
+      oApp:oServer:Execute("ALTER TABLE ge_"+oApp:cId+"promociones ADD COLUMN hora_fin TIME DEFAULT '23:59:59' NOT NULL")
+   ENDIF
+   cPrioChk := oApp:cId
+ENDIF
 oApp:oServer:Execute("DELETE FROM ventas_det_H WHERE ESPROMO = TRUE")
 IF nCodCli > 1 .and. oApp:oServer:Query("SELECT excluyepromo FROM ge_"+oApp:cId+"clientes WHERE codigo = "+str(nCodCli)):excluyepromo
    //No 
@@ -5192,15 +5256,19 @@ IF nCodCli > 1 .and. oApp:oServer:Query("SELECT excluyepromo FROM ge_"+oApp:cId+
         prom.CODART,
         prom.TIPO,
         prom.id,
+      prom.prioridad,
         prom.nompromo AS DETART,
         CASE 
             WHEN prom.tipo = 2 AND FLOOR(p.CANTIDAD / prom.cantidad_requerida) > 0 THEN 
                 p.cantidad - (FLOOR(p.CANTIDAD / prom.cantidad_requerida) * prom.cantidad_a_pagar + MOD(p.CANTIDAD, prom.cantidad_requerida))
+            WHEN prom.tipo = 5 AND prom.cantidad_minima > 0 THEN
+                FLOOR(p.CANTIDAD / prom.cantidad_minima) * prom.cantidad_minima
             ELSE p.CANTIDAD
         END AS CANTIDAD,
         CASE
             WHEN prom.tipo = 1 THEN p.punit - prom.precio_especial        
             WHEN prom.tipo = 4 AND p.CANTIDAD BETWEEN prom.cantidad_minima AND prom.cantidad_maxima THEN p.punit - prom.precio_unitario
+            WHEN prom.tipo = 5 AND p.CANTIDAD >= prom.cantidad_minima THEN p.punit - prom.precio_unitario
             ELSE p.PUNIT
         END AS PUNIT,    
         CASE
@@ -5216,20 +5284,32 @@ IF nCodCli > 1 .and. oApp:oServer:Query("SELECT excluyepromo FROM ge_"+oApp:cId+
         ON p.CODART = prom.codart   
     WHERE 
         CURRENT_DATE BETWEEN prom.fecha_inicio AND prom.fecha_fin
+        AND CURTIME() BETWEEN prom.hora_inicio AND prom.hora_fin
         AND (
             (prom.tipo = 1) OR
             (prom.tipo = 2 AND p.CANTIDAD >= prom.cantidad_requerida) OR
             (prom.tipo = 3 AND p.CANTIDAD >= prom.descuento_a_unidad) OR
-            (prom.tipo = 4 AND p.CANTIDAD BETWEEN prom.cantidad_minima AND prom.cantidad_maxima)
-        )     
-        GROUP BY prom.CODART, prom.TIPO)
+            (prom.tipo = 4 AND p.CANTIDAD BETWEEN prom.cantidad_minima AND prom.cantidad_maxima) OR
+            (prom.tipo = 5 AND prom.cantidad_minima > 0 AND p.CANTIDAD >= prom.cantidad_minima)
+        )
+        AND @FPSEL@
+        GROUP BY prom.CODART, prom.TIPO, prom.prioridad ORDER BY prom.CODART, prom.prioridad DESC)
     ENDTEXT
 
     cText := STRTRAN(cText,'ge_000001promociones','ge_'+oApp:cId+'promociones')
+    cText := STRTRAN(cText,'@FPSEL@',"FIND_IN_SET('"+ALLTRIM(STR(IF(EMPTY(aFormaTip[nFormaPago]),0,aFormaTip[nFormaPago])))+"', prom.formapago) > 0")
     oQryTem := oApp:oServer:Query(cText)
     oQryTem:GoTop()
     IF oQryTem:nRecCount > 0
        DO WHILE !oQryTem:Eof()
+        IF oQryTem:codart != nCurCodart
+           nCurCodart := oQryTem:codart
+           nTierPrio  := oQryTem:prioridad
+        ENDIF
+        IF oQryTem:prioridad != nTierPrio
+           oQryTem:Skip()
+           LOOP
+        ENDIF
           DO CASE
              CASE oQryTem:codiva = 3
                   nNeto := oQryTem:punit * oQryTem:cantidad 
@@ -5242,7 +5322,7 @@ IF nCodCli > 1 .and. oApp:oServer:Query("SELECT excluyepromo FROM ge_"+oApp:cId+
                   nIva  := oQryTem:punit * oQryTem:cantidad  - nNeto
           ENDCASE
           DO CASE 
-             CASE oQryTem:tipo = 1 .or. oQryTem:tipo = 2 .or. oQryTem:tipo = 4
+             CASE oQryTem:tipo = 1 .or. oQryTem:tipo = 2 .or. oQryTem:tipo = 4 .or. oQryTem:tipo = 5
                   oApp:oServer:Execute("INSERT INTO ventas_det_H (CODART, DETART, CANTIDAD, PUNIT, "+;
                     +" NETO, DESCUENTO, STOTAL, IVA, CODIVA, PTOTAL, PCOSTO, IMPINT, ESPROMO) VALUES ("+;
                     ClipValue2Sql(oQryTem:codart)+","+Clipvalue2Sql(oQryTem:DETART)+","+;
@@ -5267,7 +5347,34 @@ IF nCodCli > 1 .and. oApp:oServer:Query("SELECT excluyepromo FROM ge_"+oApp:cId+
           oQryTem:Skip()
        ENDDO
     ENDIF
-ENDIF    
+// === Promos por grupo (mix de sabores / combinada cruzada) ===
+// Va DESPUES de las promos por articulo y ANTES del descuento por forma de pago,
+// asi ese porcentaje se calcula sobre el total ya rebajado por el grupo.
+// Si el modulo nunca se abrio, las tablas no existen y la funcion sale sin hacer nada.
+CalcularPrGrupo("ventas_det_H", IF(EMPTY(aFormaTip[nFormaPago]),0,aFormaTip[nFormaPago]))
+// === Descuento por forma de pago segun rango de importe (sobre el total resultante) ===
+IF oApp:oServer:TableExist('ge_'+oApp:cId+"forpag_desc")
+   nCodForma := IF(EMPTY(aFormaCod[nFormaPago]),0,aFormaCod[nFormaPago])
+   nTot := oApp:oServer:Query("SELECT IFNULL(SUM(PTOTAL),0) AS t FROM ventas_det_H"):t
+   oQryFp := oApp:oServer:Query("SELECT porcentaje FROM ge_"+oApp:cId+"forpag_desc "+;
+             "WHERE codfor = "+ClipValue2Sql(nCodForma)+;
+             " AND "+ClipValue2Sql(nTot)+" BETWEEN desde_importe AND hasta_importe LIMIT 1")
+   IF oQryFp:nRecCount > 0 .and. oQryFp:porcentaje > 0
+      oQryIva := oApp:oServer:Query("SELECT CODIVA AS codiva, SUM(NETO) AS net, SUM(IVA) AS iva FROM ventas_det_H GROUP BY CODIVA")
+      DO WHILE !oQryIva:Eof()
+         oApp:oServer:Execute("INSERT INTO ventas_det_H (CODART,DETART,CANTIDAD,PUNIT,NETO,DESCUENTO,STOTAL,IVA,CODIVA,PTOTAL,PCOSTO,IMPINT,ESPROMO) VALUES (0,"+;
+            ClipValue2Sql("Desc. "+ALLTRIM(aFormaNom[nFormaPago]))+",1,"+;
+            ClipValue2Sql(-(oQryIva:net+oQryIva:iva)*oQryFp:porcentaje/100)+","+;
+            ClipValue2Sql(-oQryIva:net*oQryFp:porcentaje/100)+",0,"+;
+            ClipValue2Sql(-oQryIva:net*oQryFp:porcentaje/100)+","+;
+            ClipValue2Sql(-oQryIva:iva*oQryFp:porcentaje/100)+","+;
+            ClipValue2Sql(oQryIva:codiva)+","+;
+            ClipValue2Sql(-(oQryIva:net+oQryIva:iva)*oQryFp:porcentaje/100)+",0,0,1)")
+         oQryIva:Skip()
+      ENDDO
+   ENDIF
+ENDIF
+ENDIF
 oQryDet:Refresh()
 oBrw:Refresh()
 oBrw:MakeTotals()
@@ -5407,7 +5514,7 @@ LOCAL nHoja, nConfigFon
               oPrn:CmSay( 1.5*nFx, 9.8*nFx + nOffX, LEFT(cNumComp,1), oFont2 )
               oPrn:CmSay( 2.3*nFx, 9.5*nFx + nOffX, "Cod:"+oQryVen1:tipfor, oFont )
               oPrn:CmSay( 2.5*nFx, 11*nFx + nOffX, "Punto de venta:"+SUBSTR(cNumcomp,2,4) + " Comprobante Nro:"+RIGHT(cNumcomp,8), oFont )
-              oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(oQryVen1:fecmod), oFont )
+              oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(oQryVen1:fecmod)+" "+ALLTRIM(oQryVen1:hora), oFont )
               oPrn:CmSay( 3.5*nFx, 11*nFx + nOffX, "CUIT:"+oApp:cuit_emp, oFont )
               oPrn:CmSay( 4.0*nFx, 11*nFx + nOffX, "Ingresos brutos:"+oApp:ingb_emp, oFont )
               oPrn:CmSay( 4.5*nFx, 11*nFx + nOffX, "Inicio de Actividades:"+DTOC(oApp:inac_emp), oFont )
@@ -5469,7 +5576,7 @@ LOCAL nHoja, nConfigFon
                                   SIZE 10*nFx,1*nFx CM FONT oFont ALIGN "TC" LASTROW nRow
                  NEXT nL
                  lImprimio_promo := .t.
-                 y := y + .3
+                 y := (nRow / nFx) + .3
               ENDIF
               FOR nL := 1 TO nLadoTope
                   nOffX := IF(nL=1, 0, 14.85)
@@ -5489,19 +5596,19 @@ LOCAL nHoja, nConfigFon
                           IF(INT(oQryDet1:bultos) <> oQryDet1:bultos,STR(oQryDet1:bultos,06,1),STR(oQryDet1:bultos,4)) ;
                               SIZE .5*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
                   ENDIF
-                  @ (y-0.07)*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT STR(IF(!LEFT(cNumComp,1)$"AM",oQryDet1:punit/nIndiceDolar ,oQryDet1:neton/oQryDet1:cantidad/nIndiceDolar),12,2) ;
+                  @ (y-0.07)*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(IF(!LEFT(cNumComp,1)$"AM",oQryDet1:punit/nIndiceDolar ,oQryDet1:neton/oQryDet1:cantidad/nIndiceDolar),"@E 999,999,999.99") ;
                               SIZE 2*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
                   @ (y-0.07)*nFx, 14.2*nFx + nOffX PRINT TO oPrn TEXT IF(oQryDet1:descupor > 0,;
                               ALLTRIM(IF(oQryDet1:descupor = INT(oQryDet1:descupor),;
                                          STR(INT(oQryDet1:descupor),3),;
                                          STR(oQryDet1:descupor,6,2)))+"% "+;
-                              IF(oQryPar1:imprimedescuimp, ALLTRIM(STR(oQryDet1:descu,12,2)),"")," ") ;
+                              IF(oQryPar1:imprimedescuimp, ALLTRIM(TRANSFORM(oQryDet1:descu,"@E 999,999,999.99")),"")," ") ;
                               SIZE 1.8*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
-                  @ (y-0.07)*nFx, 15.5*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet1:subtot/nIndiceDolar,12,2) ;
+                  @ (y-0.07)*nFx, 15.5*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryDet1:subtot/nIndiceDolar,"@E 999,999,999.99") ;
                               SIZE 2*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
                   @ (y-0.07)*nFx, 17.7*nFx + nOffX PRINT TO oPrn TEXT oQryDet1:alicu ;
                               SIZE .7*nFx,.5*nFx CM FONT oFont5 ALIGN "TC"
-                  @ (y-0.07)*nFx, 18.3*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet1:subtotalciva/nIndiceDolar,12,2) ;
+                  @ (y-0.07)*nFx, 18.3*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryDet1:subtotalciva/nIndiceDolar,"@E 999,999,999.99") ;
                               SIZE 2*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
               NEXT nL
               IF oApp:usabultosventa
@@ -5509,7 +5616,7 @@ LOCAL nHoja, nConfigFon
               ENDIF
               nDesFac := nDesFac + oQryDet1:descu
               oQryDet1:Skip()
-              y := (nRow / nFx) + .1
+              y := (nRow / nFx) + .1 + config:salto/10
               IF y > 21 .and. !oQryDet1:Eof()
                  FOR nL := 1 TO nLadoTope
                      nOffX := IF(nL=1, 0, 14.85)
@@ -5551,7 +5658,7 @@ LOCAL nHoja, nConfigFon
                         oPrn:CmSay( 1.5*nFx, 9.8*nFx + nOffX, LEFT(cNumComp,1), oFont2 )
                         oPrn:CmSay( 2.3*nFx, 9.5*nFx + nOffX, "Cod:"+oQryVen1:tipfor, oFont )
                         oPrn:CmSay( 2.5*nFx, 11*nFx + nOffX, "Punto de venta:"+SUBSTR(cNumcomp,2,4) + " Comprobante Nro:"+RIGHT(cNumcomp,8), oFont )
-                        oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(oQryVen1:fecmod), oFont )
+                        oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(oQryVen1:fecmod)+" "+ALLTRIM(oQryVen1:hora), oFont )
                         oPrn:CmSay( 3.5*nFx, 11*nFx + nOffX, "CUIT:"+oApp:cuit_emp, oFont )
                         oPrn:CmSay( 4.0*nFx, 11*nFx + nOffX, "Ingresos brutos:"+oApp:ingb_emp, oFont )
                         oPrn:CmSay( 4.5*nFx, 11*nFx + nOffX, "Inicio de Actividades:"+DTOC(oApp:inac_emp), oFont )
@@ -5610,47 +5717,47 @@ LOCAL nHoja, nConfigFon
               ENDIF
               @ 22.5*nFx, 1*nFx + nOffX  PRINT TO oPrn TEXT "Percepcion IIBB "+STR(oQryVen1:percep,6,2)+"% "+cSigno+":" ;
                           SIZE 5*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-              @ 22.5*nFx, 6.1*nFx + nOffX PRINT TO oPrn TEXT STR(oQryVen1:IIBB/nIndiceDolar,12,2) ;
+              @ 22.5*nFx, 6.1*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryVen1:IIBB/nIndiceDolar,"@E 999,999,999.99") ;
                           SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
               IF !LEFT(cNumComp,1)$"AM"
                  @ 22.5*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "Subtotal "+cSigno+":" ;
                           SIZE 4*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-                 @ 22.5*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR((oQryVen1:importe-oQryVen1:sobretasa)/nIndiceDolar,12,2) ;
+                 @ 22.5*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM((oQryVen1:importe-oQryVen1:sobretasa)/nIndiceDolar,"@E 999,999,999.99") ;
                           SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
                  @ 23*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "Otros Tributos "+cSigno+":" ;
                           SIZE 4*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-                 @ 23*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryVen1:sobretasa/nIndiceDolar,12,2) ;
+                 @ 23*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryVen1:sobretasa/nIndiceDolar,"@E 999,999,999.99") ;
                           SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
                  @ 23.5*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "Total "+cSigno+":" ;
                           SIZE 4*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-                 @ 23.5*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryVen1:importe/nIndiceDolar,12,2) ;
+                 @ 23.5*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryVen1:importe/nIndiceDolar,"@E 999,999,999.99") ;
                           SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
                  @ 23.7*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Regimen de transparencia fiscal Ley 27.743" ;
                           SIZE 7*nFx,.5*nFx CM FONT oFont5 ALIGN "R" LASTROW nRow
-                 @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "IVA Contenido: $"+STR(oQryVen1:iva/nIndiceDolar,14,2) + " " ;
+                 @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "IVA Contenido: $"+TRANSFORM(oQryVen1:iva/nIndiceDolar,"@E 999,999,999.99") + " " ;
                           SIZE 7*nFx,.5*nFx CM FONT oFont5 ALIGN "R"
               ELSE
                  @ 22.5*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "Subtotal "+cSigno+":" ;
                           SIZE 4*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-                 @ 22.5*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryVen1:neto/nIndiceDolar,12,2) ;
+                 @ 22.5*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryVen1:neto/nIndiceDolar,"@E 999,999,999.99") ;
                           SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
                  @ 23*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "Otros Tributos "+cSigno+":" ;
                           SIZE 4*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-                 @ 23*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryVen1:sobretasa/nIndiceDolar,12,2) ;
+                 @ 23*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryVen1:sobretasa/nIndiceDolar,"@E 999,999,999.99") ;
                           SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
                  y := 23.5
                  oQryIvaDet:GoTop()
                  FOR i := 1 TO oQryIvaDet:nRecCount
                      @ y*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "I.V.A. "+ALLTRIM(oQryIvaDet:nomiva) + " "+cSigno+":" ;
                               SIZE 4*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-                     @ y*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryIvaDet:iva/nIndiceDolar,12,2) ;
+                     @ y*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryIvaDet:iva/nIndiceDolar,"@E 999,999,999.99") ;
                               SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
                      oQryIvaDet:Skip()
                      y := y + .5
                  NEXT i
                  @ y*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "Total "+cSigno+":" ;
                           SIZE 4*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-                 @ y*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryVen1:importe/nIndiceDolar,12,2) ;
+                 @ y*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryVen1:importe/nIndiceDolar,"@E 999,999,999.99") ;
                           SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R"
               ENDIF
               IF oQryPar1:imprimevendedor
@@ -5808,20 +5915,20 @@ LOCAL nHoja, nConfigFon
                   @ (y-0.07)*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:cantidad,08,2) ;
                               SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "TR"
                   IF !oApp:presudiscriva
-                     @ (y-0.07)*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:punit/IF(lDolar,oApp:dolar,1),12,2) ;
+                     @ (y-0.07)*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryDet:punit/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                               SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "TR"
-                     @ (y-0.07)*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:ptotal/IF(lDolar,oApp:dolar,1),12,2) ;
+                     @ (y-0.07)*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryDet:ptotal/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                               SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "TR"
                   ELSE
                      IF !lPreciosFinales
-                        @ (y-0.07)*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:stotal/oQryDet:cantidad/IF(lDolar,oApp:dolar,1),12,2) ;
+                        @ (y-0.07)*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryDet:stotal/oQryDet:cantidad/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                                  SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "TR"
-                        @ (y-0.07)*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:stotal/IF(lDolar,oApp:dolar,1),12,2) ;
+                        @ (y-0.07)*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryDet:stotal/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                                  SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "TR"
                      ELSE
-                        @ (y-0.07)*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:ptotal/oQryDet:cantidad/IF(lDolar,oApp:dolar,1),12,2) ;
+                        @ (y-0.07)*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryDet:ptotal/oQryDet:cantidad/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                                  SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "TR"
-                        @ (y-0.07)*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:ptotal/IF(lDolar,oApp:dolar,1),12,2) ;
+                        @ (y-0.07)*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryDet:ptotal/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                                  SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "TR"
                      ENDIF
                   ENDIF
@@ -5830,7 +5937,7 @@ LOCAL nHoja, nConfigFon
                  nIva := nIva + oQryDet:ptotal - oQryDet:stotal
               ENDIF
               oQryDet:Skip()
-              y := (nRow / nFx) + .1
+              y := (nRow / nFx) + .1 + config:salto/10
               IF y > 21 .and. !oQryDet:Eof()
                  FOR nL := 1 TO nLadoTope
                      nOffX := IF(nL=1, 0, 14.85)
@@ -5924,30 +6031,30 @@ LOCAL nHoja, nConfigFon
               IF oBrw:aCols[6]:nTotal > 0
                  @ 23.5*nFx, 1*nFx + nOffX  PRINT TO oPrn TEXT "Descuento General"+IF(lDolar,"u$s","$")+":" ;
                           SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-                 @ 23.5*nFx, 5*nFx + nOffX  PRINT TO oPrn TEXT STR(oBrw:aCols[6]:nTotal/IF(lDolar,oApp:dolar,1),12,2) ;
+                 @ 23.5*nFx, 5*nFx + nOffX  PRINT TO oPrn TEXT TRANSFORM(oBrw:aCols[6]:nTotal/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                           SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
               ENDIF
               IF !oApp:presudiscriva
                  @ 23.5*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Total presupuesto "+IF(lDolar,"u$s","$")+":" ;
                           SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-                 @ 23.5*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT STR(oGet[21]:value/IF(lDolar,oApp:dolar,1),12,2) ;
+                 @ 23.5*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oGet[21]:value/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                           SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
               ELSE
                  IF !lImpSinIva
                     IF !lPreciosFinales
                        @ 23.5*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Tasa gral (IVA) "+IF(lDolar,"u$s","$")+":" ;
                                 SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-                       @ 23.5*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT STR(nIva/IF(lDolar,oApp:dolar,1),12,2) ;
+                       @ 23.5*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(nIva/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                                 SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
                     ENDIF
                     @ 24.0*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Total presupuesto "+IF(lDolar,"u$s","$")+":" ;
                              SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-                    @ 24.0*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT STR(oGet[21]:value/IF(lDolar,oApp:dolar,1),12,2) ;
+                    @ 24.0*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oGet[21]:value/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                              SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
                  ELSE
                     @ 24.0*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Total presupuesto "+IF(lDolar,"u$s","$")+":" ;
                              SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-                    @ 24.0*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT STR(oGet[21]:value/IF(lDolar,oApp:dolar,1)-nIva/IF(lDolar,oApp:dolar,1),12,2) ;
+                    @ 24.0*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oGet[21]:value/IF(lDolar,oApp:dolar,1)-nIva/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                              SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
                  ENDIF
               ENDIF
@@ -5961,7 +6068,7 @@ RETURN nil
 
 
 STATIC FUNCTION P2x1Remito(oQryDet, oGet, oBrw, cNumComp, nCodCli, cFactRemitada,;
-                           oQryP, oQryCli, lRta, config, aiva)
+                           oQryP, oQryCli, lRta, config, aiva, dFecha)
 LOCAL i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, cCodigopro, nBultos
 LOCAL nFx := 0.7, nL, nOffX, nHorzMid, cFondo
 LOCAL nTotalCopias, nPar, nPares, nIdxL, nIdxR, nLadoTope, nIdxCopia
@@ -6029,7 +6136,7 @@ LOCAL nHoja, nConfigFon
                  oPrn:CmBox( 1.5*nFx, 9.4*nFx + nOffX, 2.7*nFx, 10.7*nFx + nOffX )
                  oPrn:CmSay( 1.5*nFx, 9.8*nFx + nOffX, "R", oFont2 )
                  oPrn:CmSay( 2.5*nFx, 11*nFx + nOffX, "Punto de venta:"+LEFT(cNumcomp,4) + " Remito Nro:"+RIGHT(cNumcomp,8), oFont )
-                 oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(DATE()), oFont )
+                 oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(dFecha), oFont )
                  oPrn:CmSay( 3.5*nFx, 11*nFx + nOffX, "CUIT:"+oApp:cuit_emp, oFont )
                  oPrn:CmSay( 4.0*nFx, 11*nFx + nOffX, "Ingresos brutos:"+oApp:ingb_emp, oFont )
                  oPrn:CmSay( 4.5*nFx, 11*nFx + nOffX, "Inicio de Actividades:"+DTOC(oApp:inac_emp), oFont )
@@ -6096,7 +6203,7 @@ LOCAL nHoja, nConfigFon
                  nBultos := nBultos + oQryDet:bultos
               ENDIF
               oQryDet:Skip()
-              y := (nRow / nFx) + .1
+              y := (nRow / nFx) + .1 + config:salto/10
               IF y > 23 .and. !oQryDet:Eof()
                  ENDPAGE
                  PAGE
@@ -6131,7 +6238,7 @@ LOCAL nHoja, nConfigFon
                            oPrn:CmBox( 1.5*nFx, 9.4*nFx + nOffX, 2.7*nFx, 10.7*nFx + nOffX )
                            oPrn:CmSay( 1.5*nFx, 9.8*nFx + nOffX, "R", oFont2 )
                            oPrn:CmSay( 2.5*nFx, 11*nFx + nOffX, "Punto de venta:"+LEFT(cNumcomp,4) + " Remito Nro:"+RIGHT(cNumcomp,8), oFont )
-                           oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(DATE()), oFont )
+                           oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(dFecha), oFont )
                            oPrn:CmSay( 3.5*nFx, 11*nFx + nOffX, "CUIT:"+oApp:cuit_emp, oFont )
                            oPrn:CmSay( 4.0*nFx, 11*nFx + nOffX, "Ingresos brutos:"+oApp:ingb_emp, oFont )
                            oPrn:CmSay( 4.5*nFx, 11*nFx + nOffX, "Inicio de Actividades:"+DTOC(oApp:inac_emp), oFont )
@@ -6263,7 +6370,7 @@ LOCAL nHoja, nConfigFon
               oPrn:CmBox( 1.5*nFx, 9.4*nFx + nOffX, 2.7*nFx, 10.7*nFx + nOffX )
               oPrn:CmSay( 1.5*nFx, 9.8*nFx + nOffX, oQryPar:letranofiscal, oFont2 )
               oPrn:CmSay( 2.5*nFx, 11*nFx + nOffX, "Punto de venta:"+SUBSTR(cNumcomp,2,4) + " Comprobante Nro:"+RIGHT(cNumcomp,8), oFont )
-              oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(oQryVen1:fecha), oFont )
+              oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(oQryVen1:fecha)+" "+ALLTRIM(oQryVen1:hora), oFont )
               IF oQryP:imprimeDat
                  oPrn:CmSay( 3.5*nFx, 11*nFx + nOffX, "CUIT:"+oApp:cuit_emp, oFont )
                  oPrn:CmSay( 4.0*nFx, 11*nFx + nOffX, "Ingresos brutos:"+oApp:ingb_emp, oFont )
@@ -6322,7 +6429,7 @@ LOCAL nHoja, nConfigFon
                                   SIZE 10*nFx,1*nFx CM FONT oFont ALIGN "TC" LASTROW nRow
                  NEXT nL
                  lImprimio_promo := .t.
-                 y := y + .3
+                 y := (nRow / nFx) + .3
               ENDIF
               FOR nL := 1 TO nLadoTope
                   nOffX := IF(nL=1, 0, 14.85)
@@ -6342,15 +6449,15 @@ LOCAL nHoja, nConfigFon
                           IF(INT(oQryDet1:bultos) <> oQryDet1:bultos,STR(oQryDet1:bultos,06,1),STR(oQryDet1:bultos,4)) ;
                               SIZE .5*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
                   ENDIF
-                  @ (y-0.07)*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT STR(IF(LEFT(cNumComp,1)<>"A",oQryDet1:punit,oQryDet1:neton/oQryDet1:cantidad),12,2) ;
+                  @ (y-0.07)*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(IF(LEFT(cNumComp,1)<>"A",oQryDet1:punit,oQryDet1:neton/oQryDet1:cantidad),"@E 999,999,999.99") ;
                               SIZE 2*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
                   @ (y-0.07)*nFx, 14.2*nFx + nOffX PRINT TO oPrn TEXT IF(oQryDet1:descupor > 0,;
                               ALLTRIM(IF(oQryDet1:descupor = INT(oQryDet1:descupor),;
                                          STR(INT(oQryDet1:descupor),3),;
                                          STR(oQryDet1:descupor,6,2)))+"% "+;
-                              IF(oQryPar:imprimedescuimp,ALLTRIM(STR(oQryDet1:descu,12,2)),"")," ") ;
+                              IF(oQryPar:imprimedescuimp,ALLTRIM(TRANSFORM(oQryDet1:descu,"@E 999,999,999.99")),"")," ") ;
                               SIZE 1.8*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
-                  @ (y-0.07)*nFx, 15.5*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet1:subtot,12,2) ;
+                  @ (y-0.07)*nFx, 15.5*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryDet1:subtot,"@E 999,999,999.99") ;
                               SIZE 2*nFx,.5*nFx CM FONT oFont5 ALIGN "TR"
               NEXT nL
               IF oApp:usabultosventa
@@ -6358,7 +6465,7 @@ LOCAL nHoja, nConfigFon
               ENDIF
               nDesFac := nDesFac + oQryDet1:descu
               oQryDet1:Skip()
-              y := (nRow / nFx) + .1
+              y := (nRow / nFx) + .1 + config:salto/10
               IF y > 21 .and. !oQryDet1:Eof()
                  FOR nL := 1 TO nLadoTope
                      nOffX := IF(nL=1, 0, 14.85)
@@ -6399,7 +6506,7 @@ LOCAL nHoja, nConfigFon
                         oPrn:CmBox( 1.5*nFx, 9.4*nFx + nOffX, 2.7*nFx, 10.7*nFx + nOffX )
                         oPrn:CmSay( 1.5*nFx, 9.8*nFx + nOffX, oQryPar:letranofiscal, oFont2 )
                         oPrn:CmSay( 2.5*nFx, 11*nFx + nOffX, "Punto de venta:"+SUBSTR(cNumcomp,2,4) + " Comprobante Nro:"+RIGHT(cNumcomp,8), oFont )
-                        oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(oQryVen1:fecha), oFont )
+                        oPrn:CmSay( 3.0*nFx, 11*nFx + nOffX, "Fecha de emision:"+DTOC(oQryVen1:fecha)+" "+ALLTRIM(oQryVen1:hora), oFont )
                         IF oQryP:imprimeDat
                            oPrn:CmSay( 3.5*nFx, 11*nFx + nOffX, "CUIT:"+oApp:cuit_emp, oFont )
                            oPrn:CmSay( 4.0*nFx, 11*nFx + nOffX, "Ingresos brutos:"+oApp:ingb_emp, oFont )
@@ -6460,7 +6567,7 @@ LOCAL nHoja, nConfigFon
               IF nDesFac > 0
                  @ (y+1)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(STRTRAN(oQryVen1:observa,"PUNTO DE VENTA","")) ;
                           SIZE 18*nFx,3*nFx CM FONT oFont LASTROW nRow ALIGN "L"
-                 @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "Descuento Gral:"+STR(nDesFac,12,2) ;
+                 @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "Descuento Gral:"+TRANSFORM(nDesFac,"@E 999,999,999.99") ;
                           SIZE 18*nFx,3*nFx CM FONT oFont ALIGN "L"
               ELSE
                  @ (y+1)*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT ALLTRIM(STRTRAN(oQryVen1:observa,"PUNTO DE VENTA","")) ;
@@ -6470,7 +6577,7 @@ LOCAL nHoja, nConfigFon
                        SIZE 5*nFx,.5*nFx CM FONT oFont3
               @ 23.5*nFx, 12*nFx + nOffX PRINT TO oPrn TEXT "Total $:" ;
                        SIZE 4*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-              @ 23.5*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryVen1:importe,12,2) ;
+              @ 23.5*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryVen1:importe,"@E 999,999,999.99") ;
                        SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "R" LASTROW nRow
               IF oApp:usar_puntos .and. oQryVen1:codcli > 1
                  @ nRow, 1*nFx + nOffX PRINT TO oPrn TEXT "(Puntos venta: "+STR(oQryVen1:puntos,8)+;
@@ -6603,20 +6710,20 @@ LOCAL nHoja, nConfigFon
                   @ (y-0.07)*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:cantidad,08,2) ;
                               SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "TR"
                   IF !oApp:presudiscriva
-                     @ (y-0.07)*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:punit/IF(lDolar,oApp:dolar,1),12,2) ;
+                     @ (y-0.07)*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryDet:punit/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                               SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "TR"
-                     @ (y-0.07)*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:importe/IF(lDolar,oApp:dolar,1),12,2) ;
+                     @ (y-0.07)*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryDet:importe/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                               SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "TR"
                   ELSE
                      IF !lPreciosFinales
-                        @ (y-0.07)*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:neto/oQryDet:cantidad/IF(lDolar,oApp:dolar,1),12,2) ;
+                        @ (y-0.07)*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryDet:neto/oQryDet:cantidad/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                                  SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "TR"
-                        @ (y-0.07)*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:neto/IF(lDolar,oApp:dolar,1),12,2) ;
+                        @ (y-0.07)*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryDet:neto/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                                  SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "TR"
                      ELSE
-                        @ (y-0.07)*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:importe/oQryDet:cantidad/IF(lDolar,oApp:dolar,1),12,2) ;
+                        @ (y-0.07)*nFx, 14*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryDet:importe/oQryDet:cantidad/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                                  SIZE 2*nFx,.5*nFx CM FONT oFont ALIGN "TR"
-                        @ (y-0.07)*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT STR(oQryDet:importe/IF(lDolar,oApp:dolar,1),12,2) ;
+                        @ (y-0.07)*nFx, 17*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryDet:importe/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                                  SIZE 3*nFx,.5*nFx CM FONT oFont ALIGN "TR"
                      ENDIF
                   ENDIF
@@ -6626,7 +6733,7 @@ LOCAL nHoja, nConfigFon
               ENDIF
               nDescuP := nDescuP + oQryDet:descu
               oQryDet:Skip()
-              y := (nRow / nFx) + .1
+              y := (nRow / nFx) + .1 + config:salto/10
               IF y > 21 .and. !oQryDet:Eof()
                  FOR nL := 1 TO nLadoTope
                      nOffX := IF(nL=1, 0, 14.85)
@@ -6717,28 +6824,28 @@ LOCAL nHoja, nConfigFon
               IF nDescuP > 0
                  @ 23.5*nFx, 1*nFx + nOffX PRINT TO oPrn TEXT "Descuento General"+IF(lDolar,"u$s","$")+":" ;
                           SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-                 @ 23.5*nFx, 5*nFx + nOffX PRINT TO oPrn TEXT STR(nDescuP/IF(lDolar,oApp:dolar,1),12,2) ;
+                 @ 23.5*nFx, 5*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(nDescuP/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                           SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
               ENDIF
               IF !oApp:presudiscriva .OR. lPreciosFinales
                  @ 23.5*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Total presupuesto "+IF(lDolar,"u$s","$")+":" ;
                           SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-                 @ 23.5*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT STR(oQryPresu:importe/IF(lDolar,oApp:dolar,1),12,2) ;
+                 @ 23.5*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryPresu:importe/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                           SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
               ELSE
                  IF !lImpSinIva
                     @ 23.5*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Tasa gral (IVA) "+IF(lDolar,"u$s","$")+":" ;
                              SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-                    @ 23.5*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT STR(nIva/IF(lDolar,oApp:dolar,1),12,2) ;
+                    @ 23.5*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(nIva/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                              SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
                     @ 24.0*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Total presupuesto "+IF(lDolar,"u$s","$")+":" ;
                              SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-                    @ 24.0*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT STR(oQryPresu:importe/IF(lDolar,oApp:dolar,1),12,2) ;
+                    @ 24.0*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryPresu:importe/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                              SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
                  ELSE
                     @ 24.0*nFx, 11*nFx + nOffX PRINT TO oPrn TEXT "Total presupuesto "+IF(lDolar,"u$s","$")+":" ;
                              SIZE 3.9*nFx,.5*nFx CM FONT oFont3 ALIGN "R"
-                    @ 24.0*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT STR(oQryPresu:importe/IF(lDolar,oApp:dolar,1)-nIva/IF(lDolar,oApp:dolar,1),12,2) ;
+                    @ 24.0*nFx, 15*nFx + nOffX PRINT TO oPrn TEXT TRANSFORM(oQryPresu:importe/IF(lDolar,oApp:dolar,1)-nIva/IF(lDolar,oApp:dolar,1),"@E 999,999,999.99") ;
                              SIZE 4*nFx,.5*nFx CM FONT oFont1 ALIGN "L"
                  ENDIF
               ENDIF

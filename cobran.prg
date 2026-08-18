@@ -87,7 +87,7 @@ oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS `transi_chequeT1` ("+
                            "`NOORDEN` tinyint(1) NOT NULL DEFAULT 0,"+;
                            "`NOMBAN` varchar(30) NOT NULL ,"+;
                            "`NUMBAN` int(6) NOT NULL DEFAULT 1,"+;
-                           "`NUMCHE` int(10) NOT NULL DEFAULT 0,"+;
+                           "`NUMCHE` bigint(10) NOT NULL DEFAULT 0,"+;
                            "`FECING` date DEFAULT NULL,"+;
                            "`FECVTO` date DEFAULT NULL,"+;
                            "`IMPORTE` decimal(12,2) DEFAULT 0,"+;
@@ -123,7 +123,7 @@ DO WHILE .T.
    DEFINE DIALOG oDlg RESOURCE cRecurso OF oApp:oWnd TITLE "Cobranza de cuentas corrientes"
     oDlg:lHelpIcon := .f.
     REDEFINE SAY oSay1 PROMPT "Cliente:" ID 111 OF oDlg
-    REDEFINE GET oGet[1] VAR mcodcli  ID 112 OF oDlg PICTURE "99999";
+    REDEFINE GET oGet[1] VAR mcodcli  ID 112 OF oDlg PICTURE "999999";
              VALID(ValidaCli(oGet));
              ACTION (oGet[01]:cText:= 0, ValidaCli(oGet)) BITMAP "BUSC1" WHEN(lEdita)
     REDEFINE GET oGet[2] VAR mnomcli  ID 113 OF oDlg PICTURE "@!" WHEN(.F.)
@@ -1039,7 +1039,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
               @ y, 07 PRINT TO oPrn TEXT STR(oQryPagFac:cuota,2)+"/"+STR(oQryPagFac:cantcuo,2) ;
                  SIZE 2,.5 CM FONT oFont ALIGN "C"
            ENDIF
-           @ y, 11 PRINT TO oPrn TEXT STR(oQryPagFac:importe,14,2) ;
+           @ y, 11 PRINT TO oPrn TEXT TRANSFORM(oQryPagFac:importe,"@E 999,999,999,999.99") ;
               SIZE 4,.5 CM FONT oFont ALIGN "R"           
 	         y := y + .5
            IF y > 20
@@ -1107,7 +1107,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
        y := y + 0.5
        oQryPagCon:GoTop()
        DO WHILE !oQryPagCon:Eof()
-           @ y, 14 PRINT TO oPrn TEXT STR(oQryPagCon:importe,12,2) ;
+           @ y, 14 PRINT TO oPrn TEXT TRANSFORM(oQryPagCon:importe,"@E 999,999,999,999.99") ;
               SIZE 4,.5 CM FONT oFont ALIGN "R"  
            @ y, 01 PRINT TO oPrn TEXT ALLTRIM(oQryPagCon:observa) ;
               SIZE 5.8,1 CM FONT oFont LASTROW nRow
@@ -1175,7 +1175,7 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
        ENDDO
 	     y := y + .5
        @ y, 1 PRINT TO oPrn TEXT oQryPag:observa SIZE 18,1 CM FONT oFont
-       @ 22.5, 1 PRINT TO oPrn TEXT "Su pago      $:" + STR(oQryPag:total,12,2) ;
+       @ 22.5, 1 PRINT TO oPrn TEXT "Su pago      $:" + TRANSFORM(oQryPag:total,"@E 999,999,999,999.99") ;
               SIZE 10,.5 CM FONT oFont3 ALIGN "L"
        @ 22.5, 12 PRINT TO oPrn TEXT REPLICATE("_",45) ;
               SIZE 9,.5 CM FONT oFont3 ALIGN "L"

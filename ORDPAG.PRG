@@ -78,7 +78,7 @@ oApp:oServer:Execute("CREATE TEMPORARY TABLE IF NOT EXISTS `transi_chequeT` ("+;
                            "`tilde` tinyint(1) NOT NULL DEFAULT 0,"+;
                            "`NOMBAN` varchar(30) NOT NULL ,"+;
                            "`NUMBAN` int(6) NOT NULL DEFAULT 1,"+;
-                           "`NUMCHE` int(10) NOT NULL DEFAULT 0,"+;
+                           "`NUMCHE` bigint(10) NOT NULL DEFAULT 0,"+;
                            "`FECING` date DEFAULT NULL,"+;
                            "`FECVTO` date DEFAULT NULL,"+;
                            "`IMPORTE` decimal(12,2) DEFAULT 0,"+;
@@ -1127,7 +1127,7 @@ LOCAL aiva := {"RESPO. INSCRIPTO","RES.NO INSCRIPTO", "NO RESPONSABLE .",;
        DO WHILE !oQryPagFac:Eof()           
           @ y, 01 PRINT TO oPrn TEXT oQryPagFac:numfac ;
                 SIZE 5.8,.5 CM FONT oFont ALIGN "L"             
-          @ y, 11 PRINT TO oPrn TEXT STR(oQryPagFac:importe,14,2) ;
+          @ y, 11 PRINT TO oPrn TEXT TRANSFORM(oQryPagFac:importe,"@E 999,999,999,999.99") ;
                 SIZE 4,.5 CM FONT oFont ALIGN "R"           
           y := y + .5
           IF y > 20
@@ -1188,7 +1188,7 @@ LOCAL aiva := {"RESPO. INSCRIPTO","RES.NO INSCRIPTO", "NO RESPONSABLE .",;
        ENDDO
        @ y, 01 PRINT TO oPrn TEXT "Neto Pagado:" ;
                 SIZE 5.8,.5 CM FONT oFont ALIGN "L"             
-       @ y, 11 PRINT TO oPrn TEXT STR(oQryPag:total,14,2) ;
+       @ y, 11 PRINT TO oPrn TEXT TRANSFORM(oQryPag:total,"@E 999,999,999,999.99") ;
                 SIZE 4,.5 CM FONT oFont ALIGN "R"           
        y := y + 1
 
@@ -1204,7 +1204,7 @@ LOCAL aiva := {"RESPO. INSCRIPTO","RES.NO INSCRIPTO", "NO RESPONSABLE .",;
        DO WHILE !oQryPagCon:Eof()
            IF nCodCon <> oQryPagCon:codcon
               IF nSuma > 0
-                 @ y, 14 PRINT TO oPrn TEXT STR(nSuma,12,2) ;
+                 @ y, 14 PRINT TO oPrn TEXT TRANSFORM(nSuma,"@E 999,999,999,999.99") ;
                    SIZE 4,.5 CM FONT oFont ALIGN "R"  
                  @ y, 7 PRINT TO oPrn TEXT "SUBTOTAL "+aConceptos[nCodCon] ;
                    SIZE 6.8,.5 CM ALIGN "R" FONT oFont                   
@@ -1213,7 +1213,7 @@ LOCAL aiva := {"RESPO. INSCRIPTO","RES.NO INSCRIPTO", "NO RESPONSABLE .",;
               nSuma:= 0
               nCodCon:= oQryPagCon:codcon 
            ENDIF
-           @ y, 14 PRINT TO oPrn TEXT STR(oQryPagCon:importe,12,2) ;
+           @ y, 14 PRINT TO oPrn TEXT TRANSFORM(oQryPagCon:importe,"@E 999,999,999,999.99") ;
                 SIZE 4,.5 CM FONT oFont ALIGN "R"  
            @ y, 01 PRINT TO oPrn TEXT ALLTRIM(oQryPagCon:observa) ;
                 SIZE 12.8,.5 CM FONT oFont ALIGN "L"  
@@ -1276,7 +1276,7 @@ LOCAL aiva := {"RESPO. INSCRIPTO","RES.NO INSCRIPTO", "NO RESPONSABLE .",;
            oQryPagCon:SKIP()           
        ENDDO
        IF nSuma > 0
-          @ y, 14 PRINT TO oPrn TEXT STR(nSuma,12,2) ;
+          @ y, 14 PRINT TO oPrn TEXT TRANSFORM(nSuma,"@E 999,999,999,999.99") ;
                    SIZE 4,.5 CM FONT oFont ALIGN "R"  
           @ y, 8 PRINT TO oPrn TEXT "SUBTOTAL "+aConceptos[nCodCon] ;
                    SIZE 5.8,.5 CM ALIGN "R" FONT oFont                   
@@ -1292,7 +1292,7 @@ LOCAL aiva := {"RESPO. INSCRIPTO","RES.NO INSCRIPTO", "NO RESPONSABLE .",;
        y := y + .5
        @ y, 1 PRINT TO oPrn TEXT oQryPag:observa SIZE 18,1 CM FONT oFont
        
-       @ 22.5, 1 PRINT TO oPrn TEXT "Nuestro pago   $:" + STR(oQryPag:total,12,2) ;
+       @ 22.5, 1 PRINT TO oPrn TEXT "Nuestro pago   $:" + TRANSFORM(oQryPag:total,"@E 999,999,999,999.99") ;
                 SIZE 10,.5 CM FONT oFont3 ALIGN "L"
        @ 22.5, 12 PRINT TO oPrn TEXT REPLICATE("_",45) ;
                 SIZE 9,.5 CM FONT oFont3 ALIGN "L"

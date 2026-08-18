@@ -11,7 +11,7 @@ MEMVAR oApp
 STATIC oQryBrw,oQry, oQry2, oQry3, oQry4, oQry5, oQry6, oQry7 ,;
        oWnd1, oBrw, oDlg, cVentana,oBrw1, oQryArt,oQryPun , lTipoArt, nActivos,cWhere, dDesde, dHasta
 PROCEDURE Artic(cPermisos)
-LOCAL oBar, hHand, oGetSeek, cSeek := SPACE(50), oPop2, oPop3, oPop4
+LOCAL oBar, hHand, oGetSeek, cSeek := SPACE(50), oPop2, oPop3, oPop4, oPopInfo
 cVentana := PROCNAME()
 IF ASCAN(oApp:aVentanas,cVentana) > 0
    hHand := ASCAN(oApp:aVentanas,cVentana)
@@ -20,6 +20,7 @@ IF ASCAN(oApp:aVentanas,cVentana) > 0
    RETURN
 ENDIF
 lTipoArt := nil
+ValidarPromosArt()
 AADD(oApp:aVentanas,cVentana)
 dDesde := CTOD('01/01/2000')
 dHasta := DATE()
@@ -46,6 +47,12 @@ ENDMENU
 MENU oPop4 POPUP
      MENUITEM "Listar recetas"  ACTION (RepRecetas(),oGetSeek:SetFocus())
      MENUITEM "Duplicar Receta" ACTION DuplicarReceta()
+ENDMENU
+
+MENU oPopInfo POPUP
+     MENUITEM "Precios"  ACTION (IF(oQryBrw:nRecCount>0,PreciosArt(oQryBrw:codigo),nil),oGetSeek:SetFocus())     
+     MENUITEM "Info"     ACTION (Info(),oGetSeek:SetFocus())
+     MENUITEM "Precios Posdatados" ACTION PrePos(cPermisos)          
 ENDMENU
 
    oQry2  := oApp:oServer:Query( "SELECT codigo,nombre,alias FROM ge_"+oApp:cId+"provee ORDER BY codigo")
@@ -94,11 +101,11 @@ ENDMENU
          DEFINE BUTTON RESOURCE "BACKU" OF oBar ;
             TOOLTIP "Importar Articulos"  ;
             ACTION Importar();
-            PROMPT "Importar" TOP WHEN("A"$cPermisos)
+            PROMPT "Importar" TOP WHEN("A"$cPermisos)         
          DEFINE BUTTON RESOURCE "CONFIRMA" OF oBar ;
-            TOOLTIP "Info del producto, participacion en listas, grupos, recetas"  ;
-            ACTION Info();
-            PROMPT "Info" TOP WHEN("M"$cPermisos)    
+                TOOLTIP "Info del producto, participacion en listas, grupos, recetas"  ;
+                ACTION IF(oQryBrw:nRecCount>0,PreciosArt(oQryBrw:codigo),nil);
+                PROMPT "Precios" TOP WHEN("M"$cPermisos) MENU oPopInfo                        
          DEFINE BUTTON RESOURCE "ARTI" OF oBar ;
             TOOLTIP "Cambiar el Codigo / Codigo de barras"  ;
             ACTION (Cambiar(), oBrw:Refresh(),oGetSeek:SetFocus());
@@ -810,6 +817,49 @@ RETURN ROUND(precio,3)
 
 *************************************
 ** Cerrar el archivo abierto
+*************************************************************************************************************
+********** Validacion de la tabla de promociones (crea la tabla o agrega la columna prioridad segun el caso)
+STATIC FUNCTION ValidarPromosArt()
+IF !oApp:oServer:TableExist('ge_'+oApp:cId+"promociones")
+   oApp:oServer:Execute("CREATE TABLE ge_"+oApp:cId+"promociones ( "+;
+  "`id` INT(8) AUTO_INCREMENT,"+;
+  "`codart` BIGINT(14) NOT NULL,"+;
+  "`nompromo` VARCHAR(40) DEFAULT NULL,"+;
+  "`tipo` INT(1) NOT NULL DEFAULT 1,"+;
+  "`fecha_inicio` DATE DEFAULT NULL,"+;
+  "`fecha_fin` DATE DEFAULT NULL,"+;
+  "`precio_especial` DECIMAL(12,3) DEFAULT 0,"+;
+  "`cantidad_requerida` INT(6) DEFAULT 0,"+;
+  "`cantidad_a_pagar` INT(6) DEFAULT 0,"+;
+  "`descuento_a_unidad` INT(6) DEFAULT 0,"+;
+  "`descuento_porcentual` DECIMAL(5,2) DEFAULT 0,"+;
+  "`cantidad_minima` INT(6) DEFAULT 0,"+;
+  "`cantidad_maxima` INT(6) DEFAULT 0,"+;
+  "`precio_unitario` DECIMAL(12,3) DEFAULT 0,"+;
+  "`formapago` VARCHAR(20) DEFAULT '1,2,3,4,5,6'   NOT NULL,"+;
+  "`relacion_porcentual` TINYINT(1) DEFAULT 0  NOT NULL,"+;
+  "`base_calculo` INT(1) DEFAULT 0  NOT NULL,"+;
+  "`base_porcentual` DECIMAL(6,2) DEFAULT 0  NOT NULL, "+;
+  "`prioridad` INT DEFAULT 0  NOT NULL, "+;
+  "`hora_inicio` TIME DEFAULT '00:00:00'  NOT NULL, "+;
+  "`hora_fin` TIME DEFAULT '23:59:59'  NOT NULL, "+;
+  "PRIMARY KEY (`id`),"+;
+  "FOREIGN KEY (codart) REFERENCES ge_"+oApp:cId+"articu(codigo)"+;
+") ENGINE=INNODB DEFAULT CHARSET=utf8")
+   ELSE
+   IF oApp:oServer:Query("SHOW COLUMNS FROM ge_"+oApp:cId+"promociones LIKE 'prioridad'"):nRecCount == 0
+      oApp:oServer:Execute("ALTER TABLE ge_"+oApp:cId+"promociones ADD COLUMN prioridad INT DEFAULT 0 NOT NULL")
+   ENDIF
+   IF oApp:oServer:Query("SHOW COLUMNS FROM ge_"+oApp:cId+"promociones LIKE 'hora_inicio'"):nRecCount == 0
+      oApp:oServer:Execute("ALTER TABLE ge_"+oApp:cId+"promociones ADD COLUMN hora_inicio TIME DEFAULT '00:00:00' NOT NULL")
+   ENDIF
+   IF oApp:oServer:Query("SHOW COLUMNS FROM ge_"+oApp:cId+"promociones LIKE 'hora_fin'"):nRecCount == 0
+      oApp:oServer:Execute("ALTER TABLE ge_"+oApp:cId+"promociones ADD COLUMN hora_fin TIME DEFAULT '23:59:59' NOT NULL")
+   ENDIF
+ENDIF
+RETURN nil
+
+
 STATIC FUNCTION cerrar (  )
 LOCAL aNueva := {}, i, j
 oQryBrw:End()
@@ -1352,11 +1402,11 @@ RETURN nil
 STATIC FUNCTION Importar()
 LOCAL oDlg1, acor:= ARRAY(4), mrta:=.F., oBot1, oBot2, oBrwTmp,;
       aCols := {{0,SPACE(50),0,0,0,0,0,0,0,0,0,0,0,' '}},;
-      i, cError, cSql, nDePro := 1, oChe
+      i, cError, cSql, nDePro := 1, oChe, oChe1, lSinIva := .t.
 DO WHILE .T.       
 DEFINE DIALOG oDlg1 TITLE "Importar Articulos" FROM 03,15 TO 35,140
    acor := AcepCanc(oDlg1)    
-   @ 20, 05 XBROWSE oBrwTmp SIZE 465,180 pixel OF oDlg1 ARRAY aCols ;
+   @ 20, 05 XBROWSE oBrwTmp SIZE 465,155 pixel OF oDlg1 ARRAY aCols ;
       HEADERS "Codigo", "Descripcion","Costo","Utilidad","Precio Venta","Stock","Prov","Depto","Rubro","Marca","IVA","Utilidad 2","P.Venta 2","Cod.Prov";
       COLUMNS 1, 2 ,3, 4, 5,6,7,8,9,10,11,12,13,14;
       SIZES 60,250,50,50,50,50,50,50,50,50,50,50,50,90;
@@ -1366,6 +1416,7 @@ DEFINE DIALOG oDlg1 TITLE "Importar Articulos" FROM 03,15 TO 35,140
       :bKeyDown := { |nKey| IF (nKey == VK_DELETE,oBrwTmp:Delete(),)}    
       :CreateFromCode()
    END  
+   @ 190,05 CHECKBOX oChe1 VAR lSinIva PROMPT "Costos SIN IVA" OF oDlg1 PIXEL SIZE 50,12 
    @ 205,05 SAY "Use el boton PEGAR para incluir los datos o edite manualmente los campos. "+;
                 "Tenga en cuenta que el codigo de articulo no puede estar ya en la base de datos"+;
                 " y que la tasa de IVA tiene que ser 5 (21%) o 4 (10.5%). Si no"+;
@@ -1464,7 +1515,7 @@ FOR i := 1 TO LEN(aCols)
                        ClipValue2SQL(aCols[i,8]) + "," + ;
                        ClipValue2SQL(DATE()) + "," + ;
                        ClipValue2SQL(aCols[i,6]) + "," + ;
-                       "TRUE,"+;
+                       ClipValue2Sql(lSinIva)+","+;
                        ClipValue2SQL(aCols[i,12]) + "," + ;
                        ClipValue2SQL(aCols[i,13]) + "," + ;
                        IF(nDePro=2,'" "', ClipValue2SQL(aCols[i,14])) + "), "
@@ -1826,3 +1877,345 @@ IF Reseta(base,oWnd1,base:produccion,mcodigo)
    oQry:Save()
 ENDIF   
 RETURN NIL
+
+
+*************************************************************************************************************
+********** PRECIOS DEL ARTICULO: edicion de precios + promos + listas de precios especiales
+STATIC FUNCTION PreciosArt(nCodigo)
+LOCAL oForm, oGet := ARRAY(54), oBot := ARRAY(4), base, oError, lRta := .f.,;
+      nNeto := 0, cIvaNom := SPACE(30), nPrecioven, nPreciocos, lActualizaGrupo := .f.,;
+      oQryPro, oBrwPro, oQryLis, oBrwLis, oFont, aCor
+IF EMPTY(nCodigo) .or. nCodigo = 0
+   RETURN nil
+ENDIF
+oQry := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"articu WHERE codigo = "+ClipValue2Sql(nCodigo))
+IF oQry:nRecCount = 0
+   RETURN nil
+ENDIF
+base := oQry:GetRowObj()
+nPrecioven := base:precioven
+nPreciocos := base:preciocos
+oQry3 := oApp:oServer:Query("SELECT codigo,nombre,tasa FROM ge_"+oApp:cId+"ivas WHERE codigo = "+str(base:iva))
+cIvaNom := STR(oQry3:tasa,6,2) + "%"
+oQryPro := oApp:oServer:Query("SELECT id,nompromo,tipo,precio_especial,precio_unitario,fecha_inicio,fecha_fin,hora_inicio,hora_fin,formapago "+;
+           "FROM ge_"+oApp:cId+"promociones WHERE codart = "+ClipValue2Sql(nCodigo)+" ORDER BY nompromo")
+oQryLis := oApp:oServer:Query("SELECT l.codigo AS codlis,l.nombre,d.numpre,d.porc,d.precio "+;
+           "FROM ge_"+oApp:cId+"lispredet d JOIN ge_"+oApp:cId+"lispre l ON l.codigo = d.codlis "+;
+           "WHERE d.codart = "+ClipValue2Sql(nCodigo)+" ORDER BY l.nombre")
+DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
+DO WHILE .T.
+DEFINE DIALOG oForm TITLE "Precios del articulo: "+ALLTRIM(STR(base:codigo))+" - "+ALLTRIM(base:nombre);
+       FROM 05,15 TO 40,110 OF oWnd1 FONT oFont
+   acor := AcepCanc(oForm)
+   oForm:lHelpIcon := .f.
+   @ 07,005 SAY "Costo s/IVA:"   OF oForm PIXEL SIZE 65,12 RIGHT
+   @ 05,080 GET oGet[06] VAR base:precossiva PICTURE "999999999.99" OF oForm PIXEL SIZE 35,12 RIGHT
+   @ 05,200 CHECKBOX oGet[46] VAR base:siniva PROMPT "Sin IVA" OF oForm PIXEL SIZE 75,12
+
+   @ 22,005 SAY "Descuentos %:"  OF oForm PIXEL SIZE 65,12 RIGHT
+   @ 20,080 GET oGet[07] VAR base:desc1 PICTURE "999.99" OF oForm PIXEL SIZE 18,12 RIGHT
+   @ 20,100 GET oGet[08] VAR base:desc2 PICTURE "999.99" OF oForm PIXEL SIZE 18,12 RIGHT
+   @ 20,120 GET oGet[09] VAR base:desc3 PICTURE "999.99" OF oForm PIXEL SIZE 18,12 RIGHT
+   @ 20,140 GET oGet[10] VAR base:desc4 PICTURE "999.99" OF oForm PIXEL SIZE 18,12 RIGHT
+   @ 20,160 GET oGet[11] VAR base:desc5 PICTURE "999.99" OF oForm PIXEL SIZE 18,12 RIGHT
+
+   @ 37,005 SAY "Neto:"          OF oForm PIXEL SIZE 65,12 RIGHT
+   @ 35,080 GET oGet[39] VAR nNeto PICTURE "999999999.99" OF oForm PIXEL SIZE 35,12 RIGHT;
+            WHEN(CalcularNeto(base,oGet))
+   @ 37,170 SAY "Imp.Int:"       OF oForm PIXEL SIZE 40,12 RIGHT
+   @ 35,215 GET oGet[12] VAR base:impint PICTURE "99999.99" OF oForm PIXEL SIZE 22,12 RIGHT
+   @ 37,260 SAY "Flete %:"       OF oForm PIXEL SIZE 40,12 RIGHT
+   @ 35,305 GET oGet[13] VAR base:flete PICTURE "99999.9" OF oForm PIXEL SIZE 20,12 RIGHT
+
+   @ 52,005 SAY "IVA:"           OF oForm PIXEL SIZE 65,12 RIGHT
+   @ 50,080 GET oGet[14] VAR base:iva PICTURE "99" OF oForm PIXEL SIZE 25,12 RIGHT;
+            VALID(BuscarArt(oQry3,oForm,oGet[14]) .and. (oGet[15]:cText := STR(oQry3:tasa,6,2)+"%") <> "xxx");
+            ACTION (oGet[14]:cText:= 0, (BuscarArt(oQry3,oForm,oGet[14]) .and. (oGet[15]:cText := STR(oQry3:tasa,6,2)+"%") <> "xxx")) BITMAP "BUSC1"
+   @ 50,130 GET oGet[15] VAR cIvaNom OF oForm PIXEL SIZE 30,12 WHEN(.f.)
+   @ 52,195 SAY "P.Costo:"       OF oForm PIXEL SIZE 45,12 RIGHT
+   @ 50,245 GET oGet[16] VAR base:preciocos PICTURE "999999999.99" OF oForm PIXEL SIZE 35,12 RIGHT;
+            WHEN((oGet[16]:cText:= nNeto + base:impint + nNeto * (base:flete/100) + ((nNeto * oQry3:tasa )/100)) = "-999999")
+
+   @ 67,005 SAY "% Venta:"       OF oForm PIXEL SIZE 65,12 RIGHT
+   @ 65,080 GET oGet[17] VAR base:porcentaje PICTURE "9999.99" OF oForm PIXEL SIZE 22,12 RIGHT;
+            VALID(CalcularPrecio(oGet,base,.t.))
+   @ 67,150 SAY "% Reventa:"     OF oForm PIXEL SIZE 50,12 RIGHT
+   @ 65,205 GET oGet[18] VAR base:porcentajerev PICTURE "9999.99" OF oForm PIXEL SIZE 22,12 RIGHT;
+            VALID(CalcularPrecio(oGet,base,.f.))
+
+   @ 82,005 SAY "P.Venta 1:"     OF oForm PIXEL SIZE 65,12 RIGHT
+   @ 80,080 GET oGet[20] VAR base:precioven PICTURE "999999999.999" OF oForm PIXEL SIZE 35,12 RIGHT
+   @ 82,170 SAY "P.Venta 2:"     OF oForm PIXEL SIZE 50,12 RIGHT
+   @ 80,225 GET oGet[19] VAR base:reventa   PICTURE "999999999.999" OF oForm PIXEL SIZE 35,12 RIGHT
+
+   @ 100,005 SAY "Promociones del articulo (doble clic o boton Modif):" OF oForm PIXEL SIZE 300,12
+   @ 112,005 XBROWSE oBrwPro DATASOURCE oQryPro ;
+           COLUMNS "id","nompromo","tipo","precio_especial","precio_unitario","fecha_inicio","fecha_fin","hora_inicio","hora_fin","formapago";
+           HEADERS "#","Promo","Tipo","P.Especial","P.Unitario","Desde","Hasta","H.Desde","H.Hasta","Formas pago";
+           SIZES 22,140,28,70,70,60,60,45,45,80 OF oForm SIZE 310,55 PIXEL
+   oBrwPro:CreateFromCode()
+   PintaBrw(oBrwPro,0)
+   oBrwPro:bLDblClick := { || IF(oQryPro:nRecCount > 0,(ModifPromoArt(oQryPro:id),oQryPro:Refresh(),oBrwPro:Refresh()),) }
+   @ 112,320 BUTTON oBot[3] PROMPT "Modif." OF oForm SIZE 30,14 PIXEL;
+             ACTION (IF(oQryPro:nRecCount > 0,(ModifPromoArt(oQryPro:id),oQryPro:Refresh(),oBrwPro:Refresh()),))
+
+   @ 175,005 SAY "Listas de precios especiales (doble clic o boton Modif):" OF oForm PIXEL SIZE 300,12
+   @ 187,005 XBROWSE oBrwLis DATASOURCE oQryLis ;
+           COLUMNS "codlis","nombre","numpre","porc","precio";
+           HEADERS "#Lista","Lista","N.Precio","%","Precio";
+           SIZES 40,200,55,50,75 OF oForm SIZE 310,50 PIXEL
+   oBrwLis:CreateFromCode()
+   PintaBrw(oBrwLis,0)
+   oBrwLis:bLDblClick := { || IF(oQryLis:nRecCount > 0,(ModifListaArt(oQryLis:codlis,nCodigo),oQryLis:Refresh(),oBrwLis:Refresh()),) }
+   @ 187,320 BUTTON oBot[4] PROMPT "Modif." OF oForm SIZE 30,14 PIXEL;
+             ACTION (IF(oQryLis:nRecCount > 0,(ModifListaArt(oQryLis:codlis,nCodigo),oQryLis:Refresh(),oBrwLis:Refresh()),))
+
+   @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Grabar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .t.), oForm:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL
+
+ACTIVATE DIALOG oForm CENTER
+IF !lRta
+   RETURN nil
+ENDIF
+IF base:preciocos = 0 .or. base:iva = 0
+   MsgInfo("Campos obligatorios como 'Precio costo' e 'IVA' tienen que estar completos","Atencion!")
+   LOOP
+ENDIF
+IF base:iva <> 3 .and. base:iva <> 4 .and. base:iva <> 5
+   MsgStop("Tasa de IVA no valida para facturacion","Error")
+   LOOP
+ENDIF
+IF nPrecioven <> base:precioven .OR. nPreciocos <> ROUND(base:preciocos,3)
+   oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"campre (codigo,preciocos,precossiva,precioven,reventa,fecmod,usuario,ip) "+;
+                        "VALUES ("+ClipValue2Sql(base:codigo)+","+ClipValue2Sql(base:preciocos)+","+;
+                        ClipValue2Sql(base:precossiva)+","+ClipValue2Sql(base:precioven)+","+ClipValue2Sql(base:reventa)+",CURDATE(),"+;
+                        ClipValue2Sql(oApp:usuario)+",'Cambio puntual')")
+   base:fecmod := oApp:oServer:Query("SELECT CURDATE() AS fecha"):fecha
+   base:horamod := oApp:oServer:Query("SELECT CURTIME() AS hora"):hora
+   lActualizaGrupo := .t.
+ENDIF
+IF !oApp:utilfija
+   base:porcentaje := (base:precioven * 100) / base:preciocos - 100
+   base:porcentajerev := (base:reventa * 100) / base:preciocos - 100
+ENDIF
+base:usuario:= oApp:usuario
+base:ip     := oApp:cIp
+oQry:oRow := base
+TRY
+  oApp:oServer:BeginTransaction()
+  oQry:Save()
+  oApp:oServer:CommitTransaction()
+  IF lActualizaGrupo
+     ActualizarGrupo(base)
+  ENDIF
+  oQryBrw:Refresh(.f.)
+  oBrw:Refresh()
+CATCH oError
+    ValidaError(oError)
+  LOOP
+END TRY
+EXIT
+ENDDO
+RETURN nil
+
+
+*************************************************************************************************************
+********** EDITOR COMPLETO DE UNA PROMO EXISTENTE (desde Precios del articulo)
+STATIC FUNCTION ModifPromoArt(nId)
+LOCAL oGet := ARRAY(27), oBot := ARRAY(2), oQryP, oQryA, oForm, lRta := .f., aCor, base, oError, cHoraIni := "00:00", cHoraFin := "23:59",;
+      oFont, aTipo:={"Precio Especial","Lleva n paga m","Descuento unidad N","Precio x cantidad","Precio cada N"},;
+      cNombre := SPACE(50), aForma := {.T.,.T.,.T.,.T.,.T.,.T.}, aRelacion := {"Lista 1","Lista 2","P.Costo"}
+oQryP := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"promociones WHERE id = "+ClipValue2Sql(nId))
+IF oQryP:nRecCount = 0
+   RETURN nil
+ENDIF
+base := oQryP:GetRowObj()
+oQryA := oApp:oServer:Query("SELECT nombre,precioven,reventa,preciocos FROM ge_"+oApp:cId+"articu WHERE codigo = "+ClipValue2Sql(base:codart))
+cNombre := oQryA:nombre
+aForma[1] := "1"$base:formapago
+aForma[2] := "2"$base:formapago
+aForma[3] := "3"$base:formapago
+aForma[4] := "4"$base:formapago
+aForma[5] := "5"$base:formapago
+aForma[6] := "6"$base:formapago
+cHoraIni := LEFT(ALLTRIM(cValToChar(base:hora_inicio)),5)
+cHoraFin := LEFT(ALLTRIM(cValToChar(base:hora_fin)),5)
+IF EMPTY(cHoraIni); cHoraIni := "00:00"; ENDIF
+IF EMPTY(cHoraFin); cHoraFin := "23:59"; ENDIF
+DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
+DO WHILE .T.
+DEFINE DIALOG oForm TITLE "Modificacion de Promocion" FROM 05,15 TO 33,130 OF oWnd1
+   oForm:lHelpIcon := .f.
+   @ 07, 05 SAY "Codigo Articulo:"       OF oForm PIXEL SIZE 70,12 RIGHT
+   @ 22, 05 SAY "Nombre Articulo:"       OF oForm PIXEL SIZE 70,12 RIGHT
+   @ 37, 05 SAY "Nombre Promo:"          OF oForm PIXEL SIZE 70,12 RIGHT
+   @ 52, 05 SAY "Tipo de promo:"         OF oForm PIXEL SIZE 70,12 RIGHT
+   @ 67, 05 SAY "Desde:"                 OF oForm PIXEL SIZE 40,12 RIGHT
+   @ 67,120 SAY "Hasta:"                 OF oForm PIXEL SIZE 40,12 RIGHT
+   @ 67,235 SAY "Prioridad:"             OF oForm PIXEL SIZE 45,12 RIGHT
+   @ 82, 05 SAY "Promo Precio Especial"  OF oForm PIXEL SIZE 125,12 CENTER
+   @ 82,105 SAY "Promo lleva n paga m"   OF oForm PIXEL SIZE 125,12 CENTER
+   @ 82,205 SAY "Promo Desc. n unidad"   OF oForm PIXEL SIZE 125,12 CENTER
+   @ 82,305 SAY "Promo x cantidad / cada N" OF oForm PIXEL SIZE 125,12 CENTER
+   @ 97, 05 SAY "Precio Especial:"       OF oForm PIXEL SIZE 70,12 RIGHT
+   @ 97,105 SAY "Cant.Requerida:"        OF oForm PIXEL SIZE 70,12 RIGHT
+   @112,105 SAY "Cant.a Pagar:"          OF oForm PIXEL SIZE 70,12 RIGHT
+   @ 97,205 SAY "Aplica Desc. unidad:"   OF oForm PIXEL SIZE 70,12 RIGHT
+   @112,205 SAY "% Desc.:"               OF oForm PIXEL SIZE 70,12 RIGHT
+   @ 97,305 SAY "Cant.Min / Cada N:"     OF oForm PIXEL SIZE 70,12 RIGHT
+   @112,305 SAY "Cantidad Maxima:"       OF oForm PIXEL SIZE 70,12 RIGHT
+   @127,305 SAY "Precio unitario:"       OF oForm PIXEL SIZE 70,12 RIGHT
+   @142,005 SAY "Aplicar a Forma de pago:" OF oForm PIXEL SIZE 90,12 RIGHT
+
+   @ 05, 80 GET oGet[1] VAR base:codart PICTURE "99999999999999" RIGHT OF oForm SIZE 60,12 PIXEL WHEN(.f.)
+   @ 20, 80 GET oGet[2] VAR cNombre    PICTURE "@!" OF oForm PIXEL WHEN(.F.)
+   @ 35, 80 GET oGet[3] VAR base:nompromo PICTURE "@!"    OF oForm PIXEL VALID(base:nompromo<>SPACE(30))
+   @ 50, 80 COMBOBOX oGet[4] VAR base:tipo ITEMS aTipo OF oForm PIXEL SIZE 70,12
+   @ 67, 50 GET oGet[5]  VAR base:fecha_inicio PICTURE "@D"    OF oForm SIZE 42,12 PIXEL
+   @ 67, 95 GET oGet[25] VAR cHoraIni          PICTURE "99:99" OF oForm SIZE 22,12 PIXEL VALID(HoraOK(cHoraIni))
+   @ 67,165 GET oGet[6]  VAR base:fecha_fin    PICTURE "@D"    OF oForm SIZE 42,12 PIXEL
+   @ 67,210 GET oGet[26] VAR cHoraFin          PICTURE "99:99" OF oForm SIZE 22,12 PIXEL VALID(HoraOK(cHoraFin))
+   @ 67,283 GET oGet[24] VAR base:prioridad    PICTURE "9999"  RIGHT OF oForm SIZE 28,12 PIXEL
+   @ 95, 80 GET oGet[7] VAR base:precio_especial     PICTURE "999999999.999" RIGHT OF oForm SIZE 50,12 PIXEL WHEN(base:tipo = 1)
+   @ 95,180 GET oGet[8] VAR base:cantidad_requerida  PICTURE "9999" RIGHT OF oForm SIZE 40,12 PIXEL WHEN(base:tipo = 2)
+   @110,180 GET oGet[9] VAR base:cantidad_a_pagar    PICTURE "9999" RIGHT OF oForm SIZE 40,12 PIXEL WHEN(base:tipo = 2)
+   @ 95,280 GET oGet[10] VAR base:descuento_a_unidad   PICTURE "9999" RIGHT OF oForm SIZE 40,12 PIXEL WHEN(base:tipo = 3)
+   @110,280 GET oGet[11] VAR base:descuento_porcentual PICTURE "999.99" RIGHT OF oForm SIZE 40,12 PIXEL WHEN(base:tipo = 3)
+   @ 95,380 GET oGet[12] VAR base:cantidad_minima PICTURE "9999" RIGHT OF oForm SIZE 40,12 PIXEL WHEN(base:tipo = 4 .or. base:tipo = 5)
+   @110,380 GET oGet[13] VAR base:cantidad_maxima PICTURE "9999" RIGHT OF oForm SIZE 40,12 PIXEL WHEN(base:tipo = 4)
+   @125,380 GET oGet[14] VAR base:precio_unitario PICTURE "999999999.99" RIGHT OF oForm SIZE 50,12 PIXEL WHEN(base:tipo = 4 .or. base:tipo = 5)
+   @155, 05 CHECKBOX oGet[15] VAR aForma[1] PROMPT "Efectivo" OF oForm SIZE 60,12 PIXEL
+   @155, 70 CHECKBOX oGet[16] VAR aForma[2] PROMPT "Transferencia" OF oForm SIZE 60,12 PIXEL
+   @155,135 CHECKBOX oGet[17] VAR aForma[3] PROMPT "Cheques" OF oForm SIZE 60,12 PIXEL
+   @155,200 CHECKBOX oGet[18] VAR aForma[4] PROMPT "Tarjetas" OF oForm SIZE 60,12 PIXEL
+   @155,265 CHECKBOX oGet[19] VAR aForma[5] PROMPT "Cta.Cte." OF oForm SIZE 60,12 PIXEL
+   @155,330 CHECKBOX oGet[20] VAR aForma[6] PROMPT "M.Pago" OF oForm SIZE 60,12 PIXEL
+   @170, 05 CHECKBOX oGet[21] VAR base:relacion_porcentual PROMPT "Relacion porcentual" OF oForm SIZE 90,12 PIXEL WHEN(base:tipo=1 .or. base:tipo = 4 .or. base:tipo = 5)
+   @170,105 COMBOBOX oGet[22] VAR base:base_calculo ITEMS aRelacion OF oForm PIXEL SIZE 70,12 WHEN((base:tipo=1 .or. base:tipo=4 .or. base:tipo=5) .and. base:relacion_porcentual)
+   @172,182 SAY "%" OF oForm PIXEL
+   @170,190 GET oGet[23] VAR base:base_porcentual PICTURE "999.99" RIGHT OF oForm PIXEL WHEN((base:tipo=1 .or. base:tipo=4 .or. base:tipo=5) .and. base:relacion_porcentual)
+
+   acor := AcepCanc(oForm)
+   @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Grabar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .t.), oForm:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL
+ACTIVATE DIALOG oForm CENTER
+IF !lRta
+   RETURN nil
+ENDIF
+IF base:nompromo = SPACE(30)
+   MsgStop("Valores no validos","Error")
+   LOOP
+ENDIF
+//Tipo 5 (Precio cada N): sin N el motor no puede calcular el multiplo
+IF base:tipo = 5 .and. base:cantidad_minima <= 0
+   MsgStop("En la promo 'Precio cada N' hay que cargar la cantidad N (mayor a cero).","Error")
+   LOOP
+ENDIF
+base:formapago := ""+IF(aForma[1],"1,","")+IF(aForma[2],"2,","")+IF(aForma[3],"3,","")+IF(aForma[4],"4,","")+;
+                    IF(aForma[5],"5,","")+IF(aForma[6],"6,","")
+base:formapago := IF(EMPTY(base:formapago),"",LEFT(base:formapago,LEN(base:formapago)-1))
+//Normalizo franja horaria y controlo solapamiento (excluyo la propia promo)
+base:hora_inicio := cHoraIni + ":00"
+base:hora_fin    := cHoraFin + ":59"
+IF !ResolverSolapePromo(base, base:id)
+   LOOP
+ENDIF
+IF base:relacion_porcentual .and. (base:tipo = 1 .or. base:tipo = 4 .or. base:tipo = 5)
+   IF MsgYesNo("Desea recalcular el precio en base al calculo porcentual?","Atencion")
+      IF base:tipo = 1
+         IF base:base_calculo = 1 
+            base:precio_especial := oQryA:precioven * (1+base:base_porcentual/100)
+            ELSE
+            IF base:base_calculo = 2
+               base:precio_especial := oQryA:reventa * (1+base:base_porcentual/100)  
+               ELSE 
+               base:precio_especial := oQryA:preciocos * (1+base:base_porcentual/100)
+            ENDIF
+         ENDIF                          
+         ELSE
+         IF base:base_calculo = 1 
+            base:precio_unitario := oQryA:precioven * (1+base:base_porcentual/100)
+            ELSE
+            IF base:base_calculo = 2
+               base:precio_unitario := oQryA:reventa * (1+base:base_porcentual/100)  
+               ELSE 
+               base:precio_unitario := oQryA:preciocos * (1+base:base_porcentual/100)
+            ENDIF
+         ENDIF
+      ENDIF
+   ENDIF
+ENDIF
+oQryP:oRow := base
+TRY
+  oApp:oServer:BeginTransaction()
+  oQryP:Save()
+  oApp:oServer:CommitTransaction()
+CATCH oError
+    ValidaError(oError)
+  LOOP
+END TRY
+EXIT
+ENDDO
+RETURN nil
+
+
+*************************************************************************************************************
+********** MODIFICAR EL PRECIO ESPECIAL DEL ARTICULO EN UNA LISTA DE PRECIOS
+STATIC FUNCTION ModifListaArt(nCodlis, nCodart)
+LOCAL oQryD, oForm, oGet := ARRAY(3), oBot := ARRAY(2), base, lRta := .f., oError, oFont, cNomLista,;
+      aListas:={"Lista 1","Lista 2","Precio de costo","Costo Sin IVA"}, aCor, oQryA
+oQryD := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispredet WHERE codlis = "+ClipValue2Sql(nCodlis)+;
+                            " AND codart = "+ClipValue2Sql(nCodart))
+oQryA := oApp:oServer:Query("SELECT nombre,precioven,reventa,preciocos,precossiva FROM ge_"+oApp:cId+"articu WHERE codigo = "+ClipValue2Sql(nCodart))
+IF oQryD:nRecCount = 0
+   RETURN nil
+ENDIF
+base := oQryD:GetRowObj()
+cNomLista := oApp:oServer:Query("SELECT nombre FROM ge_"+oApp:cId+"lispre WHERE codigo = "+ClipValue2Sql(nCodlis)):nombre
+DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
+DO WHILE .T.
+DEFINE DIALOG oForm TITLE "Precio en lista: "+ALLTRIM(cNomLista) FROM 08,18 TO 18,60 OF oWnd1 FONT oFont
+   acor := AcepCanc(oForm)
+   oForm:lHelpIcon := .f.
+   @ 07,005 SAY "Lista base:" OF oForm PIXEL SIZE 70,12 RIGHT
+   @ 05,080 COMBOBOX oGet[1] VAR base:numpre ITEMS aListas OF oForm PIXEL SIZE 70,12
+   @ 22,005 SAY "% Sobre lista:"   OF oForm PIXEL SIZE 70,12 RIGHT
+   @ 20,080 GET oGet[2] VAR base:porc PICTURE "9999.99" OF oForm PIXEL SIZE 22,12 RIGHT
+   @ 37,005 SAY "Precio:"         OF oForm PIXEL SIZE 70,12 RIGHT
+   @ 35,080 GET oGet[3] VAR base:precio PICTURE "999999999.999" OF oForm PIXEL SIZE 35,12 RIGHT
+   @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Grabar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .t.), oForm:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL   
+ACTIVATE DIALOG oForm CENTER
+IF !lRta
+   RETURN nil
+ENDIF
+IF MsgYesNo("Desea recalcular el precio en base al calculo porcentual?","Atencion")
+  DO CASE 
+     CASE base:numpre = 1
+          base:precio := oQryA:precioven * (1+base:porc/100)
+     CASE base:numpre = 2
+          base:precio := oQryA:reventa * (1+base:porc/100)
+     CASE base:numpre = 3
+          base:precio := oQryA:preciocos * (1+base:porc/100)
+     CASE base:numpre = 4
+          base:precio := oQryA:precossiva * (1+base:porc/100) 
+  ENDCASE         
+ENDIF
+oQryD:oRow := base
+TRY
+  oApp:oServer:BeginTransaction()
+  oQryD:Save()
+  oApp:oServer:CommitTransaction()
+CATCH oError
+    ValidaError(oError)
+  LOOP
+END TRY
+EXIT
+ENDDO
+RETURN nil

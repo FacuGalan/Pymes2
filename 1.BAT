@@ -22,20 +22,20 @@ echo c0w32.obj + > b32.bc
 echo BCN.obj  + >> b32.bc
 echo prueba2.obj + >> b32.bc
 echo listadostab.obj procesosper.obj + >> b32.bc
-echo modsto.obj pregen.obj fcaja.obj rcaja.obj chepro.obj cheter.obj depret.obj tipdep.obj modrem.obj abmgar.obj + >> b32.bc
+echo modsto.obj pregen.obj prepos.obj fcaja.obj rcaja.obj chepro.obj cheter.obj depret.obj tipdep.obj modrem.obj abmgar.obj + >> b32.bc
 echo abmpro.obj abmmar.obj abmrub.obj abmven.obj abmban.obj abmctas.obj abmcom.obj abmpcon.obj abmcondven.obj + >> b32.bc
 echo abmiva.obj abmrep.obj abmdat.obj abmdat1.obj abmcli.obj abmcli1.obj abmart.obj abmdes.obj abmrep.obj + >> b32.bc
 echo abmemp.obj abmdep.obj abmret.obj abmfor.obj abmaut.obj bcaja.obj cambiopre.obj combus.obj + >> b32.bc
-echo ordenes.obj canpag.obj pedprov.obj consulta.obj pedidos.obj abmfgs.obj buscapre.obj lispre.obj promos.obj service.obj + >> b32.bc
+echo ordenes.obj canpag.obj canpagfp.obj pedprov.obj consulta.obj pedidos.obj abmfgs.obj buscapre.obj lispre.obj promos.obj promogrupo.obj service.obj + >> b32.bc
 echo calinfo.obj tcalex.obj agenda.obj tmonthv.obj + >> b32.bc
 echo liscaja.obj cietur.obj vales.obj audita.obj + >> b32.bc
 echo descu.obj carcre.obj cardeu.obj fe.obj venrei.obj asigna.obj + >> b32.bc
 echo prelis.obj lisarti.obj lisven.obj liscom.obj lisfac.obj lisdeu.obj grafica.obj + >> b32.bc
-echo compras.obj lische.obj ventas.obj rendi.obj gastos.obj citicomp.obj remitar.obj fact_multi.obj notacre.obj centro_facturacion.obj franqui.obj + >> b32.bc
+echo compras.obj lische.obj ventas.obj rendi.obj gastos.obj citicomp.obj remitar.obj fact_multi.obj ventas_lote.obj notacre.obj centro_facturacion.obj franqui.obj + >> b32.bc
 echo etique.obj ordpag.obj cobran.obj facrem.obj FACT.obj transf.obj + >> b32.bc
 echo ABMEMPLE.OBJ ABMCATEMP.OBJ ABMHORAS.OBJ ABMINAS.OBJ ABMSECTOR.OBJ LISHORAS.OBJ NOVINDIV.OBJ PAGEMPLE.OBJ CONSUMOINT.OBJ adelsuel.obj + >> b32.bc
 echo xbrowse.obj busqueda.obj utiles.obj usua.obj demo.obj enviomail.obj report.obj rpreview.obj prv2pdf.obj + >> b32.bc
-echo conectar.obj descarga.obj arca2.obj transmitir.obj , + >> b32.bc
+echo conectar.obj descarga.obj arca2.obj arca_padron.obj transmitir.obj , + >> b32.bc
 echo BCN.exe, + >> b32.bc
 echo BCN.map, + >> b32.bc
 echo H71532BC.LIB C:\FWH11\lib\dolphin.lib + >> b32.bc

@@ -84,6 +84,7 @@ IF lAlta
    base := oQry:GetBlankRow()
    base:fecha := DATE()
    base:caja:= oQryPun:caja
+   base:usuario := oApp:usuario
    ELSE
    IF oQry:checkeado
        MsgStop("No puede modificar un movimiento ya consolidadado en un cierre","Error") 
@@ -100,7 +101,7 @@ DEFINE DIALOG oForm TITLE IF(lAlta,"Alta","Modificacion") + " de Fondo de caja";
    @ 37, 05 SAY "Caja:"         OF oForm PIXEL SIZE 35,20 RIGHT
   
    @ 05, 50 GET oGet[1] VAR base:fecha   PICTURE "@D"  OF oForm PIXEL CENTER 
-   @ 20, 50 GET oGet[2] VAR base:importe PICTURE "99999999.99"    OF oForm PIXEL RIGHT;
+   @ 20, 50 GET oGet[2] VAR base:importe PICTURE "999999999.99"    OF oForm PIXEL RIGHT;
                 VALID(base:importe>0)
    @ 35, 50 GET oGet[3] VAR base:caja    PICTURE "999" OF oForm PIXEL RIGHT WHEN(lSuper);
                 VALID(base:caja>0)

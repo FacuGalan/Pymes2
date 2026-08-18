@@ -1,0 +1,180 @@
+====================================================================
+INFORME DE CONTROL DE PERMISOS POR MODULO
+Proyecto: C:\FWH16\GENERAL\FUENTES2  (Harbour/FiveWin - ERP)
+Fecha: 2026-07-17
+====================================================================
+
+Se analizan 4 mecanismos de control de permisos en cada .prg:
+  1) LETRAS      -> expresiones  "X"$cPermisos  (A/B/M/R/E)
+  2) SUPERVISOR  -> oApp:es_supervisor  (o variante usua_es_supervisor)
+  3) MENU_NUEVO  -> SELECT permisos FROM ge_<id>menu_nuevo
+                                    WHERE usuario=... AND modulo='XXX'
+  4) ADMIN       -> SELECT IF(tipo='ADMIN',1,0) FROM ge_<id>usuarios
+
+Convencion de letras (consistente en el sistema):
+  A = Alta / Anular      B = Baja / Borrar      M = Modificar
+  R = Reporte / Imprimir E = Exportar a Excel
+  (En FACT/FACT_multi, R y E se reutilizan para "Descuentos" y
+   "Departamentos".)
+
+NOTA GENERAL: 7 de los 12 modulos NO controlan por letras: o no
+reciben el parametro, o lo reciben y lo ignoran/delegan. En esos
+casos el control de acceso vive en el menu que los invoca, no adentro.
+
+====================================================================
+1) FACT.prg      -- PROCEDURE POS1(cPermisos)
+====================================================================
+LETRAS:
+  A -> anular ticket (AunularTicket); salir sin grabar sin pedir
+       confirmacion (PuedeSalir). Sin A no deja salir con items.
+  B -> borrar item del detalle (BorraItem, boton "Borrar item [F6]").
+  M -> editar columna cantidad; editar columna precio (esta ultima
+       SOLO si ademas modifica_precios o es ADMIN).
+  R -> boton "Descuentos".
+  E -> boton "Departamentos [F5]".
+SUPERVISOR: no usa.
+MENU_NUEVO: modulo 'ARTIC' -> en alta rapida de articulo valida
+       IF !"A"$permisos (necesita letra A en ARTIC para dar de alta).
+ADMIN (tipo='ADMIN'): SI. lAdmin = query IF(tipo='ADMIN',1,0). Se usa
+       junto con M para habilitar la edicion del precio unitario.
+
+====================================================================
+2) FACT_multi.prg  -- PROCEDURE POSMULTI(cPermisos)
+====================================================================
+LETRAS:
+  A -> anular sin pedir clave; salir sin grabar; habilita lista de
+       precios en el alta de cliente.
+  B -> boton "Baja" (elimina venta temporal); borrar item sin clave.
+  M -> editar cantidad; editar precio (con modifica_precios); editar
+       precio de articulo pesable.
+  R -> boton "Descuentos".
+  E -> boton "Departamentos [F5]".
+SUPERVISOR: usa la VARIANTE oApp:usua_es_supervisor (NO es_supervisor)
+       para habilitar el boton "Cobrar [F4]". Sin la marca de
+       supervisor no puede cobrar.
+MENU_NUEVO: modulo 'ARTIC' -> igual que FACT, valida !"A"$permisos
+       para alta de articulo.
+ADMIN (tipo='ADMIN'): no usa.
+
+====================================================================
+3) ventas.prg    -- PROCEDURE Ventas()   (SIN parametro)
+====================================================================
+LETRAS: no usa (no recibe cPermisos). Las letras "A/B/C/R/M" que
+       aparecen son la LETRA DEL COMPROBANTE FISCAL, no permisos.
+SUPERVISOR: no usa.
+MENU_NUEVO: modulo 'NotaCred' -> exige el string EXACTO
+       permisos='ABMRE' para permitir hacer Notas de Credito. Sin eso
+       bloquea la opcion NC del combo.
+ADMIN (tipo='ADMIN'): SI. lAdmin habilita la edicion de precio/importe
+       en las lineas de la venta (junto con modifica_precios).
+
+====================================================================
+4) CIETUR.PRG    -- PROCEDURE CIERRET(cPermisos)
+====================================================================
+LETRAS: solo A -> "puede ver los montos". Con A ve importes, totales
+       y resultado del cierre; SIN A hace el cierre a ciegas (oculta
+       debe/haber/efectivo, resultado y faltante/sobrante).
+       B/M/R/E: no usa.
+SUPERVISOR: no usa (hay un lSuper local muerto, nunca se asigna).
+MENU_NUEVO: no usa.
+ADMIN (tipo='ADMIN'): no usa.
+
+====================================================================
+5) facrem.prg    -- PROCEDURE FACREM()   (SIN parametro)
+====================================================================
+NO usa ninguno de los 4 mecanismos. No recibe permisos. El control de
+acceso a esta ventana se define en el menu que la invoca.
+
+====================================================================
+6) MODREM.PRG    -- PROCEDURE ModRem(cPermisos)
+====================================================================
+Recibe cPermisos pero NO lo evalua. Solo lo REENVIA a Service(cPermisos)
+(boton "Service"), que esta en otro archivo. Adentro, los botones
+Modificar/Borrar/Dividir/etc. NO tienen filtro de letras -> quien entra
+puede usarlos.
+SUPERVISOR / MENU_NUEVO / ADMIN: no usa.
+OJO: el control real de letras, si existe, esta en Service() y en el
+llamador de ModRem.
+
+====================================================================
+7) AUDITA.PRG    -- PROCEDURE AUDITA(cPermisos)
+====================================================================
+LETRAS: solo dos -> R (boton Reporte/Imprimir) y E (Exportar a Excel),
+       ambas con RecCount()>0. A/B/M: no usa. Filtrar y Cerrar quedan
+       siempre habilitados.
+SUPERVISOR / MENU_NUEVO / ADMIN: no usa.
+
+====================================================================
+8) BCAJA.PRG     -- PROCEDURE BCAJA(cPermisos)
+====================================================================
+LETRAS: A (Alta), M (Modifica, boton + doble-clic), B (Baja),
+       E (Exporta Excel), R (Reporte). Reenvia a Acelerador2 con los
+       mismos permisos.
+SUPERVISOR / MENU_NUEVO / ADMIN: no usa (lSuper local muerto).
+
+====================================================================
+9) cobran.prg    -- PROCEDURE COBRAN()   (SIN parametro)
+====================================================================
+NO usa ninguno de los 4 mecanismos. No recibe permisos. El acceso se
+resuelve en el menu lanzador.
+
+====================================================================
+10) ORDPAG.PRG   -- PROCEDURE ordpag(cPermisos, nCodpro)
+====================================================================
+Recibe cPermisos y lo IGNORA por completo (solo aparece en la firma).
+El gating interno usa lEdita, hardcodeado en .t. -> no bloquea nada.
+SUPERVISOR / MENU_NUEVO / ADMIN: no usa.
+
+====================================================================
+11) CONSUMOINT.PRG -- PROCEDURE ConsuInt(cPermisos)
+====================================================================
+LETRAS: A (Alta), B (Baja de registro Y boton "Liquidar"),
+       M (editar cantidad del detalle + precio de pesable),
+       R (Reporte), E (Exporta Excel). Reenvia a Acelerador2.
+SUPERVISOR / MENU_NUEVO / ADMIN: no usa.
+
+====================================================================
+12) PEDIDOS.PRG  -- PROCEDURE Pedidos(cPermisos)
+====================================================================
+LETRAS: A (Alta + alta de cliente + lista de precios), B (Baja),
+       M (Modifica + doble-clic), R (Reporte, Informe, Por Art.),
+       E (Exporta Excel + boton "Armar").
+SUPERVISOR: no usa.
+MENU_NUEVO: modulo 'CREUSU' -> solo chequea EXISTENCIA de fila
+       (RecCount()>0, no la columna permisos) para setear lAdmin, que
+       habilita campos sensibles de precio/articulo (tipo de articulo,
+       precio unitario, descuento, editar cantidad).
+ADMIN (tipo='ADMIN'): no usa.
+
+====================================================================
+MATRIZ RESUMEN
+====================================================================
+MODULO       ENTRADA                 LETRAS      SUPERVISOR              MENU_NUEVO            ADMIN(tipo)
+-----------  ----------------------  ----------  ----------------------  --------------------  -----------
+FACT         POS1(cPermisos)         A B M R E   -                       ARTIC (A)             SI (precio)
+FACT_multi   POSMULTI(cPermisos)     A B M R E   usua_es_supervisor      ARTIC (A)             -
+ventas       Ventas()                -           -                       NotaCred (='ABMRE')   SI (precio)
+CIETUR       CIERRET(cPermisos)      A           -                       -                     -
+facrem       FACREM()                -           -                       -                     -
+MODREM       ModRem(cPermisos)       - (delega)  -                       -                     -
+AUDITA       AUDITA(cPermisos)       R E         -                       -                     -
+BCAJA        BCAJA(cPermisos)        A B M R E   -                       -                     -
+cobran       COBRAN()                -           -                       -                     -
+ORDPAG       ordpag(cPermisos,..)    - (ignora)  -                       -                     -
+CONSUMOINT   ConsuInt(cPermisos)     A B M R E   -                       -                     -
+PEDIDOS      Pedidos(cPermisos)      A B M R E   -                       CREUSU (existencia)   -
+
+====================================================================
+PUNTOS DE ATENCION
+====================================================================
+1. MODREM y ORDPAG reciben cPermisos pero no lo aplican adentro
+   (MODREM delega en Service(); ORDPAG lo descarta). Si se quiere que
+   respeten permisos, hay que agregarlos.
+2. facrem y cobran no reciben permisos: cualquiera que llegue al menu
+   entra sin filtro fino.
+3. FACT_multi usa oApp:usua_es_supervisor (NO es_supervisor) -> nombre
+   distinto, facil de pasar por alto si se busca homogeneidad.
+4. ventas (NotaCred) y pedidos (CREUSU) usan menu_nuevo de forma
+   distinta: ventas exige el string permisos EXACTO 'ABMRE'; pedidos
+   solo chequea que exista la fila (no mira la columna permisos).
+====================================================================

@@ -97,14 +97,9 @@ ACTIVATE DIALOG oForm CENTER ON INIT oGet[1]:SetFocus()
 IF !lRta
    RETURN nil
 ENDIF
-IF base:prefijo ="  " 
-   MsgStop("Valores no validos","Error")
-   LOOP
-ENDIF
 IF lAlta
    oQry:GetBlankRow()
 ENDIF
-base:tipo := LEFT(base:tipo,1)
 oQry:oRow := base
 TRY
   oApp:oServer:BeginTransaction()
@@ -144,5 +139,3 @@ IF !mrta
 ENDIF
 oQry:Delete()
 RETURN nil
-
- 

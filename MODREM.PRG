@@ -390,7 +390,7 @@ LOCAL oQryDet, cFacRemitada
 oQryDet := oApp:oServer:Query("SELECT codart,detart,cantidad,auto as bultos, factura FROM ge_"+oApp:cId+;
 	       "remitos WHERE nrorem = "+ClipValue2SQL(oQry:nrorem))
 cFacRemitada := IF(EMPTY(oQryDet:factura),"",oQryDet:factura)
-PrintRemito(oQryDet,,, RIGHT(oQry:nrorem,13),oQry:codcli,cFacRemitada)
+PrintRemito(oQryDet,,, STRTRAN(oQry:nrorem,'RE',''),oQry:codcli,cFacRemitada)
 RETURN NIL
 
 
@@ -698,14 +698,17 @@ RETURN nil
 STATIC FUNCTION ReporPend()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
       acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(6), oBot1, oBot2, oQryCli,;
-      mnomcli := "TODOS..."+SPACE(22), mdesde := DATE(), mhasta := DATE(), mcodcli := 0, oGru, oGru1
+      mnomcli := "TODOS..."+SPACE(22), mdesde := CTOD('01/01/2000'), mhasta := DATE(), mcodcli := 0, oGru,;
+      oGru1, lAgrupaArt := .f., nCodArt := 0, oQryArt
 oQryCli:= oApp:oServer:Query("SELECT codigo,nombre,direccion FROM ge_"+oApp:cId+"clientes ORDER BY nombre")           
+oQryArt:= oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"articu ORDER BY nombre")           
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
-DEFINE DIALOG oDlg1 TITLE "Reporte Remitos pendientes" FROM 03,15 TO 13,70 Of oApp:oWnd
+DEFINE DIALOG oDlg1 TITLE "Reporte Remitos pendientes" FROM 03,15 TO 17,70 Of oApp:oWnd
    acor := AcepCanc(oDlg1)    
    @ 07, 01 SAY "Desde Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
    @ 22, 01 SAY "Hasta Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
    @ 37, 01 SAY "Cliente (0:Todos):"     OF oDlg1 PIXEL SIZE 60,10 RIGHT 
+   @ 67, 01 SAY "Articulo:(0:todos):"    OF oDlg1 PIXEL SIZE 60,10 RIGHT 
    @ 05, 65 GET oGet[1] VAR mdesde    OF oDlg1 PIXEL
    @ 20, 65 GET oGet[2] VAR mhasta    OF oDlg1 PIXEL VALID(mhasta >= mdesde)
    @ 35, 65 GET oGet[3] VAR mcodcli  OF oDlg1 SIZE 30,12 PIXEL RIGHT;
@@ -713,6 +716,10 @@ DEFINE DIALOG oDlg1 TITLE "Reporte Remitos pendientes" FROM 03,15 TO 13,70 Of oA
                 ACTION (oGet[3]:cText:= 0, mcodcli = 0 .or. Buscar(oQryCli,oDlg1,oGet[3],oGet[4])) BITMAP "BUSC1" 
    @ 35,100 GET oGet[4] VAR mnomcli PICTURE "@!"  OF oDlg1 PIXEL ;
             WHEN(IF(mcodcli=0,(oGet[4]:cText:="TODOS..."+SPACE(22))="A",.F.))                
+   @ 50, 65 CHECKBOX oGet[5] VAR lAgrupaArt PROMPT "Agrupar por articulo" SIZE 60,12 OF oDlg1 PIXEL 
+   @ 65, 65 GET oGet[6] VAR nCodArt PICTURE "99999999999999" OF oDlg1 RIGHT WHEN(lAgrupaArt) PIXEL;
+            VALID(nCodArt = 0 .or. Buscar(oQryArt,oDlg1,oGet[6]));
+            ACTION (oGet[6]:cText:= -1,Buscar(oQryArt,oDlg1,oGet[6])) BITMAP "BUSC1" 
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
@@ -725,43 +732,83 @@ CursorWait()
      DEFINE FONT oFont1 NAME "ARIAL" SIZE 0,-8
      DEFINE FONT oFont2 NAME "ARIAL" SIZE 0,-8 BOLD
      DEFINE FONT oFont3 NAME "ARIAL" SIZE 0,-10 BOLD ITALIC     
-oQry := oApp:oServer:Query("SELECT c.nombre AS cliente,v.codcli AS codcli,v.nrorem AS compro, v.fecha as fecha, "+;                         
-                         " v.detart AS articulo,"+;
-                         " v.codart AS codigo,"+;
-                         " v.cantidad AS cantidad, a.precioven AS importe "+;
-                         " FROM ge_"+oApp:cId+"remitos v  "+;  
-                         " LEFT JOIN ge_"+oApp:cId+"clientes c ON c.codigo = v.codcli "+;                       
-                         " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+;                       
-                         " WHERE v.facturado is false and  v.fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
-                         " v.fecha <= "+ ClipValue2Sql(mhasta) + " AND "+;
-                         " v.codcli = " + IF(mcodcli = 0,"v.codcli",ClipValue2Sql(mcodcli)) +;
-                         " ORDER BY c.nombre,v.nrorem" )
-REPORT oRep TITLE "Remitos pendientes de facturacion  del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
-       FONT  oFont1,oFont2,oFont3 ;
-       HEADER OemToAnsi(oApp:nomb_emp) , ;
-       "Remitos pendientes" CENTER ;
-       FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
-       PREVIEW CAPTION  "Remitos pendientes"
-GROUP oGru  ON oQry:cliente HEADER oQry:cliente FOOTER "Totales Cliente" FONT 3 
-GROUP oGru1 ON oQry:compro HEADER oQry:compro FOOTER "Totales Remito" FONT 2
-COLUMN TITLE "Fecha"     DATA oQry:fecha     PICTURE "@D" SIZE 08 FONT 1
-COLUMN TITLE "Codigo"    DATA oQry:codigo    PICTURE "99999999999999" SIZE 15 FONT 1
-COLUMN TITLE "Articulo"  DATA oQry:articulo SIZE 30 FONT 1
-COLUMN TITLE "Cantidad"  DATA oQry:cantidad PICTURE "9999999.99" ;
-                         SIZE 10 FONT 2 TOTAL
-COLUMN TITLE "Estimado $"  DATA oQry:cantidad * oQry:importe PICTURE "999999999.99" ;
-                         SIZE 10 FONT 2 TOTAL
+IF !lAgrupaArt      
+    oQry := oApp:oServer:Query("SELECT c.nombre AS cliente,v.codcli AS codcli,v.nrorem AS compro, v.fecha as fecha, "+;                         
+                             " v.detart AS articulo,"+;
+                             " v.codart AS codigo,"+;
+                             " v.cantidad AS cantidad, a.precioven AS importe "+;
+                             " FROM ge_"+oApp:cId+"remitos v  "+;  
+                             " LEFT JOIN ge_"+oApp:cId+"clientes c ON c.codigo = v.codcli "+;                       
+                             " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+;                       
+                             " WHERE v.facturado is false and  v.fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
+                             " v.fecha <= "+ ClipValue2Sql(mhasta) + " AND "+;
+                             " v.codcli = " + IF(mcodcli = 0,"v.codcli",ClipValue2Sql(mcodcli)) +;
+                             " ORDER BY c.nombre,v.nrorem" )
+    REPORT oRep TITLE "Remitos pendientes de facturacion  del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
+           FONT  oFont1,oFont2,oFont3 ;
+           HEADER OemToAnsi(oApp:nomb_emp) , ;
+           "Remitos pendientes" CENTER ;
+           FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
+           PREVIEW CAPTION  "Remitos pendientes"
+    GROUP oGru  ON oQry:cliente HEADER oQry:cliente FOOTER "Totales Cliente" FONT 3 
+    GROUP oGru1 ON oQry:compro HEADER oQry:compro FOOTER "Totales Remito" FONT 2
+    COLUMN TITLE "Fecha"     DATA oQry:fecha     PICTURE "@D" SIZE 08 FONT 1
+    COLUMN TITLE "Codigo"    DATA oQry:codigo    PICTURE "99999999999999" SIZE 15 FONT 1
+    COLUMN TITLE "Articulo"  DATA oQry:articulo SIZE 30 FONT 1
+    COLUMN TITLE "Cantidad"  DATA oQry:cantidad PICTURE "9999999.99" ;
+                             SIZE 10 FONT 2 TOTAL
+    COLUMN TITLE "Estimado $"  DATA oQry:cantidad * oQry:importe PICTURE "999999999.99" ;
+                             SIZE 10 FONT 2 TOTAL
 
-// Digo que el titulo lo escriba con al letra 2
-oRep:oTitle:aFont[1] := {|| 2 }
-oRep:oTitle:aFont[1] := {|| 2 }
-oRep:bInit := {|| oQry:GoTop() }
-oRep:bSkip := {|| oQry:Skip() }
+    // Digo que el titulo lo escriba con al letra 2
+    oRep:oTitle:aFont[1] := {|| 2 }
+    oRep:oTitle:aFont[1] := {|| 2 }
+    oRep:bInit := {|| oQry:GoTop() }
+    oRep:bSkip := {|| oQry:Skip() }
 
-END REPORT
-ACTIVATE REPORT oRep WHILE !oQry:EOF() ON INIT CursorArrow() ;
-         ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.BMP",.5,.5)
-oQry:End()
+    END REPORT
+    ACTIVATE REPORT oRep WHILE !oQry:EOF() ON INIT CursorArrow() ;
+             ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.BMP",.5,.5)
+    oQry:End()
+    ELSE
+    oQry := oApp:oServer:Query("SELECT c.nombre AS cliente,v.codcli AS codcli,v.nrorem AS compro, v.fecha as fecha, "+;                         
+                             " v.detart AS articulo,"+;
+                             " v.codart AS codigo,"+;
+                             " v.cantidad AS cantidad, a.precioven AS importe "+;
+                             " FROM ge_"+oApp:cId+"remitos v  "+;  
+                             " LEFT JOIN ge_"+oApp:cId+"clientes c ON c.codigo = v.codcli "+;                       
+                             " LEFT JOIN ge_"+oApp:cId+"articu a ON a.codigo = v.codart "+;                       
+                             " WHERE v.facturado is false and  v.fecha >= " + ClipValue2Sql(mdesde) + " AND "+;
+                             " v.fecha <= "+ ClipValue2Sql(mhasta) + " AND "+;
+                             " v.codcli = " + IF(mcodcli = 0,"v.codcli",ClipValue2Sql(mcodcli)) +;
+                             IF(nCodArt >0 ," AND v.codart = "+ClipValue2Sql(nCodArt),"")+;
+                             " ORDER BY v.detart" )
+    REPORT oRep TITLE "Remitos pendientes de facturacion  del " + DTOC(mdesde) + " al " + DTOC(mhasta) ;
+           FONT  oFont1,oFont2,oFont3 ;
+           HEADER OemToAnsi(oApp:nomb_emp) , ;
+           "Remitos pendientes" CENTER ;
+           FOOTER "Hoja:" + STR(oRep:npage,3) ,"Fecha:"+DTOC(DATE()) CENTER;
+           PREVIEW CAPTION  "Remitos pendientes"
+    GROUP oGru  ON oQry:articulo HEADER oQry:articulo + " ("+ALLTRIM(STR(oQry:codigo))+")" FOOTER "Totales Articulo" FONT 3 
+    COLUMN TITLE "Fecha"     DATA oQry:fecha     PICTURE "@D" SIZE 08 FONT 1
+    COLUMN TITLE "Remito"    DATA oQry:compro    SIZE 16 FONT 1
+    COLUMN TITLE "Cliente"   DATA oQry:cliente    SIZE 20 FONT 1
+    COLUMN TITLE "Cantidad"  DATA oQry:cantidad PICTURE "9999999.99" ;
+                             SIZE 10 FONT 2 TOTAL
+    COLUMN TITLE "Estimado $"  DATA oQry:cantidad * oQry:importe PICTURE "999999999.99" ;
+                             SIZE 10 FONT 2 TOTAL
+
+    // Digo que el titulo lo escriba con al letra 2
+    oRep:oTitle:aFont[1] := {|| 2 }
+    oRep:oTitle:aFont[1] := {|| 2 }
+    oRep:bInit := {|| oQry:GoTop() }
+    oRep:bSkip := {|| oQry:Skip() }
+
+    END REPORT
+    ACTIVATE REPORT oRep WHILE !oQry:EOF() ON INIT CursorArrow() ;
+             ON STARTPAGE oRep:SayBitmap(.1,.1,"LOGO.BMP",.5,.5)
+    oQry:End()
+ENDIF    
 RETURN NIL
 
 

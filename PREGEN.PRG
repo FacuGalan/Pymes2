@@ -106,9 +106,9 @@ DEFINE DIALOG oDlg TITLE "Cambio general de precios" FROM 02,01 TO 30,140 OF oAp
      oBrw:aCols[15]:lAutoSave := .t.
      oBrw:aCols[15]:nEditType := EDIT_GET  
      oBrw:aCols[15]:bOnPostEdit := {|oCol, xVal, nKey | CambiaValor(15,xval)} 
-   ENDIF
-
+   ENDIF   
    PintaBrw(oBrw,0)          
+   oBrw:bKeyDown := { |nKey| IF (nKey == VK_DELETE,EliminarItem(oQryTemp, oBrw),.t.) }
    @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Cambiar"  OF oDlg SIZE 30,10 ACTION ((lrta := .t.), oDlg:End() ) PIXEL
    @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oDlg SIZE 30,10 ACTION ((lrta := .f.), oDlg:End() ) PIXEL
 ACTIVATE DIALOG oDlg CENTER ON INIT oGet[1]:SetFocus()
@@ -169,6 +169,17 @@ EXIT
 ENDDO  
 
 RETURN 
+
+************************************************************************************
+** Borrar item de la venta
+STATIC FUNCTION EliminarItem(oQryTemp,oBrw)
+LOCAL cLetra
+IF oQryTemp:RecCount()>0
+  oApp:oServer:Execute("DELETE FROM articu_temp WHERE codigo = "+ClipValue2Sql(oQryTemp:codigo))
+  oBrw:Refresh()
+  oQryTemp:Refresh()  
+ENDIF
+RETURN .t.
 
 
 ***************************************************************************************************

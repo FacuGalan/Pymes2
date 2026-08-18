@@ -198,7 +198,7 @@ RETURN NIL
 *******************************************************************************************************************************************
 ***************VENTANA DE PEDIDOS 
 STATIC FUNCTION Formu(cPermiso,lAlta)
-LOCAL oBot := ARRAY(9) , aTipoIva, aTipoDoc, base, cDireccion:=SPACE(30), cLocalidad:=SPACE(30), aVendedor, oQryV,;
+LOCAL oBot := ARRAY(10) , aTipoIva, aTipoDoc, base, cDireccion:=SPACE(30), cLocalidad:=SPACE(30), aVendedor, oQryV,;
       cCUIT:=SPACE(13),  nCodArt:=0, nCantidad:=0, nPunit:=0, nPtotal:=0,  nNeto:=0, oQry, lUsoBorrar := .f.,;      
       nIVA:=0,  oFontLetra, oFontTotal,cDescu,oSay2,oDlg2,oWnd2,i,lResp:=.f.,oQryLis,cLisPre:="SIN LISTA ESPECIAL"+SPACE(31),;
       nNumFac:=0, nDNI := 0, nTiArt,oQryIvaT, cNomLis:=SPACE(50),aListas:={"Lista 1","Lista 2"}, cCodArtP := SPACE(30)
@@ -337,6 +337,7 @@ oQryLisPre:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre")
     REDEFINE GET oGet[08] VAR base:codcli ID 185 OF oDlg2 PICTURE "999999" WHEN(lAlta) ;
              ACTION (oGet[08]:cText:= 0, ValidaCli(,base:vendedor,lAlta))  BITMAP "BUSC1" VALID (ValidaCli(,base:vendedor,lAlta)) 
     REDEFINE GET oGet[09] VAR base:cliente ID 186 OF oDlg2 PICTURE "@!"  WHEN(.f.)
+    REDEFINE BUTTON oBot[10] ID 4015 WHEN("A"$cPermiso .and. lAlta) ACTION AltaCli(oDlg2, oGet[08],cPermiso)
     REDEFINE GET oGet[10] VAR cDireccion ID 187  OF oDlg2 PICTURE "@!" WHEN(.f.)
     REDEFINE GET oGet[11] VAR cLocalidad ID 188  OF oDlg2 PICTURE "@!" WHEN(.f.)
     REDEFINE GET oGet[12] VAR cCUIT      ID 189 OF oDlg2 PICTURE "99-99999999-9" ;
@@ -1528,7 +1529,7 @@ IF lResu
 
     COLUMN TITLE "Producto"   DATA oQry:detart     SIZE 30 FONT 1
     COLUMN TITLE "Unidades"   DATA oQry:cantidad  PICTURE "999999999.999" SIZE 10 FONT 1 TOTAL
-    COLUMN TITLE "Total $"    DATA oQry:importe   PICTURE "999999999.999" SIZE 10 FONT 1 TOTAL
+    COLUMN TITLE "Total $"    DATA oQry:importe   PICTURE "99999999999.99" SIZE 14 FONT 1 TOTAL
     COLUMN TITLE "Codigo"     DATA oQry:codart   PICTURE "99999999999999" SIZE 12 FONT 1
     // Digo que el titulo lo escriba con al letra 2
     oRep:oTitle:aFont[1] := {|| 2 }
@@ -1567,7 +1568,7 @@ IF lResu
     COLUMN TITLE "N° Pedido"  DATA oQry:id         SIZE 08 FONT 1
     COLUMN TITLE "Producto"   DATA oQry:detart     SIZE 30 FONT 1 
     COLUMN TITLE "Unidades"   DATA oQry:cantidad  PICTURE "999999999.999" SIZE 10 FONT 1 TOTAL
-    COLUMN TITLE "Importe"    DATA oQry:importe  PICTURE "999999999.999" SIZE 10 FONT 1 TOTAL
+    COLUMN TITLE "Importe"    DATA oQry:importe  PICTURE "99999999999.99" SIZE 14 FONT 1 TOTAL
     COLUMN TITLE "Codigo"     DATA oQry:codart   PICTURE "99999999999999" SIZE 12 FONT 1
     COLUMN TITLE "Para Fecha" DATA oQry:parafecha    SIZE 8 FONT 1
     // Digo que el titulo lo escriba con al letra 2
@@ -1590,6 +1591,11 @@ STATIC FUNCTION GenAnticipo(nCli,oGet)
 LOCAL oDlgC, oBot1:=ARRAY(27), oGet1:=ARRAY(3), oError, oBrwPag, nMonto:= 0,oFontF,;
       nVueltoT:=0, nPagadoT:=0,lRta:=.f.,;
       nEfecti, nTransf, nCheque, nTarjet, nMPago, oQryPag, oQryPagCon, nRecibo, base, oErr
+IF oApp:cierre_turno
+  IF !ValidarTurno(oApp:oWnd)    
+    RETURN nil
+  ENDIF
+ENDIF
 oApp:oServer:Execute("";
     + "CREATE TEMPORARY TABLE IF NOT EXISTS formapag_temp";
     +"("; 
@@ -1907,7 +1913,7 @@ IF lResu
 
     COLUMN TITLE "Producto"   DATA oQry:detart     SIZE 30 FONT 1
     COLUMN TITLE "Unidades"   DATA oQry:cantidad  PICTURE "999999999.999" SIZE 10 FONT 1 TOTAL
-    COLUMN TITLE "Total $"    DATA oQry:importe   PICTURE "999999999.999" SIZE 10 FONT 1 TOTAL
+    COLUMN TITLE "Total $"    DATA oQry:importe   PICTURE "99999999999.99" SIZE 14 FONT 1 TOTAL
     COLUMN TITLE "Codigo"     DATA oQry:codart   PICTURE "99999999999999" SIZE 12 FONT 1
     // Digo que el titulo lo escriba con al letra 2
     oRep:oTitle:aFont[1] := {|| 2 }
@@ -1942,7 +1948,7 @@ IF lResu
     COLUMN TITLE "N° Pedido"  DATA oQry:id         SIZE 08 FONT 1
     COLUMN TITLE "Producto"   DATA oQry:detart     SIZE 30 FONT 1 
     COLUMN TITLE "Unidades"   DATA oQry:cantidad  PICTURE "999999999.999" SIZE 10 FONT 1 TOTAL
-    COLUMN TITLE "Importe"    DATA oQry:importe  PICTURE "999999999.999" SIZE 10 FONT 1 TOTAL
+    COLUMN TITLE "Importe"    DATA oQry:importe  PICTURE "99999999999.99" SIZE 14 FONT 1 TOTAL
     COLUMN TITLE "Codigo"     DATA oQry:codart   PICTURE "99999999999999" SIZE 12 FONT 1
     COLUMN TITLE "Para Fecha" DATA oQry:parafecha    SIZE 8 FONT 1
     // Digo que el titulo lo escriba con al letra 2
@@ -2575,3 +2581,118 @@ FOR i := 1 TO LEN(Arr)
 NEXT i
 oBr:Refresh()
 RETURN nil  
+
+
+******************************************************************************************************
+****************** ALTA DE clientes
+STATIC FUNCTION AltaCli(oDlgC, oGet1, cPermi)
+LOCAL oDlgA,oQry,oGet:=ARRAY(27),;
+      oBot1,oBot2,mrta:=.f.,base,acor:=ARRAY(4),oError, nCuit := 0, oGet5, lCambiar := .t.,;
+      aListas:={"Lista 1","Lista 2"},cLisPre:="SIN LISTA ESPECIAL"+SPACE(31),;
+      oQryLisPre:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"lispre"),;
+      atipoiva  := {;
+"1 IVA Responsable Inscripto",;
+"2 IVA Responsable no Inscripto",;
+"3 IVA no Responsable",;
+"4 IVA Sujeto Exento",;
+"5 Consumidor Final",;
+"6 Responsable Monotributo",;
+"7 Sujeto no Categorizado",;
+"8 Proveedor del Exterior",;
+"9 Cliente del Exterior",;
+"10  IVA Liberado Ley Nº 19.640",;
+"11  IVA Responsable Inscripto Agente de Percepción",;
+"12  Pequeño Contribuyente Eventual",;
+"13  Monotributista Social",;
+"14  Pequeño Contribuyente Eventual Social"},;
+oQryP :=  oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip))
+
+oQry  := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"clientes ORDER BY NOMBRE")
+base := oQry:GetBlankRow()
+base:codigo := oApp:oServer:GetAutoIncrement("ge_"+oApp:cId+"clientes")  
+base:coniva:=5
+DO CASE
+   CASE oQryP:lispreclientepos = 0
+        base:lispre:=1
+   CASE oQryP:lispreclientepos = 1
+        base:lispre:=1
+   CASE oQryP:lispreclientepos = 2
+        base:lispre:=2
+ENDCASE        
+DO WHILE .T.
+DEFINE DIALOG oDlgA TITLE "Alta de Clientes" FROM 05,10 TO 26,80 OF oDlgC
+   acor := AcepCanc(oDlgA)
+  
+   @ 07, 05 SAY "Codigo:"         OF oDlgA PIXEL SIZE 60,12 RIGHT
+   @ 22, 05 SAY "Nombre:"         OF oDlgA PIXEL SIZE 60,12 RIGHT
+   @ 37, 05 SAY "Direccion:"      OF oDlgA PIXEL SIZE 60,12 RIGHT
+   @ 52, 05 SAY "Telefono:"       OF oDlgA PIXEL SIZE 60,12 RIGHT
+   @ 67, 05 SAY "Localidad:"      OF oDlgA PIXEL SIZE 60,12 RIGHT
+   @ 82, 05 SAY "C.U.I.T.:"       OF oDlgA PIXEL SIZE 60,12 RIGHT
+   @ 82,125 SAY "D.N.I.:"         OF oDlgA PIXEL SIZE 60,12 RIGHT
+   @ 97, 05 SAY "Condicion IVA:"  OF oDlgA PIXEL SIZE 60,12 RIGHT
+   @112, 05 SAY "Lista de precios:" OF oDlgA PIXEL SIZE 50,12 RIGHT
+   @127, 05 SAY "Lista especial:"   OF oDlgA PIXEL SIZE 50,12 RIGHT
+   @07, 90 SAY "CUIT Afip:"   OF oDlgA PIXEL SIZE 28,12 RIGHT
+   @05,121 GET oGet[5] VAR nCuit PICTURE "99999999999"   OF oDlgA PIXEL SIZE 45,12 RIGHT;
+      VALID(ConsultaCuit(nCuit,oGet,{2,3,7,10,11},@lCambiar))
+   @ 05, 70 GET oGet[1] VAR base:codigo PICTURE "99999" OF oDlgA PIXEL WHEN(.F.)
+   @ 20, 70 GET oGet[2] VAR base:nombre PICTURE "@!"  OF oDlgA PIXEL VALID(base:nombre<>SPACE(30))
+   @ 35, 70 GET oGet[3] VAR base:direccion OF oDlgA PIXEL
+   @ 50, 70 GET oGet[4] VAR base:telefono  OF oDlgA PIXEL
+   @ 65, 70 GET oGet[7] VAR base:localidad OF oDlgA PIXEL
+   @ 80, 70 GET oGet[10] VAR base:cuit     PICTURE "99-99999999-9" ;
+         VALID(ValidaCuit(base:cuit)) OF oDlgA PIXEL
+   @ 80,200 GET oGet[6]  VAR base:dni      PICTURE "99999999"  OF oDlgA PIXEL RIGHT
+   @ 95, 70 COMBOBOX oGet[11] VAR base:coniva  ITEMS aTipoIva SIZE 80,80 PIXEL OF oDlgA WHEN(lCambiar)
+   @110, 70 COMBOBOX oGet[19] VAR base:lispre ITEMS aListas OF oDlgA SIZE 40,40 PIXEL WHEN("A"$cPermi .and. oQryP:lispreclientepos = 0)
+   @125, 70 GET oGet[22] VAR base:lispreesp  OF oDlgA PICTURE "999" SIZE 25,12 RIGHT PIXEL WHEN("A"$cPermi .and. oQryP:lispreclientepos = 0);
+                 VALID((base:lispreesp = 0 .and. IF(base:lispreesp=0,(oGet[23]:cText:="SIN LISTA ESPECIAL"+SPACE(31))<>"xxx",.T.)) .or.;
+                       Buscar(oQryLisPre,oDlgA,oGet[22],oGet[23]));
+                 ACTION (oGet[22]:cText:= 0, Buscar(oQryLisPre,oDlgA,oGet[22],oGet[23])) BITMAP "BUSC1"
+   @125,100 GET oGet[23] VAR cLisPre OF oDlgA PIXEL PICTURE "@!" SIZE 150,12 WHEN(.F.)
+   @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Grabar" OF oDlgA SIZE 30,10 ;
+           ACTION ((mrta := .t.), oDlgA:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlgA SIZE 30,10 ;
+           ACTION ((mrta := .f.), oDlgA:End() ) PIXEL CANCEL
+ACTIVATE DIALOG oDlgA CENTER 
+IF !mRta
+   RETURN nil
+ENDIF
+IF base:coniva > 6 .and. base:coniva <12
+   MsgStop("Condicion de I.V.A. no soportada por este programa")
+   LOOP
+ENDIF
+IF base:coniva <> 5 .and. (EMPTY(base:cuit) .Or. base:cuit = "  -        - ")
+   MsgStop("Debe poner un CUIT para esa condicion de I.V.A.")
+   LOOP
+ENDIF
+/*IF base:coniva = 5 .and. (EMPTY(base:cuit) .Or. base:cuit = "  -        - ") .and. EMPTY(base:dni)
+   MsgStop("Debe poner un CUIT o DNI para esa condicion de I.V.A.")
+   LOOP
+ENDIF*/
+//Validar si el cuit es repetido
+IF base:cuit <> "  -        - "
+   IF oApp:oServer:Query("SELECT codigo FROM ge_"+oApp:cId+"clientes WHERE codigo <> "+str(base:codigo)+;
+         " AND cuit = "+ClipValue2SQL( base:cuit)):nRecCount > 0
+      mRta := MsgNoYes("Ya existe un cliente con ese cuit, continua igual?","Atencion")
+      IF !mRta 
+         LOOP
+      ENDIF
+   ENDIF
+ENDIF
+oQry:oRow := base
+TRY
+  oApp:oServer:BeginTransaction()
+  oQry:Save()
+  oQry:Refresh(.t.)
+  oApp:oServer:CommitTransaction()
+  oGet1:cText := base:codigo
+  oGet1:SetFocus() 
+CATCH oError
+  ValidaError(oError)
+  LOOP
+END TRY
+EXIT
+ENDDO
+RETURN nil

@@ -17,6 +17,7 @@ IF ASCAN(oApp:aVentanas,cVentana) > 0
    RETURN
 ENDIF
 AADD(oApp:aVentanas,cVentana)
+ValidarForpagDesc()
 
 oQry  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"forpag ORDER BY nombre")
 
@@ -49,6 +50,10 @@ oQry  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"forpag ORDER BY nombr
             ACTION TablaIndices(oDlg);
             PROMPT "Indices" TOP WHEN("A"$cPermisos) 
          ENDIF
+         DEFINE BUTTON RESOURCE "CAMPRE" OF oBar ;
+            TOOLTIP "Descuentos por forma de pago segun importe"  ;
+            ACTION DescuentosForma(oQry:codigo);
+            PROMPT "Descuentos" TOP WHEN(oQry:RecCount()>0 .and. "M"$cPermisos)
          // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;
             TOOLTIP "Cerrar Ventana" ;
@@ -149,6 +154,105 @@ RETURN nil
 
 *************************************
 ** Cerrar el archivo abierto
+*************************************************
+** Validacion de la tabla de descuentos por forma de pago (crea si no existe)
+STATIC FUNCTION ValidarForpagDesc()
+IF !oApp:oServer:TableExist('ge_'+oApp:cId+"forpag_desc")
+   oApp:oServer:Execute("CREATE TABLE ge_"+oApp:cId+"forpag_desc ( "+;
+  "`id` INT(8) AUTO_INCREMENT,"+;
+  "`codfor` INT NOT NULL,"+;
+  "`desde_importe` DECIMAL(12,2) DEFAULT 0,"+;
+  "`hasta_importe` DECIMAL(12,2) DEFAULT 0,"+;
+  "`porcentaje` DECIMAL(5,2) DEFAULT 0,"+;
+  "PRIMARY KEY (`id`),"+;
+  "KEY `codfor` (`codfor`)"+;
+") ENGINE=INNODB DEFAULT CHARSET=utf8")
+ENDIF
+RETURN nil
+
+*************************************************
+** ABM de rangos de descuento por importe para una forma de pago
+STATIC FUNCTION DescuentosForma(nCodFor)
+LOCAL oDlg1, acor:= ARRAY(4), mrta:=.F., oBot1, oBot2, oBrwTmp, cNomFor,;
+      oQryR := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"forpag_desc WHERE codfor = "+ClipValue2Sql(nCodFor)+" ORDER BY desde_importe")
+cNomFor := oApp:oServer:Query("SELECT nombre FROM ge_"+oApp:cId+"forpag WHERE codigo = "+ClipValue2Sql(nCodFor)):nombre
+DO WHILE .T.
+DEFINE DIALOG oDlg1 TITLE "Descuentos por importe - "+ALLTRIM(cNomFor) FROM 03,15 TO 23,72
+   acor := AcepCanc(oDlg1)
+   @ 05, 05 SAY "Al cobrar con esta forma de pago, si el TOTAL de la venta cae en el rango, se agrega el % como descuento." OF oDlg1 PIXEL SIZE 190,40
+   @ 20, 05 XBROWSE oBrwTmp SIZE 180,80 PIXEL OF oDlg1 DATASOURCE oQryR ;
+      HEADERS "Desde importe", "Hasta importe", "% Descuento";
+      COLUMNS "desde_importe","hasta_importe","porcentaje";
+      SIZES 110,110,80;
+      CELL LINES NOBORDER
+   WITH OBJECT oBrwTmp
+      :bKeyDown := { |nKey| IF (nKey == VK_DELETE,oBrwTmp:Delete(),)}
+      :CreateFromCode()
+   END
+   PintaBrw(oBrwTmp,0)
+   @ acor[3], acor[2] BUTTON oBot1 PROMPT "&Agregar" OF oDlg1 SIZE 30,10 ;
+           ACTION (NuevoRango(oQryR,oBrwTmp,oDlg1,nCodFor)) PIXEL
+   @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Salir" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .f.), oDlg1:End() ) PIXEL
+ACTIVATE DIALOG oDlg1 CENTER
+IF !mrta
+   RETURN nil
+ENDIF
+ENDDO
+RETURN nil
+
+*************************************************
+** Alta de un rango de descuento (con validacion de no-solapamiento)
+STATIC FUNCTION NuevoRango(oQryR,oBrwTmp,oWnd,nCodFor)
+LOCAL oGet := ARRAY(3), oDlg1, oBot := ARRAY(2), aCor, base, lRta := .f., oError
+base := oQryR:GetBlankRow()
+base:codfor := nCodFor
+base:desde_importe := 0
+base:hasta_importe := 0
+base:porcentaje := 0
+DO WHILE .T.
+DEFINE DIALOG oDlg1 TITLE "Nuevo rango de descuento" FROM 03,15 TO 14,55 OF oWnd
+   acor := AcepCanc(oDlg1)
+   @ 07, 05 SAY "Desde importe:" OF oDlg1 PIXEL SIZE 65,12 RIGHT
+   @ 22, 05 SAY "Hasta importe:" OF oDlg1 PIXEL SIZE 65,12 RIGHT
+   @ 37, 05 SAY "% Descuento:"   OF oDlg1 PIXEL SIZE 65,12 RIGHT
+   @ 05, 80 GET oGet[1] VAR base:desde_importe PICTURE "999999999.99" OF oDlg1 PIXEL SIZE 55,12 RIGHT
+   @ 20, 80 GET oGet[2] VAR base:hasta_importe PICTURE "999999999.99" OF oDlg1 PIXEL SIZE 55,12 RIGHT
+   @ 35, 80 GET oGet[3] VAR base:porcentaje    PICTURE "999.99" OF oDlg1 PIXEL SIZE 35,12 RIGHT
+   @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Grabar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((lRta := .t.), oDlg1:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((lRta := .f.), oDlg1:End() ) PIXEL CANCEL
+ACTIVATE DIALOG oDlg1 CENTER
+IF !lRta
+   RETURN nil
+ENDIF
+IF base:hasta_importe <= base:desde_importe .or. base:porcentaje <= 0
+   MsgStop("El importe Hasta debe ser mayor al Desde, y el porcentaje mayor a cero","Error")
+   LOOP
+ENDIF
+IF oApp:oServer:Query("SELECT id FROM ge_"+oApp:cId+"forpag_desc WHERE codfor = "+ClipValue2Sql(nCodFor)+;
+        " AND desde_importe <= "+ClipValue2Sql(base:hasta_importe)+;
+        " AND hasta_importe >= "+ClipValue2Sql(base:desde_importe)):nRecCount > 0
+   MsgStop("El rango se solapa con otro ya existente para esta forma de pago","Error")
+   LOOP
+ENDIF
+oQryR:GetBlankRow()
+oQryR:oRow := base
+TRY
+  oApp:oServer:BeginTransaction()
+  oQryR:Save()
+  oApp:oServer:CommitTransaction()
+  oQryR:Refresh()
+  oBrwTmp:Refresh()
+CATCH oError
+    ValidaError(oError)
+  LOOP
+END TRY
+EXIT
+ENDDO
+RETURN nil
+
 STATIC FUNCTION cerrar (  )
 LOCAL aNueva := {}, i, j
 oQry:End()

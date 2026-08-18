@@ -57,7 +57,11 @@ oQry2 := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"cuentas ORDER BY codig
          DEFINE BUTTON RESOURCE "DEPA" OF oBar ;
             TOOLTIP "Tipos de deposito / Retiro"  ;
             ACTION (oWnd1:End( ),TDep(cPermisos));
-            PROMPT "T.Dep-Ret" TOP    
+            PROMPT "T.Dep-Ret" TOP   
+         DEFINE BUTTON RESOURCE "BACKU" OF oBar ;
+            TOOLTIP "Importar Movimientos"  ;
+            ACTION Importar();
+            PROMPT "Importar" TOP WHEN("A"$cPermisos)     
         // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;
             TOOLTIP "Cerrar Ventana" ;
@@ -358,4 +362,98 @@ cWhere = " fecemi >=" + ClipValue2SQL(vdesde) +;
       + "  and " + IF(nCuenta = 0," TRUE ", " banco =  " +ClipValue2Sql(nCuenta))
 oQryBrw:SetNewFilter(SET_WHERE,cWhere,.t.)
 oBrw:Refresh()
+RETURN nil
+
+*****************************************************************
+** Importar Movimientos bancarios
+STATIC FUNCTION Importar()
+LOCAL oDlg1, acor:= ARRAY(4), mrta:=.F., oBot1, oBot2, oBrwTmp,;
+      aCols := {{0,SPACE(1),CTOD('  /  /    '),CTOD('  /  /    '),0,0,SPACE(70),0.00}},;
+      i, cError, cSql, nDePro := 1, oChe, oChe1, lSinIva := .t.
+DO WHILE .T.       
+DEFINE DIALOG oDlg1 TITLE "Importar Articulos" FROM 03,15 TO 35,140
+   acor := AcepCanc(oDlg1)    
+   @ 20, 05 XBROWSE oBrwTmp SIZE 465,155 pixel OF oDlg1 ARRAY aCols ;
+      HEADERS "Banco", "Tipo","F.Emision","F.Acredit.","Cod.","Nro.Oper.","Detalle","Importe";
+      COLUMNS 1, 2 ,3, 4, 5,6,7,8;
+      SIZES 60,60,90,90,50,100,200,90;
+      CELL LINES NOBORDER FASTEDIT
+   WITH OBJECT oBrwTmp
+      :nEditTypes := 1  
+      :bKeyDown := { |nKey| IF (nKey == VK_DELETE,oBrwTmp:Delete(),)}    
+      :CreateFromCode()
+   END     
+   @ 205,05 SAY "Use el boton PEGAR para incluir los datos o edite manualmente los campos. "+;
+                "Tenga en cuenta que el si importa dos veces la misma información se duplicará." ;
+                SIZE 465,60 OF oDlg1 PIXEL 
+   PintaBrw(oBrwTmp,0)
+   @ 02, 02 BUTTON oBot1 PROMPT "&Pegar" OF oDlg1 SIZE 30,10 ;
+           ACTION (Procesando(.t.),oBrwTmp:Paste(),Procesando(.f.)) PIXEL   
+   @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Importar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
+           ACTION ((mrta := .f.), oDlg1:End() ) PIXEL
+ACTIVATE DIALOG oDlg1 CENTER 
+IF !mrta 
+   RETURN nil 
+ENDIF 
+** Validaciones
+cError := {}
+FOR i := 1 TO LEN(aCols)
+    IF aCols[i,1] = 0
+       AADD(cError,"Columna 1 en posicion " + STR(i,6) + " no puede estar en cero ")
+    ENDIF
+    IF EMPTY(aCols[i,2]) .or. !aCols[i,2]$"DR"
+       AADD(cError,"Columna 2 en posicion " + STR(i,6) + " debe ser D o R ")
+    ENDIF
+    IF aCols[i,8] = 0
+       AADD(cError,"Columna 8 en posicion " + STR(i,6) + " no puede estar en cero ")
+    ENDIF        
+NEXT
+IF !EMPTY(cError)
+   DEFINE DIALOG oDlg1 TITLE "Errores" FROM 03,15 TO 35,120
+   acor := AcepCanc(oDlg1)    
+   @ 20, 05 XBROWSE oBrwTmp SIZE 365,180 pixel OF oDlg1 ARRAY cError ;
+      HEADERS "Error";
+      COLUMNS 1;
+      SIZES 1000;
+      CELL LINES NOBORDER FASTEDIT
+   WITH OBJECT oBrwTmp
+      :nEditTypes := 1      
+      :CreateFromCode()
+   END  
+   PintaBrw(oBrwTmp,0)   
+   @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Volver" OF oDlg1 SIZE 30,10 ;
+           ACTION oDlg1:End()  PIXEL   
+   ACTIVATE DIALOG oDlg1 CENTER 
+   LOOP
+ENDIF
+EXIT
+ENDDO
+cSql := "INSERT INTO ge_"+oApp:cId+"deposito "+;
+        " (banco,tipo,fecemi,fecacr,codtip,numope,detalle,importe,usuario,fecmod)"+;
+        " VALUES "
+FOR i := 1 TO LEN(aCols)
+    cSql := cSql + "("+ClipValue2SQL(aCols[i,1]) + "," + ;
+                       ClipValue2SQL(aCols[i,2]) + "," + ;
+                       ClipValue2SQL(aCols[i,3]) + "," + ;
+                       ClipValue2SQL(aCols[i,4]) + "," + ;
+                       ClipValue2SQL(aCols[i,5]) + "," + ;
+                       ClipValue2SQL(aCols[i,6]) + "," + ;
+                       ClipValue2SQL(aCols[i,7]) + "," + ;
+                       ClipValue2SQL(aCols[i,8]) + "," + ;
+                       "'Importador'," + ;
+                       ClipValue2SQL(date()) +"), "
+NEXT i
+cSql := LEFT(cSql,LEN(cSql)-2)
+TRY
+  oApp:oServer:BeginTransaction()
+  oApp:oServer:Execute(cSql)
+  oApp:oServer:CommitTransaction()
+  oQryBrw:Refresh(.f.)
+CATCH cError
+  MsgStop("Error al Importar"+CHR(10)+cError:description,"Error")
+  oApp:oServer:RollBack()
+  RETURN nil
+END TRY    
 RETURN nil

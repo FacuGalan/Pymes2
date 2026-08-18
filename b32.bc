@@ -2,20 +2,20 @@ c0w32.obj +
 BCN.obj  + 
 prueba2.obj + 
 listadostab.obj procesosper.obj + 
-modsto.obj pregen.obj fcaja.obj rcaja.obj chepro.obj cheter.obj depret.obj tipdep.obj modrem.obj abmgar.obj + 
+modsto.obj pregen.obj prepos.obj fcaja.obj rcaja.obj chepro.obj cheter.obj depret.obj tipdep.obj modrem.obj abmgar.obj + 
 abmpro.obj abmmar.obj abmrub.obj abmven.obj abmban.obj abmctas.obj abmcom.obj abmpcon.obj abmcondven.obj + 
 abmiva.obj abmrep.obj abmdat.obj abmdat1.obj abmcli.obj abmcli1.obj abmart.obj abmdes.obj abmrep.obj + 
 abmemp.obj abmdep.obj abmret.obj abmfor.obj abmaut.obj bcaja.obj cambiopre.obj combus.obj + 
-ordenes.obj canpag.obj pedprov.obj consulta.obj pedidos.obj abmfgs.obj buscapre.obj lispre.obj promos.obj service.obj + 
+ordenes.obj canpag.obj canpagfp.obj pedprov.obj consulta.obj pedidos.obj abmfgs.obj buscapre.obj lispre.obj promos.obj promogrupo.obj service.obj + 
 calinfo.obj tcalex.obj agenda.obj tmonthv.obj + 
 liscaja.obj cietur.obj vales.obj audita.obj + 
 descu.obj carcre.obj cardeu.obj fe.obj venrei.obj asigna.obj + 
 prelis.obj lisarti.obj lisven.obj liscom.obj lisfac.obj lisdeu.obj grafica.obj + 
-compras.obj lische.obj ventas.obj rendi.obj gastos.obj citicomp.obj remitar.obj fact_multi.obj notacre.obj centro_facturacion.obj franqui.obj + 
+compras.obj lische.obj ventas.obj rendi.obj gastos.obj citicomp.obj remitar.obj fact_multi.obj ventas_lote.obj notacre.obj centro_facturacion.obj franqui.obj + 
 etique.obj ordpag.obj cobran.obj facrem.obj FACT.obj transf.obj + 
 ABMEMPLE.OBJ ABMCATEMP.OBJ ABMHORAS.OBJ ABMINAS.OBJ ABMSECTOR.OBJ LISHORAS.OBJ NOVINDIV.OBJ PAGEMPLE.OBJ CONSUMOINT.OBJ adelsuel.obj + 
 xbrowse.obj busqueda.obj utiles.obj usua.obj demo.obj enviomail.obj report.obj rpreview.obj prv2pdf.obj + 
-conectar.obj descarga.obj arca2.obj transmitir.obj , + 
+conectar.obj descarga.obj arca2.obj arca_padron.obj transmitir.obj , + 
 BCN.exe, + 
 BCN.map, + 
 H71532BC.LIB C:\FWH11\lib\dolphin.lib + 

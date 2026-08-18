@@ -130,7 +130,7 @@ IF oQryAuxi:reccount() = 0
            @ 37, 05 SAY "Caja:"         OF oForm PIXEL SIZE 35,20 RIGHT
           
            @ 05, 50 GET oGet[1] VAR base:fecha   PICTURE "@D"  OF oForm PIXEL CENTER 
-           @ 20, 50 GET oGet[2] VAR base:importe PICTURE "99999999.99"    OF oForm PIXEL RIGHT;
+           @ 20, 50 GET oGet[2] VAR base:importe PICTURE "999999999.99"    OF oForm PIXEL RIGHT;
                         VALID(base:importe>0)
            @ 35, 50 GET oGet[3] VAR base:caja    PICTURE "999" OF oForm PIXEL RIGHT WHEN(lSuper);
                         VALID(base:caja>0)
@@ -926,7 +926,7 @@ return .T.
 
 **********************************************************
 ** Consulta cuit
-FUNCTION ConsultaCuitRapida(nCuit,nCondi)
+FUNCTION xConsultaCuitRapida2(nCuit,nCondi)
 LOCAL Contribuyente, lwsPadron, oError, lRta, oFont, aRespuesta := hash()  ,;
       atipoiva  := {;
 "1 IVA Responsable Inscripto",;
@@ -1053,6 +1053,97 @@ CATCH oError
   RETURN .t.
 END TRY
 return .T.
+
+
+**********************************************************
+** Consulta cuit
+FUNCTION ConsultaCuit1(nCuit,oGet,aRef,lCambiar)
+LOCAL Contribuyente, lwsPadron, oError, lRta, aRespuesta := hash()  
+ IF nCuit = 0 
+    RETURN .t.
+ ENDIF    
+ aRespuesta := PadronConsultaCUIT(STR(nCuit,11))   
+   
+    IF aRespuesta[1] //Respuesta Ok
+        oGet[aRef[1]]:cText :=  ALLTRIM(aRespuesta[2]["nombre"])
+        oGet[aRef[2]]:cText := ALLTRIM(aRespuesta[2]["direccion"])
+        oGet[aRef[3]]:cText := ALLTRIM(aRespuesta[2]["localidad"])+" "+ALLTRIM(aRespuesta[2]["provincia"])
+        oGet[aRef[4]]:cText := SUBSTR(str(nCuit,11),1,2)+"-"+SUBSTR(str(nCuit,11),3,8)+"-"+RIGHT(str(nCuit,11),1)
+        IF aRespuesta[2]["codigoIva"] > 0
+           oGet[aRef[5]]:Set(aRespuesta[2]["codigoIva"])
+           ELSE
+           oGet[aRef[5]]:Set(5)
+        ENDIF   
+        IF UPPER(ALLTRIM(aRespuesta[2]["estadoClave"])) <> 'ACTIVO'
+           MsgInfo("Esta CUIT esta "+aRespuesta[2]["estadoClave"],"Atencion")
+        ENDIF   
+    ELSE
+        MsgStop(aRespuesta[3],"Atencion")
+    ENDIF
+    lCambiar:= .f.
+return .T.
+
+
+**********************************************************
+** Consulta cuit
+FUNCTION ConsultaCuitRapida(nCuit,nCondi)
+LOCAL Contribuyente, lwsPadron, oError, lRta, oFont, aRespuesta := hash()  ,;
+      atipoiva  := {;
+"1 IVA Responsable Inscripto",;
+"2 IVA Responsable no Inscripto",;
+"3 IVA no Responsable",;
+"4 IVA Sujeto Exento",;
+"5 Consumidor Final",;
+"6 Responsable Monotributo",;
+"7 Sujeto no Categorizado",;
+"8 Proveedor del Exterior",;
+"9 Cliente del Exterior",;
+"10  IVA Liberado – Ley Nº 19.640",;
+"11  IVA Responsable Inscripto – Agente de Percepción",;
+"12  Pequeño Contribuyente Eventual",;
+"13  Monotributista Social",;
+"14  Pequeño Contribuyente Eventual Social",;
+"15  IVA NO Alcanzado"}  
+IF nCuit = 0
+   RETURN .t.
+ENDIF   
+
+
+TRY 
+    aRespuesta := PadronConsultaCUIT(STR(nCuit,11))           
+    IF aRespuesta[1]
+        IF aRespuesta[2]["codigoIva"] <> nCondi
+           MsgStop("La condicion frente al IVA no coincide"+CHR(10)+;
+                   "Condicion en AFIP:"+atipoiva[aRespuesta[2]["codigoIva"]]+CHR(10)+;
+                   "Condicion en Sistema:"+atipoiva[nCondi]+CHR(10);
+                   ,"Atencion")   
+           lRta := MsgNoYes("La CUIT  a la que quiere facturar"+chr(10)+;
+                            "presenta insconsistencias en los padrones de AFIP"+chr(10)+;
+                            "Desea factura igual BAJO SU ABSOLUTA RESPONSABILIDAD???","ATENCION!!!")
+           ELSE 
+           lRta := .t.
+        ENDIF   
+        IF UPPER(ALLTRIM(aRespuesta[2]["estadoClave"])) <> 'ACTIVO'
+           MsgStop("Esta CUIT esta "+aRespuesta[2]["estadoClave"],"Atencion")
+           lRta := MsgNoYes("La CUIT  a la que quiere facturar"+chr(10)+;
+                            "presenta insconsistencias en los padrones de AFIP"+chr(10)+;
+                            "Desea factura igual BAJO SU ABSOLUTA RESPONSABILIDAD???","ATENCION!!!")
+
+        ENDIF   
+    ELSE
+        MsgStop("No Existe esa CUIT en los padrones de AFIP","Atencion")
+        lRta := MsgNoYes("La CUIT  a la que quiere facturar"+chr(10)+;
+                         "presenta insconsistencias en los padrones de AFIP"+chr(10)+;
+                         "Desea factura igual BAJO SU ABSOLUTA RESPONSABILIDAD???","ATENCION!!!")
+
+    ENDIF
+CATCH oError
+    MsgInfo(oError:description) 
+    lRta := MsgNoYes("La CUIT  a la que quiere facturar"+chr(10)+;
+                         "no pudo ser verificado en los padrones de AFIP"+chr(10)+;
+                         "Desea factura igual BAJO SU ABSOLUTA RESPONSABILIDAD???","ATENCION!!!")
+END CATCH
+return lRta
 
 ****************************************************
 ** Mostrar error con Get 

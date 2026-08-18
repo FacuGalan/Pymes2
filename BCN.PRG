@@ -21,7 +21,7 @@ MEMVAR oApp, nCliente
 FUNCTION Main()
 LOCAL  oBar,oBar2, oQryParmatros, i, oMetro,oFontBarra, oTimer1, hWnd, lRunning := .f.
     IF IsExeRunning("BCN.EXE")
-       //MsgStop("La Aplicación ya esta en uso en esta PC","Error")
+       //MsgStop("La Aplicaciï¿½n ya esta en uso en esta PC","Error")
        lRunning := .t.
        //QUIT              
     ENDIF 
@@ -30,13 +30,13 @@ LOCAL  oBar,oBar2, oQryParmatros, i, oMetro,oFontBarra, oTimer1, hWnd, lRunning 
     oApp := TApplication():New()
     oApp:oServer := Conectar()
     IF lRunning
-       hWnd := FindWindow( NIL, "Sistema de Gestion BCN - "+ALLTRIM(oApp:oServer:Query("SELECT nomb_emp FROM ge_"+oApp:cId+"parametros"):nomb_emp)) // Usa el mismo título
+       hWnd := FindWindow( NIL, "Sistema de Gestion BCN - "+ALLTRIM(oApp:oServer:Query("SELECT nomb_emp FROM ge_"+oApp:cId+"parametros"):nomb_emp)) // Usa el mismo tï¿½tulo
        IF hWnd = 0
           hWnd := FindWindow( NIL,"Acceso al Sistema")
        ENDIF
        IF hWnd != 0          
-          IF MsgYesNo( "Windows no cerró correctamente el sistema."+chr(10)+;
-                      " ¿Desea volver a ingresar?","Atención!" )
+          IF MsgYesNo( "Windows no cerrÃ³ correctamente el sistema."+chr(10)+;
+                      " Â¿Desea volver a ingresar?","AtenciÃ³n!" )
              PostMessage( hWnd, WM_CLOSE, 0, 0 )
              // Esperar a que se cierre antes de continuar
              SysWait(2)
@@ -95,10 +95,10 @@ LOCAL  oBar,oBar2, oQryParmatros, i, oMetro,oFontBarra, oTimer1, hWnd, lRunning 
                            "IP: "+oApp:cIP+ CHR(10) + ;
                            IF(oApp:sonarpedidos,"Alertas de pedidos nuevos"+CHR(10),"")+;
                            "Nombre del equipo: "+oApp:cNombreEquipo,"Punto de venta")  
-    DEFINE MSGITEM  oApp:oMsg[3] OF oApp:oWnd:oMsgBar PROMPT "Número de cliente: "+ALLTRIM(STR(VAL(oApp:cId)));
+    DEFINE MSGITEM  oApp:oMsg[3] OF oApp:oWnd:oMsgBar PROMPT "NÃºmero de cliente: "+ALLTRIM(STR(VAL(oApp:cId)));
            SIZE 150 
     DEFINE MSGITEM  oApp:oMsg[4] OF oApp:oWnd:oMsgBar PROMPT ;
-                             "ATENCIÓN AL CLIENTE" FONT oFontBarra COLOR rgb(253,154,20);
+                             "ATENCIÃ“N AL CLIENTE" FONT oFontBarra COLOR rgb(253,154,20);
           ACTION(VentanaAtencion());
            SIZE 300
     DEFINE MSGITEM  oApp:oMsg[5] OF oApp:oWnd:oMsgBar PROMPT " " FONT oFontBarra COLOR rgb(253,154,20);
@@ -110,7 +110,8 @@ LOCAL  oBar,oBar2, oQryParmatros, i, oMetro,oFontBarra, oTimer1, hWnd, lRunning 
     oApp:oWnd:bPainted = { | hDC | BmpTiled( hDC, oApp:oWnd , oApp:oBmp ) }
     oApp:oWnd:bResized = { | hDC | BmpTiled( hDC, oApp:oWnd , oApp:oBmp ) }    
     Procesando(.f.)
-    //ConsultaVencimiento(,.t.)
+    ChequeaVtoCertArca()
+    CargarLogoWeb( oApp:oBmp, "https://app.bcnsoft.com.ar/img/fondo_pymes.jpg" )
     ACTIVATE WINDOW oApp:oWnd MAXIMIZED   ;
     ON INIT (IF(oApp:sonarpedidos,oTimer1:Activate(),nil), ;
              oApp:oTimer:Activate(),;
@@ -123,7 +124,7 @@ LOCAL  oBar,oBar2, oQryParmatros, i, oMetro,oFontBarra, oTimer1, hWnd, lRunning 
 RETURN NIL
 
 // --------------------------------------------------------------------//
-// ------------- Funcion men£ de la pantalla principal ----------------//
+// ------------- Funcion menÃº de la pantalla principal ----------------//
 // --------------------------------------------------------------------//
 STATIC FUNCTION HazMenu()
 LOCAL i, oMenu, j, oMenuItem, nivel, nivel1, ult, oQry
@@ -143,7 +144,7 @@ GeneraQRAtencion()
 DEFINE FONT oFont NAME "CALIBRI" SIZE 0,-13.5 BOLD
 DEFINE FONT oFontGrande NAME "CALIBRI" SIZE 15,30 BOLD
 DEFINE FONT oFontGrande2 NAME "CALIBRI" SIZE 15,30 BOLD
-DEFINE DIALOG oDlg RESOURCE "ATENCION" OF oApp:oWnd TITLE "Panel de atención al cliente" FONT oFont
+DEFINE DIALOG oDlg RESOURCE "ATENCION" OF oApp:oWnd TITLE "Panel de atenciÃ³n al cliente" FONT oFont
   oDlg:lHelpIcon := .f.
 
   REDEFINE SAY oSay  ID 101 OF oDlg  
@@ -200,7 +201,7 @@ LOCAL oQryParmetros, oSer, aPlacas, i, lExiste := .f., nPV := 1, oQryPun, oIni
             QUIT
          ENDIF
          IF nPV = 0
-            MsgStop("No dejes 0, elegí una caja papastrela","Atencion!")
+            MsgStop("No dejes 0, elegÃ­ una caja papastrela","Atencion!")
             LOOP
          ENDIF
       EXIT
@@ -233,7 +234,7 @@ LOCAL oQryParmetros, oSer, aPlacas, i, lExiste := .f., nPV := 1, oQryPun, oIni
        i := oIni:Get('terminal', 'caja') 
        MsgGet1("Error al ingresar","La terminal no esta registrada para acceder al sistema "+CHR(10)+;
             "Contacte al proveedor"+CHR(10)+"Cliente:"+oApp:cId+" Terminal:"+i+chr(10)+;
-            "Copie y pegue este codigo y envíelo al Soperte Técnico de BCN Soft",@oApp:cIp)
+            "Copie y pegue este codigo y envÃ­elo al Soperte TÃ©cnico de BCN Soft",@oApp:cIp)
        oApp:oServer:End()
        QUIT
     ENDIF
@@ -394,7 +395,7 @@ IF !lExiste
    i := oIni:Get('terminal', 'caja') 
    MsgGet1("Error al ingresar","La terminal no esta registrada para acceder al sistema "+CHR(10)+;
         "Contacte al proveedor"+CHR(10)+"Cliente:"+oApp:cId+" Terminal:"+i+chr(10)+;
-        "Copie y pegue este código y envíelo al Soporte Técnico de BCN Soft",@cIp)
+        "Copie y pegue este cÃ³digo y envÃ­elo al Soporte TÃ©cnico de BCN Soft",@cIp)
    oApp:oServer:End()
    QUIT
 ENDIF
@@ -582,6 +583,52 @@ STATIC FUNCTION BmpTiled( hDC, oWnd, oBmp )
    PalBmpDraw( hDC, nRow, nCol, oBmp:hBitmap )
 return nil
 
+*********************************************************************
+** Descarga el logo desde una URL publica y lo carga en oBmp.
+** Si falla (sin internet / URL caida) deja intacto el LOGO.BMP local.
+*********************************************************************
+DLL FUNCTION URLDownloadToFile( pCaller AS LONG, cURL AS LPSTR, cFile AS LPSTR, ;
+              nReserved AS LONG, pCB AS LONG ) AS LONG ;
+              PASCAL FROM "URLDownloadToFileA" LIB "urlmon.dll"
+
+DLL FUNCTION DeleteUrlCacheEntry( cURL AS LPSTR ) AS LONG ;
+              PASCAL FROM "DeleteUrlCacheEntryA" LIB "wininet.dll"
+
+STATIC FUNCTION CargarLogoWeb( oBmp, cUrl )
+   LOCAL cTmp := GetEnv( "TEMP" ) + "\bcn_logo_web.img"
+   LOCAL hBmp
+
+   IF Empty( oBmp ) .OR. Empty( cUrl )
+      RETURN .F.
+   ENDIF
+
+   // Fuerza relectura: descarta la copia cacheada por WinINet antes de bajar
+   DeleteUrlCacheEntry( cUrl )
+
+   // 0 = S_OK ; baja la imagen a un archivo temporal
+   IF URLDownloadToFile( 0, cUrl, cTmp, 0, 0 ) != 0 .OR. ! File( cTmp )
+      RETURN .F.
+   ENDIF
+
+   // GDI+ lee JPG/PNG y, con 2do par .T., devuelve un HBITMAP GDI clasico
+   hBmp := GDIP_ImageFromFile( cTmp, .T. )
+   FErase( cTmp )
+
+   IF Empty( hBmp )
+      RETURN .F.
+   ENDIF
+
+   IF ! Empty( oBmp:hBitmap )
+      PalBmpFree( oBmp:hBitmap, oBmp:hPalette )
+   ENDIF
+   oBmp:hBitmap  := hBmp
+   oBmp:hPalette := 0
+   PalBmpNew( oApp:oWnd:hWnd, oBmp:hBitmap, NIL )
+
+RETURN .T.
+
+
+
 
 *********************************************************************
 **ACERCA 
@@ -722,8 +769,8 @@ RETURN nil
    DATA   oMsg       // Barra de mensajes de la ventana principal
    DATA   aProce     // Arreglo que tiene los procedimientos a ejecutar x el menu
    DATA   aVentanas  // Arreglo que contiene las ventanas activas
-   DATA   tamlet     // Tamaño de letra para recibos
-   DATA   interlinea // Tamaño de interlineado para recibos
+   DATA   tamlet     // TamaÃ±o de letra para recibos
+   DATA   interlinea // TamaÃ±o de interlineado para recibos
    DATA   oBmp
    DATA   oTimer     // Timer para pinguear
    DATA   cNombreEquipo  // Nombre de la PC
@@ -936,7 +983,7 @@ RETURN nil
 
 STATIC FUNCTION Cartel()
 LOCAL oDlg, oBot
-DEFINE DIALOG oDlg TITLE "¡ATENCIÓN!" OF oApp:oWnd FROM 05,05 TO 10,45
+DEFINE DIALOG oDlg TITLE "Â¡ATENCIÃ“N!" OF oApp:oWnd FROM 05,05 TO 10,45
  oDlg:lHelpIcon := .f.
  @ 05,05 SAY "El usuario logeado no tiene el acceso permitido a este modulo" PIXEL 
  @ 20,60 BUTTON oBot PROMPT "OK" ACTION (oDlg:End()) PIXEL SIZE 30,12

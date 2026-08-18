@@ -225,7 +225,7 @@ oQryConf:=oApp:oServer:Query("SELECT *  FROM ge_"+oApp:cId+"config")
 base:= oQryConf:GetRowObj()
 
 DO WHILE .T.
-DEFINE DIALOG oDlg2 TITLE "Configurar factura" FROM 05,15 TO 17,63 FONT oFont
+DEFINE DIALOG oDlg2 TITLE "Configurar factura" FROM 05,15 TO 19,63 FONT oFont
    acor := AcepCanc(oDlg2)
  /*  @ 07,05 SAY "Tipo de formulario:" OF  oDlg2 PIXEL SIZE 70,12 RIGHT
    @ 22,05 SAY "Numero de factura :" OF  oDlg2 PIXEL SIZE 70,12 RIGHT
@@ -241,8 +241,9 @@ DEFINE DIALOG oDlg2 TITLE "Configurar factura" FROM 05,15 TO 17,63 FONT oFont
    @172,05 SAY "Importe descuento:"  OF  oDlg2 PIXEL SIZE 70,12 RIGHT
    @187,05 SAY "Comienzo articulos:" OF  oDlg2 PIXEL SIZE 70,12 RIGHT */
    @ 07,05 SAY "Tamaño Letra      :" OF  oDlg2 PIXEL SIZE 70,12 RIGHT
-   @ 22,05 SAY "Logo en facturas  :" OF  oDlg2 PIXEL SIZE 70,12 RIGHT
-   @ 37,05 SAY "El logotipo debe guardarse en el archivo LOGO.JPG y debe tener 8 cm "+;
+   @ 22,05 SAY "Interlineado A4   :" OF  oDlg2 PIXEL SIZE 70,12 RIGHT
+   @ 37,05 SAY "Logo en facturas  :" OF  oDlg2 PIXEL SIZE 70,12 RIGHT
+   @ 52,05 SAY "El logotipo debe guardarse en el archivo LOGO.JPG y debe tener 8 cm "+;
     " de ancho y 3 de alto (o ser proporcional a esos valores). El fondo de la factura "+;
     " (si Ud. desea poner una marca de agua), debe ser guardado en el archivo FONDOFAC.JPG.";
      OF  oDlg2 PIXEL SIZE 170,36 
@@ -274,7 +275,8 @@ DEFINE DIALOG oDlg2 TITLE "Configurar factura" FROM 05,15 TO 17,63 FONT oFont
    @170,110 GET oGeyc VAR base:yc     PICTURE "9999" OF oDlg2 PIXEL RIGHT
    @185,080 GET oGetd VAR base:desdey PICTURE "9999" OF oDlg2 PIXEL RIGHT */
    @ 05,080 GET oGext VAR base:fon    PICTURE "9999" OF oDlg2 PIXEL RIGHT
-   @ 20,080 COMBOBOX oGetc VAR base:x1 ITEMS aImp OF oDlg2 PIXEL SIZE 80,10
+   @ 20,080 GET oGet1 VAR base:salto    PICTURE "9999" OF oDlg2 PIXEL RIGHT
+   @ 35,080 COMBOBOX oGetc VAR base:x1 ITEMS aImp OF oDlg2 PIXEL SIZE 80,10
 *  @200,120 GET oGeyt VAR myt PICTURE "9999" OF oDlg2 PIXEL RIGHT
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Grabar" OF oDlg2 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg2:End() ) PIXEL

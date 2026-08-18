@@ -57,7 +57,11 @@ ENDIF
          DEFINE BUTTON RESOURCE "IMPR" OF oBar ;
             TOOLTIP "Imprimir Planilla"  ;
             ACTION oBrw:Report("Reporte de Pagos",.T.,.F.);
-            PROMPT "Reporte" TOP 
+            PROMPT "Reporte" TOP
+         DEFINE BUTTON RESOURCE "BAJA" OF oBar ;
+            TOOLTIP "Cambiar Formas de pago de recibos pendientes"  ;
+            ACTION (oWnd1:End(),CambiarPagos(cPermisos));
+            PROMPT "Cambiar FP" TOP    
          // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;
             TOOLTIP "Cerrar Ventana" ;
