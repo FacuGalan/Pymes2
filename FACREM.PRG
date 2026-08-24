@@ -980,9 +980,15 @@ LOCAL cLetra, oGet1 := ARRAY(20), oBot := ARRAY(4), oForm, lRta := .f., oBrw2, o
       cDetTar, cDetChe := SPACE(30), aTablaIva := {}, oTabIva, nNro, cCae,dFecVtoC, cTipoDoc,nCodAut:=0,nCodVen:=0,lCuenta:=.f.,;
       oQryVen, oQryPag, oQryPagCon, oQryPagFac, base, oErr, nRecibo, nTipFor, nSaldo := 0,cTipo:=" ",;
       oQryTar, aTarjetas, oError,oDlg2, nCodPro:=0,nCodBan:=0,cObserva1:=SPACE(255),nNumeroOrd:=0,nNumDep:=0,nOpcion:=1, lFisc,;
-      oQryCondVen:=oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"cond_venta"),oComb:=ARRAY(2),;
+      oQryCondVen:=oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"cond_venta"),oComb:=ARRAY(7),;
       oQryFormaPag:=oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"forpag"), nPunLocal,;
-      nPuntos := 0, nPuntosAcu := 0,cSQL
+      nPuntos := 0, nPuntosAcu := 0,cSQL,;
+      aNomConEfe := {}, aCodConEfe := {}, aNomConTar := {}, aCodConTar := {},;
+      aNomConTra := {}, aCodConTra := {}, aNomConMPa := {}, aCodConMPa := {},;
+      aNomConChe := {}, aCodConChe := {},;
+      nConEfe := 1, nConTar := 1, nConTra := 1, nConMPa := 1, nConChe := 1,;
+      nCodConEfe, cObsConEfe, nCodConTar, cObsConTar, nCodConTra, cObsConTra,;
+      nCodConMPa, cObsConMPa, nCodConChe, cObsConChe
 
 cLetra := IF(nTipoEmp=1 .or. nTipoEmp=2,IF(oGet[13]:nAt = 1 .or. oGet[13]:nAt = 2 .or. oGet[13]:nAt = 6,"A","B"),"C")
 // Validar que el DATOS CLIENTE
@@ -1047,16 +1053,27 @@ DO WHILE !oQryFormaPag:Eof()
    oQryFormaPag:Skip()
 ENDDO
 
+// Conceptos de cobro (forpag) que alimentan el combo de cada casillero
+CargarConceptos(1,@aNomConEfe,@aCodConEfe)   // Efectivo
+CargarConceptos(4,@aNomConTar,@aCodConTar)   // Tarjeta
+CargarConceptos(2,@aNomConTra,@aCodConTra)   // Transferencia
+CargarConceptos(6,@aNomConMPa,@aCodConMPa)   // Mercado Pago
+CargarConceptos(3,@aNomConChe,@aCodConChe)   // Cheques
 DO WHILE .T.
-DEFINE DIALOG oDlg2 RESOURCE "FORMAPAG" OF oDlg
+DEFINE DIALOG oDlg2 RESOURCE "FORMAPAGV" OF oDlg
     oDlg2:lHelpIcon := .f.
     REDEFINE GET oGet1[1] VAR mpagado   ID 110 OF oDlg2 PICTURE "999999999.99" WHEN(.F.)
     REDEFINE GET oGet1[2] VAR manticipo ID 111 OF oDlg2 PICTURE "999999999.99" WHEN(.f.)
     REDEFINE GET oGet1[3] VAR nEfecti   ID 112 OF oDlg2 PICTURE "999999999.99"
+    REDEFINE COMBOBOX oComb[3] VAR nConEfe ITEMS aNomConEfe ID 4010 OF oDlg2
     REDEFINE GET oGet1[4] VAR nTarjet   ID 113 OF oDlg2 PICTURE "999999999.99"
+    REDEFINE COMBOBOX oComb[4] VAR nConTar ITEMS aNomConTar ID 4011 OF oDlg2
     REDEFINE GET oGet1[5] VAR nTransfe  ID 4001 OF oDlg2 PICTURE "999999999.99"
+    REDEFINE COMBOBOX oComb[5] VAR nConTra ITEMS aNomConTra ID 4012 OF oDlg2
     REDEFINE GET oGet1[11] VAR nMPago   ID 4006 OF oDlg2 PICTURE "999999999.99"
+    REDEFINE COMBOBOX oComb[6] VAR nConMPa ITEMS aNomConMPa ID 4013 OF oDlg2
     REDEFINE GET oGet1[7] VAR nCheque   ID 114 OF oDlg2 PICTURE "999999999.99" WHEN(.F.)
+    REDEFINE COMBOBOX oComb[7] VAR nConChe ITEMS aNomConChe ID 4014 OF oDlg2
     REDEFINE GET oGet1[6] VAR nCtaCte   ID 115 OF oDlg2 PICTURE "999999999.99";
                     WHEN((oGet1[6]:cText := mpagado - (manticipo+nEfecti +;
                                       nTarjet + nTransfe + nCheque + nMPago)) = "-9999999")
@@ -1145,9 +1162,22 @@ IF nTransfe > 0
      IF !lCuenta
         LOOP
      ENDIF
-ENDIF  
-EXIT 
+ENDIF
+EXIT
 ENDDO
+// Concepto de cobro elegido en cada combo. Codigo 0 = el cliente no tiene ningun
+// concepto de ese tipo cargado en forpag; en ese caso se graba el valor legado
+// para no cambiar el comportamiento actual.
+nCodConEfe := IF(aCodConEfe[nConEfe] = 0, 1, aCodConEfe[nConEfe])
+cObsConEfe := IF(aCodConEfe[nConEfe] = 0, "EFECTIVO", aNomConEfe[nConEfe])
+nCodConTar := IF(aCodConTar[nConTar] = 0, 4, aCodConTar[nConTar])
+cObsConTar := IF(aCodConTar[nConTar] = 0, "TARJETA", aNomConTar[nConTar])
+nCodConTra := IF(aCodConTra[nConTra] = 0, 2, aCodConTra[nConTra])
+cObsConTra := IF(aCodConTra[nConTra] = 0, "TRANSFERENCIA", aNomConTra[nConTra])
+nCodConMPa := IF(aCodConMPa[nConMPa] = 0, 8, aCodConMPa[nConMPa])
+cObsConMPa := IF(aCodConMPa[nConMPa] = 0, "M.PAGO", aNomConMPa[nConMPa])
+nCodConChe := IF(aCodConChe[nConChe] = 0, 3, aCodConChe[nConChe])
+cObsConChe := IF(aCodConChe[nConChe] = 0, "CHEQUE", aNomConChe[nConChe])
 
 nCondVen := aCodCondVen[nCondVen]
 nFormaPag:= aCodFormaPag[nFormaPag]
@@ -1245,15 +1275,15 @@ cTipoDoc := IF(nTipoDoc=1,"FR",IF(nTipoDoc=2,"ND","NC"))
                   base := oQryPagCon:GetBlankRow()
                   base:numero  := nRecibo
                   base:importe := nEfecti * IF(cTipoDoc="NC",-1,1)
-                  base:observa := "EFECTIVO"
-                  base:codcon := 1
+                  base:observa := cObsConEfe
+                  base:codcon := nCodConEfe
                   base:tipocon:= 1
                   oQryPagCon:oRow := base
                   oQryPagCon:Save()
                   oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"concfact (ticomp,letra,numcomp,codcon,tipocon,importe,observa,fecha,caja) "+;
                            "VALUES("+ClipValue2Sql(cTipoDoc)+","+ClipValue2Sql(LEFT(cNumComp,1))+","+;
-                                      ClipValue2Sql(RIGHT(cNumComp,13))+",1,1,"+ClipValue2Sql(nEfecti * IF(cTipoDoc="NC",-1,1))+","+;
-                                      "'EFECTIVO',"+ClipValue2Sql(DATE())+","+ClipValue2Sql(oApp:prefijo)+")")
+                                      ClipValue2Sql(RIGHT(cNumComp,13))+","+ClipValue2Sql(nCodConEfe)+",1,"+ClipValue2Sql(nEfecti * IF(cTipoDoc="NC",-1,1))+","+;
+                                      ClipValue2Sql(cObsConEfe)+","+ClipValue2Sql(DATE())+","+ClipValue2Sql(oApp:prefijo)+")")
           ENDIF   
 
            // INGRESO CONCEPTO TRANSFERENCIA
@@ -1274,59 +1304,59 @@ cTipoDoc := IF(nTipoDoc=1,"FR",IF(nTipoDoc=2,"ND","NC"))
               nNumDep:= oApp:oServer:Query("SELECT MAX(id) AS numero FROM ge_"+oApp:cId+"deposito"):numero 
               oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"pagos SET iddepo = "+ ClipValue2Sql(nNumDep) + " WHERE numero = "+ClipValue2Sql(nRecibo))
               oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"pagcon SET numero  = " + ClipValue2Sql(nRecibo)+","+;
-                                                     "codcon  = 2, "+;
+                                                     "codcon  = "+ClipValue2Sql(nCodConTra)+", "+;
                                                      "tipocon  = 2, "+;
                                                      "importe = "+ ClipValue2Sql(nTransfe)+","+;
-                                                     "observa = 'TRANSFERENCIA'")
+                                                     "observa = "+ClipValue2Sql(cObsConTra))
               oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"concfact (ticomp,letra,numcomp,codcon,tipocon,importe,observa,fecha,caja) "+;
                            "VALUES("+ClipValue2Sql(cTipoDoc)+","+ClipValue2Sql(LEFT(cNumComp,1))+","+;
-                                      ClipValue2Sql(RIGHT(cNumComp,13))+",2,2,"+ClipValue2Sql(nTransfe * IF(cTipoDoc="NC",-1,1))+","+;
-                                      "'TRANSFERENCIA',"+ClipValue2Sql(DATE())+","+ClipValue2Sql(oApp:prefijo)+")")
+                                      ClipValue2Sql(RIGHT(cNumComp,13))+","+ClipValue2Sql(nCodConTra)+",2,"+ClipValue2Sql(nTransfe * IF(cTipoDoc="NC",-1,1))+","+;
+                                      ClipValue2Sql(cObsConTra)+","+ClipValue2Sql(DATE())+","+ClipValue2Sql(oApp:prefijo)+")")
            ENDIF
           
           IF ncheque > 0
              base := oQryPagCon:GetBlankRow()
              base:numero  := nRecibo
              base:importe := nCheque * IF(cTipoDoc="NC",-1,1)
-             base:observa := IF(EMPTY(cDetChe),"CHEQUE: " + STR(nRecibo),cDetChe)
-             base:codcon := 3
+             base:observa := cObsConChe
+             base:codcon := nCodConChe
              base:tipocon := 3
              oQryPagCon:oRow := base
              oQryPagCon:Save()
              oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"concfact (ticomp,letra,numcomp,codcon,tipocon,importe,observa,fecha,caja) "+;
                            "VALUES("+ClipValue2Sql(cTipoDoc)+","+ClipValue2Sql(LEFT(cNumComp,1))+","+;
-                                      ClipValue2Sql(RIGHT(cNumComp,13))+",3,3,"+;
+                                      ClipValue2Sql(RIGHT(cNumComp,13))+","+ClipValue2Sql(nCodConChe)+",3,"+;
                                       ClipValue2Sql(nCheque * IF(cTipoDoc="NC",-1,1))+","+;
-                                      ClipValue2Sql(IF(EMPTY(cDetChe),"CHEQUE: " + STR(nRecibo),cDetChe))+","+ClipValue2Sql(DATE())+","+ClipValue2Sql(oApp:prefijo)+")")
+                                      ClipValue2Sql(cObsConChe)+","+ClipValue2Sql(DATE())+","+ClipValue2Sql(oApp:prefijo)+")")
           ENDIF   
 
           IF nTarjet > 0
              base := oQryPagCon:GetBlankRow()
              base:numero  := nRecibo
              base:importe := nTarjet * IF(cTipoDoc="NC",-1,1)
-             base:codcon := 4
+             base:codcon := nCodConTar
              base:tipocon := 4
-             base:observa := IF(EMPTY(cDetTar),"TARJETA: " + STR(nRecibo),cDetTar)
+             base:observa := cObsConTar
              oQryPagCon:oRow := base
              oQryPagCon:Save()
              oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"concfact (ticomp,letra,numcomp,codcon,tipocon,importe,observa,fecha,caja) "+;
                            "VALUES("+ClipValue2Sql(cTipoDoc)+","+ClipValue2Sql(LEFT(cNumComp,1))+","+;
-                                      ClipValue2Sql(RIGHT(cNumComp,13))+",4,4,"+ClipValue2Sql(nTarjet * IF(cTipoDoc="NC",-1,1))+","+;
-                                      "'TARJETA',"+ClipValue2Sql(DATE())+","+ClipValue2Sql(oApp:prefijo)+")")
+                                      ClipValue2Sql(RIGHT(cNumComp,13))+","+ClipValue2Sql(nCodConTar)+",4,"+ClipValue2Sql(nTarjet * IF(cTipoDoc="NC",-1,1))+","+;
+                                      ClipValue2Sql(cObsConTar)+","+ClipValue2Sql(DATE())+","+ClipValue2Sql(oApp:prefijo)+")")
           ENDIF  
           IF nMPago > 0
              base := oQryPagCon:GetBlankRow()
              base:numero  := nRecibo
              base:importe := nMPago * IF(cTipoDoc="NC",-1,1)
-             base:codcon := 8
+             base:codcon := nCodConMPa
              base:tipocon := 8
-             base:observa := "MERCADO PAGO: " + STR(nRecibo)
+             base:observa := cObsConMPa
              oQryPagCon:oRow := base
              oQryPagCon:Save()
              oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"concfact (ticomp,letra,numcomp,codcon,tipocon,importe,observa,fecha,caja) "+;
                            "VALUES("+ClipValue2Sql(cTipoDoc)+","+ClipValue2Sql(LEFT(cNumComp,1))+","+;
-                                      ClipValue2Sql(RIGHT(cNumComp,13))+",8,8,"+ClipValue2Sql(nMPago * IF(cTipoDoc="NC",-1,1))+","+;
-                                      "'M.PAGO',"+ClipValue2Sql(DATE())+","+ClipValue2Sql(oApp:prefijo)+")")
+                                      ClipValue2Sql(RIGHT(cNumComp,13))+","+ClipValue2Sql(nCodConMPa)+",8,"+ClipValue2Sql(nMPago * IF(cTipoDoc="NC",-1,1))+","+;
+                                      ClipValue2Sql(cObsConMPa)+","+ClipValue2Sql(DATE())+","+ClipValue2Sql(oApp:prefijo)+")")
           ENDIF   
           IF manticipo > 0
              oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"pagcon SET numero  = " + ClipValue2Sql(nRecibo)+","+;
@@ -1860,4 +1890,27 @@ oGet[21]:cText := oBrw:aCols[8]:nTotal + oGet[38]:value
 oGet[19]:Refresh()
 oGet[20]:Refresh()
 oGet[21]:Refresh()
+RETURN nil
+
+*************************************************
+** Carga los conceptos de cobro (forpag) de un tipo dado para el combo que
+** acompania a cada casillero de importe del formulario de cobro.
+** Si el cliente no tiene ningun concepto cargado de ese tipo devuelve un
+** unico item "(sin concepto)" con codigo 0; el que graba usa entonces el
+** valor legado, para no cambiar el comportamiento de instalaciones viejas.
+STATIC FUNCTION CargarConceptos(nTipo, aNom, aCod)
+LOCAL oQryCon := oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"forpag "+;
+                                    "WHERE tipo = "+ClipValue2Sql(nTipo)+" ORDER BY codigo")
+aNom := {}
+aCod := {}
+oQryCon:GoTop()
+DO WHILE !oQryCon:Eof()
+   AADD(aNom,ALLTRIM(oQryCon:nombre))
+   AADD(aCod,oQryCon:codigo)
+   oQryCon:Skip()
+ENDDO
+IF LEN(aCod) = 0
+   AADD(aNom,"(sin concepto)")
+   AADD(aCod,0)
+ENDIF
 RETURN nil

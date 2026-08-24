@@ -87,7 +87,7 @@ PROCEDURE Clientes(cPermisos)
       REDEFINE XBROWSE oBrw DATASOURCE oQry;
          COLUMNS "codigo","nombre","alias","dni", "CUIT", "Direccion","localidad","Telefono","fecult","nomven",'lispre','nomlis';
          HEADERS "Codigo","Nombre y Apellido","Alias","DNI", "CUIT", "Direccion","Localidad","Telefono","Ultima Compra","Vendedor","Lista Base","Lista Esp.";
-         SIZES 100,290,60,60,90,210,200,120,200,100,200;
+         SIZES 100,290,60,60,90,210,200,120,200,100,200,90;
          ID 111 OF oDlg AUTOSORT ON DBLCLICK IF("M"$cPermisos,(Formu( .f.),oBrw:Refresh()),nil)
      
       REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg

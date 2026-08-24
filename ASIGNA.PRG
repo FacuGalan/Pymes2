@@ -8,7 +8,7 @@
 *************************************************
 MEMVAR oApp
 STATIC oDlg,oBrw,oQry,oGet,cNomCam,nCamionero
-PROCEDURE ASIREPAR()
+PROCEDURE ASIREPAR(cPermisos)
 LOCAL mrta := .f.,nCodCam:=0,nCodBar:=0,oQryCam,oBot:=ARRAY(3),oError, nCartaPorte, oQryAux, dFecha
 oGet:=ARRAY(3)
 cNomCam:=SPACE(50)
@@ -57,6 +57,7 @@ dFecha := oApp:oServer:Query("SELECT CURDATE() AS fecha FROM ge_"+oApp:cId+"repa
 
     REDEFINE BUTTON oBot[1] ID 202 OF oDlg ACTION (oDlg:End(),mrta:=.t.)
     REDEFINE BUTTON oBot[2] ID 203 OF oDlg ACTION (oDlg:End(),mrta:=.f.) CANCEL
+    REDEFINE BUTTON oBot[3] ID 4001 OF oDlg ACTION Desasignar() WHEN("A"$cPermisos)
    ACTIVATE DIALOG oDlg CENTER ON INIT oGet[1]:SetFocus()
    IF !mrta
       RETURN  
@@ -1124,4 +1125,51 @@ config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
       
      ENDPAGE
    ENDPRINT
+RETURN nil
+
+****************************************************
+** Desasignar Factura
+STATIC FUNCTION Desasignar()
+LOCAL oDlg1, oBot1, oBot2, acor:=ARRAY(4), mRta:=.f., oGet, nCodBar := 0, oQryAux
+
+
+  DEFINE DIALOG oDlg1 TITLE "Desasignar Factura de Carta de Porte" OF oDlg FROM 05,15 TO 16,60
+  oDlg1:lHelpIcon:=.f.
+  acor := AcepCanc(oDlg1)
+  @ 05,05 SAY "Factura:" OF oDlg1 PIXEL RIGHT SIZE 55,12
+  @ 07,70 GET oGet VAR nCodBar OF oDlg1 PICTURE "999999999999" VALID nCodBar>0 PIXEL RIGHT
+
+  @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Aceptar" OF oDlg1 SIZE 30,10 ;
+             ACTION ((mrta := .t.), oDlg1:End() ) PIXEL DEFAULT 
+  @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 30,10 ;
+             ACTION ((mrta := .f.), oDlg1:End() ) PIXEL CANCEL
+  ACTIVATE DIALOG oDlg1 CENTER 
+  IF !mRta
+    RETURN nil 
+  ENDIF
+  IF nCodBar = 0
+     RETURN .F.
+  ENDIF
+  oQryAux:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"ventas_encab WHERE codbarra = "+ClipValue2Sql(int(nCodBar*.1))+" LIMIT 1")
+
+  IF oQryAux:RecCount() = 0
+     MsgStop("Factura no encontrada, codigo de barras inexistente","Error")
+     RETURN .T. 
+  ENDIF
+  
+  IF oQryAux:codrep = 0 
+     MsgStop("Factura sin asignar","Error")
+     RETURN .T. 
+  ENDIF            
+  IF oQryAux:codrep > 0 
+     mRta := MsgYesNo("La factura está asignada el dia "+DTOC(oQryAux:fechaasig)+CHR(10)+;
+                       " al reparto Nro: "+STR(oQryAux:codrep,4)+CHR(10)+;
+                       "¿Desea desasignarla?","Atencion!")
+     IF !mRta
+        RETURN .T. 
+     ENDIF
+  ENDIF
+  oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"ventas_encab SET codrep = 0, fechaasig = null "+;
+                        "WHERE codbarra = "+ClipValue2Sql(int(nCodBar*.1))+" LIMIT 1")
+
 RETURN nil
