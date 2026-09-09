@@ -106,7 +106,9 @@ oApp:oServer:Execute("";
     +"`palets` INT(4),";
     +"`baja` TINYINT(1),";
     +"`cantidad` DECIMAL(12,3) NOT NULL default 0,";
-    +"`bultos` INT(6) NOT NULL default 0) ENGINE=INNODB DEFAULT CHARSET=utf8")
+    +"`bultos` INT(6) NOT NULL default 0,";
+    +"`uxbulto` INT(6) NOT NULL default 0,";
+    +"`cantbul` DECIMAL(12,3) NOT NULL default 0) ENGINE=INNODB DEFAULT CHARSET=utf8")
 
 oApp:oServer:Execute("TRUNCATE articulos_temp")
 
@@ -215,25 +217,37 @@ RETURN nil
 ***********************************************************************************************************************************
 ***** ELEGIR ARTICULO
 STATIC FUNCTION EligeArt(oDlg,oGet1)
-LOCAL oGet := ARRAY(4), oBot := ARRAY(3), oForm, lRta := .F., aCor, base, oError, oQry,;
-      cNomArt:=SPACE(50),oQryArt,nCantidad:=1,nCodArt:=0,nPrecio:=0, cCodPro1 := " "
+LOCAL oGet := ARRAY(6), oBot := ARRAY(3), oForm, lRta := .F., aCor, base, oError, oQry,;
+      cNomArt:=SPACE(50),oQryArt,nCantidad:=1,nCodArt:=0,nPrecio:=0, cCodPro1 := " ",;
+      nBultos := 0, cUxBulto := SPACE(25),;
+      nFilaCant := IF(oApp:usar_bultos,50,35), nAltoDlg := IF(oApp:usar_bultos,18,15)
 
-oQryArt:= oApp:oServer:Query("SELECT codigo,nombre,stockact,precossiva,preciocos,iva, siniva,codigopro FROM ge_"+oApp:cId+"articu")
+oQryArt:= oApp:oServer:Query("SELECT codigo,nombre,stockact,precossiva,preciocos,iva, siniva,codigopro,uxbulto FROM ge_"+oApp:cId+"articu")
 
 
 DEFINE DIALOG oForm TITLE "Encargar articulo";
-       FROM 05,15 TO 15,90 OF oDlg FONT oApp:oFont
-   
+       FROM 05,15 TO nAltoDlg,90 OF oDlg FONT oApp:oFont
+
    @ 07, 05 SAY "Articulo:"   OF oForm PIXEL SIZE 40,12 RIGHT
    @ 22, 05 SAY "Precio:"     OF oForm PIXEL SIZE 40,12 RIGHT
-   @ 37, 05 SAY "Cantidad:"   OF oForm PIXEL SIZE 40,12 RIGHT
-  
+   IF oApp:usar_bultos
+      @ 37, 05 SAY "Bultos:"   OF oForm PIXEL SIZE 40,12 RIGHT
+   ENDIF
+   @ nFilaCant+2, 05 SAY "Cantidad:"   OF oForm PIXEL SIZE 40,12 RIGHT
+
    @ 05, 50 GET oGet[1] VAR nCodArt OF oForm SIZE 40,12 RIGHT PICTURE "99999999999999" PIXEL;
                 VALID(ValidaArt(oQryArt,oForm,oGet));
                 ACTION (oGet[1]:cText:= 0, ValidaArt(oQryArt,oForm,oGet)) BITMAP "BUSC1"
    @ 05, 95 GET oGet[2] VAR cNomArt   PICTURE "@!" OF oForm PIXEL WHEN(.F.)
-   @ 20, 50 GET oGet[3] VAR nPrecio   PICTURE "99999999.999" OF oForm PIXEL RIGHT 
-   @ 35, 50 GET oGet[4] VAR nCantidad PICTURE "9999999.999" OF oForm PIXEL RIGHT;
+   @ 20, 50 GET oGet[3] VAR nPrecio   PICTURE "99999999.999" OF oForm PIXEL RIGHT
+   IF oApp:usar_bultos
+      // Bultos: al salir del campo calcula Cantidad = bultos x unidades por bulto del articulo
+      @ 35, 50 GET oGet[5] VAR nBultos  PICTURE "999999" OF oForm SIZE 40,12 PIXEL RIGHT;
+                   WHEN(oQryArt:nRecCount > 0 .AND. oQryArt:uxbulto > 0);
+                   VALID(CalcUnidades(oGet,nBultos,oQryArt))
+      @ 35, 95 GET oGet[6] VAR cUxBulto OF oForm SIZE 70,12 PIXEL WHEN(.F.)
+   ENDIF
+   @ nFilaCant, 50 GET oGet[4] VAR nCantidad PICTURE "9999999.999" OF oForm PIXEL RIGHT;
                 VALID(nCantidad>0)
    
    acor := AcepCanc(oForm)
@@ -274,6 +288,19 @@ oQryIva:= oApp:oServer:Query("SELECT tasa FROM ge_"+oApp:cId+"ivas WHERE codigo 
 
 oGet[3]:cText:= IF(oQryArt:siniva,oQryArt:precossiva,oQryArt:precossiva/(1+oQryIva:tasa/100))
 
+IF oApp:usar_bultos .AND. oGet[6] <> nil
+   oGet[5]:cText := 0
+   oGet[6]:cText := IF(oQryArt:uxbulto > 0,"x "+LTRIM(STR(oQryArt:uxbulto))+" unid. por bulto","(sin bultos)")
+ENDIF
+
+RETURN .t.
+
+**************************************************************************************************
+***** BULTOS -> UNIDADES (encargar un articulo)
+STATIC FUNCTION CalcUnidades(oGet,nBultos,oQryArt)
+IF nBultos > 0 .AND. oQryArt:nRecCount > 0 .AND. oQryArt:uxbulto > 0
+   oGet[4]:cText := nBultos * oQryArt:uxbulto
+ENDIF
 RETURN .t.
 
 **************************************************************************************************
@@ -455,26 +482,42 @@ RETURN nil
 **********************************************************************************************************************
 ****** AGREGAR ARTICULO A LA ORDEN 
 STATIC FUNCTION EligeArtMul(oQryDet,base,cNomPro,oWnd1,oGet1)
-LOCAL oDlg1,oBrwLis,oQryLis,oBot1,oBot2,mRta:=.f.,acor:=ARRAY(4), lBorra := .t., oChe, oError
+LOCAL oDlg1,oBrwLis,oQryLis,oBot1,oBot2,mRta:=.f.,acor:=ARRAY(4), lBorra := .t., oChe, oError,;
+      nColCant := IF(oApp:usar_bultos,6,4)
 ActualizaArt(base:codpro)
 oQryLis:= oApp:oServer:Query("SELECT * FROM articulos_temp")
 
 DEFINE DIALOG oDlg1 TITLE "Indique con cantidad cuales desea cargar" OF oWnd1 FROM 05,15 TO 30,100
         oDlg1:lHelpIcon:=.f.
 
-    @ 05,05 XBROWSE oBrwLis DATASOURCE oQryLis;
-                     COLUMNS "codigo","nombre","costo","cantidad","bultos";    
+    IF oApp:usar_bultos
+       @ 05,05 XBROWSE oBrwLis DATASOURCE oQryLis;
+                     COLUMNS "codigo","nombre","costo","uxbulto","cantbul","cantidad","bultos";
+                     HEADERS "codigo","Nombre","Costo","Un.x Bulto","Bultos","Unidades","Stock Act.";
+                     SIZES 100,250,70,70,70,80,80;
+             OF oDlg1 SIZE 330,160 PIXEL  AUTOSORT
+    ELSE
+       @ 05,05 XBROWSE oBrwLis DATASOURCE oQryLis;
+                     COLUMNS "codigo","nombre","costo","cantidad","bultos";
                      HEADERS "codigo","Nombre","Costo","Unidades","Stock Act.";
                      SIZES 100,305,80,80,80;
-             OF oDlg1 SIZE 330,160 PIXEL  AUTOSORT 
+             OF oDlg1 SIZE 330,160 PIXEL  AUTOSORT
+    ENDIF
     //oQryLis:bOnChangePage := {|| oBrwLis:Refresh() }
     oBrwLis:CreateFromcode()
     oBrwLis:aCols[3]:lAutoSave := .t.
-    oBrwLis:aCols[3]:nEditType := EDIT_GET   
-    //oBrwLis:aCols[3]:bOnPostEdit := {|oCol, xVal, nKey | CambiaCosto(oQryLis,xval),oBrwLis:Refresh()}  
-    oBrwLis:aCols[4]:lAutoSave := .t.
-    oBrwLis:aCols[4]:nEditType := EDIT_GET      
+    oBrwLis:aCols[3]:nEditType := EDIT_GET
+    //oBrwLis:aCols[3]:bOnPostEdit := {|oCol, xVal, nKey | CambiaCosto(oQryLis,xval),oBrwLis:Refresh()}
+    oBrwLis:aCols[nColCant]:lAutoSave := .t.
+    oBrwLis:aCols[nColCant]:nEditType := EDIT_GET
     //oBrwLis:aCols[4]:bOnPostEdit := {|oCol, xVal, nKey | CambiaCosto(oQryLis,,xval),oBrwLis:Refresh()}
+    IF oApp:usar_bultos
+       // Bultos: editable solo si el articulo tiene unidades por bulto; calcula Unidades = bultos x uxbulto
+       oBrwLis:aCols[5]:nEditType   := EDIT_GET
+       oBrwLis:aCols[5]:bEditWhen   := {|| oQryLis:uxbulto > 0 }
+       oBrwLis:aCols[5]:bOnPostEdit := {|oCol, xVal, nKey | IF(nKey <> VK_ESCAPE .AND. VALTYPE(xVal) == "N",;
+                                                              CambiaBultos(oQryLis,xVal,oBrwLis),nil)}
+    ENDIF
     oBrwLis:nMoveType:=4
     PintaBrw(oBrwLis,0)
 
@@ -513,16 +556,29 @@ STATIC FUNCTION ActualizaArt(nCodPro)
 LOCAL tipo :=Alert( "Elija la opcion", {"Todos los productos del proveedor","Solo los productos del proveedor faltantes"}, "Seleccione", 1 )
 
 oApp:oServer:Execute("TRUNCATE articulos_temp")
-oApp:oServer:Execute("INSERT INTO articulos_temp(codigo,nombre,cantidad,bultos,palets,costo,baja) "+;
+oApp:oServer:Execute("INSERT INTO articulos_temp(codigo,nombre,cantidad,bultos,palets,costo,baja,uxbulto,cantbul) "+;
                      "(SELECT a.codigo,a.nombre,IF(a.stockide > 0 ,a.stockide - a.stockact,0),a.stockact,0, "+;
                      " IF(a.siniva,a.precossiva,a.precossiva/(1+i.tasa/100)) "+;
-                     ",false FROM ge_"+oApp:cId+"articu a "+;
+                     ",false,IFNULL(a.uxbulto,0),0 FROM ge_"+oApp:cId+"articu a "+;
                      " LEFT JOIN ge_"+oApp:cId+"ivas i ON i.codigo = a.iva "+;
                      " WHERE a.prov = "+ClipValue2Sql(nCodPro)+;
                      if(tipo = 1," "," AND a.stockact < a.stockmin")+;
                      " ORDER BY a.nombre)")
 
 RETURN .t.
+
+*****************************************
+** Bultos -> unidades en la grilla multiple
+STATIC FUNCTION CambiaBultos(oQryLis,nBultos,oBrwLis)
+LOCAL base := oQryLis:GetRowObj(), nRec := oQryLis:RecNo()
+base:cantbul  := nBultos
+base:cantidad := nBultos * base:uxbulto
+oQryLis:lAppend := .f.
+oQryLis:oRow := base
+oQryLis:Save()
+oQryLis:GoTo(nRec)
+oBrwLis:Refresh()
+RETURN nil
 
 STATIC FUNCTION CambiaCosto(oQryLis,n,cantidad)
 LOCAL base := oQryLis:GetRowObj()
