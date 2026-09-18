@@ -14,7 +14,7 @@ PROCEDURE RepDeu1()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
       acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(6), oBot1, oBot2, oQryPro,;
       cTodos := "Todos los Proveedores        ", mnompro := cTodos, mdesde := CTOD("01/01/2010"), mhasta := DATE(),;
-      mcodpro := 0, mTotal := 0, cSql, lSalto := .t., oGru
+      mcodpro := 0, mTotal := 0, cSql, lSalto := .t., oGru, nProAnt := 0
 oQryPro:= oApp:oServer:Query("SELECT codigo,nombre, direccion FROM ge_"+oApp:cId+"provee ORDER BY nombre")           
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 DEFINE DIALOG oDlg1 TITLE "Cuentas corrientes" FROM 03,15 TO 14,70 Of oApp:oWnd
@@ -148,9 +148,14 @@ IF mcodpro > 0
     COLUMN TITLE "Saldo"       DATA mtotal PICTURE "9,999,999,999.99" ;
                                SIZE 10 FONT 2 
     oRep:oTitle:aFont[1] := {|| 2 }
-    oRep:bInit := {|| oQry:GoTop() }
-    oRep:bStartGroup := {||  mtotal := oQry:debe - oQry:haber }
-    oRep:bSkip := {|| oQry:Skip(), mtotal := mtotal + oQry:debe  - oQry:haber }
+    // El saldo se reinicia al cambiar de proveedor dentro de bSkip y no en bStartGroup,
+    // porque ToExcel() de TReport no ejecuta bStartGroup (solo bInit y bSkip)
+    oRep:bInit := {|| oQry:GoTop(), nProAnt := oQry:codpro, mtotal := oQry:debe - oQry:haber }
+    oRep:bSkip := {|| oQry:Skip(), ;
+                      mtotal := IF( oQry:codpro == nProAnt, ;
+                                    mtotal + oQry:debe - oQry:haber, ;
+                                    oQry:debe - oQry:haber ), ;
+                      nProAnt := oQry:codpro }
 
     END REPORT
     ACTIVATE REPORT oRep WHILE !oQry:EOF() ON INIT CursorArrow() ;

@@ -12,13 +12,13 @@ MEMVAR oApp
 ** Cuenta corriente de cliente
 PROCEDURE RepCre1()
 LOCAL oRep, oFont1, oFont2, oFont3, oQry, oDlg1, oFont,;
-      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(6), oBot1, oBot2, oQryCli, cSql,;
+      acor:= ARRAY(4), mrta:=.F., oGet:= ARRAY(7), oBot1, oBot2, oQryCli, cSql,;
       cTodos := "Todos los clientes          ", mnomcli := cTodos, mdesde := CTOD("01/01/2010"), mhasta := DATE(),;
       mcodcli := 0, mTotal := 0, lTipo := .f.,nTipo:=1,aTipo:={"Sistema","Demo"}, lConArt := .f., lSoloActivos := .f.,;
-      cFiltroZona
+      cFiltroZona, nCliAnt := 0, lSalto := .t., oGru
 oQryCli:= oApp:oServer:Query("SELECT codigo,nombre, direccion FROM ge_"+oApp:cId+"clientes ORDER BY nombre")           
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
-DEFINE DIALOG oDlg1 TITLE "Cuentas corrientes" FROM 03,15 TO 14,70 Of oApp:oWnd
+DEFINE DIALOG oDlg1 TITLE "Cuentas corrientes" FROM 03,15 TO 17,70 Of oApp:oWnd
    acor := AcepCanc(oDlg1)    
    @ 07, 01 SAY "Desde Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
    @ 22, 01 SAY "Hasta Fecha:" OF oDlg1 PIXEL SIZE 60,10 RIGHT 
@@ -32,6 +32,7 @@ DEFINE DIALOG oDlg1 TITLE "Cuentas corrientes" FROM 03,15 TO 14,70 Of oApp:oWnd
            WHEN((oGet[4]:cText := IF(mcodcli=0,cTodos,oQryCli:nombre)) = SPACE(30))
    @ 50, 05 CHECKBOX oGet[5] VAR lConArt PROMPT "Mostrar Articulos"   OF oDlg1 PIXEL SIZE 60,10
    @ 50, 80 CHECKBOX oGet[6] VAR lSoloActivos PROMPT "Solo clientes activos"   OF oDlg1 PIXEL SIZE 60,10 WHEN(mcodcli=0)
+   @ 65, 05 CHECKBOX oGet[7] VAR lSalto PROMPT "Salto de página por cliente" OF oDlg1 PIXEL SIZE 100,10 WHEN(mcodcli=0)
   
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Imprimir" OF oDlg1 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg1:End() ) PIXEL
@@ -186,7 +187,8 @@ IF mcodcli > 0
              "Cuenta corrientes cliente" CENTER ;
              FOOTER "Hoja:" + STR(oRep:npage, 3), "Fecha:" + DTOC(DATE()) CENTER;
              PREVIEW CAPTION "Cuenta corrientes cliente"
-       GROUP ON oQry:codcli HEADER "Cliente: (" + STR(oQry:codcli) + ") " + ALLTRIM(oQry:nomcli) FONT 3 EJECT
+       GROUP oGru ON oQry:codcli HEADER "Cliente: (" + STR(oQry:codcli) + ") " + ALLTRIM(oQry:nomcli) FONT 3
+       oGru:lEject := lSalto
        COLUMN TITLE "Comprobante" DATA oQry:compro SIZE IF(lConArt, 15, 35) FONT 1
        COLUMN TITLE "Fecha"       DATA FechaSql(oQry:fecha) PICTURE "@D" SIZE 08 FONT 1
        COLUMN TITLE "Debe"        DATA oQry:debe    PICTURE "99999999999.99" SIZE 10 FONT 2
@@ -197,9 +199,14 @@ IF mcodcli > 0
           COLUMN TITLE "Productos" DATA STRTRAN(oQry:det, ",", " - ") SIZE 35 FONT 1 MEMO
        ENDIF
        oRep:oTitle:aFont[1] := {|| 2 }
-       oRep:bInit := {|| oQry:GoTop() }
-       oRep:bStartGroup := {|| mtotal := oQry:debe - oQry:haber }
-       oRep:bSkip := {|| oQry:Skip(), mtotal := mtotal + oQry:debe + oQry:interes - oQry:haber }
+       // El saldo se reinicia al cambiar de cliente dentro de bSkip y no en bStartGroup,
+       // porque ToExcel() de TReport no ejecuta bStartGroup (solo bInit y bSkip)
+       oRep:bInit := {|| oQry:GoTop(), nCliAnt := oQry:codcli, mtotal := oQry:debe - oQry:haber }
+       oRep:bSkip := {|| oQry:Skip(), ;
+                         mtotal := IF( oQry:codcli == nCliAnt, ;
+                                       mtotal + oQry:debe + oQry:interes - oQry:haber, ;
+                                       oQry:debe - oQry:haber ), ;
+                         nCliAnt := oQry:codcli }
        END REPORT
 
     ACTIVATE REPORT oRep WHILE !oQry:EOF() ON INIT CursorArrow() ;
@@ -672,7 +679,7 @@ ELSE
              PREVIEW CAPTION  "Cobranzas"
       oRep:oDevice:SetPage(5)       
       IF lPorTurno
-         GROUP ON oQry:id_cierre HEADER "Cierre de caja NÂ° "+ IF(oQry:id_cierre=0,"Caja Activa",STR(oQry:id_cierre));
+         GROUP ON oQry:id_cierre HEADER "Cierre de caja N° "+ IF(oQry:id_cierre=0,"Caja Activa",STR(oQry:id_cierre));
             FOOTER "Total Cierre" FONT 3
       ENDIF  
       COLUMN TITLE "Nro.Rec."         DATA oQry:numero  SIZE 10 FONT 1
