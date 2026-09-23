@@ -1136,8 +1136,8 @@ LOCAL oDlg1, oBot1, oBot2, acor:=ARRAY(4), mRta:=.f., oGet, nCodBar := 0, oQryAu
   DEFINE DIALOG oDlg1 TITLE "Desasignar Factura de Carta de Porte" OF oDlg FROM 05,15 TO 16,60
   oDlg1:lHelpIcon:=.f.
   acor := AcepCanc(oDlg1)
-  @ 05,05 SAY "Factura:" OF oDlg1 PIXEL RIGHT SIZE 55,12
-  @ 07,70 GET oGet VAR nCodBar OF oDlg1 PICTURE "999999999999" VALID nCodBar>0 PIXEL RIGHT
+  @ 05,05 SAY "Cod. Barra Factura:" OF oDlg1 PIXEL RIGHT SIZE 65,12
+  @ 07,75 GET oGet VAR nCodBar OF oDlg1 PICTURE "999999999999" VALID nCodBar>0 PIXEL RIGHT
 
   @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Aceptar" OF oDlg1 SIZE 30,10 ;
              ACTION ((mrta := .t.), oDlg1:End() ) PIXEL DEFAULT 
@@ -1169,7 +1169,7 @@ LOCAL oDlg1, oBot1, oBot2, acor:=ARRAY(4), mRta:=.f., oGet, nCodBar := 0, oQryAu
         RETURN .T. 
      ENDIF
   ENDIF
-  oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"ventas_encab SET codrep = 0, fechaasig = null "+;
+  oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"ventas_encab SET codrep = 0, fechaasig = null, cartaporte = 0 "+;
                         "WHERE codbarra = "+ClipValue2Sql(int(nCodBar*.1))+" LIMIT 1")
 
 RETURN nil

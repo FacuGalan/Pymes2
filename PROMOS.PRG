@@ -9,7 +9,7 @@
 MEMVAR oApp
 STATIC oQry, oWnd1, oBrw, oDlg, cVentana
 PROCEDURE Promociones(cPermisos)
-LOCAL oBar, hHand
+LOCAL oBar, hHand, oGetSeek, cSeek := SPACE(50)
 cVentana := PROCNAME()
 IF ASCAN(oApp:aVentanas,cVentana) > 0
    hHand := ASCAN(oApp:aVentanas,cVentana)
@@ -74,13 +74,15 @@ oQry  := oApp:oServer:Query( "SELECT p.*,a.nombre FROM ge_"+oApp:cId+"promocione
               HEADERS "#","Promo","Para articulo","Tipo","Desde","Hasta","H.Desde","H.Hasta";
               SIZES 50,250,250,40,90,90,60,60;
               ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,Formu( .f.),MsgInfo("Sin Permiso")),oBrw:Refresh())
-     REDEFINE SAY oBrw:oSeek PROMPT "" ID 113 OF oDlg
+     REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg
      oQry:bOnChangePage := {|| oBrw:Refresh() }
-     oBrw:bKeyDown := {| nKey,nFlags | IF(nKey==13,(Formu(.f.),oBrw:GoLeftMost(),oBrw:Refresh()),.t.)}
      PintaBrw(oBrw,8) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
-     oBrw:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar,cPermisos)}
+     // Tipear en la grilla salta a la busqueda con esa letra; el resto de las teclas son los aceleradores
+     oBrw:bKeyDown := {|nKey,nFlags| IF(EsTeclaBusca(nKey),SaltaBusca(oGetSeek,nKey),;
+                                        Acelerador2(nKey,oBar,oBrw,cPermisos,8))}
+     oGetSeek:bKeyDown := { |nKey,nFlag| FiltraPromo(oGetSeek, nKey) }
      // Activo el dialogo y al iniciar muevo a 0,0
-     ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT oDlg:Move(0,0) VALID(oWnd1:End())
+     ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT (oGetSeek:SetFocus(),oDlg:Move(0,0)) VALID(oWnd1:End())
    ACTIVATE WINDOW oWnd1 ON INIT Incrusta( oWnd1, oDlg, .T.) VALID(cerrar())
 RETURN
 
@@ -301,7 +303,62 @@ CATCH oError
    ValidaError(oError)
 END TRY
 oBrw:Refresh()
-RETURN nil 
+RETURN nil
+
+**********************************************************************************************
+** Busqueda de la grilla principal (como FiltraArt2 de ABMART). La grilla es un JOIN
+** promociones p + articu a, asi que el filtro va con alias y lo arma Dolphin en el WHERE.
+** Cada palabra tipeada tiene que estar en el nombre de la promo, el del articulo o el codigo.
+STATIC FUNCTION FiltraPromo(oG, nKey)
+LOCAL cText, aPalabras, cFiltro := "", i
+oG:Assign()
+IF nKey = 38 .or. nKey = 40
+   oBrw:SetFocus()
+   RETURN nil
+ENDIF
+// bKeyDown corre ANTES de que la tecla modifique el GET: se arma el texto como va a quedar
+DO CASE
+   CASE EsTeclaBusca(nKey) .or. nKey = 32
+        IF nKey >= 96 .and. nKey <= 105
+           nKey := nKey - 48
+        ENDIF
+        cText := LEFT(oG:cText,oG:nPos-1) + CHR(nKey)
+   CASE nKey = VK_BACK
+        cText := LEFT(oG:cText,MAX(oG:nPos-2,0)) + SUBSTR(oG:cText,oG:nPos)
+   CASE nKey = VK_DELETE
+        cText := LEFT(oG:cText,oG:nPos-1) + SUBSTR(oG:cText,oG:nPos+1)
+   OTHERWISE
+        cText := ALLTRIM(oG:cText)
+ENDCASE
+cText := STRTRAN(cText,"'","")
+cText := STRTRAN(cText,"%","")
+cText := STRTRAN(cText,"\","")
+aPalabras := hb_ATokens(ALLTRIM(cText)," ")
+FOR i := 1 TO LEN(aPalabras)
+    IF !EMPTY(aPalabras[i])
+       cFiltro := cFiltro + IF(EMPTY(cFiltro),""," AND ")+;
+                  "(p.nompromo LIKE '%"+aPalabras[i]+"%' OR "+;
+                  "a.nombre LIKE '%"+aPalabras[i]+"%' OR "+;
+                  "p.codart LIKE '%"+aPalabras[i]+"%')"
+    ENDIF
+NEXT
+oQry:SetNewFilter(SET_WHERE,IF(EMPTY(cFiltro),"TRUE",cFiltro),.t.)
+oBrw:Refresh()
+RETURN .T.
+
+** Letras y numeros (incluido teclado numerico) que desde la grilla mandan a la busqueda
+STATIC FUNCTION EsTeclaBusca(nKey)
+RETURN (nKey >= 48 .and. nKey <= 57) .or. (nKey >= 65 .and. nKey <= 90) .or. (nKey >= 96 .and. nKey <= 105)
+
+STATIC FUNCTION SaltaBusca(oG, nKey)
+IF nKey >= 96 .and. nKey <= 105
+   nKey := nKey - 48
+ENDIF
+oG:SetFocus()
+oG:cText := CHR(nKey)
+oG:SetPos(2)
+FiltraPromo(oG, 0)
+RETURN nil
 
 //Etiquetas de promos
 STATIC FUNCTION Etiquetas()
@@ -367,7 +424,7 @@ DEFINE DIALOG oDlg1 TITLE "Impresion de Etiquetas de precios de Promos" FROM 05,
    @ 05,125 GET oGet2 VAR MaxCol PICTURE "99" OF oDlg1 PIXEL
    @ 25, 55 CHECKBOX oChe1 VAR lLogo   PROMPT "Con Logo" OF oDlg1 PIXEL SIZE 40,10
    @ 37, 55 CHECKBOX oChe3 VAR lSinDecimales    PROMPT "Precios sin decimales" OF oDlg1 PIXEL SIZE 65,10
-   
+   @ 50, 195 BUTTON oBot09 PROMPT "Inv" ACTION Cambiar(@aTabla,oBrw) PIXEL SIZE 20,10 OF oDlg1
    @ 50, 05 XBROWSE oBrw ARRAY aTabla;
               COLUMNS 1,2,3,4;
               HEADERS "?","Codigo","Nombre","Precio";
@@ -749,6 +806,14 @@ ENDIF
 //nOpc == 1 -> Crear: conviven todas
 RETURN .T.
 
+
+STATIC FUNCTION Cambiar(Arr,oBr)
+LOCAL i
+FOR i := 1 TO LEN(Arr)
+    Arr[i,1] := !Arr[i,1]
+NEXT i
+oBr:Refresh()
+RETURN nil  
 
 ***********************************
 ** Valida una hora en formato "HH:MM" (00:00 a 23:59). Publica: la usa tambien ABMART.PRG

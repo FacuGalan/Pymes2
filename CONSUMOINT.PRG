@@ -655,7 +655,7 @@ RETURN .t.
 *****************************************
 ** Impresion de consumo Interno 
 STATIC FUNCTION PrintConsumoInt(nCodEmp,oQryDet)
-LOCAL oPrn, mtot := 0, i, oFont, oFont1, config, lRta := .t., oQryP,nDesc,cMozo, nRow1, nRow,;
+LOCAL oPrn, mtot := 0, i, x, oFont, oFont1, config, lRta := .t., oQryP,nDesc,cMozo, nRow1, nRow,;
       oParame := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"parametros"),oQryEmp
 
 oQryP :=  oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip))
@@ -669,83 +669,85 @@ DEFINE FONT oFont   NAME "COURIER NEW"       SIZE config:fon,config:fon*2.5 BOLD
 DEFINE FONT oFont1  NAME "CALIBRI"           SIZE config:fon,config:fon*3.5 BOLD
 
 IF oQryP:imprimeTic
-      IF !oApp:tick80
-       mtot := 0
-       PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
-          oPrn:oFont := oFont
-          oPrn:SetPortrait()
-          PAGE
-          oPrn:Say( oApp:tamlet*1,1, "DOCUMENTO NO VALIDO",oFont)
-          oPrn:Say( oApp:tamlet*2,1, "  COMO FACTURA",oFont)                          
-          oPrn:Say( oApp:tamlet*5,1, "Consumo Interno",oFont1)
-          oPrn:Say( oApp:tamlet*6,1, "Empleado: "+ALLTRIM(oQryEmp:nombre),oFont1)
-          oPrn:Say( oApp:tamlet*7,1, DTOC(DATE())+" "+ TIME(),oFont)
-          oPrn:Say( oApp:tamlet*9,1, "Detalle           Cant    Precio",oFont)
-          oQryDet:GoTop()
-          FOR i = 1 TO oQryDet:nRecCount
-              oPrn:Say(  (oApp:tamlet*9) +  i*oApp:tamlet , 01 , LEFT(oQryDet:nomart,15) + ;
-                                   " " + STR(oQryDet:cantidad,6,1) +;
-                                   STR(oQryDet:ptotal,10,2),oFont)
-              mtot := mtot + oQryDet:ptotal
-              oQryDet:SKIP()
-          NEXT i          
-          oPrn:Say(  (oApp:tamlet*9) +  i*oApp:tamlet+oApp:tamlet*0,1, "Items " + STR(i-1,5),oFont )          
-          oPrn:Say(  (oApp:tamlet*9) +  i*oApp:tamlet+oApp:tamlet*4,1,"T O T A L: $" + STR(mtot,12,2),oFont1 )                    
-          oPrn:Say(  (oApp:tamlet*9) +  i*oApp:tamlet+oApp:tamlet*9,1, "..."    )
-          ENDPAGE
-       ENDPRINT
-      ELSE
-       mtot := 0
-       PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
-          oPrn:oFont := oFont
-          oPrn:SetPortrait()
-          nRow := .5
-          PAGE
-          @ nRow, 00 PRINT TO oPrn TEXT "DOCUMENTO NO VALIDO" ;
-                                  SIZE 7.4,.5 CM FONT oFont1 LASTROW nRow ALIGN "C"
-          @ nRow, 00 PRINT TO oPrn TEXT "COMO FACTURA" ;
-                                  SIZE 7.4,.5 CM FONT oFont1 LASTROW nRow ALIGN "C"                          
-          @ nRow, 00 PRINT TO oPrn TEXT  "Consumo Interno" ;
-                  SIZE 7.4,.5 CM FONT oFont1 LASTROW nRow
-          @ nRow, 00 PRINT TO oPrn TEXT  "Empleado: "+ALLTRIM(oQryEmp:nombre) ;
-                  SIZE 7.4,.5 CM FONT oFont LASTROW nRow          
-          @ nRow, 00 PRINT TO oPrn TEXT  "Fecha:"+DTOC(DATE())+" Hora:"+ TIME() ;
-                  SIZE 7.4,.5 CM FONT oFont LASTROW nRow          
-          nRow1 := nRow + .5
-          @ nRow1, 00 PRINT TO oPrn TEXT "Descripcion";
-                      SIZE 3.5,.5 CM FONT oFont LASTROW nRow ALIGN "L"
-          @ nRow1, 3.7 PRINT TO oPrn TEXT "Cant";
-                      SIZE .9,.5 CM FONT oFont LASTROW nRow ALIGN "R"
-          @ nRow1, 4.7 PRINT TO oPrn TEXT "P.unit";
-                      SIZE 1.2,.5 CM FONT oFont LASTROW nRow ALIGN "R"
-          @ nRow1, 5.7 PRINT TO oPrn TEXT "Total";
-                      SIZE 1.3,.5 CM FONT oFont LASTROW nRow ALIGN "R"
-          oQryDet:GoTop() 
-          oPrn:CmLine( nRow1,0, nRow1,9 )              
-          nRow := nRow + .2                                             
-          FOR i = 1 TO oQryDet:nRecCount
-             nRow1 := nRow
-             @ nRow1, 00 PRINT TO oPrn TEXT ALLTRIM(oQryDet:nomart);
-                  SIZE 3.5,.5 CM FONT oFont LASTROW nRow ALIGN "L"
-             @ nRow1, 3.7 PRINT TO oPrn TEXT STR(oQryDet:cantidad,06,1);
-                  SIZE 0.9,.5 CM FONT oFont LASTROW nRow ALIGN "R"             
-             @ nRow1, 4.7 PRINT TO oPrn TEXT STR(oQryDet:punit,9,2);
-                  SIZE 1.2,.5 CM FONT oFont LASTROW nRow ALIGN "R"       
-             @ nRow1, 5.7 PRINT TO oPrn TEXT STR(oQryDet:ptotal,10,2);
-                  SIZE 1.3,.5 CM FONT oFont LASTROW nRow ALIGN "R"               
-             mtot := mtot + oQryDet:ptotal
-             oQryDet:SKIP()
-          NEXT i
-          nRow := nRow + .5
-          @ nRow, 00 PRINT TO oPrn TEXT  "Items " + STR(i-1,5) ;
-                  SIZE 7.4,.5 CM FONT oFont LASTROW nRow          
-          @ nRow, 00 PRINT TO oPrn TEXT "TOTAL: $" + STR(mtot,12,2) ;
-                  SIZE 7.4,.5 CM FONT oFont1 LASTROW nRow                    
-          @ nRow, 00 PRINT TO oPrn TEXT  "...";
-                  SIZE 7.4,.5 CM FONT oFont LASTROW nRow                                       
-          ENDPAGE
-       ENDPRINT 
-      ENDIF
+      FOR x := 1 TO IF(oQryP:copiapr=0,1,oQryP:copiapr)
+        IF !oApp:tick80
+         mtot := 0
+         PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
+            //oPrn:oFont := oFont
+            oPrn:SetPortrait()
+            PAGE
+            oPrn:Say( oApp:tamlet*1,1, "DOCUMENTO NO VALIDO",oFont)
+            oPrn:Say( oApp:tamlet*2,1, "  COMO FACTURA",oFont)                          
+            oPrn:Say( oApp:tamlet*5,1, "Consumo Interno",oFont1)
+            oPrn:Say( oApp:tamlet*6,1, "Empleado: "+ALLTRIM(oQryEmp:nombre),oFont1)
+            oPrn:Say( oApp:tamlet*7,1, DTOC(DATE())+" "+ TIME(),oFont)
+            oPrn:Say( oApp:tamlet*9,1, "Detalle           Cant    Precio",oFont)
+            oQryDet:GoTop()
+            FOR i = 1 TO oQryDet:nRecCount
+                oPrn:Say(  (oApp:tamlet*9) +  i*oApp:tamlet , 01 , LEFT(oQryDet:nomart,15) + ;
+                                     " " + STR(oQryDet:cantidad,6,1) +;
+                                     STR(oQryDet:ptotal,10,2),oFont)
+                mtot := mtot + oQryDet:ptotal
+                oQryDet:SKIP()
+            NEXT i          
+            oPrn:Say(  (oApp:tamlet*9) +  i*oApp:tamlet+oApp:tamlet*0,1, "Items " + STR(i-1,5),oFont )          
+            oPrn:Say(  (oApp:tamlet*9) +  i*oApp:tamlet+oApp:tamlet*4,1,"T O T A L: $" + STR(mtot,12,2),oFont1 )                    
+            oPrn:Say(  (oApp:tamlet*9) +  i*oApp:tamlet+oApp:tamlet*9,1, "..."    )
+            ENDPAGE
+         ENDPRINT
+        ELSE
+         mtot := 0
+         PRINT oPrn TO ALLTRIM(oQryP:impresoraT)
+            //oPrn:oFont := oFont
+            oPrn:SetPortrait()
+            nRow := .5
+            PAGE
+            @ nRow, 00 PRINT TO oPrn TEXT "DOCUMENTO NO VALIDO" ;
+                                    SIZE 7.4,.5 CM FONT oFont1 LASTROW nRow ALIGN "C"
+            @ nRow, 00 PRINT TO oPrn TEXT "COMO FACTURA" ;
+                                    SIZE 7.4,.5 CM FONT oFont1 LASTROW nRow ALIGN "C"                          
+            @ nRow, 00 PRINT TO oPrn TEXT  "Consumo Interno" ;
+                    SIZE 7.4,.5 CM FONT oFont1 LASTROW nRow
+            @ nRow, 00 PRINT TO oPrn TEXT  "Empleado: "+ALLTRIM(oQryEmp:nombre) ;
+                    SIZE 7.4,.5 CM FONT oFont LASTROW nRow          
+            @ nRow, 00 PRINT TO oPrn TEXT  "Fecha:"+DTOC(DATE())+" Hora:"+ TIME() ;
+                    SIZE 7.4,.5 CM FONT oFont LASTROW nRow          
+            nRow1 := nRow + .5
+            @ nRow1, 00 PRINT TO oPrn TEXT "Descripcion";
+                        SIZE 3.5,.5 CM FONT oFont LASTROW nRow ALIGN "L"
+            @ nRow1, 3.7 PRINT TO oPrn TEXT "Cant";
+                        SIZE .9,.5 CM FONT oFont LASTROW nRow ALIGN "R"
+            @ nRow1, 4.7 PRINT TO oPrn TEXT "P.unit";
+                        SIZE 1.2,.5 CM FONT oFont LASTROW nRow ALIGN "R"
+            @ nRow1, 5.7 PRINT TO oPrn TEXT "Total";
+                        SIZE 1.3,.5 CM FONT oFont LASTROW nRow ALIGN "R"
+            oQryDet:GoTop() 
+            oPrn:CmLine( nRow1,0, nRow1,9 )              
+            nRow := nRow + .2                                             
+            FOR i = 1 TO oQryDet:nRecCount
+               nRow1 := nRow
+               @ nRow1, 00 PRINT TO oPrn TEXT ALLTRIM(oQryDet:nomart);
+                    SIZE 3.5,.5 CM FONT oFont LASTROW nRow ALIGN "L"
+               @ nRow1, 3.7 PRINT TO oPrn TEXT STR(oQryDet:cantidad,06,1);
+                    SIZE 0.9,.5 CM FONT oFont LASTROW nRow ALIGN "R"             
+               @ nRow1, 4.7 PRINT TO oPrn TEXT STR(oQryDet:punit,9,2);
+                    SIZE 1.2,.5 CM FONT oFont LASTROW nRow ALIGN "R"       
+               @ nRow1, 5.7 PRINT TO oPrn TEXT STR(oQryDet:ptotal,10,2);
+                    SIZE 1.3,.5 CM FONT oFont LASTROW nRow ALIGN "R"               
+               mtot := mtot + oQryDet:ptotal
+               oQryDet:SKIP()
+            NEXT i
+            nRow := nRow + .5
+            @ nRow, 00 PRINT TO oPrn TEXT  "Items " + STR(i-1,5) ;
+                    SIZE 7.4,.5 CM FONT oFont LASTROW nRow          
+            @ nRow, 00 PRINT TO oPrn TEXT "TOTAL: $" + STR(mtot,12,2) ;
+                    SIZE 7.4,.5 CM FONT oFont1 LASTROW nRow                    
+            @ nRow, 00 PRINT TO oPrn TEXT  "...";
+                    SIZE 7.4,.5 CM FONT oFont LASTROW nRow                                       
+            ENDPAGE
+         ENDPRINT 
+        ENDIF
+      NEXT x
    ELSE 
    oQryDet:GoTop()
    REPORT oPrn TITLE "Consumo Interno " + oQryEmp:nombre ;       

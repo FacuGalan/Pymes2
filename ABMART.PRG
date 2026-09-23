@@ -1821,7 +1821,14 @@ oQryInfo := oApp:oServer:Query(""+;
 IF(oApp:oServer:TableExist("ge_"+oApp:cId+"promociones"),;
 "UNION ALL "+;
 "SELECT 'Aplica en promocion' AS concepto, nompromo AS detalle FROM ge_"+oApp:cId+"promociones  "+;
-"WHERE codart = "+ClipValue2Sql(oQryBrw:codigo)+" ","")) 
+"WHERE codart = "+ClipValue2Sql(oQryBrw:codigo)+" ","")+;
+IF(oApp:oServer:TableExist("ge_"+oApp:cId+"promo_grupo_det"),;
+"UNION ALL "+;
+"SELECT DISTINCT 'Aplica en promo combinada' AS concepto, "+;
+"CONCAT(g.nompromo,IF(g.mismo_grupo = 1,' (mix)',IF(d.rol = 'A',' (lleva)',' (beneficia)'))) AS detalle "+;
+"FROM ge_"+oApp:cId+"promo_grupo_det d "+;
+"LEFT JOIN ge_"+oApp:cId+"promo_grupo g ON g.id = d.grupo_id "+;
+"WHERE d.codart = "+ClipValue2Sql(oQryBrw:codigo)+" ","")) 
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-13.5
 DEFINE DIALOG oDlg TITLE "Info del Producto" FROM 09,15 TO 28,135 OF oApp:oWnd
    oDlg:lHelpIcon := .f.

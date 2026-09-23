@@ -638,7 +638,7 @@ LOCAL oBot, oDlg, oSay, oSay2, oBrw, aTabla := {}, oSer, oQry, oQry1, oFont, oBo
       lSoloExe:=.f., dFecVto,;
       oQryPun:= oApp:oServer:Query("SELECT version FROM ge_"+oApp:cId+"punto WHERE ip = "+ClipValue2Sql(oApp:cIP))
 // Conectarse al general
-ConsultaVencimiento(@dFecVto,.f.)
+dFecVto := CertVencimiento()
 oSer := ConnectTo(2)
 oQry := oSer:Query("SELECT c.mail, c.nombre, c.vto, c.demo, c.pack, c.version,"+;
                          " v.nombre as packnom, d.fechavto, v.version_actual FROM config_clientes c "+;

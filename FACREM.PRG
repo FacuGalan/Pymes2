@@ -1443,6 +1443,10 @@ cTipoDoc := IF(nTipoDoc=1,"FR",IF(nTipoDoc=2,"ND","NC"))
          oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET saldo = "+ClipValue2Sql(ABS(nCtaCte)) + ", FECULT = CURDATE() WHERE codigo = " +ClipValue2Sql(nCliente))
       ELSE
          oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET saldo = 0, FECULT = CURDATE() WHERE codigo = " +ClipValue2Sql(nCliente))
+         oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"concfact (ticomp,letra,numcomp,codcon,tipocon,importe,observa,fecha,caja) "+;
+                             "VALUES("+ClipValue2Sql(cTipoDoc)+","+ClipValue2Sql(LEFT(cNumComp,1))+","+;
+                                        ClipValue2Sql(RIGHT(cNumComp,13))+",5,5,"+ClipValue2Sql(nCtaCte)+","+;
+                                        "'CTA. CTE.',"+ClipValue2Sql(DATE())+","+ClipValue2Sql(oApp:prefijo)+")")
       ENDIF
 
       DO WHILE !oQryChe:Eof()

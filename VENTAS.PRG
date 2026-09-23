@@ -1081,7 +1081,7 @@ IF lVerCli
   nLista:=oQryCli:lispre
   oGet[09]:cText := oQryCli:nombre
   oGet[10]:cText := oQryCli:direccion
-  oGet[11]:ctext := oQryCli:localidad
+  oGet[11]:ctext := ALLTRIM(oQryCli:localidad) + TelValido( oQryCli:telefono )
   oGet[12]:cText := oQryCli:cuit
   oGet[22]:cText := oQryCli:dni
   oGet[31]:cText := oQryCli:descuento
@@ -2723,7 +2723,11 @@ DEFAULT aMetodosPago := {}
                  " - Acumulados: "+STR(oQryVen1:puntosacu,8)+;
                  " - Total: "+STR(oQryVen1:puntos+oQryVen1:puntosacu ,8)    ;
                    SIZE 16,1 CM FONT oFont5  ALIGN "L" 
-             ENDIF           
+             ENDIF
+             IF ALLTRIM(oQryPar1:texto_pie_fiscal) <> '.' .AND. !EMPTY(oQryPar1:texto_pie_fiscal)
+                @ 27.5,13 PRINT TO oPrn TEXT ALLTRIM(oQryPar1:texto_pie_fiscal);
+                   SIZE 10,1 CM FONT oFont5  ALIGN "L" LASTROW nRow
+             ENDIF      
              //oPrn:CmSay( 26.5,1, CodigoBarra(STRTRAN(oApp:cuit_emp,"-","")+ oQryVen1:tipfor+;
              //                    SUBSTR(oQryVen1:numcomp,1,4)+ALLTRIM(oQryVen1:cae)+DTOS(oQryVen1:fecVto) ),oFont4)
              ENDPAGE
@@ -2778,7 +2782,9 @@ DEFAULT aMetodosPago := {}
                      @ nRow, .1 PRINT TO oPrn TEXT "Cod:" + oQryVen1:tipfor+" Nro:"+RIGHT(cNumcomp,13) ;
                                   SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "C"                 
                      @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecmod)+" "+oQryVen1:hora;
-                                  SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "C"                                                  
+                                  SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "C"
+                     @ nRow, .1 PRINT TO oPrn TEXT "Cajero:"+ALLTRIM(oQryVen1:usuario);
+                                  SIZE 5,.5 CM FONT oFont LASTROW nRow ALIGN "C"                                                  
                      IF oQryVen1:coniva = 5 .and. oQryVen1:codcli <= 1 .and. "CONSUMIDOR"$oQryVen1:nombre 
                         @ nRow, .1 PRINT TO oPrn TEXT "A Consumidor Final";
                                   SIZE 4.8,.5 CM FONT oFont LASTROW nRow ALIGN "C"
@@ -2876,7 +2882,11 @@ DEFAULT aMetodosPago := {}
                      IF oQryVen1:letra = 'A' .and. oQryVen1:coniva = 6
                         @ nRow,.1 PRINT TO oPrn TEXT "El crédito fiscal discriminado en el presente comprobante, sólo podrá ser computado a efectos del Régimen de Sostenimiento e Inclusión Fiscal para Pequeños Contribuyentes de la Ley Nº 27.618"  ;
                                   SIZE 4.8,3 CM FONT oFont ALIGN "L" LASTROW nRow 
-                     ENDIF             
+                     ENDIF  
+                     IF ALLTRIM(oQryPar1:texto_pie_fiscal) <> '.' .AND. !EMPTY(oQryPar1:texto_pie_fiscal)
+                        @ nRow,.1 PRINT TO oPrn TEXT ALLTRIM(oQryPar1:texto_pie_fiscal);
+                           SIZE 4.7,3 CM FONT oFont1  ALIGN "TL" LASTROW nRow
+                     ENDIF           
                      @ nRow, .1 PRINT TO oPrn TEXT "Items:" + STR(oQryDet1:nRecCount,4) ;
                               SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"
                      @ nRow,.1 PRINT TO oPrn TEXT ".";
@@ -2905,7 +2915,8 @@ DEFAULT aMetodosPago := {}
                         ENDIF           
                         @ nRow, .1 PRINT TO oPrn TEXT oQryPar1:texto_pie ;
                                     SIZE 4.8,1.5 CM FONT oFont2 LASTROW nRow ALIGN "L"  
-                     ENDIF            
+                     ENDIF 
+                                
                      @ nRow,.1 PRINT TO oPrn TEXT "...";
                               SIZE 4.8,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"
                      @ nRow,.1 PRINT TO oPrn TEXT "...";
@@ -2952,7 +2963,9 @@ DEFAULT aMetodosPago := {}
                      @ nRow, .1 PRINT TO oPrn TEXT "Cod:" + oQryVen1:tipfor+" Nro:"+RIGHT(cNumcomp,13) ;
                                   SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"                 
                      @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecmod)+" "+oQryVen1:hora;
-                                  SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"                                                  
+                                  SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"
+                     @ nRow, .1 PRINT TO oPrn TEXT "Cajero:"+ALLTRIM(oQryVen1:usuario);
+                                  SIZE 5,.5 CM FONT oFont LASTROW nRow ALIGN "C"
                      IF oQryVen1:coniva = 5 .and. oQryVen1:codcli <= 1 .and. "CONSUMIDOR"$oQryVen1:nombre 
                         @ nRow, .1 PRINT TO oPrn TEXT "A Consumidor Final";
                                   SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"
@@ -3057,7 +3070,11 @@ DEFAULT aMetodosPago := {}
                      IF oQryVen1:letra = 'A' .and. oQryVen1:coniva = 6
                         @ nRow,.1 PRINT TO oPrn TEXT "El crédito fiscal discriminado en el presente comprobante, sólo podrá ser computado a efectos del Régimen de Sostenimiento e Inclusión Fiscal para Pequeños Contribuyentes de la Ley Nº 27.618" ;
                                   SIZE 7.1,3 CM FONT oFont ALIGN "L" LASTROW nRow 
-                     ENDIF             
+                     ENDIF 
+                     IF ALLTRIM(oQryPar1:texto_pie_fiscal) <> '.' .AND. !EMPTY(oQryPar1:texto_pie_fiscal)
+                        @ nRow,.1 PRINT TO oPrn TEXT ALLTRIM(oQryPar1:texto_pie_fiscal);
+                           SIZE 7.1,3 CM FONT oFont  ALIGN "TL" LASTROW nRow
+                     ENDIF            
                      @ nRow, .1 PRINT TO oPrn TEXT "Items:" + STR(oQryDet1:nRecCount,4) ;
                               SIZE 5,.5 CM FONT oFont1 LASTROW nRow ALIGN "L"
                      @ nRow,.1 PRINT TO oPrn TEXT ".";
@@ -4469,6 +4486,8 @@ DEFAULT aMetodosPago := {}
                          @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecha) + " "+oQryVen1:hora;
                                       SIZE 5,.5 CM FONT oFont LASTROW nRow ALIGN "C"
                      ENDIF
+                     @ nRow, .1 PRINT TO oPrn TEXT "Cajero:"+ALLTRIM(oQryVen1:usuario);
+                                  SIZE 5,.5 CM FONT oFont LASTROW nRow ALIGN "C"
                      IF oQryVen1:coniva = 5 .and. oQryVen1:codcli <= 1 .and. "CONSUMIDOR"$oQryVen1:nombre 
                         @ nRow, .1 PRINT TO oPrn TEXT "A Consumidor Final";
                                   SIZE 5,.5 CM FONT oFont LASTROW nRow ALIGN "C"
@@ -4597,6 +4616,8 @@ DEFAULT aMetodosPago := {}
                          @ nRow, .1 PRINT TO oPrn TEXT "Fecha Emision:" + +DTOC(oQryVen1:fecha) + " "+oQryVen1:hora;
                                       SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"
                      ENDIF
+                     @ nRow, .1 PRINT TO oPrn TEXT "Cajero:"+ALLTRIM(oQryVen1:usuario);
+                                  SIZE 5,.5 CM FONT oFont LASTROW nRow ALIGN "C"
                      IF oQryVen1:coniva = 5 .and. oQryVen1:codcli <= 1 .and. "CONSUMIDOR"$oQryVen1:nombre 
                         @ nRow, .1 PRINT TO oPrn TEXT "A Consumidor Final";
                                   SIZE 7.1,.5 CM FONT oFont LASTROW nRow ALIGN "C"
@@ -6932,3 +6953,43 @@ IF LEN(aCod) = 0
    AADD(aCod,0)
 ENDIF
 RETURN nil
+
+
+//----------------------------------------------------------------------------//
+// Devuelve el telefono si el dato realmente parece un telefono.
+// Si tiene letras o cualquier otra cosa, devuelve cadena vacia.
+//----------------------------------------------------------------------------//
+FUNCTION TelValido( cDato )
+
+   LOCAL cTel     := ""
+   LOCAL cValidos := "0123456789 -"
+   LOCAL nDigitos := 0
+   LOCAL n, cChar
+
+   IF ValType( cDato ) != "C"      // contempla NIL o campo numerico
+      RETURN ""
+   ENDIF
+
+   cTel := ALLTRIM( cDato )
+
+   IF EMPTY( cTel )
+      RETURN ""
+   ENDIF
+
+   FOR n := 1 TO LEN( cTel )
+      cChar := SUBSTR( cTel, n, 1 )
+      IF !( cChar $ cValidos )
+         RETURN ""                 // aparecio algo que no corresponde
+      ENDIF
+      IF IsDigit( cChar )
+         nDigitos++
+      ENDIF
+   NEXT
+
+   IF nDigitos < 6                 // "-", "0", "s/d" abreviado, etc.
+      RETURN ""
+      ELSE 
+      cTel := " (Tel: "+cTel+")"
+   ENDIF
+
+RETURN cTel

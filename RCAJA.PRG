@@ -227,17 +227,18 @@ RETURN nil
 ** Imprimir Retiro 
 STATIC FUNCTION PrintRetiro(n)
 LOCAL oPrn, oFont, oFont1, config, oQryP,;
-      nRow, nRow1, oQryI      
+      nRow, nRow1, oQryI, x      
 oQryP :=  oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip))
 config   := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"config")
 
 oQryI := oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"retiros WHERE id =" +ClipValue2Sql(n))
+FOR x := 1 TO IF(oQryP:copiapr=0,1,oQryP:copiapr)
 IF oQryP:imprimeTic   
       IF config:fon > 25 
         config:fon := config:fon /3
       ENDIF      
       DEFINE FONT oFont   NAME "COURIER NEW"       SIZE config:fon,config:fon*2.5 BOLD
-      DEFINE FONT oFont1  NAME "CALIBRI"           SIZE config:fon,config:fon*3.5 BOLD
+      DEFINE FONT oFont1  NAME "CALIBRI"           SIZE config:fon,config:fon*3.5 BOLD      
       IF !oQryP:tick80
          PRINT oPrn TO ALLTRIM(oQryP:impresorat)
           PAGE
@@ -316,6 +317,7 @@ IF oQryP:imprimeTic
           ENDPAGE
        ENDPRINT    
 ENDIF
+NEXT x
 RETURN NIL
 
 

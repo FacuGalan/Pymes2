@@ -1087,7 +1087,7 @@ return .T.
 **********************************************************
 ** Consulta cuit
 FUNCTION ConsultaCuitRapida(nCuit,nCondi)
-LOCAL Contribuyente, lwsPadron, oError, lRta, oFont, aRespuesta := hash()  ,;
+LOCAL Contribuyente, lwsPadron, oError, lRta := .f., oFont, aRespuesta := hash()  ,;
       atipoiva  := {;
 "1 IVA Responsable Inscripto",;
 "2 IVA Responsable no Inscripto",;

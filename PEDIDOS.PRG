@@ -11,7 +11,7 @@ STATIC oWnd1, nTipoDoc,nTipoEmp,nTipoFac, cVentana, oGet, oQryArt, oQryCli, oQry
        oBrwG, oBrw, oSay1,oSay3,cRemitos, oDlg,oDlg2,nCodCli,nTarjeta,nefectivo,oQryPun,nDescArt,nDescArt1,nConIva,lReemplaza,;
        nEfecti, nTarjet, nCheque, nCtaCte,nVales, nCuotas, nPuntoVta,cObserva,nPorIva,cNumComp,oQryBrw,nLisPre,nLisPreE,oQryLisPre,;
        cDetArt, nDescuGen, nCodIva, nTotal, nForPag, nRubro, nDeuda,oQryChe,mpagado,manticipo,dFecha,nPagado,nVuelto,lAdmin,;
-       nLisPreEAnt
+       nLisPreEAnt, cPermi
 
 PROCEDURE Pedidos(cPermisos) 
 LOCAL oBar, hHand,cDialog, cCod
@@ -23,6 +23,7 @@ LOCAL oBar, hHand,cDialog, cCod
      RETURN
   ENDIF
   AADD(oApp:aVentanas,cVentana)
+cPermi := cPermisos  
 oGet := ARRAY(43) 
 lAdmin:= IF(oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHERE usuario = "+ClipValue2Sql(oApp:usuario)+" AND modulo = 'CREUSU'"):RecCount()>0,.t.,.f.)
 validarqueexista()
@@ -200,6 +201,8 @@ RETURN NIL
 STATIC FUNCTION Formu(cPermiso,lAlta)
 LOCAL oBot := ARRAY(10) , aTipoIva, aTipoDoc, base, cDireccion:=SPACE(30), cLocalidad:=SPACE(30), aVendedor, oQryV,;
       cCUIT:=SPACE(13),  nCodArt:=0, nCantidad:=0, nPunit:=0, nPtotal:=0,  nNeto:=0, oQry, lUsoBorrar := .f.,;      
+      aEstados := {"A","F","N","R","F","P"},cEstado := 'Pendiente',;
+      aEstaNom := {"En Armado","Facturado","Anulado","Rechazado","Facturado","Pendiente"},;
       nIVA:=0,  oFontLetra, oFontTotal,cDescu,oSay2,oDlg2,oWnd2,i,lResp:=.f.,oQryLis,cLisPre:="SIN LISTA ESPECIAL"+SPACE(31),;
       nNumFac:=0, nDNI := 0, nTiArt,oQryIvaT, cNomLis:=SPACE(50),aListas:={"Lista 1","Lista 2"}, cCodArtP := SPACE(30)
       aTipoiva  := {;
@@ -259,6 +262,7 @@ IF lAlta
     oQry:lAppend:= .f.
     oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"pedidos_encab SET nuevo = FALSE WHERE id ="+ClipValue2Sql(oQryBrw:id)+" ")
     oApp:oMsg[5]:SetText(" ")
+    cEstado := aEstaNom[ASCAN(aEstados,base:estado)]
     
     oApp:oServer:Execute("DELETE FROM ventas_det_h2")           
     oApp:oServer:Execute("INSERT INTO ventas_det_h2 (codart,detart,cantidad,faltantes,punit,ptotal,stotal,iva,codiva,neto,descuento,estado,descp) "+;
@@ -273,9 +277,9 @@ IF lAlta
                          " iva = iva  * (1-descp/100),  neto = neto * (1-descp/100) WHERE descp > 0")      
     oQryDet :=oApp:oServer:Query("SELECT *,(cantidad-faltantes) AS disponibles FROM ventas_det_h2")
     IF base:estado <> 'P'
-       IF !MsgNoYes('Este pedido ya fue facturador con la factura '+base:facturanro+chr(10)+;
-               'Queda bajo su responsabilidad la modificacion del mismo'+chr(10)+;
-               'Desea continuar?','Atencion')
+       IF !MsgNoYes('Este pedido no está pendiente. Su estado es :'+cEstado+' Factura '+base:facturanro+chr(10)+;
+          'Queda bajo su responsabilidad la modificacion del mismo'+chr(10)+;
+          'Desea continuar?','Atencion')
           RETURN .f.
        ENDIF   
     ENDIF   
@@ -976,7 +980,11 @@ LOCAL aiva := { "IVA Responsable Inscripto","IVA Responsable no Inscripto",;
       lRta := MsgNoYes("Desea imprimir por comandera?","Atencion")
    ENDIF
    IF lPreguntaSinImporte
-      lConImporte := MsgYesNo("Imprime el pedido valorizado?","Atencion")
+      IF !"E"$cPermi
+         lConImporte := .f.
+         ELSE
+         lConImporte := MsgYesNo("Imprime el pedido valorizado?","Atencion")
+      ENDIF   
    ENDIF      
    oQryDet1:= oApp:oServer:Query("SELECT * FROM ventas_det_h2")
    oQryCli := oApp:oServer:Query("SELECT c.*,v.nombre as nomven FROM ge_"+oApp:cId+"clientes c "+;

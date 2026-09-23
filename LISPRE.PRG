@@ -54,6 +54,10 @@ oQry  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"lispre ORDER BY nombr
             TOOLTIP "Promociones"  ;
             ACTION (oWnd1:End(),Promociones(cPermisos));
             PROMPT "Promos" TOP WHEN("A"$cPermisos)
+         DEFINE BUTTON RESOURCE "PRECIO" OF oBar ;
+            TOOLTIP "Actualizar todas las listas"  ;
+            ACTION Todas();
+            PROMPT "Actualizar" TOP WHEN("A"$cPermisos)   
          DEFINE BUTTON RESOURCE "ETIQUE" OF oBar ;
             TOOLTIP "Etiquetas"  ;
             ACTION (oWnd1:End(),Planil(cPermisos,oQry:codigo));
@@ -217,7 +221,7 @@ RETURN nil
 ************************************************************************************************************
 ************ ACTUALIZAR PRECIOS DE LOS ARTICULOS 
 STATIC FUNCTION ActualizarPre(nCodlis)
-LOCAL  oError,cPrecio:=" IF(l.numpre=1,a.precioven,IF(l.numpre=2,a.reventa,a.preciocos)) "
+LOCAL  oError
 
  IF !MsgYesNo("¿Seguro que desea actualizar los precios de la lista?","Atencion!")
  	RETURN nil 
@@ -225,8 +229,7 @@ LOCAL  oError,cPrecio:=" IF(l.numpre=1,a.precioven,IF(l.numpre=2,a.reventa,a.pre
 
 TRY
   oApp:oServer:BeginTransaction()
-  oApp:oServer:Execute("UPDATE transi_lispre l LEFT JOIN ge_"+oApp:cId+"articu a ON l.codigo= a.codigo "+;
-	                 "SET l.precio = ROUND("+cPrecio+"+"+cPrecio+"*(l.porc/100),0) ")
+  oApp:oServer:Execute(SqlActPrecios("transi_lispre","codigo",""))
   oApp:oServer:CommitTransaction()
 
 CATCH oError
@@ -234,6 +237,15 @@ CATCH oError
 END TRY
 
 RETURN nil
+
+
+************************************************************************************************************
+************ SQL DE ACTUALIZACION DE PRECIOS (compartida por ActualizarPre y Todas)
+** cTabla: tabla a actualizar / cCampo: columna con el codigo de articulo / cWhere: condicion adicional
+STATIC FUNCTION SqlActPrecios(cTabla,cCampo,cWhere)
+LOCAL cPrecio:=" IF(l.numpre=1,a.precioven,IF(l.numpre=2,a.reventa,a.preciocos)) "
+RETURN "UPDATE "+cTabla+" l LEFT JOIN ge_"+oApp:cId+"articu a ON l."+cCampo+" = a.codigo "+;
+       "SET l.precio = ROUND("+cPrecio+"+"+cPrecio+"*(l.porc/100),0) "+cWhere
 
 
 ************************************************************************************************************
@@ -563,18 +575,98 @@ ACTIVATE DIALOG oForm CENTER
 IF !lRta 
    RETURN nil 
 ENDIF 
-DO CASE 
-       CASE nRedondeo = 1
-       CASE nRedondeo = 2
-            oApp:oServer:Execute("UPDATE transi_lispre SET precio = ROUND(precio,0)") 
-       CASE nRedondeo = 3
-            oApp:oServer:Execute("UPDATE transi_lispre SET precio = ROUND(precio,-1)") 
-            oApp:oServer:Execute("UPDATE transi_lispre SET precio = 10 WHERE precio = 0") 
-       CASE nRedondeo = 4
-            oApp:oServer:Execute("UPDATE transi_lispre SET precio = ROUND(precio / 50) * 50") 
-            oApp:oServer:Execute("UPDATE transi_lispre SET precio = 50 WHERE precio = 0")             
-       CASE nRedondeo = 5
-            oApp:oServer:Execute("UPDATE transi_lispre SET precio = ROUND(precio,-2)") 
-            oApp:oServer:Execute("UPDATE transi_lispre SET precio = 100 WHERE precio = 0") 
-ENDCASE
+AEVAL(SqlRedondeo(nRedondeo,"transi_lispre","TRUE"), {|cSql| oApp:oServer:Execute(cSql)})
 RETURN .t.
+
+
+*******************************************
+** SQL de redondeo (compartida por Redondear y Todas)
+** nRedondeo: 1=Sin redondear 2=Entero 3=Mult.10 4=Mult.50 5=Mult.100
+** cTabla: tabla a actualizar / cCond: condicion SQL sin WHERE ("TRUE" = todos los registros)
+STATIC FUNCTION SqlRedondeo(nRedondeo,cTabla,cCond)
+LOCAL aSql := {}
+DO CASE 
+       CASE nRedondeo = 2
+            AADD(aSql,"UPDATE "+cTabla+" SET precio = ROUND(precio,0) WHERE "+cCond)
+       CASE nRedondeo = 3
+            AADD(aSql,"UPDATE "+cTabla+" SET precio = ROUND(precio,-1) WHERE "+cCond)
+            AADD(aSql,"UPDATE "+cTabla+" SET precio = 10 WHERE precio = 0 AND "+cCond)
+       CASE nRedondeo = 4
+            AADD(aSql,"UPDATE "+cTabla+" SET precio = ROUND(precio / 50) * 50 WHERE "+cCond)
+            AADD(aSql,"UPDATE "+cTabla+" SET precio = 50 WHERE precio = 0 AND "+cCond)
+       CASE nRedondeo = 5
+            AADD(aSql,"UPDATE "+cTabla+" SET precio = ROUND(precio,-2) WHERE "+cCond)
+            AADD(aSql,"UPDATE "+cTabla+" SET precio = 100 WHERE precio = 0 AND "+cCond)
+ENDCASE
+RETURN aSql
+
+
+*******************************************
+** Actualizar precios de TODAS las listas (una por una, con barra de avance)
+** Aplica directo sobre lispredet la misma SQL que ActualizarPre usa sobre transi_lispre,
+** y despues el redondeo elegido (misma SQL que Redondear)
+STATIC FUNCTION Todas()
+LOCAL oQryLis, oDlgP, oMeter, oText, nValue := 0, nTot, nAct := 0, oError, lOk := .t.
+LOCAL oForm, oGet := ARRAY(1), oBot := ARRAY(2), aCor, lRta := .f., nRedondeo := 1,;
+      aRedondeo := {"Sin Redondear","Entero","Multiplo de 10","Multiplo de 50","Multiplo de 100"}
+
+oQryLis := oApp:oServer:Query("SELECT codigo, nombre FROM ge_"+oApp:cId+"lispre ORDER BY nombre")
+nTot := oQryLis:RecCount()
+IF nTot = 0
+   oQryLis:End()
+   MsgInfo("No hay listas de precios para actualizar","Atencion")
+   RETURN nil
+ENDIF
+
+DEFINE DIALOG oForm TITLE "Actualizar todas las listas de precios";
+       FROM 05,15 TO 15,65 OF oWnd1 FONT oApp:oFont
+   aCor := AcepCanc(oForm)
+   oForm:lHelpIcon := .f.
+   @ 07, 05 SAY "Se recalculan los precios de las "+ALLTRIM(STR(nTot))+" listas" OF oForm PIXEL SIZE 180,12
+   @ 22, 05 SAY "segun la lista base y el % de incremento de cada articulo." OF oForm PIXEL SIZE 180,12
+   @ 37, 05 SAY "Redondear?:" OF oForm PIXEL SIZE 40,12 RIGHT
+   @ 35, 50 COMBOBOX oGet[1] VAR nRedondeo ITEMS aRedondeo OF oForm PIXEL SIZE 55,12
+   @ aCor[1],aCor[2] BUTTON oBot[1] PROMPT "&Procesar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .t.), oForm:End() ) PIXEL
+   @ aCor[3],aCor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL
+ACTIVATE DIALOG oForm CENTER
+IF !lRta
+   oQryLis:End()
+   RETURN nil
+ENDIF
+
+DEFINE DIALOG oDlgP TITLE "Actualizando listas de precios..." FROM 03,18 TO 12,84 OF oWnd1
+oDlgP:lHelpIcon := .f.
+@ 10,10 SAY oText PROMPT "Preparando..." SIZE 220,12 PIXEL OF oDlgP UPDATE
+@ 30,10 METER oMeter VAR nValue TOTAL nTot SIZE 220,15 PIXEL OF oDlgP
+ACTIVATE DIALOG oDlgP CENTERED NOWAIT
+
+TRY
+  oApp:oServer:BeginTransaction()
+  oQryLis:GoTop()
+  DO WHILE !oQryLis:Eof()
+     nAct++
+     oText:SetText("Lista "+ALLTRIM(STR(nAct))+" / "+ALLTRIM(STR(nTot))+"   "+;
+                   ALLTRIM(STR(oQryLis:codigo))+" "+ALLTRIM(oQryLis:nombre))
+     oMeter:Set(nAct)
+     SysRefresh()
+     oApp:oServer:Execute(SqlActPrecios("ge_"+oApp:cId+"lispredet","codart",;
+                                        "WHERE l.codlis = "+ClipValue2Sql(oQryLis:codigo)))
+     AEVAL(SqlRedondeo(nRedondeo,"ge_"+oApp:cId+"lispredet","codlis = "+ClipValue2Sql(oQryLis:codigo)),;
+           {|cSql| oApp:oServer:Execute(cSql)})
+     oQryLis:Skip()
+  ENDDO
+  oApp:oServer:CommitTransaction()
+CATCH oError
+  lOk := .f.
+END TRY
+oDlgP:End()
+oQryLis:End()
+IF lOk
+   MsgInfo("Se actualizaron los precios de "+ALLTRIM(STR(nAct))+" listas"+;
+           IF(nRedondeo > 1," ("+aRedondeo[nRedondeo]+")","")+".","Listo")
+ELSE
+   ValidaError(oError)   // hace el RollBack y muestra el error
+ENDIF
+RETURN nil

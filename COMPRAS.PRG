@@ -7,7 +7,8 @@
 MEMVAR oApp
 STATIC oWnd1, oBrw, oDlg, cVentana,oQry, oQryBrw,nIvaArt, nCant,oQryIvaDet,oBrwIvas,oBrwRet,lIncluido, ;
        oQryComprasDet, oQryCue, oQryPro, oQryArt,  oQryIva, oQryTip, oQryRet, oQryCom, oGet, oBot, base, baseDet,;
-       oQry2,oQry3,oQry4,oQry5,oQry6,oQry7,nCodpro,cNumRe1,cNumRe2,oBrwDet,lPaga, lUsoPedido, lNoComputarIVA
+       oQry2,oQry3,oQry4,oQry5,oQry6,oQry7,nCodpro,cNumRe1,cNumRe2,oBrwDet,lPaga, lUsoPedido, lNoComputarIVA,;
+       nBultos, nUxBulto, nArtBul
 PROCEDURE Compras(cPermisos) 
 LOCAL oBar, hHand
 cVentana := PROCNAME()
@@ -98,8 +99,9 @@ RETURN
 
 
 STATIC FUNCTION Formu(lAlta)
-LOCAL oGet:=ARRAY(49),oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTipoComp, nBultos:=0,;
+LOCAL oGet:=ARRAY(50),oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTipoComp,;
       cNomPro,  cCuit, cConIva, cNomCue, nDeuda, nCodArt, cDetArt, nCantidad, oError, i, lAgenda := .f.,;
+      aUsuAgenda := {},;
       nPunit, nPTotal, cNomRet1, cNomRet2, cNomRet3, cNomRet4, cNomRet5, oDlg1, oQryDoc,nRenglon,;
       nSaldoIni:=0, nImporteIni:=0,oQryCodigos,nMaximo,nOrden, lPuedeCobrar, oQryPedPen, cInPed, cNumCompAnt,;
       dCierrecompras := oApp:oServer:Query( "SELECT cierrecompra FROM ge_"+oApp:cId+"parametros"):cierrecompra,;
@@ -245,6 +247,9 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
   nCodPro:= SPACE(30)
   oQryComprasDet :=oApp:oServer:Query("SELECT * FROM comprasdet_H")
   baseDet := oQryComprasDet:GetBlankRow()
+  nBultos  := 0   // Bultos del articulo en carga (solo oApp:usar_bultos)
+  nUxBulto := 0   // Unidades por bulto del articulo en carga
+  nArtBul  := 0   // Articulo para el que ya se cargaron cantidad/bultos
   DO WHILE .T.
     DEFINE DIALOG oDlg1 RESOURCE "COMPRAS" OF oWnd1
     oDlg1:lHelpIcon := .f.
@@ -291,8 +296,12 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
                  ACTION (oGet[15]:cText:= "-1", ValidaArtP(oDlg1,oGet,.T.)) BITMAP "BUSC1" PICTURE "@!"
     oGet[15]:bGotFocus:={|| oGet[15]:SelectAll()}
     REDEFINE GET oGet[18] VAR basedet:detart  ID 127 OF oDlg1 WHEN(.F.)
+    REDEFINE GET oGet[50] VAR nBultos ID 4023 OF oDlg1 PICTURE "99999";
+                 WHEN(oApp:usar_bultos .and. nUxBulto > 0);
+                 VALID(CambiaBultos(oGet))
+    oGet[50]:bGotFocus:={|| oGet[50]:SelectAll()}
     REDEFINE GET oGet[19] VAR basedet:cantidad ID 128 OF oDlg1 PICTURE "9999999999.999";
-                 VALID((oGet[21]:cText:= basedet:cantidad * basedet:punit) <> "XXX")
+                 VALID(SincBultos(oGet) .and. (oGet[21]:cText:= basedet:cantidad * basedet:punit) <> "XXX")
     REDEFINE GET oGet[20] VAR basedet:punit  ID 129 OF oDlg1 PICTURE "999999999.99" WHEN(.F.)
     REDEFINE GET oGet[21] VAR basedet:total  ID 130 OF oDlg1 PICTURE "999999999.99" WHEN(.F.)
 
@@ -407,7 +416,8 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
     REDEFINE BUTTON oBot[7] ID 4011 OF oDlg1 ACTION(BuscaPedidos(base,oGet)) WHEN(lAlta .and. base:codpro > 0)    
     //ACTiVACION   ---------------------------------------------------------------
     ACTIVATE DIALOG oDlg1 CENTER ON INIT ;
-    IF(!lAlta,(ValidaPro(oGet,lAlta,oDlg1),oGet[47]:Hide(),oGet[48]:Hide()),IF(!lVtoStock,(oGet[47]:Hide(),oGet[48]:Hide()),nil)) 
+    (IF(!lAlta,(ValidaPro(oGet,lAlta,oDlg1),oGet[47]:Hide(),oGet[48]:Hide()),IF(!lVtoStock,(oGet[47]:Hide(),oGet[48]:Hide()),nil)),;
+     IF(!oApp:usar_bultos,oGet[50]:Hide(),nil))
 
 IF !lRta
    RETURN nil
@@ -447,9 +457,8 @@ IF lAlta
       base:estado = 'P'
    ENDIF
    IF base:fecvto > base:fecfac .and. nTipoComp <> 5
-      lAgenda := MsgNoYes("¿Desea agendar el vencimiento de esta factura "+chr(10)+;
-                "en la agenda del sistema?","Atencion!")
-   ENDIF   
+      lAgenda := PideAgenda(base:numfac,cNomPro,base:fecvto,@aUsuAgenda)
+   ENDIF
 ELSE
    IF nImporteIni <> base:importe
      lRta:= MsgNoYes("¿Desea realizar los cambios al comprobante? Tenga en cuenta que si ya tiene pagos realizados permaneceran igual","Atencion!")
@@ -617,9 +626,13 @@ TRY
      NEXT i
   ENDIF
   IF lAgenda
-     oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"citas (fecha,hora,horafin,motivo,usuario,estado,alerta) "+;
-                 " VALUES ("+ClipValue2Sql(base:fecvto)+",'08:00','08:30','Vence FC "+base:numfac+" "+alltrim(cNomPro)+"',"+;
-                 ClipValue2Sql(oApp:usuario)+",0,1)") 
+     FOR i := 1 TO LEN(aUsuAgenda)
+         IF aUsuAgenda[i,2]
+            oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"citas (fecha,hora,horafin,motivo,usuario,estado,alerta) "+;
+                        " VALUES ("+ClipValue2Sql(base:fecvto)+",'08:00','08:30','Vence FC "+base:numfac+" "+alltrim(cNomPro)+"',"+;
+                        ClipValue2Sql(aUsuAgenda[i,1])+",0,1)")
+         ENDIF
+     NEXT i
   ENDIF
   IF lAlta .and. lVtoStock 
      oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"stocklotes (codart,cantidad,restan,fechavto) "+;
@@ -889,7 +902,7 @@ RETURN .f.
 
 **********************************************************************************************
 STATIC FUNCTION ValidaArtP(oWnd1,oGet,lBuscar)
-LOCAL oQryArt2, lEncontro, oQryArtP, oDlg1, oBrwC, aCor, oBot1,oBot2, nBultos := 1,;
+LOCAL oQryArt2, lEncontro, oQryArtP, oDlg1, oBrwC, aCor, oBot1,oBot2,;
       lOcultar_no_vendibles := IF(oGet[49]:lChecked,' a.nosale IS FALSE ',' TRUE ')
 
     oQryArt2 := oApp:oServer:Query("SELECT a.codigopro AS codigo,a.nombre AS nombre,a.codigo AS codart,"+;
@@ -939,29 +952,21 @@ LOCAL oQryArt2, lEncontro, oQryArtP, oDlg1, oBrwC, aCor, oBot1,oBot2, nBultos :=
                                   "WHERE a.codigo = " + ClipValue2SQL(oQryArtP:codart))
        ENDIF                                     
     ENDIF*/
-    IF oQryArt2:uxb > 0 .and. oGet[17]:value <> oQryArt2:codart
-       MsgGet("Cantidad de bultos:","Bultos",@nBultos)
-       IF nBultos <= 0
-          nBultos := 1
-       ENDIF   
-       nCant := nBultos * oQryArt2:uxb
+    // Solo al cambiar de articulo: si usa bultos propone 1 bulto (cantidad = uxbulto),
+    // el resto lo corrige el usuario en el GET de bultos (ID 4023)
+    IF oGet[17]:value <> oQryArt2:codart
+       nArtBul  := oQryArt2:codart
+       nUxBulto := IF(oApp:usar_bultos .and. oQryArt2:uxb > 0, oQryArt2:uxb, 0)
+       nBultos  := IF(nUxBulto > 0, 1, 0)
+       nCant    := IF(nUxBulto > 0, nUxBulto, 1)
        oGet[17]:cText:= oQryArt2:codart
        oGet[18]:cText:= oQryArt2:nombre
        oGet[19]:cText:= nCant
        oGet[20]:cText:= oQryArt2:precossiva
        oGet[21]:cText:= oQryArt2:precossiva * nCant
        basedet:siniva:= oQryArt2:siniva
-       ELSE 
-       IF oGet[17]:value <> oQryArt2:codart
-           nCant := 1
-           oGet[17]:cText:= oQryArt2:codart
-           oGet[18]:cText:= oQryArt2:nombre
-           oGet[19]:cText:= 1
-           oGet[20]:cText:= oQryArt2:precossiva
-           oGet[21]:cText:= oQryArt2:precossiva
-           basedet:siniva:= oQryArt2:siniva
-      ENDIF
-    ENDIF    
+       oGet[50]:Refresh()
+    ENDIF
     oQryArt2:SetNewFilter(SET_WHERE,"true",.t.)
 RETURN .t.
 
@@ -995,7 +1000,7 @@ RETURN .t.
 
 **********************************************************************************************
 STATIC FUNCTION ValidaArt(oDlg1,oGet)   
-    LOCAL oQryArt , nBultos := 1,;
+    LOCAL oQryArt ,;
     lOcultar_no_vendibles := IF(oGet[49]:lChecked,' nosale IS FALSE ',' TRUE ')
     IF basedet:codart > 0
         oQryArt := oApp:oServer:Query("SELECT codigo,nombre,iva,codigopro,precossiva,siniva,uxbulto,pxbulto "+;
@@ -1017,26 +1022,20 @@ STATIC FUNCTION ValidaArt(oDlg1,oGet)
     ELSE 
        oGet[15]:cText:= SPACE(30)
     ENDIF
-    IF oQryArt:uxbulto > 0
-       MsgGet("Cantidad de bultos:","Bultos",@nBultos)
-       IF nBultos <= 0
-          nBultos := 1
-       ENDIF   
-       nCant := nBultos * oQryArt:uxbulto
-       oGet[17]:cText:= oQryArt:codigo
+    // Solo carga cantidad/bultos si cambio el articulo (o no hay cantidad), asi
+    // volver a pasar por el codigo no pisa lo que el usuario ya cargo
+    IF oQryArt:codigo <> nArtBul .OR. oGet[19]:value == 0
+       nArtBul  := oQryArt:codigo
+       nUxBulto := IF(oApp:usar_bultos .and. oQryArt:uxbulto > 0, oQryArt:uxbulto, 0)
+       nBultos  := IF(nUxBulto > 0, 1, 0)
+       nCant    := IF(nUxBulto > 0, nUxBulto, 1)
        oGet[18]:cText:= oQryArt:nombre
        oGet[19]:cText:= nCant
        oGet[20]:cText:= oQryArt:precossiva
        oGet[21]:cText:= oQryArt:precossiva * nCant
        basedet:siniva:= oQryArt:siniva
-       ELSE 
-       nCant := 1
-       oGet[18]:cText:= oQryArt:nombre
-       oGet[19]:cText:= 1
-       oGet[20]:cText:= oQryArt:precossiva
-       oGet[21]:cText:= oQryArt:precossiva
-       basedet:siniva:= oQryArt:siniva
-    ENDIF        
+       oGet[50]:Refresh()
+    ENDIF
     //oQryArt:SetNewFilter(SET_WHERE,"true",.t.)
 RETURN .t.
 
@@ -1091,7 +1090,11 @@ LOCAL oQryDoc,oQryArt
    oBrwDet:GoBottom()
   ENDIF 
    oGet[15]:cText:= SPACE(30)
-   oGet[17]:SetFocus()   
+   oGet[19]:cText := 0
+   nArtBul := 0
+   nUxBulto := 0
+   oGet[50]:cText := 0
+   oGet[17]:SetFocus()
    oGet[47]:cText:= CTOD('  /  /    ')
    CambiaCant(basedet:cantidad,,oGet)
 RETURN .T.
@@ -1138,8 +1141,33 @@ STATIC FUNCTION Cancela(oGet)
   oGet[17]:cText:= 0
   oGet[18]:cText:= ""
   oGet[19]:cText:= 0.00
+  nArtBul := 0
+  nUxBulto := 0
+  oGet[50]:cText:= 0
   oGet[17]:SetFocus()
-RETURN NIL  
+RETURN NIL
+
+**********************************************************************************************
+** Bultos (ID 4023): cantidad = bultos * unidades por bulto. Con 0 bultos se deja
+** la cantidad como esta para poder cargar unidades sueltas
+STATIC FUNCTION CambiaBultos(oGet)
+IF nBultos < 0
+   oGet[50]:cText := 0
+ENDIF
+IF nBultos > 0 .and. nUxBulto > 0
+   nCant := nBultos * nUxBulto
+   oGet[19]:cText := nCant
+   oGet[21]:cText := nCant * basedet:punit
+ENDIF
+RETURN .T.
+
+**********************************************************************************************
+** Si cambian la cantidad a mano, los bultos acompañan (0 si no es un multiplo exacto)
+STATIC FUNCTION SincBultos(oGet)
+IF nUxBulto > 0
+   oGet[50]:cText := IF(basedet:cantidad % nUxBulto == 0, INT(basedet:cantidad / nUxBulto), 0)
+ENDIF
+RETURN .T.
 
 *************************************
 ** Cerrar el archivo abierto
@@ -1597,3 +1625,57 @@ END TRY
 EXIT
 ENDDO
 RETURN nil
+***********************************************************************
+** Pregunta si agenda el vencimiento de la factura y a que usuarios.
+** El que carga se agenda a si mismo (preseleccionado) y puede sumar
+** a cualquier usuario administrador (tipo = 'ADMIN').
+** Devuelve .t. si hay que agendar y deja en aUsua el array
+** {usuario, lAgendar} para que el llamador recorra e inserte.
+STATIC FUNCTION PideAgenda(cNumFac,cNomPro,dFecVto,aUsua)
+LOCAL oDlg1, oBot := ARRAY(2), oBrwU, acor, i, lRta := .f., lAlguno
+aUsua := oApp:oServer:Query("SELECT usuario,altas FROM ge_"+oApp:cId+"usuarios "+;
+                            " WHERE usuario = "+ClipValue2Sql(oApp:usuario)+;
+                            " OR tipo = 'ADMIN' ORDER BY usuario"):FillArray(,{'usuario','altas'})
+FOR i := 1 TO LEN(aUsua)
+    aUsua[i,2] := ALLTRIM(oApp:usuario) == ALLTRIM(aUsua[i,1])
+NEXT i
+DO WHILE .T.
+DEFINE DIALOG oDlg1 TITLE "Agendar Vencimiento" FROM 03,15 TO 20,70 OF oApp:oWnd
+   acor := AcepCanc(oDlg1)
+   @ 07, 05 SAY "Desea agendar el vencimiento de esta factura"+CHR(10)+;
+                "en la agenda del sistema?" OF oDlg1 PIXEL SIZE 120,20
+   @ 30, 05 SAY "Comprobante: "+ALLTRIM(cNumFac)+"  "+ALLTRIM(cNomPro) OF oDlg1 PIXEL SIZE 120,14
+   @ 45, 05 SAY "Vence el: "+DTOC(dFecVto) OF oDlg1 PIXEL SIZE 120,10 
+   @ 55, 05 SAY "Agendar a:" OF oDlg1 PIXEL SIZE 55,10 RIGHT
+   @ 55, 65 XBROWSE oBrwU SIZE 120,55 PIXEL OF oDlg1 ARRAY aUsua ;
+      HEADERS "Usuario","Agendar";
+      COLUMNS 1, 2 ;
+      CELL LINES NOBORDER
+   WITH OBJECT oBrwU
+      :aCols[2]:nEditType := EDIT_GET
+      :lRecordSelector := .f.
+      :aCols[2]:SetCheck()
+      :nFreeze := 2
+      :CreateFromCode()
+      :lHScroll := .f.
+   END
+   PintaBrw(oBrwU,0)
+   @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Agendar" OF oDlg1 SIZE 40,10 ;
+           ACTION ((lRta := .t.), oDlg1:End() ) PIXEL
+   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&No agendar" OF oDlg1 SIZE 40,10 ;
+           ACTION ((lRta := .f.), oDlg1:End() ) PIXEL CANCEL
+ACTIVATE DIALOG oDlg1 CENTER ON INIT oBot[2]:SetFocus()
+IF !lRta
+   RETURN .f.
+ENDIF
+lAlguno := .f.
+FOR i := 1 TO LEN(aUsua)
+    lAlguno := lAlguno .or. aUsua[i,2]
+NEXT i
+IF !lAlguno
+   MsgStop("Seleccione al menos un usuario para agendar","Atencion!")
+   LOOP
+ENDIF
+EXIT
+ENDDO
+RETURN .t.

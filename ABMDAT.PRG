@@ -68,7 +68,7 @@ REDEFINE FOLDEREX oFld ID 100 OF oDlg1 ;/*PAGES son dialogos de recurso*/
      REDEFINE CHECKBOX oCheck[1] VAR base:cierreturno OF oFld:aDialogs[1] ID 109 
      oCheck[1]:cToolTip:= "Se habilitara la funcion de cierre de caja por turno"
      REDEFINE CHECKBOX oCheck[2] VAR base:unificacaja OF oFld:aDialogs[1] ID 110
-     REDEFINE BUTTON oBot[3] ID 301 OF oFld:aDialogs[1]  ACTION ConfiguFac()
+     REDEFINE BUTTON oBot[3] ID 301 OF oFld:aDialogs[1]  ACTION ConfiguFac(@base)
      REDEFINE CHECKBOX oCheck[3] VAR base:enviamail OF oFld:aDialogs[1] ID 4002
      REDEFINE GET oGet[35] VAR base:email      OF oFld:aDialogs[1] ID 4003 PICTURE "@S20" WHEN(base:enviamail)
 
@@ -213,7 +213,7 @@ ENDDO
 CargarConfiguracion()
 RETURN 
  
-STATIC FUNCTION ConfiguFac()
+STATIC FUNCTION ConfiguFac(base1)
 LOCAL oDlg2, aCor,oQryConf,base,oError,;
       oGet1, oGet2, oGet3, oGet4, oGet5, oGet6, oGet7, oGet8, oGet9, ;
       oGeta, oGetb, oGetc,;
@@ -225,7 +225,7 @@ oQryConf:=oApp:oServer:Query("SELECT *  FROM ge_"+oApp:cId+"config")
 base:= oQryConf:GetRowObj()
 
 DO WHILE .T.
-DEFINE DIALOG oDlg2 TITLE "Configurar factura" FROM 05,15 TO 19,63 FONT oFont
+DEFINE DIALOG oDlg2 TITLE "Configurar factura" FROM 05,15 TO 25,63 FONT oFont
    acor := AcepCanc(oDlg2)
  /*  @ 07,05 SAY "Tipo de formulario:" OF  oDlg2 PIXEL SIZE 70,12 RIGHT
    @ 22,05 SAY "Numero de factura :" OF  oDlg2 PIXEL SIZE 70,12 RIGHT
@@ -243,7 +243,8 @@ DEFINE DIALOG oDlg2 TITLE "Configurar factura" FROM 05,15 TO 19,63 FONT oFont
    @ 07,05 SAY "Tamaño Letra      :" OF  oDlg2 PIXEL SIZE 70,12 RIGHT
    @ 22,05 SAY "Interlineado A4   :" OF  oDlg2 PIXEL SIZE 70,12 RIGHT
    @ 37,05 SAY "Logo en facturas  :" OF  oDlg2 PIXEL SIZE 70,12 RIGHT
-   @ 52,05 SAY "El logotipo debe guardarse en el archivo LOGO.JPG y debe tener 8 cm "+;
+   @ 52,05 SAY "Texto Pie Facturas:" OF  oDlg2 PIXEL SIZE 70,12 RIGHT
+   @ 82,05 SAY "El logotipo debe guardarse en el archivo LOGO.JPG y debe tener 8 cm "+;
     " de ancho y 3 de alto (o ser proporcional a esos valores). El fondo de la factura "+;
     " (si Ud. desea poner una marca de agua), debe ser guardado en el archivo FONDOFAC.JPG.";
      OF  oDlg2 PIXEL SIZE 170,36 
@@ -277,6 +278,7 @@ DEFINE DIALOG oDlg2 TITLE "Configurar factura" FROM 05,15 TO 19,63 FONT oFont
    @ 05,080 GET oGext VAR base:fon    PICTURE "9999" OF oDlg2 PIXEL RIGHT
    @ 20,080 GET oGet1 VAR base:salto    PICTURE "9999" OF oDlg2 PIXEL RIGHT
    @ 35,080 COMBOBOX oGetc VAR base:x1 ITEMS aImp OF oDlg2 PIXEL SIZE 80,10
+   @ 50,080 GET oGet2 VAR base1:texto_pie_fiscal OF oDlg2 PIXEL SIZE 90,22 MEMO
 *  @200,120 GET oGeyt VAR myt PICTURE "9999" OF oDlg2 PIXEL RIGHT
    @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Grabar" OF oDlg2 SIZE 30,10 ;
            ACTION ((mrta := .t.), oDlg2:End() ) PIXEL

@@ -26,10 +26,13 @@
 ** Este archivo es solo el ABM. El motor de calculo va aparte.
 *************************************************
 MEMVAR oApp
-STATIC oQry, oWnd1, oBrw, oDlg, cVentana
+STATIC oQry, oWnd1, oBrw, oDlg, cVentana,;
+       cCondBtn, cCondNom, nFModo, nFBenef, nFVig, nFForma, nFArt, cFArtNom
+
+#define TITULO_PG "A/B/M de Promociones por Grupo"
 
 PROCEDURE PromosGrupo(cPermisos)
-LOCAL oBar, hHand
+LOCAL oBar, hHand, oPop, oGetSeek, cSeek := SPACE(40)
 cVentana := PROCNAME()
 IF ASCAN(oApp:aVentanas,cVentana) > 0
    hHand := ASCAN(oApp:aVentanas,cVentana)
@@ -40,21 +43,34 @@ ENDIF
 ValidarTablas()
 AADD(oApp:aVentanas,cVentana)
 oQry := oApp:oServer:Query(SqlLista())
+// Estado del boton Filtrar (1 = Todas/Todos en los combos, 0 = sin articulo)
+cCondBtn := ""
+cCondNom := ""
+nFModo   := 1
+nFBenef  := 1
+nFVig    := 1
+nFForma  := 1
+nFArt    := 0
+cFArtNom := "TODOS"+SPACE(45)
 
-  DEFINE WINDOW oWnd1 MDICHILD TITLE "A/B/M de Promociones por Grupo" ;
+MENU oPop POPUP
+     MENUITEM "Quitar filtro" ACTION (QuitaFiltro(),oGetSeek:SetFocus())
+ENDMENU
+
+  DEFINE WINDOW oWnd1 MDICHILD TITLE TITULO_PG ;
           OF oApp:oWnd NOZOOM ICON oApp:oIco
          DEFINE BUTTONBAR oBar SIZE 60,60 OF oWnd1 2010
          DEFINE BUTTON RESOURCE "ALTA" OF oBar ;
             TOOLTIP "Agregar Registro" ;
-            ACTION (Formu(.t.),oQry:Refresh(),oBrw:Refresh());
+            ACTION (Formu(.t.),AplicaFiltro(.t.));
             PROMPT "Alta" TOP WHEN("A"$cPermisos)
          DEFINE BUTTON RESOURCE "MODI" OF oBar ;
             TOOLTIP "Modificar Registro" ;
-            ACTION (Formu(.f.),oQry:Refresh(),oBrw:Refresh());
+            ACTION (Formu(.f.),AplicaFiltro(.t.));
             PROMPT "Modifica" TOP WHEN(oQry:RecCount()>0 .and. "M"$cPermisos)
          DEFINE BUTTON RESOURCE "BAJA" OF oBar ;
             TOOLTIP "Eliminar Registro" ;
-            ACTION (Baja(),oQry:Refresh(),oBrw:Refresh());
+            ACTION (Baja(),AplicaFiltro(.t.));
             PROMPT "Baja" TOP WHEN(oQry:RecCount()>0 .and. "B"$cPermisos)
          DEFINE BUTTON RESOURCE "EXCE" OF oBar ;
             TOOLTIP "Exportar a Excel" ;
@@ -64,6 +80,10 @@ oQry := oApp:oServer:Query(SqlLista())
             TOOLTIP "Imprimir Planilla" ;
             ACTION oBrw:Report("Reporte de Promos por Grupo",.T.,.F.);
             PROMPT "Reporte" TOP WHEN(oQry:RecCount()>0 .and. "R"$cPermisos)
+         DEFINE BUTTON RESOURCE "FILT" OF oBar ;
+            TOOLTIP "Filtrar promos (modalidad, beneficio, vigencia, forma de pago, articulo)" ;
+            ACTION (Filtro(),oGetSeek:SetFocus()) MENU oPop;
+            PROMPT "Filtrar" TOP
          DEFINE BUTTON RESOURCE "SALE" OF oBar;
             TOOLTIP "Cerrar Ventana" ;
             ACTION oWnd1:End();
@@ -75,12 +95,15 @@ oQry := oApp:oServer:Query(SqlLista())
               COLUMNS "id","nompromo","modo","cant_a","cant_z","beneficio","max_aplica","prioridad","fecha_inicio","fecha_fin";
               HEADERS "#","Promo","Modalidad","Lleva","Benef.","Beneficio","Max.","Prior.","Desde","Hasta";
               SIZES 40,200,130,45,45,90,40,40,80,80;
-              ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,Formu(.f.),MsgInfo("Sin Permiso")),oQry:Refresh(),oBrw:Refresh())
-     REDEFINE SAY oBrw:oSeek PROMPT "" ID 113 OF oDlg
+              ID 111 OF oDlg AUTOSORT ON DBLCLICK (IF("M"$cPermisos,Formu(.f.),MsgInfo("Sin Permiso")),AplicaFiltro(.t.))
+     REDEFINE GET oGetSeek VAR cSeek ID 113 OF oDlg
      oQry:bOnChangePage := {|| oBrw:Refresh() }
-     oBrw:bKeyDown := {| nKey,nFlags | IF(nKey==13,(Formu(.f.),oQry:Refresh(),oBrw:GoLeftMost(),oBrw:Refresh()),.t.)}
+     // Tipear en la grilla salta a la busqueda con esa letra; Enter modifica
+     oBrw:bKeyDown := {| nKey,nFlags | IF(EsTeclaBusca(nKey),SaltaBusca(oGetSeek,nKey),;
+                                          IF(nKey==13,(Formu(.f.),AplicaFiltro(.t.),oBrw:GoLeftMost()),.t.))}
+     oGetSeek:bKeyDown := { |nKey,nFlag| FiltraNombre(oGetSeek, nKey) }
      PintaBrw(oBrw,10)
-     ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT oDlg:Move(0,0) VALID(oWnd1:End())
+     ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT (oGetSeek:SetFocus(),oDlg:Move(0,0)) VALID(oWnd1:End())
    ACTIVATE WINDOW oWnd1 ON INIT Incrusta( oWnd1, oDlg, .T.) VALID(Cerrar())
 RETURN
 
@@ -95,6 +118,198 @@ RETURN "SELECT g.id, g.nompromo, "+;
        " g.max_aplica, g.prioridad, g.fecha_inicio, g.fecha_fin, g.hora_inicio, g.hora_fin, "+;
        " g.formapago, g.mismo_grupo, g.tipo_benef, g.precio_unitario, g.porcentaje "+;
        "FROM ge_"+oApp:cId+"promo_grupo g ORDER BY g.nompromo"
+
+
+***********************************
+** Filtro de la grilla = condicion del boton Filtrar (cCondBtn) AND busqueda por nombre (cCondNom).
+** NO se usan sub-SELECT en el WHERE: TDolphin re-arma la query al ordenar/filtrar y su parser
+** no entiende parentesis. El "incluye articulo" se resuelve antes con una query aparte y a la
+** grilla solo le llega "g.id IN (...)". lRecalc = .t. vuelve a calcular esa lista (despues de
+** cada alta/modificacion/baja, para que entren o salgan las promos que cambiaron).
+STATIC FUNCTION AplicaFiltro(lRecalc)
+LOCAL cWhere
+IF lRecalc
+   cCondBtn := CondBoton()
+ENDIF
+cWhere := cCondBtn + IF(!EMPTY(cCondBtn) .and. !EMPTY(cCondNom)," AND ","") + cCondNom
+oQry:SetNewFilter(SET_WHERE,IF(EMPTY(cWhere),"TRUE",cWhere),.t.)
+oBrw:Refresh()
+ActTitulo()
+RETURN nil
+
+***********************************
+** Arma la condicion del boton Filtrar con los valores elegidos
+STATIC FUNCTION CondBoton()
+LOCAL aCond := {}, cCond := "", cIds := "", oQryIds, i
+DO CASE
+   CASE nFModo = 2 ; AADD(aCond,"g.mismo_grupo = 1")
+   CASE nFModo = 3 ; AADD(aCond,"g.mismo_grupo = 0")
+ENDCASE
+DO CASE
+   CASE nFBenef = 2 ; AADD(aCond,"g.tipo_benef = 1")
+   CASE nFBenef = 3 ; AADD(aCond,"g.tipo_benef = 2")
+ENDCASE
+DO CASE
+   CASE nFVig = 2 ; AADD(aCond,"(g.fecha_inicio <= CURDATE() AND g.fecha_fin >= CURDATE())")
+   CASE nFVig = 3 ; AADD(aCond,"g.fecha_fin < CURDATE()")
+   CASE nFVig = 4 ; AADD(aCond,"g.fecha_inicio > CURDATE()")
+ENDCASE
+// Combo: 1 = Todas, 2..7 = forma de pago 1..6 (mismo criterio que Formu: STR(i,1) $ formapago)
+IF nFForma > 1
+   AADD(aCond,"LOCATE('"+STR(nFForma-1,1)+"',g.formapago) > 0")
+ENDIF
+// Articulo en cualquiera de los dos grupos (A o Z)
+IF nFArt > 0
+   oQryIds := oApp:oServer:Query("SELECT DISTINCT grupo_id FROM ge_"+oApp:cId+"promo_grupo_det "+;
+                                 "WHERE codart = "+ClipValue2Sql(nFArt))
+   oQryIds:GoTop()
+   DO WHILE !oQryIds:Eof()
+      cIds := cIds + IF(EMPTY(cIds),"",",") + ALLTRIM(STR(oQryIds:grupo_id))
+      oQryIds:Skip()
+   ENDDO
+   oQryIds:End()
+   AADD(aCond,"g.id IN ("+IF(EMPTY(cIds),"0",cIds)+")")
+ENDIF
+FOR i := 1 TO LEN(aCond)
+   cCond := cCond + IF(i > 1," AND ","") + aCond[i]
+NEXT
+RETURN cCond
+
+***********************************
+** Titulo de la ventana con el resumen del filtro activo
+STATIC FUNCTION ActTitulo()
+LOCAL cRes := ""
+IF nFModo > 1
+   cRes := cRes + IF(nFModo = 2,"Mix, ","Cruzadas, ")
+ENDIF
+IF nFBenef > 1
+   cRes := cRes + IF(nFBenef = 2,"Precio unitario, ","% descuento, ")
+ENDIF
+IF nFVig > 1
+   cRes := cRes + {"","Vigentes, ","Vencidas, ","Futuras, "}[nFVig]
+ENDIF
+IF nFForma > 1
+   cRes := cRes + "Paga con "+AFormasPago()[nFForma]+", "
+ENDIF
+IF nFArt > 0
+   cRes := cRes + "incluye "+ALLTRIM(cFArtNom)+", "
+ENDIF
+IF !EMPTY(cRes)
+   cRes := " - Filtro: " + LEFT(cRes,LEN(cRes)-2)
+ENDIF
+oWnd1:SetText(TITULO_PG + cRes)
+RETURN nil
+
+STATIC FUNCTION AFormasPago()
+RETURN {"Todas","Efectivo","Transferencia","Cheques","Tarjetas","Cta.Cte.","M.Pago"}
+
+***********************************
+** Dialogo del boton Filtrar. Arranca con lo ultimo que se filtro; Cancelar no cambia nada.
+STATIC FUNCTION Filtro()
+LOCAL oDlgF, oGet := ARRAY(2), oBot := ARRAY(2), aCor := ARRAY(4), lRta := .f., oQryArt,;
+      nModo := nFModo, nBenef := nFBenef, nVig := nFVig, nForma := nFForma,;
+      nArt := nFArt, cArtNom := cFArtNom
+oQryArt := oApp:oServer:Query("SELECT codigo,nombre FROM ge_"+oApp:cId+"articu ")
+DEFINE DIALOG oDlgF TITLE "Filtrar promos por grupo" FROM 05,15 TO 21,90 OF oWnd1
+   oDlgF:lHelpIcon := .f.
+   @ 07, 05 SAY "Modalidad:"        OF oDlgF PIXEL SIZE 60,12 RIGHT
+   @ 22, 05 SAY "Beneficio:"        OF oDlgF PIXEL SIZE 60,12 RIGHT
+   @ 37, 05 SAY "Vigencia:"         OF oDlgF PIXEL SIZE 60,12 RIGHT
+   @ 52, 05 SAY "Forma de pago:"    OF oDlgF PIXEL SIZE 60,12 RIGHT
+   @ 67, 05 SAY "Incluye articulo:" OF oDlgF PIXEL SIZE 60,12 RIGHT
+
+   @ 05, 70 COMBOBOX nModo  ITEMS {"Todas","Mix (mismos art.)","Cruzada A -> Z"} ;
+            OF oDlgF PIXEL SIZE 100,60
+   @ 20, 70 COMBOBOX nBenef ITEMS {"Todos","Precio unitario","% de descuento"} ;
+            OF oDlgF PIXEL SIZE 100,60
+   @ 35, 70 COMBOBOX nVig   ITEMS {"Todas","Vigentes hoy","Vencidas","Futuras"} ;
+            OF oDlgF PIXEL SIZE 100,60
+   @ 50, 70 COMBOBOX nForma ITEMS AFormasPago() ;
+            OF oDlgF PIXEL SIZE 100,90
+   // 0 = no filtra por articulo; la lupa busca en cualquier articulo
+   @ 65, 70 GET oGet[1] VAR nArt OF oDlgF PIXEL PICTURE "99999999999999" SIZE 60,12 RIGHT;
+            VALID(IF(nArt = 0,(oGet[2]:cText:="TODOS"+SPACE(45))<>"XXX",BuscarArt(oQryArt,oDlgF,oGet[1],oGet[2])));
+            ACTION (oGet[1]:cText:= 0, BuscarArt(oQryArt,oDlgF,oGet[1],oGet[2])) BITMAP "BUSC1"
+   @ 65,135 GET oGet[2] VAR cArtNom OF oDlgF PIXEL PICTURE "@!" SIZE 150,12 WHEN(.f.)
+
+   aCor := AcepCanc(oDlgF)
+   @ aCor[1],aCor[2] BUTTON oBot[1] PROMPT "&Filtrar"  OF oDlgF SIZE 30,10 ACTION ((lRta := .t.), oDlgF:End()) PIXEL
+   @ aCor[3],aCor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oDlgF SIZE 30,10 ACTION ((lRta := .f.), oDlgF:End()) PIXEL CANCEL
+   oDlgF:bKeyDown = { | nKey, nFlags | IF(nKey==120,oBot[1]:Click,.f.)}
+ACTIVATE DIALOG oDlgF CENTER
+oQryArt:End()
+IF lRta
+   nFModo   := nModo
+   nFBenef  := nBenef
+   nFVig    := nVig
+   nFForma  := nForma
+   nFArt    := nArt
+   cFArtNom := IF(nArt = 0,"TODOS"+SPACE(45),cArtNom)
+   AplicaFiltro(.t.)
+ENDIF
+RETURN nil
+
+***********************************
+** Menu del boton Filtrar: vuelve todo a "Todas" (la busqueda por nombre se mantiene)
+STATIC FUNCTION QuitaFiltro()
+nFModo   := 1
+nFBenef  := 1
+nFVig    := 1
+nFForma  := 1
+nFArt    := 0
+cFArtNom := "TODOS"+SPACE(45)
+AplicaFiltro(.t.)
+RETURN nil
+
+***********************************
+** Busqueda de la grilla: SOLO por nombre de promo (cada palabra tiene que estar en el nombre)
+STATIC FUNCTION FiltraNombre(oG, nKey)
+LOCAL cText, aPalabras, i
+oG:Assign()
+IF nKey = 38 .or. nKey = 40
+   oBrw:SetFocus()
+   RETURN nil
+ENDIF
+// bKeyDown corre ANTES de que la tecla modifique el GET: se arma el texto como va a quedar
+DO CASE
+   CASE EsTeclaBusca(nKey) .or. nKey = 32
+        IF nKey >= 96 .and. nKey <= 105
+           nKey := nKey - 48
+        ENDIF
+        cText := LEFT(oG:cText,oG:nPos-1) + CHR(nKey)
+   CASE nKey = VK_BACK
+        cText := LEFT(oG:cText,MAX(oG:nPos-2,0)) + SUBSTR(oG:cText,oG:nPos)
+   CASE nKey = VK_DELETE
+        cText := LEFT(oG:cText,oG:nPos-1) + SUBSTR(oG:cText,oG:nPos+1)
+   OTHERWISE
+        cText := ALLTRIM(oG:cText)
+ENDCASE
+cText := STRTRAN(cText,"'","")
+cText := STRTRAN(cText,"%","")
+cText := STRTRAN(cText,"\","")
+aPalabras := hb_ATokens(ALLTRIM(cText)," ")
+cCondNom := ""
+FOR i := 1 TO LEN(aPalabras)
+    IF !EMPTY(aPalabras[i])
+       cCondNom := cCondNom + IF(EMPTY(cCondNom),""," AND ") + "g.nompromo LIKE '%"+aPalabras[i]+"%'"
+    ENDIF
+NEXT
+AplicaFiltro(.f.)
+RETURN .T.
+
+** Letras y numeros (incluido teclado numerico) que desde la grilla mandan a la busqueda
+STATIC FUNCTION EsTeclaBusca(nKey)
+RETURN (nKey >= 48 .and. nKey <= 57) .or. (nKey >= 65 .and. nKey <= 90) .or. (nKey >= 96 .and. nKey <= 105)
+
+STATIC FUNCTION SaltaBusca(oG, nKey)
+IF nKey >= 96 .and. nKey <= 105
+   nKey := nKey - 48
+ENDIF
+oG:SetFocus()
+oG:cText := CHR(nKey)
+oG:SetPos(2)
+FiltraNombre(oG, 0)
+RETURN nil
 
 
 ***********************************
