@@ -1090,13 +1090,14 @@ LOCAL oQryDoc,oQryArt
    oBrwDet:GoBottom()
   ENDIF 
    oGet[15]:cText:= SPACE(30)
+   oGet[17]:SetFocus()
+   oGet[47]:cText:= CTOD('  /  /    ')
+   CambiaCant(basedet:cantidad,,oGet)
+   // Blanquear recien despues de CambiaCant: re-graba el renglon agregado con basedet:cantidad
    oGet[19]:cText := 0
    nArtBul := 0
    nUxBulto := 0
    oGet[50]:cText := 0
-   oGet[17]:SetFocus()
-   oGet[47]:cText:= CTOD('  /  /    ')
-   CambiaCant(basedet:cantidad,,oGet)
 RETURN .T.
 
                             
@@ -1632,22 +1633,28 @@ RETURN nil
 ** Devuelve .t. si hay que agendar y deja en aUsua el array
 ** {usuario, lAgendar} para que el llamador recorra e inserte.
 STATIC FUNCTION PideAgenda(cNumFac,cNomPro,dFecVto,aUsua)
-LOCAL oDlg1, oBot := ARRAY(2), oBrwU, acor, i, lRta := .f., lAlguno
+LOCAL oDlg1, oBot := ARRAY(2), oBrwU, acor, i, lRta := .f., lAlguno, oGet := ARRAY(3), oFontB,;
+      cFac := ALLTRIM(cNumFac), cPro := ALLTRIM(cNomPro), dVto := dFecVto
 aUsua := oApp:oServer:Query("SELECT usuario,altas FROM ge_"+oApp:cId+"usuarios "+;
                             " WHERE usuario = "+ClipValue2Sql(oApp:usuario)+;
                             " OR tipo = 'ADMIN' ORDER BY usuario"):FillArray(,{'usuario','altas'})
 FOR i := 1 TO LEN(aUsua)
     aUsua[i,2] := ALLTRIM(oApp:usuario) == ALLTRIM(aUsua[i,1])
 NEXT i
+DEFINE FONT oFontB NAME "TAHOMA" SIZE 0,-11.5 BOLD
 DO WHILE .T.
-DEFINE DIALOG oDlg1 TITLE "Agendar Vencimiento" FROM 03,15 TO 20,70 OF oApp:oWnd
+DEFINE DIALOG oDlg1 TITLE "Agendar vencimiento" FROM 03,15 TO 29,70 OF oApp:oWnd FONT oApp:oFont
    acor := AcepCanc(oDlg1)
-   @ 07, 05 SAY "Desea agendar el vencimiento de esta factura"+CHR(10)+;
-                "en la agenda del sistema?" OF oDlg1 PIXEL SIZE 120,20
-   @ 30, 05 SAY "Comprobante: "+ALLTRIM(cNumFac)+"  "+ALLTRIM(cNomPro) OF oDlg1 PIXEL SIZE 120,14
-   @ 45, 05 SAY "Vence el: "+DTOC(dFecVto) OF oDlg1 PIXEL SIZE 120,10 
-   @ 55, 05 SAY "Agendar a:" OF oDlg1 PIXEL SIZE 55,10 RIGHT
-   @ 55, 65 XBROWSE oBrwU SIZE 120,55 PIXEL OF oDlg1 ARRAY aUsua ;
+   @ 07, 08 SAY "Desea agendar el vencimiento de esta factura?" OF oDlg1 PIXEL SIZE 200,10 FONT oFontB
+   @ 22, 05 GROUP TO 83,213 PROMPT " Comprobante " OF oDlg1 PIXEL
+   @ 37, 10 SAY "Factura:"     OF oDlg1 PIXEL SIZE 50,10 RIGHT
+   @ 52, 10 SAY "Proveedor:"   OF oDlg1 PIXEL SIZE 50,10 RIGHT
+   @ 67, 10 SAY "Vencimiento:" OF oDlg1 PIXEL SIZE 50,10 RIGHT
+   @ 35, 65 GET oGet[1] VAR cFac OF oDlg1 PIXEL SIZE 60,11 WHEN(.F.)
+   @ 50, 65 GET oGet[2] VAR cPro OF oDlg1 PIXEL SIZE 140,11 WHEN(.F.)
+   @ 65, 65 GET oGet[3] VAR dVto OF oDlg1 PIXEL SIZE 45,11 PICTURE "@D" WHEN(.F.)
+   @ 91, 08 SAY "Recordarselo a:" OF oDlg1 PIXEL SIZE 120,10 FONT oFontB
+   @ 102, 08 XBROWSE oBrwU SIZE 202,66 PIXEL OF oDlg1 ARRAY aUsua ;
       HEADERS "Usuario","Agendar";
       COLUMNS 1, 2 ;
       CELL LINES NOBORDER
@@ -1655,17 +1662,22 @@ DEFINE DIALOG oDlg1 TITLE "Agendar Vencimiento" FROM 03,15 TO 20,70 OF oApp:oWnd
       :aCols[2]:nEditType := EDIT_GET
       :lRecordSelector := .f.
       :aCols[2]:SetCheck()
+      :aCols[2]:nWidth := 70
+      :aCols[2]:nHeadStrAlign := AL_CENTER
+      :nStretchCol := 1
       :nFreeze := 2
-      :CreateFromCode()
       :lHScroll := .f.
+      :lVScroll := LEN(aUsua) > 5
+      :CreateFromCode()
    END
    PintaBrw(oBrwU,0)
-   @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Agendar" OF oDlg1 SIZE 40,10 ;
+   @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Agendar" OF oDlg1 SIZE 40,11 ;
            ACTION ((lRta := .t.), oDlg1:End() ) PIXEL
-   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&No agendar" OF oDlg1 SIZE 40,10 ;
+   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&No agendar" OF oDlg1 SIZE 40,11 ;
            ACTION ((lRta := .f.), oDlg1:End() ) PIXEL CANCEL
 ACTIVATE DIALOG oDlg1 CENTER ON INIT oBot[2]:SetFocus()
 IF !lRta
+   oFontB:End()
    RETURN .f.
 ENDIF
 lAlguno := .f.
@@ -1678,4 +1690,5 @@ IF !lAlguno
 ENDIF
 EXIT
 ENDDO
+oFontB:End()
 RETURN .t.
