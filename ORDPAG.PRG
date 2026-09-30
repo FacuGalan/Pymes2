@@ -324,6 +324,14 @@ IF ROUND(nFaltante,2) < 0
       RETURN .f.
    ENDIF
 ENDIF
+IF mfecha <> DATE()
+   IF !MsgNoYes("Ud. Eligio una fecha diferente a la fecha actual"+chr(10)+;
+            "Por favor confirme que quiere mantener esa fecha!"+chr(10)+;
+            "Fecha actual: "+DTOC(DATE())+chr(10)+;
+            "Fecha OP: "+DTOC(mfecha),"ATENCION!!!!")   
+      RETURN .F.
+   ENDIF   
+ENDIF
 //Validar que los valores de la deuda esten iguales
 IF ROUND(oApp:oServer:Query("SELECT SUM(c.saldo*IF(c.tipocomp='NC',-1,1)) AS saldo FROM transi_ordpag t "+;
                       " LEFT JOIN ge_"+oApp:cId+"compras c "+;
@@ -354,7 +362,7 @@ TRY
                              ClipValue2Sql(oApp:cIp)+","+;
                              IF(lMostrarSis,"0","1")+","+;
                              ClipValue2Sql(nMaximo)+")")
-     nOrden:= oApp:oServer:Query("SELECT MAX(numero) AS orden FROM ge_"+oApp:cId+"ordpag"):orden
+     nOrden:= oApp:oServer:LastInsertID()
 
      ** Actualizo saldos de facturas
      oQry:GoTop()
@@ -404,7 +412,7 @@ TRY
                             ClipValue2SQL(DATE())+","+;
                             ClipValue2SQL(oApp:cIp)+","+;
                             ClipValue2SQL(nTransferencia)+")")
-        nNumDep:= oApp:oServer:Query("SELECT MAX(id) AS numero FROM ge_"+oApp:cId+"deposito"):numero 
+        nNumDep:= oApp:oServer:LastInsertID()
         oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"ordpag SET iddepo = "+ ClipValue2Sql(nNumDep) + " WHERE numero = "+ClipValue2Sql(nOrden))
         oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ordcon SET numero  = " + ClipValue2Sql(nOrden)+","+;
                                                "codcon  = 2, "+;
@@ -462,7 +470,7 @@ TRY
         	                                        "porcentaje = "+ ClipValue2Sql(oQryPro:retencio)+","+;
                                                     "indice = "+ ClipValue2Sql(nIndice)+","+;
                                                     "importe = "+ ClipValue2Sql(nReten1))
-        nNumRet := oApp:oServer:Query("SELECT MAX(id) as numret FROM ge_"+oApp:cId+"ordret"):numret
+        nNumRet := oApp:oServer:LastInsertID()
      ENDIF
      IF nReten2 > 0
         oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ordcon SET numero  = " + ClipValue2Sql(nOrden)+","+;
@@ -472,7 +480,7 @@ TRY
         oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ordretiva SET numero  = " + ClipValue2Sql(nOrden)+","+;
         											"porcentaje = "+ ClipValue2Sql(oQryPro:retiva)+","+;
                                                     "importe = "+ ClipValue2Sql(nReten2))
-        nNumRet1 := oApp:oServer:Query("SELECT MAX(id) as numret FROM ge_"+oApp:cId+"ordretiva"):numret
+        nNumRet1 := oApp:oServer:LastInsertID()
      ENDIF
      IF nReten3 > 0
         oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ordcon SET numero  = " + ClipValue2Sql(nOrden)+","+;
@@ -488,7 +496,7 @@ TRY
         											"porcentaje = 2.0,"+;
         											"reten = "+ ClipValue2Sql(nReten3)+","+;
                                                     "retentotal = "+ ClipValue2Sql(nReten3Tot))
-        nNumRet2 := oApp:oServer:Query("SELECT MAX(id) as numret FROM ge_"+oApp:cId+"ordretgan"):numret
+        nNumRet2 := oApp:oServer:LastInsertID()
      ENDIF
 
      // INGRESO MONTO PAGADO POR ANTICIPO                                  
@@ -514,6 +522,12 @@ TRY
                              "WHERE codigo = "+ClipValue2Sql(mcodpro))
      ENDIF
 
+     // Saldos de facturas y anticipo recalculados desde los movimientos
+     // (CTAPROV.PRG). Solo si el cliente ya fue conciliado: si no, quedan
+     // los saldos ajustados arriba como siempre.
+     IF CtaProvConciliado()
+        RecalcCtaProv(mcodpro)
+     ENDIF
   oApp:oServer:CommitTransaction()
     CATCH oError
     ValidaError(oError)
@@ -1041,7 +1055,7 @@ LOCAL aiva := {"RESPO. INSCRIPTO","RES.NO INSCRIPTO", "NO RESPONSABLE .",;
       i, x, y, oPrn, nRow, oFont, oFont1, oFont2, oFont3, oFont4, oQryPag, oQryPagFac, config,;
       oQryPagCon, oQryRet, oQryPro, aCor,nSuma,nCodCon,;
       aConceptos:={"EFECTIVO","TRANSFERENCIAS","CHEQ. TERCEROS","CHEQ. PROPIOS",;
-                   "RETENCIONES",SPACE(14),"ANTICIPOS","MERCADO PAGO"}
+                   "RETENCIONES","AJUSTE","ANTICIPOS","MERCADO PAGO"}
    oQryPag    := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"ordpag WHERE numero = " + ClipValue2SQL(nNumero))
    oQryPagFac := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"ordfac WHERE numero = " + ClipValue2SQL(nNumero))
    oQryPagCon := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"ordcon WHERE numero = " + ClipValue2SQL(nNumero)+" ORDER BY codcon")

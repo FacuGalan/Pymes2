@@ -103,11 +103,11 @@ LOCAL oGet:=ARRAY(50),oBot:=ARRAY(7),oFontTotal, lRta := .f., aTipoDoc, nTipoCom
       cNomPro,  cCuit, cConIva, cNomCue, nDeuda, nCodArt, cDetArt, nCantidad, oError, i, lAgenda := .f.,;
       aUsuAgenda := {},;
       nPunit, nPTotal, cNomRet1, cNomRet2, cNomRet3, cNomRet4, cNomRet5, oDlg1, oQryDoc,nRenglon,;
-      nSaldoIni:=0, nImporteIni:=0,oQryCodigos,nMaximo,nOrden, lPuedeCobrar, oQryPedPen, cInPed, cNumCompAnt,;
+      nSaldoIni:=0, nImporteIni:=0,oQryCodigos,nOrden, lPuedeCobrar, oQryPedPen, cInPed, cNumCompAnt,;
       dCierrecompras := oApp:oServer:Query( "SELECT cierrecompra FROM ge_"+oApp:cId+"parametros"):cierrecompra,;
       lVtoStock := oApp:oServer:Query( "SELECT lVtoStock FROM ge_"+oApp:cId+"parametros"):lVtoStock,;
       lTilda_computaiva := oApp:oServer:Query( "SELECT Tilda_computaiva FROM ge_"+oApp:cId+"parametros"):tilda_computaiva,;
-      lOcultar_no_vendibles := .f.
+      lOcultar_no_vendibles := .f., lModificar := .t.
 lUsoPedido := {} 
 lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHERE (usuario="+;
         ClipValue2SQL(oApp:usuario)+ " AND modulo = 'ORDPAG' AND permisos = 'ABMRE') ORDER BY codigo"):nRecCount > 0
@@ -196,11 +196,17 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
     nTipoComp:= 1
     cNumRe1:=SPACE(4)
     cNumRe2:=SPACE(8)
-  ELSE
+  ELSE  
     oQry    := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"compras WHERE tipocomp = " + ClipValue2Sql(oQryBrw:tipocomp)+" "+;
                        "AND letra = " + ClipValue2Sql(oQryBrw:letra)+" "+;
                        "AND codpro = " + ClipValue2Sql(oQryBrw:codpro)+" "+;
                        "AND numfac = " + ClipValue2Sql(oQryBrw:numfac))
+    // Con la cta cte conciliada los saldos se recalculan (CTAPROV.PRG) y se
+    // puede modificar aunque tenga pagos. Sin conciliar se sigue bloqueando.
+    IF oQry:importe <> oQry:saldo .AND. !CtaProvConciliado()
+       MsgStop("La factura tiene pagos imputados, imposible modificar","Atencion")
+       lModificar := .f.
+    ENDIF
     base:= oQry:GetRowObj() 
     nSaldoIni:= base:saldo
     nImporteIni:= base:importe
@@ -281,7 +287,7 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
     REDEFINE GET oGet[12] VAR cNomCue      ID 121 OF oDlg1 WHEN(.F.)            
     REDEFINE GET oGet[13] VAR nDeuda       ID 122 OF oDlg1 WHEN(.F.) PICTURE "999999999.99"
     REDEFINE CHECKBOX oGet[14] VAR base:imputaiva   ID 123 OF oDlg1 
-    REDEFINE CHECKBOX oGet[45] VAR lPaga   ID 4026 OF oDlg1  WHEN(lPuedeCobrar .and. lAlta)
+    REDEFINE CHECKBOX oGet[45] VAR lPaga   ID 4026 OF oDlg1  WHEN(lPuedeCobrar .and. lAlta .and. nTipoComp <> 2)
     REDEFINE GET oGet[16] VAR base:observa    ID 125 OF oDlg1 PICTURE "@!"
 
     REDEFINE CHECKBOX oGet[22] VAR lNoComputarIVA   ID 4027 OF oDlg1 WHEN(oQryComprasDet:RecCount() = 0)
@@ -408,7 +414,7 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
         
     //BOTONES ---------------------------------------------------------------
     REDEFINE BUTTON oBot[2] ID 102 OF oDlg1 ACTION(Cancela(oGet))    
-    REDEFINE BUTTON oBot[3] ID 103 OF oDlg1 ACTION(lRta:=.t.,oDlg1:End()) WHEN(base:importe>0 .or.  nTipoComp = 5)    
+    REDEFINE BUTTON oBot[3] ID 103 OF oDlg1 ACTION(lRta:=.t.,oDlg1:End()) WHEN((base:importe>0 .or.  nTipoComp = 5) .and. lModificar)   
     REDEFINE BUTTON oBot[4] ID 104 OF oDlg1 ACTION(lRta:=.f.,oDlg1:End()) CANCEL    
     REDEFINE BUTTON oBot[5] ID 105 OF oDlg1 ACTION(FormuArt(oDlg1))      
     REDEFINE BUTTON oBot[6] ID 106 OF oDlg1 ACTION(ActualizaPrecios(oGet,oDlg1)) WHEN(oQryComprasDet:RecCount()>0)
@@ -450,6 +456,9 @@ ENDIF
 
 base:numfac:=cNumRe1+"-"+cNumRe2
 base:lNoComputaIVA := lNoComputarIVA
+IF nTipoComp = 2   // Una NC no se "paga" en efectivo
+   lPaga := .f.
+ENDIF
 IF lAlta
    oQry:GetBlankRow()
    IF lPaga
@@ -527,11 +536,20 @@ TRY
                        "(SELECT "+ClipValue2SQL(base:codpro)+","+ClipValue2Sql(oQryDoc:prefijo)+","+ClipValue2SQL(base:letra)+","+;
                        ClipValue2SQL(base:numfac)+",codigo,importe,tipo "+;
                        "FROM reten_temp WHERE importe > 0) ")
+  // Si cambio el numero del comprobante, los pagos que ya tenia lo siguen
+  // (antes quedaban apuntando al numero viejo, a un comprobante inexistente)
+  IF !lAlta .AND. base:numfac <> cNumCompAnt
+     oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"ordfac f JOIN ge_"+oApp:cId+"ordpag o ON o.numero = f.numero "+;
+                          "SET f.numfac = " + ClipValue2Sql(base:numfac)+" "+;
+                          "WHERE o.proveedor = " + ClipValue2Sql(base:codpro)+" "+;
+                          "AND f.tipocomp = " + ClipValue2Sql(base:tipocomp)+" "+;
+                          "AND f.letra = " + ClipValue2Sql(base:letra)+" "+;
+                          "AND f.numfac = " + ClipValue2Sql(cNumCompAnt))
+  ENDIF
   IF lPaga .and. nTipoComp <> 5
-     nMaximo:= oApp:oServer:Query("SELECT MAX(numero)+1 AS num FROM ge_"+oApp:cId+"ordpag"):num
-     ** Agrego pago 
+     ** Agrego pago
      oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ordpag " + ;
-                          " (proveedor, total, facturas, observa, fecha, usuario,fecmod,ip,caja,checkeado,demo,numero) VALUES "+;
+                          " (proveedor, total, facturas, observa, fecha, usuario,fecmod,ip,caja,checkeado,demo) VALUES "+;
                          " ("+;
                              ClipValue2Sql(base:codpro)+","+;
                              ClipValue2Sql(base:importe)+","+;
@@ -542,9 +560,8 @@ TRY
                              ClipValue2Sql(DATE())+","+;
                              ClipValue2Sql(oApp:cIp)+","+;
                              ClipValue2Sql(oApp:prefijo)+",FALSE,"+;
-                             "1,"+;
-                             ClipValue2Sql(nMaximo)+")")
-         nOrden:= oApp:oServer:Query("SELECT MAX(numero) AS orden FROM ge_"+oApp:cId+"ordpag"):orden
+                             "1)")
+         nOrden:= oApp:oServer:LastInsertID()
 
          oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ordfac SET numero = "+ ClipValue2Sql(nOrden)+","+;
                               "tipocomp = "+ ClipValue2Sql(base:tipocomp)+","+;
@@ -636,7 +653,12 @@ TRY
   ENDIF
   IF lAlta .and. lVtoStock 
      oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"stocklotes (codart,cantidad,restan,fechavto) "+;
-                          "(SELECT codart,cantidad,cantidad,fechavto FROM comprasdet_H WHERE fechavto >= CURDATE())") 
+                          "(SELECT codart,cantidad,cantidad,fechavto FROM comprasdet_H WHERE fechavto >= CURDATE())")
+  ENDIF
+  // Saldos de facturas y anticipo recalculados desde los movimientos
+  // (CTAPROV.PRG). Solo si el cliente ya fue conciliado.
+  IF CtaProvConciliado()
+     RecalcCtaProv(base:codpro)
   ENDIF
   oApp:oServer:CommitTransaction()
 CATCH oError
@@ -1232,7 +1254,10 @@ TRY
    oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"compretdet WHERE tipocomp = " + ClipValue2Sql(oQryBrw:tipocomp)+" "+;
                        "AND letra = " + ClipValue2Sql(oQryBrw:letra)+" "+;
                        "AND codpro = " + ClipValue2Sql(oQryBrw:codpro)+" "+;
-                       "AND numfac = " + ClipValue2Sql(oQryBrw:numfac))        
+                       "AND numfac = " + ClipValue2Sql(oQryBrw:numfac))
+  IF CtaProvConciliado()
+     RecalcCtaProv(oQryBrw:codpro)
+  ENDIF
   oApp:oServer:CommitTransaction()
   oQryBrw:Refresh(.f.)
 CATCH oError

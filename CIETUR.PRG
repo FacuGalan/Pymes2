@@ -125,7 +125,7 @@ DEFINE DIALOG oForm TITLE "Cierre de turno de caja " + STR(nCaja,2);
    @142, 05 SAY "Observaciones   :" OF oForm PIXEL SIZE 70,12 RIGHT
   
    @ 05, 80 GET oGet[1] VAR mfecha   PICTURE "@D"  OF oForm PIXEL CENTER WHEN(.f.)
-   @ 20, 80 GET oGet[2] VAR mefect PICTURE "99999999.99"    OF oForm PIXEL RIGHT;
+   @ 20, 80 GET oGet[2] VAR mefect PICTURE "9999999999.99"    OF oForm PIXEL RIGHT;
                 VALID(mefect>0)
    
    @ 35, 05 XBROWSE oBrw SIZE 250,80 pixel OF oForm DATASOURCE oQry ;
@@ -158,7 +158,7 @@ DEFINE DIALOG oForm TITLE "Cierre de turno de caja " + STR(nCaja,2);
       @ 140,80 SAY oGet[5] PROMPT "Transferencia automatica a caja "+STR(oQryP:transfierecaja,4) +;
                " $" + STR(nTransfiereefec,13,2) OF oForm PIXEL
    ENDIF 
-   @125, 80 GET oGet[3] VAR mresul PICTURE "99999999.99"    OF oForm PIXEL RIGHT;
+   @125, 80 GET oGet[3] VAR mresul PICTURE "9999999999.99"    OF oForm PIXEL RIGHT;
                 WHEN((oGet[3]:cText := oBrw:aCols[4]:nTotal -nTransfiereefec - oGet[2]:value) = "xxxx" )
    @125,140 GET oGet[4] VAR cTexto OF oForm PIXEL ;
                 WHEN((oGet[4]:cText := IF(oGet[3]:value>0,"Faltante","Sobrante")) = "xxxx" )  

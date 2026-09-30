@@ -38,8 +38,8 @@ AADD(oApp:aVentanas,cVentana)
     "    AND ABS(TIME_TO_SEC(a2.HORA) - TIME_TO_SEC(c.hora)) <= 60 "+;
     "  ORDER BY ABS(TIME_TO_SEC(a2.HORA) - TIME_TO_SEC(c.hora)) ASC "+;
     "  LIMIT 1"+;
-    ") "+;
-    IF(oApp:usua_es_supervisor, "", "WHERE c.caja = "+str(oApp:prefijo)) +" "+;
+    ") WHERE c.fecha >= DATE_SUB(CURDATE(), INTERVAL 2 MONTH) "+;
+    IF(oApp:usua_es_supervisor, "", " AND c.caja = "+str(oApp:prefijo)) +" "+;
     "ORDER BY c.id DESC ")
    
    // Defino el dialogo tomado del recurso ABMCAJA
@@ -359,7 +359,7 @@ oQry := oApp:oServer:Query( ;
     "  ORDER BY ABS(TIME_TO_SEC(a2.HORA) - TIME_TO_SEC(c.hora)) ASC "+;
     "  LIMIT 1"+;
     ") "+;
-    " WHERE "+IF(cUsua <> 'Todos',"a.usuario = "+ClipValue2Sql(cUsua)+" AND "," ")+;
+    " WHERE "+IF(cUsua <> 'TODOS',"a.usuario = "+ClipValue2Sql(cUsua)+" AND "," ")+;
     "c.fecha >= "+ClipValue2Sql(mdesde)+ " AND c.fecha <= "+ClipValue2Sql(mhasta)+ " "+; 
     "ORDER BY c.id DESC ")
 oBrw:oMySql:= oQry

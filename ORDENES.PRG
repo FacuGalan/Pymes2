@@ -26,7 +26,8 @@ oApp:oServer:Execute("";
     +"`NOMPRO` VARCHAR(50) NOT NULL,";  
     +"`FECHA` DATE NOT NULL,";  
     +"`TOTAL` DECIMAL(12,2) NOT NULL,"; 
-    +"`USUARIO` VARCHAR(15) "; 
+    +"`USUARIO` VARCHAR(15), ";
+    +"`PROVEEDOR` INT(6) ";
     +") ENGINE=INNODB DEFAULT CHARSET=utf8")
 
 oApp:oServer:NextResult()
@@ -34,12 +35,14 @@ oApp:oServer:Execute("TRUNCATE ordenes_temp")
 oApp:oServer:NextResult()
 
 AADD(oApp:aVentanas,cVentana)
-  oApp:oServer:Execute("INSERT INTO ordenes_temp (numero,nompro,fecha,total,usuario)"+;
-				"(SELECT o.numero, p.nombre,o.fecha, o.total,o.usuario  FROM ge_"+oApp:cId+"ordpag o "+;
+  // La OP de ajuste de la conciliacion (CTAPROV.PRG) no se muestra ni se anula
+  oApp:oServer:Execute("INSERT INTO ordenes_temp (numero,nompro,fecha,total,usuario,proveedor)"+;
+				"(SELECT o.numero, p.nombre,o.fecha, o.total,o.usuario,o.proveedor  FROM ge_"+oApp:cId+"ordpag o "+;
         " LEFT JOIN ge_"+oApp:cId+"provee p ON p.codigo = o.proveedor "+;
         " WHERE "+IF(lAdmin=1,"1=1"," o.usuario = "+ClipValue2Sql(oApp:usuario))+;
         " AND o.numero IN (SELECT MAX(numero) "+;
-        " FROM ge_"+oApp:cId+"ordpag GROUP BY proveedor) AND p.nombre IS NOT NULL)")
+        " FROM ge_"+oApp:cId+"ordpag WHERE IFNULL(observa,'') <> "+ClipValue2Sql(CtaProvObsAjuste())+;
+        " GROUP BY proveedor) AND p.nombre IS NOT NULL)")
   oQryBrw:= oApp:oServer:Query("SELECT * FROM ordenes_temp ")
    DEFINE WINDOW oWnd1 MDICHILD TITLE "Cancelacion de ordenes de pago" ;
           OF oApp:oWnd NOZOOM ICON oApp:oIco
@@ -55,7 +58,11 @@ AADD(oApp:aVentanas,cVentana)
          DEFINE BUTTON RESOURCE "IMPR" OF oBar ;
             TOOLTIP "Imprimir Planilla"  ;
             ACTION oBrw:Report("Reporte de Pagos",.T.,.F.);
-            PROMPT "Reporte" TOP 
+            PROMPT "Reporte" TOP
+         DEFINE BUTTON RESOURCE "PAGO" OF oBar ;
+            TOOLTIP "Composicion del anticipo del proveedor"  ;
+            ACTION VerAnticipo();
+            PROMPT "Anticipo" TOP
          // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;
             TOOLTIP "Cerrar Ventana" ;
@@ -82,11 +89,19 @@ RETURN
 ** Formulario de altas y modificaciones
 STATIC FUNCTION Formu ()
 LOCAL oGet := ARRAY(4), oBot := ARRAY(2), oForm, lRta := .f., aCor, base, oQryCon,oQryFac,;
-      oBrw1,oBrw2, oQryOrden, nTotPag:=0, nTotFac:=0, oQry, nAnti := 0
+      oBrw1,oBrw2, oQryOrden, oQry, aArr, aRes
 oQry   := oApp:oServer:Query("SELECT o.*, p.codigo AS codpro, p.nombre AS nompro FROM ge_"+oApp:cId+"ordpag o LEFT JOIN ge_"+oApp:cId+"provee p ON p.codigo = o.proveedor "+;
    	                            "WHERE o.numero = "+ClipValue2Sql(oQryBrw:numero))
 oQryCon:= oApp:oServer:Query("SELECT * FROM ge_"+oApp:cId+"ordcon WHERE numero = " + ClipValue2Sql(oQry:numero))
 oQryFac:= oApp:oServer:Query("SELECT *,CONCAT(tipocomp,letra,numfac) AS mostrar FROM ge_"+oApp:cId+"ordfac WHERE numero = " + ClipValue2Sql(oQry:numero))
+IF oQry:RecCount() = 0
+   MsgStop("La orden de pago ya no existe (la anularon desde otro puesto)","Atencion")
+   RETURN nil
+ENDIF
+IF VALTYPE(oQry:observa) = "C" .AND. ALLTRIM(oQry:observa) == CtaProvObsAjuste()
+   MsgStop("La orden de ajuste de la conciliacion no se puede anular","Atencion")
+   RETURN nil
+ENDIF
 
 DEFINE DIALOG oForm TITLE "Cancelacion de orden de pago" RESOURCE "CANPAG" OF oDlg
   oForm:lHelpIcon := .f.
@@ -118,46 +133,111 @@ IF !lRta
    RETURN nil
 ENDIF
 
+// Si el anticipo que genero esta OP ya se uso en pagos posteriores, avisar
+// antes que facturas vuelven a quedar con saldo (CTAPROV.PRG)
+aArr := CtaProvSimularAnul(oQry:numero)
+IF LEN(aArr) > 0 .AND. !AvisoArrastre(oQry:numero, aArr)
+   RETURN nil
+ENDIF
+
+CtaProvCrearAnul()   // DDL: fuera de la transaccion
 TRY
 oApp:oServer:BeginTransaction()
-oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"compras c LEFT JOIN ge_"+oApp:cId+"ordpag op ON op.numero = " + ClipValue2Sql(oQry:numero) +;
-                     " LEFT JOIN ge_"+oApp:cId+"ordfac o ON c.tipocomp = o.tipocomp AND "+;
-                                            "c.letra = o.letra AND "+;
-                                            "c.numfac = o.numfac AND "+;
-                                            "c.codpro = op.proveedor "+;
-                     "SET c.saldo = c.saldo + ABS(o.importe) "+;
-                     "WHERE o.numero = " + ClipValue2Sql(oQry:numero))
-IF oQry:iddepo > 0
-  oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"deposito WHERE id = " + ClipValue2Sql(oQry:iddepo))
-ENDIF
-oQryCon:GoTop()
-DO WHILE !oQryCon:eof()
-	IF oQryCon:codcon = 7
-		   /*oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"provee SET saldo = saldo + "+ClipValue2Sql(oQryCon:importe)+;
-		                        " WHERE codigo = "+ClipValue2Sql(oQry:codpro))*/
-     nAnti := oQryCon:importe  
-	ELSE 
-    nTotPag:= nTotPag + oQryCon:importe 
-  ENDIF
-	oQryCon:Skip()
-ENDDO
-nTotFac := oApp:oServer:Query("SELECT SUM(importe) AS total FROM ge_"+oApp:cId+"ordfac WHERE numero = " + ClipValue2Sql(oQry:numero)):total
-/*IF nTotPag > nTotFac
-      oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"provee SET saldo = saldo - "+ClipValue2Sql(nTotPag-nTotFac+nAnti)+" "+;
-                           "WHERE codigo = "+ClipValue2Sql(oQry:codpro))
-ENDIF*/
-oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"provee SET saldo = saldo - "+ClipValue2Sql(nTotPag-nTotFac)+" "+;
-                           "WHERE codigo = "+ClipValue2Sql(oQry:codpro))
-oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"cheter SET estado = 'C', orden = 0, codpro = 0 WHERE orden = "+ ClipValue2Sql(oQry:numero))
-oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"chepro WHERE orden = "+ ClipValue2Sql(oQry:numero))
-oApp:oServer:Execute("DELETE FROM ge_"+oApp:cId+"ordpag WHERE numero = " + ClipValue2Sql(oQry:numero))
+// Guarda la copia en ordpag_anul, borra la OP y rehace los saldos
+aRes := CtaProvAnularOP(oQry:numero)
 Auditar(1," OP:"+alltrim(STR(oQry:numero,10))+" $"+alltrim(STR(oQry:total,12,2))+" Caja "+STR(oQry:caja,4)+" "+ALLTRIM(oQry:nompro))
 oApp:oServer:Execute("DELETE FROM ordenes_temp WHERE numero = " + ClipValue2Sql(oQry:numero))
 oApp:oServer:CommitTransaction()
+IF aRes <> nil .AND. ROUND(aRes[3] - aRes[2],2) <> 0
+   MsgInfo("Orden de pago anulada."+CHR(10)+CHR(10)+;
+           "Anticipo del proveedor:"+CHR(10)+;
+           "antes $ "+ALLTRIM(TRANSFORM(aRes[2],"999,999,999.99"))+CHR(10)+;
+           "ahora $ "+ALLTRIM(TRANSFORM(aRes[3],"999,999,999.99")),"Atencion")
+ENDIF
 CATCH oError
     ValidaError(oError)
-END TRY 
-oQryBrw:Refresh() 
+END TRY
+oQryBrw:Refresh()
+RETURN nil
+
+***************************************
+** Aviso de arrastre: la OP a anular genero un anticipo que ya se uso para
+** pagar facturas en OPs posteriores. Al anularla esas facturas vuelven a
+** quedar con saldo. Devuelve .t. si el usuario confirma.
+STATIC FUNCTION AvisoArrastre(nOp, aArr)
+LOCAL cTxt, i, nTot := 0
+cTxt := "El anticipo que genero la OP "+ALLTRIM(STR(nOp))+" ya se uso en pagos posteriores."+CHR(10)+;
+        "Si la anula, estas facturas dejan de estar pagadas y vuelven a tener saldo:"+CHR(10)+CHR(10)
+FOR i := 1 TO LEN(aArr)
+    IF i <= 12
+       cTxt += "OP "+ALLTRIM(STR(aArr[i,1]))+" del "+IF(VALTYPE(aArr[i,2])="D",DTOC(aArr[i,2]),"")+":  "+;
+               ALLTRIM(aArr[i,3])+" "+ALLTRIM(aArr[i,4])+" "+ALLTRIM(aArr[i,5])+;
+               "   $ "+ALLTRIM(TRANSFORM(aArr[i,6],"999,999,999.99"))+;
+               IF(aArr[i,7], "  (la OP queda vacia y se elimina)", "")+CHR(10)
+    ENDIF
+    nTot += aArr[i,6]
+NEXT i
+IF LEN(aArr) > 12
+   cTxt += "... y "+ALLTRIM(STR(LEN(aArr)-12))+" mas"+CHR(10)
+ENDIF
+cTxt += CHR(10)+"Total que vuelve a deberse: $ "+ALLTRIM(TRANSFORM(nTot,"999,999,999.99"))+CHR(10)+;
+        "Esas OPs quedan modificadas y se registra en el detalle del anticipo."+CHR(10)+CHR(10)+;
+        "Confirma la anulacion?"
+RETURN MsgNoYes(cTxt,"Atencion")
+
+***************************************
+** Composicion del anticipo del proveedor de la fila elegida
+STATIC FUNCTION VerAnticipo()
+LOCAL oForm, oBrwA, aRow := {}, acor, oBot := ARRAY(2), i, oChk, lCompleto := .f., nCod
+IF oQryBrw:RecCount() = 0
+   RETURN nil
+ENDIF
+nCod := oQryBrw:proveedor
+AntiFilas(nCod, .f., aRow)
+DEFINE DIALOG oForm TITLE "Composicion del anticipo - "+ALLTRIM(oQryBrw:nompro) ;
+       FROM 03,10 TO 33,145 OF oWnd1 FONT oApp:oFont
+   acor := AcepCanc(oForm)
+   oForm:lHelpIcon := .f.
+   @ 05, 05 XBROWSE oBrwA SIZE 520,170 PIXEL OF oForm ARRAY aRow ;
+      HEADERS "Fecha","Detalle","OP","Pagado","Aplicado","Anticipo","Acumulado" ;
+      COLUMNS 1,2,3,4,5,6,7 ;
+      SIZES 70,490,50,90,90,90,90 ;
+      CELL LINES NOBORDER
+   WITH OBJECT oBrwA
+      :lHScroll := .f.
+      :aCols[1]:nDataStrAlign := AL_CENTER
+      :aCols[3]:cEditPicture := "@Z 99999999"
+      FOR i := 4 TO 7
+          :aCols[i]:cEditPicture := "@Z 999,999,999.99"
+      NEXT i
+      :CreateFromCode()
+   END
+   PintaBrw(oBrwA,0)
+   // Resalta el anticipo actual y el titulo de anuladas
+   oBrwA:bClrStd := { || IF( LEN(aRow) > 0 .AND. LEFT(aRow[oBrwA:nArrayAt,2],3) $ "ANT,---", ;
+                             { CLR_BLACK, RGB(255,230,150) }, ;
+                             IF( oBrwA:KeyNo() % 2 == 0, { CLR_BLACK, RGB(193,221,255) }, ;
+                                                         { CLR_BLACK, RGB(221,245,255) } ) ) }
+   // Normal: arranca en el anticipo al conciliar. Completa: desde la primer OP
+   @ acor[1]+1, 08 CHECKBOX oChk VAR lCompleto PROMPT "Historia completa" OF oForm SIZE 80,10 PIXEL ;
+           ON CHANGE (AntiFilas(nCod, lCompleto, aRow), oBrwA:GoTop(), oBrwA:Refresh())
+   @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Excel" OF oForm SIZE 30,10 ;
+           ACTION oBrwA:ToExcel() PIXEL
+   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cerrar" OF oForm SIZE 30,10 ;
+           ACTION oForm:End() PIXEL CANCEL
+ACTIVATE DIALOG oForm CENTER
+RETURN nil
+
+***************************************
+** Llena aRow (en el lugar, lo usa la grilla) con la composicion del anticipo.
+** Las fechas van como texto: las filas sin fecha quedan en blanco.
+STATIC FUNCTION AntiFilas(nCod, lCompleto, aRow)
+LOCAL aNue := CtaProvComposicion(nCod, , , lCompleto), i
+ASIZE(aRow, 0)
+FOR i := 1 TO LEN(aNue)
+    aNue[i,1] := IF(EMPTY(aNue[i,1]), "", DTOC(aNue[i,1]))
+    AADD(aRow, aNue[i])
+NEXT i
 RETURN nil
 
 
