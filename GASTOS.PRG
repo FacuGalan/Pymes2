@@ -73,15 +73,16 @@ TRY
   	                    ClipValue2Sql(cFecha)+","+ClipValue2Sql(nImporte)+",0,'P',0,"+ClipValue2Sql(cObserva)+","+ClipValue2Sql(oApp:usuario)+","+;
                         ClipValue2SQL(DATE())+","+ClipValue2SQL(oApp:cIp)+")")
   oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ordpag " + ;
-                        " (proveedor, total, observa,usuario,fecmod,ip,fecha,caja) VALUES "+;
+                        " (proveedor, total, facturas, observa,usuario,fecmod,ip,fecha,caja) VALUES "+;
                         " ("+;
                             ClipValue2Sql(nProvee)+","+;
+                            ClipValue2Sql(nImporte)+","+;
                             ClipValue2Sql(nImporte)+","+;
                             ClipValue2Sql(cObserva)+","+;
                             ClipValue2Sql(oApp:usuario)+","+;
                             ClipValue2SQL(DATE())+","+ClipValue2SQL(oApp:cIp)+","+ClipValue2Sql(cFecha)+","+;
                             ClipValue2SQL(oQryPun:caja)+")")
-  nNumero:= oApp:oServer:Query("SELECT MAX(numero) AS ultimo FROM ge_"+oApp:cId+"ordpag"):ultimo
+  nNumero:= oApp:oServer:LastInsertID()
   oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ordfac SET numero = "+ ClipValue2Sql(nNumero)+","+;
                             "tipocomp = 'FC',"+;
                             "letra = 'X',"+;
@@ -109,7 +110,7 @@ TRY
                             ClipValue2SQL(DATE())+","+;
                             ClipValue2SQL(oApp:cIp)+","+;
                             ClipValue2SQL(nImporte)+")")
-              nNumDep:= oApp:oServer:Query("SELECT MAX(id) AS numero FROM ge_"+oApp:cId+"deposito"):numero 
+              nNumDep:= oApp:oServer:LastInsertID()
               oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"ordpag SET iddepo = "+ ClipValue2Sql(nNumDep) + " WHERE numero = "+ClipValue2Sql(nNumero))
               oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ordcon SET numero  = " + ClipValue2Sql(nNumero)+","+;
                                                      "codcon  = 2, "+;

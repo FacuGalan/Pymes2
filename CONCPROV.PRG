@@ -8,7 +8,8 @@
 ** (ver CTAPROV.PRG -> ConciliarCtaProv).
 **
 **  - Modo informe: no graba nada, solo muestra que ajustaria.
-**  - Modo conciliar: genera las OPs de ajuste, el log y la marca.
+**  - Modo conciliar: genera las OPs de ajuste, el log y la marca. Antes
+**    amplia a DECIMAL(14,2) las columnas de importes chicas (clientes viejos).
 **  - Clientes sin las tablas (dados de baja) o sin conexion se saltean.
 **  - Deja concprov_<fecha>_<modo>.txt (detalle, con el porque de cada ajuste),
 **    .csv (un renglon por proveedor) y _motivos.csv (un renglon por motivo).
@@ -70,12 +71,13 @@ RETURN nil
 STATIC FUNCTION Procesar(lGrabar, cVersion, oLog, oMeter, oSayCli, lSinVentana, cSinMot)
 LOCAL oCfg, oQ, hSrv := {=>}, oSrv, cClave, cId, aRes, i, j, cTxt := "", cCsv := "", cCsvMot := "", cArch, lYa,;
       aSinMot := {}, lMotivos, cNro,;
-      nSinTablas := 0, nSinConex := 0, nYa := 0, nAjust := 0, nLimpios := 0, nError := 0, nProv := 0,;
+      nSinTablas := 0, nSinConex := 0, nAmp := 0, nYa := 0, nAjust := 0, nLimpios := 0, nError := 0, nProv := 0,;
       nTotal, nN := 0, oError
 
 IF lGrabar .AND. !lSinVentana
    IF !MsgNoYes("Va a GRABAR las OPs de ajuste en todos los clientes GE3."+CRLF+;
-                "Hacerlo despues del backup y con la version nueva ya activa."+CRLF+CRLF+;
+                "Hacerlo despues del backup y con la version nueva ya activa."+CRLF+;
+                "Amplia a DECIMAL(14,2) las columnas de importes chicas (ALTER TABLE)."+CRLF+CRLF+;
                 "Continua?","Conciliar")
       RETURN nil
    ENDIF
@@ -140,6 +142,11 @@ DO WHILE !oQ:Eof()
             Agrega(oLog, cTxt+"(sin detalle de motivos)")
          ENDIF
          aRes := ConciliarCtaProv(lGrabar, oSrv, cId, cVersion, "CONCILIACION", lMotivos)
+         // columnas de importes chicas (DECIMAL(10,2) en clientes viejos): al conciliar se amplian
+         IF LEN(aRes) >= 4 .AND. !EMPTY(aRes[4]) .AND. (aRes[1] .OR. !lGrabar)
+            nAmp++
+            Agrega(oLog, cTxt+IF(lGrabar,"COLUMNAS AMPLIADAS ","COLUMNAS A AMPLIAR a DECIMAL(14,2): ")+aRes[4])
+         ENDIF
          IF !aRes[1]
             nError++
             Agrega(oLog, cTxt+"ERROR: "+aRes[2])
@@ -189,6 +196,7 @@ Agrega(oLog, "Ya conciliados antes .....: "+STR(nYa,6))
 Agrega(oLog, "Sin diferencias ..........: "+STR(nLimpios,6))
 Agrega(oLog, IF(lGrabar,"Conciliados con ajuste ...: ","Con diferencias ..........: ")+STR(nAjust,6)+;
              "  ("+ALLTRIM(STR(nProv))+" proveedores)")
+Agrega(oLog, IF(lGrabar,"Con columnas ampliadas ...: ","Con columnas a ampliar ...: ")+STR(nAmp,6))
 Agrega(oLog, "Con error ................: "+STR(nError,6))
 Agrega(oLog, "Fin "+TIME())
 IF oSayCli <> NIL

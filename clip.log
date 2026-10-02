@@ -1,5 +1,5 @@
 Harbour 3.2.0dev (r1601050904)
 Copyright (c) 1999-2015, http://harbour-project.org/
-Compiling 'CTAPROV.prg' and generating preprocessed output to 'CTAPROV.ppo'...
-10020010010010020030040050010020010020010020010020030040050060070080090010001100120013001400150016001700180019002000100200300100200300400500600700Lines 5703, Functions/Procedures 17
-Generating C source output to 'CTAPROV.c'... Done.
+Compiling 'gastos.prg' and generating preprocessed output to 'gastos.ppo'...
+10020010010010020030040050010020010020010020010020030040050060070080090010001100120013001400150016001700180019002000100100200100200300100Lines 5534, Functions/Procedures 2
+Generating C source output to 'gastos.c'... Done.

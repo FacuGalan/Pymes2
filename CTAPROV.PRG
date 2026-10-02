@@ -95,7 +95,9 @@ FOR nPasada := 1 TO 2
     IF nResta <= 0
        EXIT
     ENDIF
-    oQ := oSrv:Query("SELECT o.numero, o.fecha, o.facturas, "+;
+    // facturas = lo que la OP tiene en ordfac (ordpag.facturas queda en 0 en las OPs de GASTOS)
+    oQ := oSrv:Query("SELECT o.numero, o.fecha, "+;
+          " IFNULL((SELECT SUM(g.importe) FROM "+cP+"ordfac g WHERE g.numero = o.numero),0) AS facturas, "+;
           " IFNULL((SELECT SUM(k.importe) FROM "+cP+"ordcon k WHERE k.numero = o.numero AND k.codcon = 7),0) AS anti, "+;
           " f.tipocomp, f.letra, f.numfac, f.importe "+;
           "FROM "+cP+"ordpag o JOIN "+cP+"ordfac f ON f.numero = o.numero "+;
@@ -146,7 +148,7 @@ LOCAL cNum := ClipValue2Sql(nOp)
 IF nRed <= 0
    RETURN nil
 ENDIF
-oSrv:Execute("UPDATE "+cP+"ordpag SET facturas = facturas - "+ClipValue2Sql(nRed)+" WHERE numero = "+cNum)
+oSrv:Execute("UPDATE "+cP+"ordpag SET facturas = GREATEST(0, facturas - "+ClipValue2Sql(nRed)+") WHERE numero = "+cNum)
 IF nPasada = 1
    oSrv:Execute("UPDATE "+cP+"ordcon SET importe = importe - "+ClipValue2Sql(nRed)+;
                 " WHERE numero = "+cNum+" AND codcon = 7 AND importe >= "+ClipValue2Sql(nRed)+" LIMIT 1")
@@ -181,9 +183,11 @@ RETURN oSrv:Query("SELECT COUNT(*) AS cant FROM "+cP+"concilia WHERE tipo = 'C'"
 ** corriente y lo que muestra la orden de pago.
 ** lMotivos = .f. : no calcula el detalle de motivos (aMotivos vacio); para
 **                  clientes con muchos datos migrados donde es muy lento.
+** 4to elemento del resultado: columnas de importes chicas (informe: las que
+** habria que ampliar; conciliar: las que se ampliaron). Ver CtaProvAmpliar.
 FUNCTION ConciliarCtaProv(lGrabar, oSrv, cId, cVersion, cUsuario, lMotivos)
 LOCAL cP, aDet := {}, oQry, cApl, cSig, lOk := .t., cMsg := "", oError, nOp, i, j,;
-      cLock, nMal, lEnTrans := .f.
+      cLock, nMal, lEnTrans := .f., aAmp, cAmp := ""
 DEFAULT lGrabar := .f., oSrv := oApp:oServer, cId := oApp:cId, cVersion := "", cUsuario := CP_USU_AJUSTE,;
         lMotivos := .t.
 cP   := "ge_"+cId
@@ -193,9 +197,16 @@ cLock:= "concilia_"+cP
 
 IF lGrabar
    IF oSrv:Query("SELECT GET_LOCK('"+cLock+"',60) AS ok"):ok <> 1
-      RETURN { .f., "No se pudo obtener el bloqueo de conciliacion de "+cP, aDet }
+      RETURN { .f., "No se pudo obtener el bloqueo de conciliacion de "+cP, aDet, cAmp }
    ENDIF
    // DDL fuera de la transaccion (hace commit implicito)
+   // Columnas de importes a DECIMAL(14,2): el recalculo no tiene que truncar
+   aAmp := CtaProvAmpliar(oSrv, cId)
+   cAmp := aAmp[2]
+   IF !aAmp[1]
+      oSrv:Query("SELECT RELEASE_LOCK('"+cLock+"') AS ok")
+      RETURN { .f., "No se pudieron ampliar las columnas de importes: "+cAmp, aDet, cAmp }
+   ENDIF
    oSrv:Execute("CREATE TABLE IF NOT EXISTS "+cP+"concilia ("+;
                 "id INT(10) NOT NULL AUTO_INCREMENT,"+;
                 "tipo CHAR(1) NOT NULL,"+;                       // C = cabecera (marca), P = proveedor ajustado
@@ -219,8 +230,10 @@ IF lGrabar
    ENDIF
    IF CtaProvConciliado(oSrv, cId)
       oSrv:Query("SELECT RELEASE_LOCK('"+cLock+"') AS ok")
-      RETURN { .t., "Ya estaba conciliado", aDet }
+      RETURN { .t., "Ya estaba conciliado", aDet, cAmp }
    ENDIF
+ELSE
+   cAmp := CtaProvColsChicasTxt(CtaProvColsChicas(oSrv, cP))
 ENDIF
 
 // Por proveedor: lo guardado, lo que daria la formula y el ajuste necesario.
@@ -259,7 +272,7 @@ FOR i := 1 TO LEN(aDet)
 NEXT i
 
 IF !lGrabar
-   RETURN { .t., STR(LEN(aDet),5)+" proveedores a ajustar", aDet }
+   RETURN { .t., STR(LEN(aDet),5)+" proveedores a ajustar", aDet, cAmp }
 ENDIF
 
 TRY
@@ -330,7 +343,97 @@ CATCH oError
    cMsg := "Error al conciliar "+cP+": "+IF(oError <> nil, oError:description, "")
 END TRY
 oSrv:Query("SELECT RELEASE_LOCK('"+cLock+"') AS ok")
-RETURN { lOk, cMsg, aDet }
+RETURN { lOk, cMsg, aDet, cAmp }
+
+*************************************************
+** Columnas de importes de la cta cte de proveedores con menos de 12
+** enteros (los clientes viejos tienen DECIMAL(10,2): tope 99.999.999,99).
+** Devuelve { {tabla, columna, tipo, nulo, default, escala}, ... }
+STATIC FUNCTION CtaProvColsChicas(oSrv, cP)
+LOCAL aCols := {}, oQ, cIn := "", aDef, i
+aDef := { {"compras", "IMPORTE,NETO,IVA,NOGRABADO,SALDO"}, ;
+          {"ordpag",  "TOTAL,FACTURAS"}, ;
+          {"ordfac",  "IMPORTE,NETO,NETOGAN"}, ;
+          {"ordcon",  "IMPORTE"}, ;
+          {"provee",  "SALDO,SALDOD"} }
+FOR i := 1 TO LEN(aDef)
+    cIn += IF(EMPTY(cIn), "", " OR ")+"(table_name = '"+cP+aDef[i,1]+"' AND FIND_IN_SET(UPPER(column_name),'"+aDef[i,2]+"') > 0)"
+NEXT i
+oQ := oSrv:Query("SELECT table_name AS tabla, column_name AS columna, column_type AS tipo, "+;
+                 " is_nullable AS nulo, IFNULL(column_default,'') AS defa, "+;
+                 " IF(column_default IS NULL, 1, 0) AS sindef, numeric_scale AS escala "+;
+                 "FROM information_schema.columns "+;
+                 "WHERE table_schema = DATABASE() AND data_type = 'decimal' "+;
+                 "  AND numeric_precision - numeric_scale < 12 AND ("+cIn+") "+;
+                 "ORDER BY table_name, ordinal_position")
+oQ:GoTop()
+DO WHILE !oQ:Eof()
+   AADD(aCols, { ALLTRIM(oQ:tabla), ALLTRIM(oQ:columna), ALLTRIM(oQ:tipo), ALLTRIM(oQ:nulo) == "YES", ;
+                 IF(oQ:sindef = 1, NIL, ALLTRIM(oQ:defa)), oQ:escala })
+   oQ:Skip()
+ENDDO
+RETURN aCols
+
+STATIC FUNCTION CtaProvColsChicasTxt(aCols)
+LOCAL cTxt := "", i
+FOR i := 1 TO LEN(aCols)
+    cTxt += IF(EMPTY(cTxt), "", ", ")+SUBSTR(aCols[i,1],10)+"."+LOWER(aCols[i,2])+" "+;
+            STRTRAN(STRTRAN(aCols[i,3],"decimal",""),"unsigned","")
+NEXT i
+RETURN cTxt
+
+*************************************************
+** Amplia las columnas de importes chicas a DECIMAL(14,2) (12 enteros),
+** conservando NULL/NOT NULL y el default. Un ALTER por tabla. Es DDL:
+** llamar FUERA de una transaccion. No pierde datos.
+** Devuelve { lOk, cTexto } (cTexto = lo ampliado, o el error).
+FUNCTION CtaProvAmpliar(oSrv, cId)
+LOCAL aCols, i, cTab := "", cSql := "", cCol, cDef, oError, cHecho := "", lOk := .t., cErr := ""
+DEFAULT oSrv := oApp:oServer, cId := oApp:cId
+aCols := CtaProvColsChicas(oSrv, "ge_"+cId)
+IF LEN(aCols) = 0
+   RETURN { .t., "" }
+ENDIF
+// que no quede esperando para siempre si alguien tiene la tabla tomada
+oSrv:Execute("SET SESSION lock_wait_timeout = 60")
+TRY
+   FOR i := 1 TO LEN(aCols) + 1
+       IF i > LEN(aCols) .OR. !(aCols[i,1] == cTab)
+          IF !EMPTY(cSql)
+             oSrv:Execute(cSql)
+             cHecho += IF(EMPTY(cHecho), "", ", ")+SUBSTR(cTab,10)
+          ENDIF
+          IF i > LEN(aCols)
+             EXIT
+          ENDIF
+          cTab := aCols[i,1]
+          cSql := "ALTER TABLE "+cTab+" "
+       ELSE
+          cSql += ", "
+       ENDIF
+       cDef := aCols[i,5]
+       IF cDef <> NIL
+          cDef := STRTRAN(cDef, "'", "")
+       ENDIF
+       cCol := "MODIFY `"+aCols[i,2]+"` DECIMAL("+ALLTRIM(STR(12 + aCols[i,6]))+","+ALLTRIM(STR(aCols[i,6]))+")"+;
+               IF(aCols[i,4], " NULL", " NOT NULL")
+       DO CASE
+       CASE cDef == NIL .OR. UPPER(cDef) == "NULL"
+          cCol += IF(aCols[i,4], " DEFAULT NULL", "")
+       OTHERWISE
+          cCol += " DEFAULT "+ALLTRIM(STR(VAL(cDef), 20, aCols[i,6]))
+       ENDCASE
+       cSql += cCol
+   NEXT i
+CATCH oError
+   lOk  := .f.
+   cErr := IF(EMPTY(cHecho), "", "(ampliadas: "+cHecho+") ")+;
+           IF(oError <> nil, oError:description+" "+oError:operation, "")
+END TRY
+IF !lOk
+   RETURN { .f., cErr }
+ENDIF
+RETURN { .t., "a DECIMAL(14,2): "+CtaProvColsChicasTxt(aCols) }
 
 *************************************************
 ** Motivos del ajuste de un proveedor, para el log de la conciliacion.
@@ -568,7 +671,9 @@ IF !CtaProvConciliado(oSrv, cId)
                 "c.numfac = o.numfac AND c.codpro = op.proveedor "+;
                 "SET c.saldo = c.saldo + ABS(o.importe) "+;
                 "WHERE o.numero = "+cNum)
-   nTotPag := oSrv:Query("SELECT IFNULL(SUM(importe),0) AS total FROM "+cP+"ordcon WHERE numero = "+cNum+" AND codcon <> 7"):total
+   // ordpag.total (no incluye el anticipo usado): las OPs de GASTOS pagadas
+   // de caja no tienen ordcon y sumando conceptos inflaban el anticipo
+   nTotPag := IF(oOp:total = nil, 0, oOp:total)
    nTotFac := oSrv:Query("SELECT IFNULL(SUM(importe),0) AS total FROM "+cP+"ordfac WHERE numero = "+cNum):total
    oSrv:Execute("UPDATE "+cP+"provee SET saldo = saldo - "+ClipValue2Sql(nTotPag-nTotFac)+" WHERE codigo = "+cCod)
 ENDIF
