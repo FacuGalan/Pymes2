@@ -259,13 +259,18 @@ RETURN .t.
 FUNCTION ImprimirCaja(nId,lPrev)
 LOCAL oParame, oPrn, i, oFont, config, oQry, oFont1, y, nAnt := 0, nTotD := 0,;
       nTotH := 0, nTotE := 0, nTotEfe := 0, oGru, lComan,oPr,nRenglon,nRow, oQryP,nTotalVentas, ;
-      oQryFor, nMargen, nTotalX, nTotalB, cObserva
+      oQryFor, nMargen, nTotalX, nTotalB, cObserva, cAnul
 DEFAULT lPrev := .f.
 oQry := TraerQuery(nId)
 
 IF oQry:nRecCount = 0
    MsgInfo("Cierre no existe","Error")
-   RETURN NIL 
+   RETURN NIL
+ENDIF
+// Reimpresion: avisar si despues del cierre se anularon OPs que estaban en el (CTAPROV.PRG)
+cAnul := CtaProvAnulCierre(nId)
+IF !EMPTY(cAnul)
+   MsgAlert(cAnul,"Caja modificada despues del cierre")
 ENDIF
 
 //lComan := MsgNoYes("Emite por comandera?")

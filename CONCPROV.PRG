@@ -95,7 +95,10 @@ Agrega(oLog, "Inicio "+DTOC(DATE())+" "+TIME()+" - modo "+IF(lGrabar,"CONCILIAR"
 
 oCfg := Conecta("bcn_config", "")
 IF oCfg == NIL
-   Agrega(oLog, "ERROR: no conecta a bcn_config")
+   Agrega(oLog, "ERROR: no conecta a bcn_config (revisar red/puerto y que libmysql.dll este junto al exe)")
+   // Sin ventana no se ve nada: dejar el log igual para saber por que no hizo nada
+   MemoWrit("concprov_"+DTOS(DATE())+"_"+STRTRAN(LEFT(TIME(),5),":","")+"_"+;
+            IF(lGrabar,"conciliar","informe")+"_ERROR.txt", cLogTxt)
    RETURN nil
 ENDIF
 oQ := oCfg:Query("SELECT id, nombre, base, host FROM config_clientes WHERE pack = 'GE3' AND vto > '2026-01-01' ORDER BY host, base, id")

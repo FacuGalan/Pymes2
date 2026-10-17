@@ -7,10 +7,15 @@
 ** CANCELACION DE PAGOS
 *************************************************
 MEMVAR oApp
-STATIC oQryBrw, oWnd1, oBrw, oDlg, lEdit := .f., cVentana,oError
+STATIC oQryBrw, oWnd1, oBrw, oDlg, lEdit := .f., cVentana,oError,;
+       lAdmin, lConc, dDesde
 PROCEDURE ORDENES()
-LOCAL oGet, cBuscar := SPACE(50), oBar, hHand, oFol,nFiltro:=1,oBot,;
-      lAdmin:= oApp:oServer:Query("SELECT IF(tipo='ADMIN',TRUE,FALSE) AS admin FROM ge_"+oApp:cId+"usuarios WHERE usuario = "+ClipValue2Sql(oApp:usuario)):admin
+LOCAL oGet, cBuscar := SPACE(50), oBar, hHand, oFol,nFiltro:=1,oBot
+lAdmin := oApp:oServer:Query("SELECT IF(tipo='ADMIN',TRUE,FALSE) AS admin FROM ge_"+oApp:cId+"usuarios WHERE usuario = "+ClipValue2Sql(oApp:usuario)):admin
+// Cliente con la cta cte conciliada (CTAPROV.PRG): se puede anular cualquier OP.
+// Sin conciliar: solo la ultima de cada proveedor (la logica vieja descuadra si no)
+lConc  := CtaProvConciliado()
+dDesde := DATE() - 90
 cVentana := PROCNAME()
 IF ASCAN(oApp:aVentanas,cVentana) > 0
    hHand := ASCAN(oApp:aVentanas,cVentana)
@@ -25,7 +30,7 @@ oApp:oServer:Execute("";
     +"`NUMERO` INT(10),";
     +"`NOMPRO` VARCHAR(50) NOT NULL,";  
     +"`FECHA` DATE NOT NULL,";  
-    +"`TOTAL` DECIMAL(12,2) NOT NULL,"; 
+    +"`TOTAL` DECIMAL(14,2) NOT NULL,";
     +"`USUARIO` VARCHAR(15), ";
     +"`PROVEEDOR` INT(6) ";
     +") ENGINE=INNODB DEFAULT CHARSET=utf8")
@@ -35,22 +40,21 @@ oApp:oServer:Execute("TRUNCATE ordenes_temp")
 oApp:oServer:NextResult()
 
 AADD(oApp:aVentanas,cVentana)
-  // La OP de ajuste de la conciliacion (CTAPROV.PRG) no se muestra ni se anula
-  oApp:oServer:Execute("INSERT INTO ordenes_temp (numero,nompro,fecha,total,usuario,proveedor)"+;
-				"(SELECT o.numero, p.nombre,o.fecha, o.total,o.usuario,o.proveedor  FROM ge_"+oApp:cId+"ordpag o "+;
-        " LEFT JOIN ge_"+oApp:cId+"provee p ON p.codigo = o.proveedor "+;
-        " WHERE "+IF(lAdmin=1,"1=1"," o.usuario = "+ClipValue2Sql(oApp:usuario))+;
-        " AND o.numero IN (SELECT MAX(numero) "+;
-        " FROM ge_"+oApp:cId+"ordpag WHERE IFNULL(observa,'') <> "+ClipValue2Sql(CtaProvObsAjuste())+;
-        " GROUP BY proveedor) AND p.nombre IS NOT NULL)")
-  oQryBrw:= oApp:oServer:Query("SELECT * FROM ordenes_temp ")
-   DEFINE WINDOW oWnd1 MDICHILD TITLE "Cancelacion de ordenes de pago" ;
+  CargarOPs()
+  oQryBrw:= oApp:oServer:Query("SELECT * FROM ordenes_temp ORDER BY numero DESC")
+   DEFINE WINDOW oWnd1 MDICHILD TITLE TituloOPs() ;
           OF oApp:oWnd NOZOOM ICON oApp:oIco
          DEFINE BUTTONBAR oBar  SIZE 60,60 OF oWnd1 2010
          DEFINE BUTTON RESOURCE "MODI" OF oBar ;
             TOOLTIP "Modificar Registro"  ;
             ACTION (Formu(),oBrw:Refresh());
-            PROMPT "Modifica" TOP 
+            PROMPT "Modifica" TOP
+         IF lConc
+            DEFINE BUTTON RESOURCE "FILT" OF oBar ;
+               TOOLTIP "Mostrar las ordenes desde una fecha"  ;
+               ACTION CambiarDesde();
+               PROMPT "Desde" TOP
+         ENDIF
          DEFINE BUTTON RESOURCE "EXCE" OF oBar ;
             TOOLTIP "Exportar a Excel" ;
             ACTION oBrw:ToExcel() ;
@@ -133,6 +137,11 @@ IF !lRta
    RETURN nil
 ENDIF
 
+// Caja cerrada, retenciones de un mes anterior o cheques: solo ADMIN sigue
+IF !AvisosOP(oQry)
+   RETURN nil
+ENDIF
+
 // Si el anticipo que genero esta OP ya se uso en pagos posteriores, avisar
 // antes que facturas vuelven a quedar con saldo (CTAPROV.PRG)
 aArr := CtaProvSimularAnul(oQry:numero)
@@ -145,7 +154,8 @@ TRY
 oApp:oServer:BeginTransaction()
 // Guarda la copia en ordpag_anul, borra la OP y rehace los saldos
 aRes := CtaProvAnularOP(oQry:numero)
-Auditar(1," OP:"+alltrim(STR(oQry:numero,10))+" $"+alltrim(STR(oQry:total,12,2))+" Caja "+STR(oQry:caja,4)+" "+ALLTRIM(oQry:nompro))
+Auditar(1," OP:"+alltrim(STR(oQry:numero,10))+" $"+alltrim(STR(oQry:total,12,2))+" Caja "+STR(oQry:caja,4)+" "+ALLTRIM(oQry:nompro)+;
+        IF(VALTYPE(oQry:id_cierre) = "N" .AND. oQry:id_cierre > 0, " Cierre "+ALLTRIM(STR(oQry:id_cierre)), ""))
 oApp:oServer:Execute("DELETE FROM ordenes_temp WHERE numero = " + ClipValue2Sql(oQry:numero))
 oApp:oServer:CommitTransaction()
 IF aRes <> nil .AND. ROUND(aRes[3] - aRes[2],2) <> 0
@@ -157,6 +167,8 @@ ENDIF
 CATCH oError
     ValidaError(oError)
 END TRY
+// Recargo: por el arrastre otra OP pudo quedar vacia y eliminarse
+CargarOPs()
 oQryBrw:Refresh()
 RETURN nil
 
@@ -255,6 +267,106 @@ FOR i := 1 TO LEN(oApp:aVentanas)
 NEXT i
 oApp:aVentanas := ACLONE(aNueva)
 RETURN .t.
+
+*************************************
+** Llena ordenes_temp. Conciliado: todas las OPs desde dDesde. Sin conciliar:
+** solo la ultima de cada proveedor. El que no es ADMIN ve solo las suyas.
+** La OP de ajuste de la conciliacion (CTAPROV.PRG) no se muestra ni se anula
+STATIC FUNCTION CargarOPs()
+LOCAL cP := "ge_"+oApp:cId, cAjuste := ClipValue2Sql(CtaProvObsAjuste())
+oApp:oServer:Execute("TRUNCATE ordenes_temp")
+oApp:oServer:Execute("INSERT INTO ordenes_temp (numero,nompro,fecha,total,usuario,proveedor)"+;
+        "(SELECT o.numero, p.nombre,o.fecha, o.total,o.usuario,o.proveedor  FROM "+cP+"ordpag o "+;
+        " LEFT JOIN "+cP+"provee p ON p.codigo = o.proveedor "+;
+        " WHERE "+IF(lAdmin=1,"1=1"," o.usuario = "+ClipValue2Sql(oApp:usuario))+;
+        " AND IFNULL(o.observa,'') <> "+cAjuste+;
+        IF(lConc, " AND o.fecha >= "+ClipValue2Sql(dDesde),;
+                  " AND o.numero IN (SELECT MAX(numero) FROM "+cP+"ordpag "+;
+                  " WHERE IFNULL(observa,'') <> "+cAjuste+" GROUP BY proveedor)")+;
+        " AND p.nombre IS NOT NULL)")
+RETURN nil
+
+STATIC FUNCTION TituloOPs()
+RETURN "Cancelacion de ordenes de pago"+;
+       IF(lConc, " - desde el "+DTOC(dDesde), " - ultima orden de cada proveedor")
+
+STATIC FUNCTION CambiarDesde()
+LOCAL dNue := dDesde
+IF MsgGet("Ordenes de pago", "Mostrar desde:", @dNue) .AND. !EMPTY(dNue)
+   dDesde := dNue
+   CargarOPs()
+   oQryBrw:Refresh()
+   oBrw:GoTop()
+   oBrw:Refresh()
+   oWnd1:SetText(TituloOPs())
+ENDIF
+RETURN nil
+
+*************************************
+** Avisos antes de anular: caja ya cerrada (aviso para todos), retenciones
+** de un mes anterior y cheques de una OP que no es de hoy (con estos dos
+** solo un ADMIN puede seguir). Devuelve .t. si se puede anular.
+STATIC FUNCTION AvisosOP(oQry)
+LOCAL cP := "ge_"+oApp:cId, cNum := ClipValue2Sql(oQry:numero), cTxt := "", cCaja := "", cTit, oQ, nRet
+// Caja: CIETUR marca checkeado/id_cierre en las OPs del turno que cierra
+IF oApp:oServer:Query("SELECT COUNT(*) AS n FROM "+cP+"ordpag WHERE numero = "+cNum+;
+                      " AND (IFNULL(id_cierre,0) > 0 OR IFNULL(checkeado,0) <> 0)"):n > 0
+   cCaja := "- Ya esta incluida en un cierre de caja: al reimprimir ese turno se avisa que "+;
+            "la orden se anulo despues del cierre."+CHR(10)+CHR(10)
+ENDIF
+// Retenciones de un mes anterior (en el mes corriente todavia se pueden corregir)
+IF oQry:fecha < DATE() - DAY(DATE()) + 1
+   nRet := oApp:oServer:Query("SELECT "+;
+              "(SELECT IFNULL(SUM(importe),0) FROM "+cP+"ordret WHERE numero = "+cNum+") + "+;
+              "(SELECT IFNULL(SUM(importe),0) FROM "+cP+"ordretiva WHERE numero = "+cNum+") + "+;
+              "(SELECT IFNULL(SUM(reten),0) FROM "+cP+"ordretgan WHERE numero = "+cNum+") AS ret"):ret
+   IF nRet <> 0
+      cTxt += "- Tiene retenciones por $ "+ALLTRIM(TRANSFORM(nRet,"999,999,999.99"))+" de un mes anterior: "+;
+              "el certificado probablemente ya se entrego y se declaro, y las retenciones de "+;
+              "Ganancias de las ordenes posteriores de ese mes se calcularon con esta incluida. "+;
+              "Las retenciones se borran con la orden."+CHR(10)+CHR(10)
+   ENDIF
+ENDIF
+// Cheques de una OP vieja: puede que ya no esten en la mano / ya se debitaron
+IF oQry:fecha < DATE()
+   oQ := oApp:oServer:Query("SELECT numche, importe FROM "+cP+"cheter WHERE orden = "+cNum+" ORDER BY numche")
+   IF oQ:RecCount() > 0
+      cTxt += "- Cheques de terceros entregados: vuelven a cartera (si el proveedor ya los deposito, "+;
+              "quedan en cartera cheques que no estan):"+CHR(10)
+      ListaCheques(oQ, @cTxt)
+   ENDIF
+   oQ := oApp:oServer:Query("SELECT numche, importe FROM "+cP+"chepro WHERE orden = "+cNum+" ORDER BY numche")
+   IF oQ:RecCount() > 0
+      cTxt += "- Cheques propios emitidos: se borran (si ya se debitaron, el banco queda distinto):"+CHR(10)
+      ListaCheques(oQ, @cTxt)
+   ENDIF
+ENDIF
+IF EMPTY(cTxt) .AND. EMPTY(cCaja)
+   RETURN .t.
+ENDIF
+cTit := "Orden de pago "+ALLTRIM(STR(oQry:numero))+" del "+DTOC(oQry:fecha)+":"+CHR(10)+CHR(10)
+// Retenciones/cheques: solo ADMIN. La caja cerrada sola es un aviso para todos
+IF !EMPTY(cTxt) .AND. lAdmin <> 1
+   MsgStop(cTit+cCaja+cTxt+"Solo un usuario ADMIN puede anular esta orden.","Atencion")
+   RETURN .f.
+ENDIF
+RETURN MsgNoYes(cTit+cCaja+cTxt+"Anula la orden igual?","Atencion")
+
+STATIC FUNCTION ListaCheques(oQ, cTxt)
+LOCAL i := 0
+oQ:GoTop()
+DO WHILE !oQ:Eof()
+   i++
+   IF i <= 8
+      cTxt += "     Nro "+ALLTRIM(STR(oQ:numche))+"   $ "+ALLTRIM(TRANSFORM(oQ:importe,"999,999,999.99"))+CHR(10)
+   ENDIF
+   oQ:Skip()
+ENDDO
+IF i > 8
+   cTxt += "     ... y "+ALLTRIM(STR(i-8))+" mas"+CHR(10)
+ENDIF
+cTxt += CHR(10)
+RETURN nil
 
  
 

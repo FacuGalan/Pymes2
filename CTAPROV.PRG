@@ -621,8 +621,48 @@ oSrv:Execute("CREATE TABLE IF NOT EXISTS ge_"+cId+"ordpag_anul ("+;
              "anticipo_ant DECIMAL(14,2) NOT NULL DEFAULT 0,"+;
              "anticipo_nue DECIMAL(14,2) NOT NULL DEFAULT 0,"+;
              "observa VARCHAR(255) NOT NULL DEFAULT '',"+;
-             "PRIMARY KEY (id), KEY grupo (grupo), KEY proveedor (proveedor)) ENGINE=INNODB DEFAULT CHARSET=utf8")
+             "id_cierre INT(10) NOT NULL DEFAULT 0,"+;
+             "PRIMARY KEY (id), KEY grupo (grupo), KEY proveedor (proveedor), KEY id_cierre (id_cierre)) "+;
+             "ENGINE=INNODB DEFAULT CHARSET=utf8")
+// Tablas creadas antes de guardar el cierre de caja de la OP anulada
+IF oSrv:Query("SHOW COLUMNS FROM ge_"+cId+"ordpag_anul LIKE 'id_cierre'"):RecCount() = 0
+   oSrv:Execute("ALTER TABLE ge_"+cId+"ordpag_anul ADD id_cierre INT(10) NOT NULL DEFAULT 0, ADD KEY id_cierre (id_cierre)")
+ENDIF
 RETURN nil
+
+*************************************************
+** OPs anuladas DESPUES de cerrar la caja nId (las que el cierre incluia).
+** Devuelve el texto del aviso para la reimpresion del turno, "" si no hay.
+** Las anuladas antes de guardar id_cierre en ordpag_anul no se detectan.
+FUNCTION CtaProvAnulCierre(nId, oSrv, cId)
+LOCAL cP, oQ, cTxt := "", nEfe := 0
+DEFAULT oSrv := oApp:oServer, cId := oApp:cId
+cP := "ge_"+cId
+IF EMPTY(nId) .OR. oSrv:Query("SHOW TABLES LIKE '"+cP+"ordpag_anul'"):RecCount() = 0 .OR. ;
+   oSrv:Query("SHOW COLUMNS FROM "+cP+"ordpag_anul LIKE 'id_cierre'"):RecCount() = 0
+   RETURN ""
+ENDIF
+// codcon 1 = efectivo (lo que suma "PAGOS EN EFECTIVO" en el cierre)
+oQ := oSrv:Query("SELECT o.numero, o.fecanul, o.usuario, o.total, "+;
+                 " IFNULL((SELECT SUM(c.importe) FROM "+cP+"ordpag_anul c "+;
+                 "  WHERE c.grupo = o.grupo AND c.tipo = 'C' AND c.codcon = 1),0) AS efectivo "+;
+                 "FROM "+cP+"ordpag_anul o WHERE o.tipo = 'O' AND o.id_cierre = "+ClipValue2Sql(nId)+;
+                 " ORDER BY o.fecanul")
+IF oQ:RecCount() = 0
+   RETURN ""
+ENDIF
+oQ:GoTop()
+DO WHILE !oQ:Eof()
+   cTxt += "OP "+ALLTRIM(STR(oQ:numero))+" por $ "+ALLTRIM(TRANSFORM(oQ:total,"999,999,999.99"))+;
+           IF(oQ:efectivo <> 0, " (efectivo $ "+ALLTRIM(TRANSFORM(oQ:efectivo,"999,999,999.99"))+")", "")+;
+           ", anulada el "+IF(VALTYPE(oQ:fecanul) $ "DT", DTOC(oQ:fecanul), "")+" por "+ALLTRIM(oQ:usuario)+CHR(10)
+   nEfe += oQ:efectivo
+   oQ:Skip()
+ENDDO
+RETURN "Despues de este cierre se anularon ordenes de pago que estaban incluidas en el:"+CHR(10)+CHR(10)+;
+       cTxt+CHR(10)+;
+       "Este reporte se arma con los datos actuales, asi que ya no las incluye"+;
+       IF(nEfe <> 0, " (los pagos en efectivo dan $ "+ALLTRIM(TRANSFORM(nEfe,"999,999,999.99"))+" menos que en el cierre original)", "")+"."
 
 *************************************************
 ** Anula (borra) una OP. Se llama DENTRO de la transaccion del que anula,
@@ -648,9 +688,10 @@ nAntAnt := oSrv:Query("SELECT IFNULL(saldo,0) AS saldo FROM "+cP+"provee WHERE c
 
 // Copia de la OP (O) y su detalle (C conceptos, F facturas)
 oSrv:Execute("INSERT INTO "+cP+"ordpag_anul "+;
-             "(tipo,anulada,fecanul,usuario,ip,proveedor,numero,fecha,numeroop,caja,total,facturas,anticipo_ant,observa) "+;
+             "(tipo,anulada,fecanul,usuario,ip,proveedor,numero,fecha,numeroop,caja,total,facturas,anticipo_ant,observa,id_cierre) "+;
              "SELECT 'O',numero,NOW(),"+ClipValue2Sql(LEFT(cUsuario,15))+","+ClipValue2Sql(cIp)+",proveedor,numero,"+;
-             "fecha,numeroop,IFNULL(caja,0),IFNULL(total,0),facturas,"+ClipValue2Sql(nAntAnt)+",IFNULL(observa,'') "+;
+             "fecha,numeroop,IFNULL(caja,0),IFNULL(total,0),facturas,"+ClipValue2Sql(nAntAnt)+",IFNULL(observa,''),"+;
+             "IFNULL(id_cierre,0) "+;
              "FROM "+cP+"ordpag WHERE numero = "+cNum)
 nGrp := oSrv:LastInsertID()
 oSrv:Execute("UPDATE "+cP+"ordpag_anul SET grupo = id WHERE id = "+ClipValue2Sql(nGrp))
