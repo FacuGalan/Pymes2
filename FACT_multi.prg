@@ -736,7 +736,7 @@ LOCAL nNumero,cNumComp,cLetra:=IF(oApp:tipo_iva<>6,IF(nCondicion = 1 .or. nCondi
       nNumDep, nPunLocal, nSaldoCta, oTransferencias,;
       nCodCue := 0, nNumOpe := 0, cObserva1:="Pago por Pos "+SPACE(255), oQryTransf,;
       nCodCue2 := 0, nNumOpe2 := 0, cObserva2:="Pago por Pos "+SPACE(255),;
-      nPuntos := 0, nPuntosAcu := 0, cSQL, aMetodosPago := {}
+      nPuntos := 0, nPuntosAcu := 0, cSQL, aMetodosPago := {}, oQryFP, aCodPago := {}, cFormaDistinta := ""
 nTransf:= oApp:oServer:Query("SELECT SUM(importe) AS monto FROM formapag_temp WHERE tipopag = 2"):monto
 oTransferencias:= oApp:oServer:Query("SELECT f1.* FROM formapag_temp f1 LEFT JOIN ge_"+oApp:cId+"forpag f2 ON f2.codigo = f1.codforma WHERE f1.tipopag = 2 AND f2.codcue = 0")
 IF nTransf > 0
@@ -763,6 +763,15 @@ IF oApp:usar_limite_cred .and. oQryCliAux:limite <> 0
      ENDIF
     ENDIF 
   ENDIF
+ENDIF
+// Aviso si se cobra con una forma de pago con otro incremento que la de los precios (no cuenta Cta.Cte.)
+oQryFP := oApp:oServer:Query("SELECT DISTINCT codforma FROM formapag_temp WHERE tipopag <> 5 AND importe > 0")
+DO WHILE !oQryFP:Eof()
+   AADD(aCodPago,oQryFP:codforma)
+   oQryFP:Skip()
+ENDDO
+IF !AvisoFormaDistinta(aFormaCod[nFormaPago],aCodPago,@cFormaDistinta)
+   RETURN .f.
 ENDIF
 CrearTemporales()
 lFisc:= MsgYesNo("¿Desea emitir el tiquet fiscal?","Atencion!")
@@ -944,7 +953,7 @@ cNumComp := STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNumero,8)," ","0")
                             ","+ClipValue2Sql(oQryCliAux:cuit)+","+;
                             ClipValue2Sql(oQryCliAux:dni)+","+ClipValue2Sql(oQryCliAux:direccion)+","+ClipValue2Sql(oQryCliAux:localidad)+","+;
                             ClipValue2Sql(oApp:usuario)+","+ClipValue2SQL(DATE())+","+ClipValue2SQL(oApp:cIp)+","+ClipValue2SQL(nCondicion)+;
-                            ",1,"+ClipValue2Sql(nForma)+","+;
+                            ",1,"+ClipValue2Sql(aFormaCod[nFormaPago])+","+;
                             ClipValue2Sql(cCae)+","+ClipValue2Sql(dFecVtoC)+","+ClipValue2Sql(STRTRAN(STR(nTipFor,2)," ","0"))+;
                             ","+ClipValue2Sql(oBrwDet:oCol(11):nTotal)+",CURTIME()"+;
                             ","+Clipvalue2sql(nPuntos)+","+ClipValue2Sql(nPuntosAcu) +")")     
@@ -952,6 +961,9 @@ cNumComp := STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNumero,8)," ","0")
       IF oApp:usar_puntos
          oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET puntos = puntos + "+ClipValue2Sql(INT(nTotal/oApp:pesos_x_punto)) +;
           " WHERE codigo = "+ClipValue2Sql(nCliente))
+      ENDIF
+      IF !EMPTY(cFormaDistinta)
+         Auditar(7," FC"+cLetra+cNumComp+cFormaDistinta)
       ENDIF
       IF nDescu > 0
          Auditar(6," FC"+cLetra+cNumcomp+" "+alltrim(STR(nDescu,6,2))+"% Caja "+STR(oApp:prefijo,4))

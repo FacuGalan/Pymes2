@@ -1245,11 +1245,10 @@ LOCAL oGet1 := ARRAY(22), oBot := ARRAY(4), oForm, lRta := .f., oBrw2, oQryCuo, 
       aNomConChe := {}, aCodConChe := {},;
       nConEfe := 1, nConTar := 1, nConTra := 1, nConMPa := 1, nConChe := 1,;
       nCodConEfe, cObsConEfe, nCodConTar, cObsConTar, nCodConTra, cObsConTra,;
-      nCodConMPa, cObsConMPa, nCodConChe, cObsConChe
+      nCodConMPa, cObsConMPa, nCodConChe, cObsConChe, aCodPago, cFormaDistinta := ""
 cLetra := IF(nTipoDoc=5,"R",IF(oApp:tipo_iva<>6,IF(oGet[13]:nAt = 1 .or. oGet[13]:nAt = 2 .or. oGet[13]:nAt = 6,"A","B"),"C"))
 cLetra := IF(!lFacturaM,cLetra,IF(cLetra="A","M",cLetra))
 // Validar que el DATOS CLIENTE
-nFormaPag := nFormaPago
 IF (oGet[13]:nAt <> 5 .and. (EMPTY(oGet[12]:cText) .OR. oGet[12]:cText = "  -        - ")) .and. nTipoDoc <> 6
    MsgStop("C.U.I.T. Invalido para tipo de condicion de I.V.A.","Error")
    RETURN nil
@@ -1339,6 +1338,8 @@ DO WHILE !oQryFormaPag:Eof()
    AADD(aCodFormaPag,oQryFormaPag:codigo)
    oQryFormaPag:Skip()
 ENDDO
+// Precarga la forma de pago elegida para los precios (por codigo, no por indice)
+nFormaPag := MAX(1,ASCAN(aCodFormaPag,aFormaCod[nFormaPago]))
 // Conceptos de cobro (forpag) que alimentan el combo de cada casillero
 CargarConceptos(1,@aNomConEfe,@aCodConEfe)   // Efectivo
 CargarConceptos(4,@aNomConTar,@aCodConTar)   // Tarjeta
@@ -1482,8 +1483,19 @@ IF oApp:usar_dias_deuda
     ENDIF
 ENDIF
 
-nCondVen := aCodCondVen[nCondVen]
-nFormaPag:= aCodFormaPag[nFormaPag]
+// Aviso si se cobra con una forma de pago con otro incremento que la de los precios.
+// Solo cuentan los conceptos reales de los combos (codigo 0 = valor legado, sin forpag)
+IF nTipoDoc <> 3
+   aCodPago := {}
+   IF(nEfecti  > 0 .and. aCodConEfe[nConEfe] <> 0, AADD(aCodPago,aCodConEfe[nConEfe]), nil)
+   IF(nTarjet  > 0 .and. aCodConTar[nConTar] <> 0, AADD(aCodPago,aCodConTar[nConTar]), nil)
+   IF(nTransfe > 0 .and. aCodConTra[nConTra] <> 0, AADD(aCodPago,aCodConTra[nConTra]), nil)
+   IF(nMPago   > 0 .and. aCodConMPa[nConMPa] <> 0, AADD(aCodPago,aCodConMPa[nConMPa]), nil)
+   IF(nCheque  > 0 .and. aCodConChe[nConChe] <> 0, AADD(aCodPago,aCodConChe[nConChe]), nil)
+   IF !AvisoFormaDistinta(aFormaCod[nFormaPago],aCodPago,@cFormaDistinta)
+      LOOP
+   ENDIF
+ENDIF
 
 IF nTransfe > 0
      lCuenta:=  DatosTransferencia(@nCodCue,@nNumOpe,@cObserva1)
@@ -1493,6 +1505,7 @@ IF nTransfe > 0
 ENDIF
 EXIT
 ENDDO
+nCondVen := aCodCondVen[nCondVen]
 // Concepto de cobro elegido en cada combo. Codigo 0 = el cliente no tiene ningun
 // concepto de ese tipo cargado en forpag; en ese caso se graba el valor legado
 // para no cambiar el comportamiento actual.
@@ -1828,7 +1841,7 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
                             ClipValue2Sql(oGet[10]:cText)+","+ClipValue2Sql(oGet[11]:cText)+","+ClipValue2SQL(oGet[37]:cText)+","+;
                             ClipValue2Sql(cCae)+","+ClipValue2Sql(dFecVtoC)+","+ClipValue2Sql(STRTRAN(STR(nTipFor,2)," ","0"))+","+;
                             ClipValue2Sql(oApp:usuario)+","+ClipValue2SQL(oGet[1]:value)+","+ClipValue2SQL(oApp:cIp)+","+ClipValue2Sql(cVendedor)+","+;
-                            ClipValue2Sql(nCondVen)+","+ClipValue2Sql(nFormaPag)+","+ ClipValue2SQL(oGet[42]:cText)+","+ClipValue2Sql(lAcopio)+","+;
+                            ClipValue2Sql(nCondVen)+","+ClipValue2Sql(aFormaCod[nFormaPago])+","+ ClipValue2SQL(oGet[42]:cText)+","+ClipValue2Sql(lAcopio)+","+;
                             IF(lFacturaD,"TRUE","FALSE")+","+IF(lFacturaD,ClipValue2SQL(nCotiza),"0")+;
                             ",CURTIME(),"+Clipvalue2sql(nPuntos)+","+ClipValue2Sql(nPuntosAcu) +")")        
       
@@ -1837,6 +1850,9 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
           " WHERE codigo = "+ClipValue2Sql(nCliente) )
       ENDIF
       //Auditoria
+      IF !EMPTY(cFormaDistinta)
+         Auditar(7," "+cTipoDoc+cNumComp+cFormaDistinta)
+      ENDIF
       IF nDescuGen > 0
          Auditar(6," "+cTipoDoc+cNumcomp+" "+alltrim(STR(nDescuGen,6,2))+"% Caja "+STR(oApp:prefijo,4))
          ELSE

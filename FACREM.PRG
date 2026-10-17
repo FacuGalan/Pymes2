@@ -988,7 +988,7 @@ LOCAL cLetra, oGet1 := ARRAY(20), oBot := ARRAY(4), oForm, lRta := .f., oBrw2, o
       aNomConChe := {}, aCodConChe := {},;
       nConEfe := 1, nConTar := 1, nConTra := 1, nConMPa := 1, nConChe := 1,;
       nCodConEfe, cObsConEfe, nCodConTar, cObsConTar, nCodConTra, cObsConTra,;
-      nCodConMPa, cObsConMPa, nCodConChe, cObsConChe
+      nCodConMPa, cObsConMPa, nCodConChe, cObsConChe, aCodPago, cFormaDistinta := ""
 
 cLetra := IF(nTipoEmp=1 .or. nTipoEmp=2,IF(oGet[13]:nAt = 1 .or. oGet[13]:nAt = 2 .or. oGet[13]:nAt = 6,"A","B"),"C")
 // Validar que el DATOS CLIENTE
@@ -1052,6 +1052,8 @@ DO WHILE !oQryFormaPag:Eof()
    AADD(aCodFormaPag,oQryFormaPag:codigo)
    oQryFormaPag:Skip()
 ENDDO
+// Precarga la forma de pago elegida para los precios (por codigo, no por indice)
+nFormaPag := MAX(1,ASCAN(aCodFormaPag,aFormaCod[nFormaPago]))
 
 // Conceptos de cobro (forpag) que alimentan el combo de cada casillero
 CargarConceptos(1,@aNomConEfe,@aCodConEfe)   // Efectivo
@@ -1156,6 +1158,19 @@ IF oApp:usar_dias_deuda
     ENDIF
 ENDIF
 
+// Aviso si se cobra con una forma de pago con otro incremento que la de los precios.
+// Solo cuentan los conceptos reales de los combos (codigo 0 = valor legado, sin forpag)
+IF nTipoDoc <> 3
+   aCodPago := {}
+   IF(nEfecti  > 0 .and. aCodConEfe[nConEfe] <> 0, AADD(aCodPago,aCodConEfe[nConEfe]), nil)
+   IF(nTarjet  > 0 .and. aCodConTar[nConTar] <> 0, AADD(aCodPago,aCodConTar[nConTar]), nil)
+   IF(nTransfe > 0 .and. aCodConTra[nConTra] <> 0, AADD(aCodPago,aCodConTra[nConTra]), nil)
+   IF(nMPago   > 0 .and. aCodConMPa[nConMPa] <> 0, AADD(aCodPago,aCodConMPa[nConMPa]), nil)
+   IF(nCheque  > 0 .and. aCodConChe[nConChe] <> 0, AADD(aCodPago,aCodConChe[nConChe]), nil)
+   IF !AvisoFormaDistinta(aFormaCod[nFormaPago],aCodPago,@cFormaDistinta)
+      LOOP
+   ENDIF
+ENDIF
 
 IF nTransfe > 0
      lCuenta:=  DatosTransferencia(@nCodCue,@nNumOpe,@cObserva1)
@@ -1180,7 +1195,6 @@ nCodConChe := IF(aCodConChe[nConChe] = 0, 3, aCodConChe[nConChe])
 cObsConChe := IF(aCodConChe[nConChe] = 0, "CHEQUE", aNomConChe[nConChe])
 
 nCondVen := aCodCondVen[nCondVen]
-nFormaPag:= aCodFormaPag[nFormaPag]
 
 oTabIva := oApp:oServer:Query("SELECT codiva, SUM(stotal) AS neto,SUM(iva) AS iva FROM VENTAS_DET_H3 GROUP BY codiva")
 DO WHILE !oTabIva:Eof()
@@ -1491,13 +1505,16 @@ cTipoDoc := IF(nTipoDoc=1,"FR",IF(nTipoDoc=2,"ND","NC"))
                             ClipValue2Sql(oGet[10]:cText)+","+ClipValue2Sql(oGet[11]:cText)+","+ClipValue2SQL(oGet[37]:cText)+","+;
                             ClipValue2Sql(cCae)+","+ClipValue2Sql(dFecVtoC)+","+ClipValue2Sql(STRTRAN(STR(nTipFor,2)," ","0"))+","+;
                             ClipValue2Sql(oApp:usuario)+","+ClipValue2SQL(DATE())+","+ClipValue2SQL(oApp:cIp)+","+ClipValue2Sql(cVendedor)+","+;
-                            ClipValue2Sql(nCondVen)+","+ClipValue2Sql(nFormaPag)+;
+                            ClipValue2Sql(nCondVen)+","+ClipValue2Sql(aFormaCod[nFormaPago])+;
                             ",CURTIME(),"+Clipvalue2sql(nPuntos)+","+ClipValue2Sql(nPuntosAcu) +")")
       
       IF oApp:usar_puntos
          oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"clientes SET puntos = puntos + "+ClipValue2Sql(INT(nTotal/oApp:pesos_x_punto)))
       ENDIF
 
+      IF !EMPTY(cFormaDistinta)
+         Auditar(7," "+cTipoDoc+cNumComp+cFormaDistinta)
+      ENDIF
      // ACTUALIZO LOS REMITOS FACTURADOS
       oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"remitos SET facturado = TRUE, factura = "+ClipValue2Sql(cTipoDoc+cNumComp)+" "+;
                            "WHERE nrorem IN (SELECT numrem FROM remitos_temp WHERE tilde = 1 GROUP BY numrem)")

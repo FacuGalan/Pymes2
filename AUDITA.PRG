@@ -81,7 +81,7 @@ STATIC FUNCTION FILT( )
    LOCAL oGet:=ARRAY(12), oBot:=ARRAY(2), Vdesde := DATE(),Vhasta := DATE(),;         
          oForm, cWhere, aCor,lRta := .F.,;
          aTipo:={"TODOS","ELIMINACION","MODIFICACION","BORRADO EN VENTA","CANCELACION DE VENTA",;
-                 "CIERRE DE TURNO","DESCUENTO"},nTipo:=1
+                 "CIERRE DE TURNO","DESCUENTO","FORMA DE PAGO DISTINTA"},nTipo:=1
 
 
 DEFINE DIALOG oForm TITLE "Filtrado de Auditoria"  FROM 05,15 TO 15,65 OF oWnd1
@@ -124,9 +124,59 @@ RETURN nil
 *** cargar datos de auditoria 
 FUNCTION Auditar(nTipo,cDetalle)
 LOCAL aTipo:={"ELIMINACION","MODIFICACION","BORRADO EN VENTA","CANCELACION DE VENTA",;
-              "CIERRE DE TURNO","DESCUENTO"}
+              "CIERRE DE TURNO","DESCUENTO","FORMA DE PAGO DISTINTA"}
 DEFAULT cDetalle := ""
 oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"auditoria (tipo,descripcion,fecha,hora,usuario)"+;
                      "VALUES("+ClipValue2Sql(nTipo)+","+ClipValue2Sql(aTipo[nTipo]+cDetalle)+",CURDATE(),CURTIME(),"+;
                                ClipValue2Sql(oApp:usuario)+")")
 RETURN nil
+
+**************************************************************************************************
+*** Aviso si se cobra con una forma de pago con distinto incremento/descuento que la forma con la
+*** que se calcularon los precios. Lo usan VENTAS, FACREM, FACT y FACT_multi.
+*** Pregunta si sigue: devuelve .F. si el operador quiere volver a corregir el cobro.
+*** En cDetalle (por referencia) deja el texto para Auditar(7,...), o "" si no hay diferencia.
+FUNCTION AvisoFormaDistinta(nCodPrecio,aCodPago,cDetalle)
+LOCAL oQry, cCods := "", i, lTabDesc, cNomPre := "", nIncPre := 0, nRanPre := 0, cDistintas := ""
+cDetalle := ""
+IF EMPTY(nCodPrecio) .or. EMPTY(aCodPago)
+   RETURN .t.
+ENDIF
+FOR i := 1 TO LEN(aCodPago)
+    cCods := cCods + "," + ClipValue2Sql(aCodPago[i])
+NEXT i
+lTabDesc := oApp:oServer:TableExist('ge_'+oApp:cId+"forpag_desc")
+oQry := oApp:oServer:Query("SELECT f.codigo, f.nombre, f.incremento, "+;
+        IF(lTabDesc,"(SELECT COUNT(*) FROM ge_"+oApp:cId+"forpag_desc d WHERE d.codfor = f.codigo)","0")+" AS rangos "+;
+        "FROM ge_"+oApp:cId+"forpag f WHERE f.codigo IN ("+ClipValue2Sql(nCodPrecio)+cCods+")")
+DO WHILE !oQry:Eof()
+   IF oQry:codigo = nCodPrecio
+      cNomPre := ALLTRIM(oQry:nombre)
+      nIncPre := oQry:incremento
+      nRanPre := oQry:rangos
+   ENDIF
+   oQry:Skip()
+ENDDO
+IF EMPTY(cNomPre)
+   RETURN .t.
+ENDIF
+oQry:GoTop()
+DO WHILE !oQry:Eof()
+   IF oQry:codigo <> nCodPrecio .and. (oQry:incremento <> nIncPre .or. oQry:rangos > 0 .or. nRanPre > 0)
+      cDistintas := cDistintas + IF(EMPTY(cDistintas),"",", ") + ALLTRIM(oQry:nombre) + " (" + TextoIncremento(oQry:incremento,oQry:rangos) + ")"
+   ENDIF
+   oQry:Skip()
+ENDDO
+IF EMPTY(cDistintas)
+   RETURN .t.
+ENDIF
+IF !MsgNoYes("Los precios se calcularon con " + cNomPre + " (" + TextoIncremento(nIncPre,nRanPre) + ")" + CHR(10) +;
+             "y se esta cobrando con: " + cDistintas + CHR(10) + CHR(10) +;
+             "Desea grabar igual?","Forma de pago distinta")
+   RETURN .f.
+ENDIF
+cDetalle := LEFT(" Precio: " + cNomPre + " / Cobro: " + cDistintas,60)
+RETURN .t.
+
+STATIC FUNCTION TextoIncremento(nInc,nRangos)
+RETURN IF(nInc > 0,"+","") + ALLTRIM(STR(nInc,6,2)) + "%" + IF(nRangos > 0," + desc. por monto","")
