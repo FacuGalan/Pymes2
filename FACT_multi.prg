@@ -10,7 +10,7 @@ static oDlg, oDlg1, nMesa := 1, oFont, oFontBot, oBrwDet, oQryDet, oQryDep, oQry
        nUltDep, nPriDep, nUltArt, nPriArt, fDepto, nCantidad, dFecha, nCliente, cCliente, nTotal, cVentana, ;
        lMaxi:=.t., nPrecio, lReemplaza, nCondicion, oQryPun, nDescuTot, nRecarTot, oQry2, oQry3, oQry5,;
        oQryPendi, oBrwPendi, nLista, oQryPar, nLisPre, aFormaNom, aFormaInc, aFormaTip, aFormaCod, nFormaPago, oGetDep1, oGetDep2,;
-       oGetDep3 , cPermi, lSaleX
+       oGetDep3 , cPermi, lSaleX, cTextoPromo, oSay
 
 //----------------------------------------------------------------//
 
@@ -103,6 +103,7 @@ PROCEDURE POS1MULTI(cPermisos,nId)
 LOCAL hHand
 LOCAL i,oFont1,oFont2,oFont3,oFont4,nCodArt:=0,nNumMesa,oMesa,nPicture,nComen:=0,oQryFormas, lGrande := .f.
 cPermi := cPermisos   
+cTextoPromo := ''
 lSaleX := .F.
 oApp:oServer:Execute("TRUNCATE VENTAS_DET_H1")
 
@@ -295,6 +296,7 @@ ENDIF
                           IF(oDlg1:cargo:nTop+oDlg1:cargo:nLeft=oGet[2]:nTop+oGet[2]:nLeft .and. nCodart < 0,oGet[3]:SetFocus(),nil)  ))  //SI ESTA EN CANTIDAD VUELVE AL CODIGO DEL ARTICULO                         
    REDEFINE BTNBMP oBot[54] ID 414 OF oDlg1 2007 CENTER;
                    ACTION(BorrarNum(oDlg1:cargo))
+   REDEFINE SAY oSay VAR cTextoPromo ID 4005 OF oDlg1 FONT oFont1 COLOR CLR_RED,CLR_BLACK
    
    IF !lGrande
       REDEFINE XBROWSE oBrwDet DATASOURCE oQryDet;
@@ -1299,6 +1301,7 @@ oGet[01]:Refresh()
 oGet[02]:Refresh()
 oGet[03]:Refresh()
 nTotal := ROUND(oBrwDet:aCols[9]:nTotal,2)
+TextoPromo(oQryDet:codart)
 RETURN nil
 
 **************************************************************************************************
@@ -2339,6 +2342,75 @@ LOCAL lRta := .t.
    ENDIF
 RETURN .t.
 
+
+// Crea las columnas que agregaron las versiones nuevas de promos si la tabla
+// existe sin ellas. La usa TextoPromo; CalcularPromos hace lo mismo adentro.
+STATIC FUNCTION ChequeaColPromo()
+STATIC cPrioChk := ""
+//Auto-reparable: crea la columna prioridad si la tabla existe sin ella (MySQL 5.7 no tiene ADD COLUMN IF NOT EXISTS)
+IF cPrioChk != oApp:cId
+   IF oApp:oServer:Query("SHOW COLUMNS FROM ge_"+oApp:cId+"promociones LIKE 'prioridad'"):nRecCount == 0
+      oApp:oServer:Execute("ALTER TABLE ge_"+oApp:cId+"promociones ADD COLUMN prioridad INT DEFAULT 0 NOT NULL")
+   ENDIF
+   IF oApp:oServer:Query("SHOW COLUMNS FROM ge_"+oApp:cId+"promociones LIKE 'hora_inicio'"):nRecCount == 0
+      oApp:oServer:Execute("ALTER TABLE ge_"+oApp:cId+"promociones ADD COLUMN hora_inicio TIME DEFAULT '00:00:00' NOT NULL")
+   ENDIF
+   IF oApp:oServer:Query("SHOW COLUMNS FROM ge_"+oApp:cId+"promociones LIKE 'hora_fin'"):nRecCount == 0
+      oApp:oServer:Execute("ALTER TABLE ge_"+oApp:cId+"promociones ADD COLUMN hora_fin TIME DEFAULT '23:59:59' NOT NULL")
+   ENDIF
+   cPrioChk := oApp:cId
+ENDIF
+RETURN nil
+
+STATIC FUNCTION TextoPromo(ncodigo)
+LOCAL oQ, cSql , cText := '', cGrp
+// Promos por grupo (combinadas / mix de promogrupo.prg) en las que entra el articulo
+cGrp := DispCliTextoGrupo(ncodigo)
+IF !oApp:oServer:TableExist('ge_'+oApp:cId+"promociones")
+   oSay:SetText(IF(EMPTY(cGrp), " ", cGrp))
+   RETURN nil
+ENDIF
+ChequeaColPromo()
+cSql := "SELECT id, nompromo, "+;
+    "CASE tipo  "+;
+    "    WHEN 1 THEN CONCAT( "+;
+    "        'OFERTA $', precio_especial "+;    
+    "    ) "+;    
+    "    WHEN 4 THEN CONCAT( "+;
+    "        'Llevando de ',cantidad_minima,' a ',cantidad_maxima,' $',precio_unitario "+;    
+    "    ) "+;        
+    "    WHEN 2 THEN CONCAT( "+;
+    "        'Llevando ', cantidad_requerida, "+;
+    "        ' paga ', cantidad_a_pagar, "+;
+    "        IF(cantidad_minima > 0 OR cantidad_maxima > 0, "+;
+    "           CONCAT(' (válido entre ', cantidad_minima, ' y ', cantidad_maxima, ' unidades)'), "+;
+    "           '') "+;
+    "    ) "+;
+    "    WHEN 3 THEN CONCAT( "+;
+    "        'En la unidad nº ', descuento_a_unidad, "+;
+    "        ' se aplica un descuento del ',  "+;
+    "        TRIM(TRAILING '.' FROM TRIM(TRAILING '0' FROM descuento_porcentual)), "+;
+    "        '%' "+;
+    "    ) "+;
+    "    ELSE NULL "+;
+    "END AS descripcion_promo "+;
+    "FROM ge_"+oApp:cId+"promociones  "+;
+    "WHERE codart = "+Clipvalue2sql(ncodigo)+"  "+;
+    ""+;//"  AND tipo IN (2, 3) "+;
+    "  AND (fecha_inicio IS NULL OR fecha_inicio <= CURDATE()) "+;
+    "  AND (fecha_fin    IS NULL OR fecha_fin    >= CURDATE()) "+;
+    "  AND CURTIME() BETWEEN hora_inicio AND hora_fin "+;
+    "ORDER BY tipo, id"
+oQ := oApp:oServer:Query(cSql)
+DO WHILE !oQ:Eof()
+   cText := cText +" "+ ALLTRIM(oQ:nompromo)+" "+alltrim(oQ:descripcion_promo)
+   oQ:Skip()
+ENDDO
+IF !EMPTY(cGrp)
+   cText := cText + IF(EMPTY(cText), "", "  +  ") + cGrp
+ENDIF
+oSay:SetText(IF(EMPTY(cText), " ", cText))
+RETURN nil   
 
 STATIC FUNCTION CalcularPromos()
 LOCAL lPromo, cText, oQryTem, nNeto, nIva, nAux, nCurCodart, nTierPrio, nCodForma, nTot, oQryFp, oQryIva

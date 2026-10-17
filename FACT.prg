@@ -2442,9 +2442,12 @@ return MessageBox( GetActiveWindow(), cMsg, cTitle, ;
 
 
 STATIC FUNCTION TextoPromo(ncodigo)
-LOCAL oQ, cSql , cText
+LOCAL oQ, cSql , cText := '', cGrp
+// Promos por grupo (combinadas / mix de promogrupo.prg) en las que entra el articulo
+cGrp := DispCliTextoGrupo(ncodigo)
 IF !oApp:oServer:TableExist('ge_'+oApp:cId+"promociones")
-   RETURN nil 
+   oSay:SetText(IF(EMPTY(cGrp), " ", cGrp))
+   RETURN nil
 ENDIF
 ChequeaColPromo()
 cSql := "SELECT id, nompromo, "+;
@@ -2478,16 +2481,14 @@ cSql := "SELECT id, nompromo, "+;
     "  AND CURTIME() BETWEEN hora_inicio AND hora_fin "+;
     "ORDER BY tipo, id"
 oQ := oApp:oServer:Query(cSql)
-IF oQ:nRecCount = 0
-   oSay:SetText(" ")
-   ELSE 
-   cText := ''
-   DO WHILE !oQ:Eof()
-      cText := cText +" "+ ALLTRIM(oQ:nompromo)+" "+alltrim(oQ:descripcion_promo)
-      oQ:Skip()
-   ENDDO   
-   oSay:SetText(cText)
+DO WHILE !oQ:Eof()
+   cText := cText +" "+ ALLTRIM(oQ:nompromo)+" "+alltrim(oQ:descripcion_promo)
+   oQ:Skip()
+ENDDO
+IF !EMPTY(cGrp)
+   cText := cText + IF(EMPTY(cText), "", "  +  ") + cGrp
 ENDIF
+oSay:SetText(IF(EMPTY(cText), " ", cText))
 RETURN nil   
 
 //-----------------------------------------------------------------------------

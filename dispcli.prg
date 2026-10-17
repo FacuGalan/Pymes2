@@ -671,6 +671,24 @@ function DispCliTextoOferta( nCodArt )
       enddo
    endif
 
+   cTxt += SumaTexto( cTxt, DispCliTextoGrupo( nCodArt ) )
+
+   return cTxt
+
+//-----------------------------------------------------------------------------
+// Texto de las promos por grupo (combinadas / mix de promogrupo.prg) vigentes
+// de las que participa el articulo ("" si ninguna). La usa tambien la pantalla
+// del cajero (TextoPromo de FACT.PRG).
+//-----------------------------------------------------------------------------
+function DispCliTextoGrupo( nCodArt )
+
+   local oQ, cTxt := "", cId := oApp:cId
+
+   if ValType( nCodArt ) != "N" .or. nCodArt <= 0
+      return ""
+   endif
+   ChequeoTablas()
+
    if lTabGrp
       oQ := oApp:oServer:Query( "SELECT DISTINCT g.id, CONCAT( g.nompromo, ': ', " + SqlDescGrp( "g" ) + " ) AS t " + ;
             "FROM ge_" + cId + "promo_grupo g " + ;
