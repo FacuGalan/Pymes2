@@ -16,6 +16,12 @@ STATIC oQryFue, oQryEti, oBrw, nOrientation, nWidthPage, nHeightPage,;
 #define MARGEN_INF    0.10
 #define MARGEN_LAT    0.15
 
+// Impresora de etiquetas autoadhesivas en rollo: la hoja ES la etiqueta (una por hoja).
+// Configuracion por PC (la impresora esta enchufada a una PC puntual) en etiquetas.ini
+#define ROLLO_INI     ".\etiquetas.ini"
+STATIC lRollo := .F., cImpRollo := "", nAnchoRollo := 54, nAltoRollo := 44, nMargenRollo := 1,;
+       lBordeRollo := .F., nBarrasRollo := 20, nOffRow := 0.8, nOffCol := 0.8, nGapV := GAP_V, nGapH := GAP_H
+
 PROCEDURE planil(cPermisos, nListaPre)
 LOCAL aFon1, aFon2, aFon3, nCol1 := 0, nCol2 := 0, nCol3:= 0, lCodBarra :=.f., mbarra1,;
       oSay1, oSay2, oSay3, oBot1, oBot2, oDlg1, oDlg2, oDlg3, oFld,;
@@ -33,6 +39,7 @@ LOCAL aFon1, aFon2, aFon3, nCol1 := 0, nCol2 := 0, nCol3:= 0, lCodBarra :=.f., m
       aOrientacion := {"Vertical","Horizontal"}, oCom2
 DEFAULT nListaPre := 0      
 nOrientation := 1
+LeerIniRollo()
 DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
 oQryFue  := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"fuentes")
 lImprimeLista2:=.F.
@@ -113,8 +120,8 @@ DEFINE DIALOG oDlg1 TITLE "Impresion de Etiquetas de precios" FROM 05,15 TO 37,1
    @ 35,105 GET oGet6 VAR mhorah  OF oDlg1 PIXEL WHEN (mopc = 2)
    @ 20,145 BUTTON oBot10 PROMPT "Elegir" OF oDlg1 SIZE 19,12  PIXEL;
         ACTION Reto(mopc,mfecha,mfechah,mhorad,mhorah) WHEN(mopc = 2 )
-   @ 50, 60 GET oGet1 VAR MaxFil PICTURE "99" OF oDlg1 PIXEL
-   @ 50,130 GET oGet2 VAR MaxCol PICTURE "99" OF oDlg1 PIXEL
+   @ 50, 60 GET oGet1 VAR MaxFil PICTURE "99" OF oDlg1 PIXEL WHEN(!lRollo)
+   @ 50,130 GET oGet2 VAR MaxCol PICTURE "99" OF oDlg1 PIXEL WHEN(!lRollo)
 
    @ 05,170 CHECKBOX oGet4 VAR lCodBarra  PROMPT "Código Barras" OF oDlg1 PIXEL SIZE 45,10
    @ 18,170 CHECKBOX oChe2 VAR lVto    PROMPT "C/Fecha cambio" OF oDlg1 PIXEL SIZE 45,10 WHEN (!lCodBarra)
@@ -132,7 +139,11 @@ DEFINE DIALOG oDlg1 TITLE "Impresion de Etiquetas de precios" FROM 05,15 TO 37,1
    @115,200 BUTTON oBot11 PROMPT "X Compras" OF oDlg1 SIZE 40,12  PIXEL;
         ACTION PorCompra(oBrw) WHEN(mopc > 1 )
    @130,200 SAY "Orientacion" OF oDlg1 SIZE 40,12 PIXEL     
-   @140,200 COMBOBOX oCom2 VAR nOrientation ITEMS aOrientacion  OF oDlg1 SIZE 50,12 PIXEL
+   @140,200 COMBOBOX oCom2 VAR nOrientation ITEMS aOrientacion  OF oDlg1 SIZE 50,12 PIXEL WHEN(!lRollo)
+   @157,200 CHECKBOX oChe5 VAR lRollo PROMPT "Rollo etiquetas" OF oDlg1 PIXEL SIZE 55,10 ;
+            ON CHANGE (IF(lRollo .AND. EMPTY(cImpRollo), ConfigRollo(oDlg1), NIL), oDlg1:AEvalWhen())
+   @170,200 BUTTON oBot04 PROMPT "Config. rollo" OF oDlg1 SIZE 40,12 PIXEL ;
+        ACTION ConfigRollo(oDlg1) WHEN(lRollo)
    
    @ 70, 05 XBROWSE oBrw DATASOURCE oQryEti;
               COLUMNS "Codigo","Nombre","PrecioVen","Cant","fecmod","horamod";
@@ -210,6 +221,11 @@ nDecimales := IF(lSinDecimales,0,2)
 oQryFue:nMaxFil := MaxFil
 oQryFue:nMaxCol := MaxCol
 oQryFue:Save()
+GrabarIniRollo()
+IF lRollo
+   MaxFil := 1
+   MaxCol := 1
+ENDIF
 oQryEti:GOTOP()
 oFon1 := TFont():New(oSay1:oFont:cFaceName,oSay1:oFont:nWidth,oSay1:oFont:nHeight,.f.,oSay1:oFont:lBold,;
                    oSay1:oFont:nEscapement,oSay1:oFont:norientation,oSay1:oFont:nWeight,oSay1:oFont:lItalic,;
@@ -235,17 +251,16 @@ IF !lCodBarra
       // ============================================================
       // IMPRESION NORMAL (sin oferta, sin codigo de barras)
       // ============================================================
-      PRINT oPrn NAME "Previsualizar" PREVIEW
+      PRINT oPrn NAME "Previsualizar" PREVIEW TO ImpEtiquetas()
          ConfigPagina(oPrn, MaxFil, MaxCol)
-         oPrn:SetPage(9) 
          i  := 1
          j  := 1
          PAGE          
          
          DO WHILE !oQryEti:EOF()  
              FOR x2 := 1 TO oQryEti:cant           
-             nRow := 0.8 + ((i-1) * (nHeightPage/MaxFil))
-             nCol := 0.8 + ((j-1) * (nWidthPage/MaxCol))
+             nRow := nOffRow + ((i-1) * (nHeightPage/MaxFil))
+             nCol := nOffCol + ((j-1) * (nWidthPage/MaxCol))
              
              ImprimirEtiquetaNormal(oPrn, oFon1, oFon2, oFon3, oFon4, ;
                                     nRow, nCol, MaxFil, MaxCol, ;
@@ -262,15 +277,14 @@ IF !lCodBarra
       // ============================================================
       // IMPRESION CON CARTEL DE OFERTA
       // ============================================================
-      PRINT oPrn NAME "Previsualizar" PREVIEW
+      PRINT oPrn NAME "Previsualizar" PREVIEW TO ImpEtiquetas()
          ConfigPagina(oPrn, MaxFil, MaxCol)
-         oPrn:SetPage(9)
          PAGE
          i  := 1
          j  := 1
          DO WHILE !oQryEti:EOF()            
-             nRow := 0.8 + ((i-1) * (nHeightPage/MaxFil))
-             nCol := 0.8 + ((j-1) * (nWidthPage/MaxCol))
+             nRow := nOffRow + ((i-1) * (nHeightPage/MaxFil))
+             nCol := nOffCol + ((j-1) * (nWidthPage/MaxCol))
              
              ImprimirEtiquetaOferta(oPrn, oFon1, oFon2, oFon3, oFon4, ;
                                     nRow, nCol, MaxFil, MaxCol, ;
@@ -289,16 +303,16 @@ IF !lCodBarra
    // ============================================================
    AddFontResource( "i2of5txt.ttf" )      
    DEFINE FONT oFont5 NAME "Interleaved 2of5 Text"    SIZE oFon1:nWidth,oFon1:nHeight
-   PRINT oPrn NAME "Previsualizar" PREVIEW 
+   PRINT oPrn NAME "Previsualizar" PREVIEW TO ImpEtiquetas()
    ConfigPagina(oPrn, MaxFil, MaxCol)
-   oPrn:SetPage(9)   
+   FontBarrasRollo(@oFont5, oPrn)
    PAGE
      i  := 1    
      j  := 1 
      DO WHILE !oQryEti:EOF()      
          FOR x2 := 1 TO oQryEti:cant       
-         nRow := 0.8 + ((i-1) * (nHeightPage/MaxFil))
-         nCol := 0.8 + ((j-1) * (nWidthPage/MaxCol))
+         nRow := nOffRow + ((i-1) * (nHeightPage/MaxFil))
+         nCol := nOffCol + ((j-1) * (nWidthPage/MaxCol))
          
          ImprimirEtiquetaBarras(oPrn, oFon1, oFon2, oFont5, ;
                                 nRow, nCol, MaxFil, MaxCol, ;
@@ -358,8 +372,6 @@ oQryFue:nClippr3 := oSay3:oFont:nClipPrecision
 oQryFue:nQuality1 := oSay1:oFont:nQuality     
 oQryFue:nQuality2 := oSay2:oFont:nQuality     
 oQryFue:nQuality3 := oSay3:oFont:nQuality     
-oQryFue:nMaxFil   := Maxfil
-oQryFue:nMaxCol   := MaxCol
 oQryFue:Save()
 cerrar()
 DEACTIVATE FONT oFon1
@@ -379,6 +391,24 @@ RETURN
 ************************************
 ** Configura orientación y tamañoo de página
 STATIC FUNCTION ConfigPagina(oPrn, MaxFil, MaxCol)
+   IF lRollo
+      // Una etiqueta por hoja. Fuerzo el tamanio (decimas de mm) porque FWH arma el DC
+      // con el DEVMODE global y podria arrastrar A4/horizontal de otra impresion.
+      // El salto (gap) entre etiquetas lo resuelve el driver/sensor de la impresora.
+      oPrn:SetPortrait()
+      oPrn:SetSize(nAnchoRollo * 10, nAltoRollo * 10)
+      nWidthPage  := (nAnchoRollo - (nMargenRollo * 2)) / 10
+      nHeightPage := (nAltoRollo  - (nMargenRollo * 2)) / 10
+      nOffRow     := nMargenRollo / 10
+      nOffCol     := nMargenRollo / 10
+      nGapV       := 0
+      nGapH       := 0
+      RETURN NIL
+   ENDIF
+   nOffRow := 0.8
+   nOffCol := 0.8
+   nGapV   := GAP_V
+   nGapH   := GAP_H
    IF nOrientation = 1
       oPrn:SetPortrait()
       nWidthPage := (21.0-1.6)
@@ -388,6 +418,7 @@ STATIC FUNCTION ConfigPagina(oPrn, MaxFil, MaxCol)
       nWidthPage := (29.7-2.4)
       nHeightPage := (21.0-1.6)
    ENDIF   
+   oPrn:SetPage(9)
 RETURN NIL
 
 ************************************
@@ -424,14 +455,16 @@ LOCAL aUnit, nAltoCelda, nAnchoCelda, nBoxTop, nBoxLeft, nBoxBottom, nBoxRight, 
    nAnchoCelda := nWidthPage / MaxCol
    
    // Posición del recuadro: inset GAP/2 en cada lado de la celda
-   nBoxTop    := nRow + (GAP_V / 2)
-   nBoxLeft   := nCol + (GAP_H / 2)
-   nBoxBottom := nRow + nAltoCelda - (GAP_V / 2)
-   nBoxRight  := nCol + nAnchoCelda - (GAP_H / 2)
+   nBoxTop    := nRow + (nGapV / 2)
+   nBoxLeft   := nCol + (nGapH / 2)
+   nBoxBottom := nRow + nAltoCelda - (nGapV / 2)
+   nBoxRight  := nCol + nAnchoCelda - (nGapH / 2)
    
    // Dibujar recuadro
    aUnit := oPrn:Units2Pix(nBoxTop, nBoxLeft, nBoxBottom, nBoxRight, 'CM')
-   oPrn:RoundBox(aUnit[2], aUnit[1], aUnit[4], aUnit[3], 50, 50)
+   IF !lRollo .OR. lBordeRollo
+      oPrn:RoundBox(aUnit[2], aUnit[1], aUnit[4], aUnit[3], 50, 50)
+   ENDIF
    
    // Tamaño del recuadro
    nBoxAlto  := nBoxBottom - nBoxTop
@@ -1006,21 +1039,24 @@ ACTIVATE FONT oFon3
 aSay[1] := oSay1
 aSay[2] := oSay2
 aSay[3] := oSay3
+IF lRollo
+   MaxFil := 1
+   MaxCol := 1
+ENDIF
 Procesando(.t.)
 IF !lCodBarra
     IF !lOferta
        // ============================================================
        // PREVIEW NORMAL (sin oferta, sin código de barras)
        // ============================================================
-       PRINT oPrn NAME "Etiquetas de precios" PREVIEW MODAL
+       PRINT oPrn NAME "Etiquetas de precios" PREVIEW MODAL TO ImpEtiquetas()
           ConfigPagina(oPrn, MaxFil, MaxCol)
-          oPrn:SetPage(9)
           i := 1
           j := 1
           PAGE
           FOR h := 1 TO nEtiq
-            nRow := 0.8 + ((i-1) * (nHeightPage/MaxFil))
-            nCol := 0.8 + ((j-1) * (nWidthPage/MaxCol))
+            nRow := nOffRow + ((i-1) * (nHeightPage/MaxFil))
+            nCol := nOffCol + ((j-1) * (nWidthPage/MaxCol))
             
             ImprimirEtiquetaNormal(oPrn, oFon1, oFon2, oFon3, oFon4, ;
                                    nRow, nCol, MaxFil, MaxCol, ;
@@ -1046,15 +1082,14 @@ IF !lCodBarra
        // ============================================================
        // PREVIEW CON CARTEL DE OFERTA
        // ============================================================
-       PRINT oPrn NAME "Etiquetas de precios" PREVIEW MODAL
+       PRINT oPrn NAME "Etiquetas de precios" PREVIEW MODAL TO ImpEtiquetas()
          ConfigPagina(oPrn, MaxFil, MaxCol)
-         oPrn:SetPage(9)
           i := 1
           j := 1
           PAGE
           FOR h := 1 TO nEtiq
-              nRow := 0.8 + ((i-1) * (nHeightPage/MaxFil))
-              nCol := 0.8 + ((j-1) * (nWidthPage/MaxCol))
+              nRow := nOffRow + ((i-1) * (nHeightPage/MaxFil))
+              nCol := nOffCol + ((j-1) * (nWidthPage/MaxCol))
               
               ImprimirEtiquetaOferta(oPrn, oFon1, oFon2, oFon3, oFon4, ;
                                      nRow, nCol, MaxFil, MaxCol, ;
@@ -1083,15 +1118,15 @@ IF !lCodBarra
     // ============================================================
     AddFontResource( "i2of5txt.ttf" )      
     DEFINE FONT oFont5 NAME "Interleaved 2of5 Text"    SIZE oFon1:nWidth,oFon1:nHeight
-     PRINT oPrn NAME "Etiquetas de Barras" PREVIEW MODAL
+     PRINT oPrn NAME "Etiquetas de Barras" PREVIEW MODAL TO ImpEtiquetas()
           ConfigPagina(oPrn, MaxFil, MaxCol)
-          oPrn:SetPage(9)
+          FontBarrasRollo(@oFont5, oPrn)
           i := 1
           j := 1
           PAGE
           FOR h := 1 TO nEtiq
-            nRow := 0.8 + ((i-1) * (nHeightPage/MaxFil))
-            nCol := 0.8 + ((j-1) * (nWidthPage/MaxCol))
+            nRow := nOffRow + ((i-1) * (nHeightPage/MaxFil))
+            nCol := nOffCol + ((j-1) * (nWidthPage/MaxCol))
             
             ImprimirEtiquetaBarras(oPrn, oFon1, oFon2, oFont5, ;
                                    nRow, nCol, MaxFil, MaxCol, ;
@@ -1238,4 +1273,103 @@ CATCH oError
 END TRY  
 oQryEti:Refresh()  
 oBrw:Refresh()
-RETURN nil 
+RETURN nil
+
+************************************
+** Impresora a usar: la del rollo si esta en modo rollo, si no la predeterminada (NIL)
+STATIC FUNCTION ImpEtiquetas()
+RETURN IF(lRollo .AND. !EMPTY(cImpRollo), cImpRollo, NIL)
+
+************************************
+** Lee la configuracion del rollo de esta PC (si no hay ini quedan los valores por defecto)
+STATIC FUNCTION LeerIniRollo()
+LOCAL oIni
+IF File(ROLLO_INI)
+   INI oIni FILE ROLLO_INI
+   lRollo       := (UPPER(ALLTRIM(oIni:Get("rollo", "usar", "N"))) == "S")
+   cImpRollo    := ALLTRIM(oIni:Get("rollo", "impresora", ""))
+   nAnchoRollo  := VAL(oIni:Get("rollo", "ancho", "54"))
+   nAltoRollo   := VAL(oIni:Get("rollo", "alto", "44"))
+   nMargenRollo := VAL(oIni:Get("rollo", "margen", "1"))
+   lBordeRollo  := (UPPER(ALLTRIM(oIni:Get("rollo", "recuadro", "N"))) == "S")
+   nBarrasRollo := VAL(oIni:Get("rollo", "barras", "20"))
+ENDIF
+IF nBarrasRollo < 6
+   nBarrasRollo := 20
+ENDIF
+IF nAnchoRollo < 10 .OR. nAltoRollo < 10
+   nAnchoRollo := 54
+   nAltoRollo  := 44
+ENDIF
+RETURN NIL
+
+************************************
+STATIC FUNCTION GrabarIniRollo()
+LOCAL oIni
+INI oIni FILE ROLLO_INI
+   oIni:Set("rollo", "usar",      IF(lRollo, "S", "N"))
+   oIni:Set("rollo", "impresora", cImpRollo)
+   oIni:Set("rollo", "ancho",     ALLTRIM(STR(nAnchoRollo, 6, 1)))
+   oIni:Set("rollo", "alto",      ALLTRIM(STR(nAltoRollo, 6, 1)))
+   oIni:Set("rollo", "margen",    ALLTRIM(STR(nMargenRollo, 6, 1)))
+   oIni:Set("rollo", "recuadro",  IF(lBordeRollo, "S", "N"))
+   oIni:Set("rollo", "barras",    ALLTRIM(STR(nBarrasRollo, 3)))
+RETURN NIL
+
+************************************
+** Configuracion de la impresora de etiquetas en rollo (por PC)
+STATIC FUNCTION ConfigRollo(oDlg)
+LOCAL oDlg1, oFont, acor, oCom, oBot1, oBot2, mrta := .f., aImp := aGetPrinters(), nImp,;
+      nAncho := nAnchoRollo, nAlto := nAltoRollo, nMargen := nMargenRollo, lBorde := lBordeRollo,;
+      nBarras := nBarrasRollo
+IF EMPTY(aImp)
+   MsgStop("No hay impresoras instaladas en esta PC", "Atencion")
+   RETURN NIL
+ENDIF
+nImp := MAX(ASCAN(aImp, {|c| UPPER(ALLTRIM(c)) == UPPER(cImpRollo)}), 1)
+DEFINE FONT oFont NAME "TAHOMA" SIZE 0,-11.5
+DEFINE DIALOG oDlg1 TITLE "Impresora de etiquetas en rollo" FROM 05,15 TO 23,85 OF oDlg FONT oFont
+   oDlg1:lHelpIcon := .f.
+   acor := AcepCanc(oDlg1)
+   @ 07, 05 SAY "Impresora:"          OF oDlg1 PIXEL SIZE 65,10 RIGHT
+   @ 22, 05 SAY "Ancho etiqueta (mm):" OF oDlg1 PIXEL SIZE 65,10 RIGHT
+   @ 37, 05 SAY "Alto etiqueta (mm):"  OF oDlg1 PIXEL SIZE 65,10 RIGHT
+   @ 52, 05 SAY "Margen interno (mm):" OF oDlg1 PIXEL SIZE 65,10 RIGHT
+   @ 67, 05 SAY "Cod. barras (puntos):" OF oDlg1 PIXEL SIZE 65,10 RIGHT
+
+   @ 05, 75 COMBOBOX oCom VAR nImp ITEMS aImp OF oDlg1 PIXEL SIZE 175,80
+   @ 20, 75 GET nAncho  PICTURE "999.9" OF oDlg1 PIXEL SIZE 30,12 RIGHT VALID(nAncho >= 10)
+   @ 35, 75 GET nAlto   PICTURE "999.9" OF oDlg1 PIXEL SIZE 30,12 RIGHT VALID(nAlto >= 10)
+   @ 50, 75 GET nMargen PICTURE "9.9"   OF oDlg1 PIXEL SIZE 30,12 RIGHT ;
+            VALID(nMargen >= 0 .AND. nMargen * 2 < MIN(nAncho, nAlto))
+   @ 65, 75 GET nBarras PICTURE "99"    OF oDlg1 PIXEL SIZE 30,12 RIGHT VALID(nBarras >= 6)
+   @ 67,110 SAY "(alto de las barras)" OF oDlg1 PIXEL SIZE 80,10
+   @ 81, 75 CHECKBOX lBorde PROMPT "Imprimir recuadro alrededor" OF oDlg1 PIXEL SIZE 120,10
+   @ 22,120 SAY "El salto (gap) entre etiquetas lo maneja el driver de la impresora." OF oDlg1 PIXEL SIZE 125,30
+
+   @ acor[1],acor[2] BUTTON oBot1 PROMPT "&Grabar" OF oDlg1 SIZE 35,12 ;
+           ACTION ((mrta := .t.), oDlg1:End()) PIXEL
+   @ acor[3],acor[4] BUTTON oBot2 PROMPT "&Cancelar" OF oDlg1 SIZE 35,12 ;
+           ACTION ((mrta := .f.), oDlg1:End()) PIXEL CANCEL
+ACTIVATE DIALOG oDlg1 CENTER
+RELEASE FONT oFont
+IF mrta
+   cImpRollo    := ALLTRIM(aImp[nImp])
+   nAnchoRollo  := nAncho
+   nAltoRollo   := nAlto
+   nMargenRollo := nMargen
+   lBordeRollo  := lBorde
+   nBarrasRollo := nBarras
+   GrabarIniRollo()
+ENDIF
+RETURN NIL
+
+************************************
+** En rollo el codigo de barras tiene tamanio propio (puntos, escalado a la impresora)
+** en vez de heredar el de la fuente del nombre del articulo
+STATIC FUNCTION FontBarrasRollo(oFont5, oPrn)
+IF lRollo
+   oFont5:End()
+   DEFINE FONT oFont5 NAME "Interleaved 2of5 Text" SIZE 0,-nBarrasRollo OF oPrn
+ENDIF
+RETURN NIL
