@@ -2282,19 +2282,21 @@ ENDIF
 RETURN nil
 
 STATIC FUNCTION CalcularPromos()
-LOCAL cText, oQryTem, nNeto, nIva, nAux, nCurCodart, nTierPrio, nCodForma, nTot, oQryFp, oQryIva
+LOCAL lPromo, cText, oQryTem, nNeto, nIva, nAux, nCurCodart, nTierPrio, nCodForma, nTot, oQryFp, oQryIva
 //Borro las promos que cargue
-IF !oApp:oServer:TableExist('ge_'+oApp:cId+"promociones")
-   RETURN nil 
-ENDIF 
-ChequeaColPromo()
-IF oApp:oServer:Query('SELECT id FROM ge_'+oApp:cId+"promociones"):nRecCount == 0
-   RETURN nil 
-ENDIF   
+//Sin tabla (o sin registros) de promos simples igual hay que calcular las de grupo y el desc. por forma de pago
+lPromo := oApp:oServer:TableExist('ge_'+oApp:cId+"promociones")
+IF lPromo
+   ChequeaColPromo()
+ENDIF
+IF lPromo .and. oApp:oServer:Query('SELECT id FROM ge_'+oApp:cId+"promociones"):nRecCount == 0
+   lPromo := .F.
+ENDIF
 oApp:oServer:Execute("DELETE FROM VENTAS_DET_H1 WHERE ESPROMO = TRUE")
 IF nCliente > 1 .and. oApp:oServer:Query("SELECT excluyepromo FROM ge_"+oApp:cId+"clientes WHERE codigo = "+str(nCliente)):excluyepromo
    //No 
    ELSE
+  IF lPromo
   //Calculo las nuevas promos
   TEXT INTO cText 
   (SELECT
@@ -2390,6 +2392,7 @@ IF nCliente > 1 .and. oApp:oServer:Query("SELECT excluyepromo FROM ge_"+oApp:cId
         ENDCASE   
         oQryTem:Skip()
      ENDDO
+  ENDIF
   ENDIF
 // === Promos por grupo (mix de sabores / combinada cruzada) ===
 // Va DESPUES de las promos por articulo y ANTES del descuento por forma de pago,

@@ -1753,7 +1753,7 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
                                          "0," + ClipValue2Sql(oGet1[9]:value) +","+;
                                          ClipValue2Sql(oGet[1]:value)+","+ ClipValue2Sql(nCliente)+",0,"+;
                                          ClipValue2Sql(nTotal)+","+;
-                                         IF(nCtaCte>0,ClipValue2Sql(nCtaCte),"0")+",'P',CURDATE(),"+;
+                                         IF(nCtaCte>0,ClipValue2Sql(nCtaCte),"0")+",'P',"+ClipValue2Sql(oGet[1]:value)+","+;
                                          ClipValue2Sql(oGet[9]:cText)+","+;
                                          ClipValue2Sql(oGet[12]:cText)+","+;
                                          ClipValue2Sql(oGet[22]:cText)+","+;
@@ -1921,10 +1921,12 @@ cTipoDoc := IF(nTipoDoc=1,"FC",IF(nTipoDoc=2,"ND","NC"))
             IF MsgYesNo("Los pedidos del cliente tienen faltantes"+chr(10)+;
                "Desea generar un pedido nuevo con los faltantes?","Atencion")
                //Genero un nuevo pedido con todos los productos faltantes 
+
                //Primero ingreso el encabezado
+               nCodVen := oApp:oServer:Query("SELECT vendedor FROM ge_"+oApp:cId+"clientes WHERE codigo = "+Clipvalue2sql(nCliente)):vendedor  
                oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"pedidos_encab "+;
                 " (codcli,cliente,codven,vendedor,fecha,parafecha,estado,observa) "+;
-                "VALUES ("+ClipValue2Sql(nCliente)+','+ClipValue2Sql(oGet[9]:cText)+','+ClipValue2Sql(nCondVen)+","+;
+                "VALUES ("+ClipValue2Sql(nCliente)+','+ClipValue2Sql(oGet[9]:cText)+','+ClipValue2Sql(nCodVen)+","+;
                             ClipValue2Sql(cVendedor)+',CURDATE(),CURDATE(),"P","Creado por faltantes")')
                nNewPed := oApp:oServer:LastInsertID()
                //Luego el cuerpo
@@ -5301,14 +5303,13 @@ RETURN .t.
 
 //////// Calcular Promos
 STATIC FUNCTION CalcularPromos()
-LOCAL cText, oQryTem, nNeto, nIva, nAux, i, nCurCodart, nTierPrio, nCodForma, nTot, oQryFp, oQryIva
+LOCAL lPromo, cText, oQryTem, nNeto, nIva, nAux, i, nCurCodart, nTierPrio, nCodForma, nTot, oQryFp, oQryIva
 STATIC cPrioChk := ""
 //Borro las promos que cargue   
-IF !oApp:oServer:TableExist('ge_'+oApp:cId+"promociones")
-   RETURN nil 
-ENDIF   
+//Sin tabla (o sin registros) de promos simples igual hay que calcular las de grupo y el desc. por forma de pago
+lPromo := oApp:oServer:TableExist('ge_'+oApp:cId+"promociones")
 //Auto-reparable: crea la columna prioridad si la tabla existe sin ella (MySQL 5.7 no tiene ADD COLUMN IF NOT EXISTS)
-IF cPrioChk != oApp:cId
+IF lPromo .and. cPrioChk != oApp:cId
    IF oApp:oServer:Query("SHOW COLUMNS FROM ge_"+oApp:cId+"promociones LIKE 'prioridad'"):nRecCount == 0
       oApp:oServer:Execute("ALTER TABLE ge_"+oApp:cId+"promociones ADD COLUMN prioridad INT DEFAULT 0 NOT NULL")
    ENDIF
@@ -5324,6 +5325,7 @@ oApp:oServer:Execute("DELETE FROM ventas_det_H WHERE ESPROMO = TRUE")
 IF nCodCli > 1 .and. oApp:oServer:Query("SELECT excluyepromo FROM ge_"+oApp:cId+"clientes WHERE codigo = "+str(nCodCli)):excluyepromo
    //No 
    ELSE
+    IF lPromo
     //Calculo las nuevas promos
     TEXT INTO cText 
     (SELECT
@@ -5420,6 +5422,7 @@ IF nCodCli > 1 .and. oApp:oServer:Query("SELECT excluyepromo FROM ge_"+oApp:cId+
           ENDCASE   
           oQryTem:Skip()
        ENDDO
+    ENDIF
     ENDIF
 // === Promos por grupo (mix de sabores / combinada cruzada) ===
 // Va DESPUES de las promos por articulo y ANTES del descuento por forma de pago,
