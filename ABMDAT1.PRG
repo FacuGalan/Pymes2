@@ -10,7 +10,7 @@ LOCAL oGet1, oGet2, oGet3, oGet4, oGet5, oGet6, oGet7, oGet8, oGet9, oGet10,;
       oGet11, oGet12, oGet13, oGet14, oGet15, oGet16, oGet17, oGet18, oGet19, oGet20, ;
       oGet21, oGet22, oGet23, oGet24, oGet25, oGet26, oGet27, oGet28, oGet29, oGet30, oGet31, oGet32, oGet33,;
       oGet34, oGet35, oGet36, oGet37, oGet38, oGet39,;
-      oBot1, oBot2, oBot3, oBot4, oDlg1, base, hHand, oQry, oError, aCor, mrta := .f.,;
+      oBot1, oBot2, oBot3, oBot4, oBot5, oDlg1, base, hHand, oQry, oError, aCor, mrta := .f.,;
       aCobrar := {"Cobro Salon","Cobro distribucion","Cobro ambos"}, oFont,;
       aTipos :={"Facturacion electronica","Facturacion con control. fiscal"}, aTipoC:={"Codigo interno","Codigo de barras"},;
       aStock :={"Avisar falta de stock","Prohibir falta de stock","No controlar stock"},;
@@ -75,9 +75,9 @@ DEFINE DIALOG oDlg1 TITLE "Datos del punto de venta" FROM 05,15 TO 40,75 OF oApp
    @ 35, 10 COMBOBOX oGet8 VAR base:tipofac ITEMS aTipos OF oDlg1 PIXEL SIZE 85,12
    @ 52,100 BUTTON oBot3 PROMPT "Conf.Fiscal" OF oDlg1 SIZE 45,10 ;
      ACTION ConfiguFis(@base:imprfiscal) PIXEL WHEN(base:tipofac = 2)
-   @ 35,150 GET oGet5 VAR base:caja     PICTURE "9999"     OF oDlg1 PIXEL RIGHT
+   @ 35,150 GET oGet5 VAR base:caja     PICTURE "9999"     OF oDlg1 PIXEL RIGHT   
+   @ 35,170 BUTTON oBot5 PROMPT "Conf.2° Monitor" OF oDlg1 SIZE 50,10 ACTION DispCliConfig(oDlg1) PIXEL
    
-
    @ 50, 10 COMBOBOX oGet9 VAR base:pidestock ITEMS aStock OF oDlg1 PIXEL SIZE 85,12
    @ 50,150 COMBOBOX oGet14 VAR nCosto ITEMS aCosto OF oDlg1 PIXEL SIZE 85,12
    @ 65,150 BUTTON oBot4 PROMPT "Conf.Mail" OF oDlg1 SIZE 45,10 ACTION ConfigMail(oDlg1) PIXEL

@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta charset="utf-8">
+<title>Display Cliente</title>
+<!-- dispcli-version: 2026100805 -->
+<!-- Este archivo lo escribe BCN.exe (DISPCLI.PRG) y lo reemplaza cuando cambia la version.
+     Para personalizarlo sin que se pise, agregar un comentario HTML cuyo unico texto sea
+     la palabra personalizado (en minusculas). -->
+<script>
+  // cualquier error de JS queda en el titulo (lo puede leer el POS para diagnosticar)
+  window.onerror = function (m, u, l) { document.title = "ERR: " + m + " (linea " + l + ")"; };
+</script>
+<!--
+  Display del cliente - modelo WEB (BCN Soft)
+
+  Funciona en WebView2 (Edge/Chromium) y en el navegador embebido de Windows
+  (IE11). Por eso el JavaScript es ES5 puro (sin let/const/arrow/template) y el
+  CSS no usa variables ni grid; lo moderno (blur) es "extra" que IE ignora.
+
+  Lo maneja el POS (DISPCLI.PRG) con dos funciones globales:
+    DISPCONFIG( cfg )  -> configuracion (una vez, al abrir)
+       { tema:"OSCURO"|"CLARO", segaviso:6, espera:"S"|"N", logo:"file:///...",
+         video:"file:///...", tienda:"Nombre", mensajes:["..."],
+         ofertas:[ {n:"Producto", t:"Llevando 2 paga 1"} ] }
+    DISPUPDATE( dat )  -> estado de la venta (cada vez que cambia)
+       { items:[ {c:2, d:"DETALLE", pu:3500, t:7000, p:0|1 (linea de promo), o:0|1 (en oferta)} ],
+         total:0, pagado:0, vuelto:0,
+         aviso:{ id:0, art:"DETALLE", txt:"Llevando 2 paga 1" } }   (id cambia = cartel nuevo)
+  Ambas aceptan objeto o string JSON. Si el host no puede llamar funciones
+  (IE), deja el JSON en los <textarea> #cfgdata / #dispdata y la pagina los lee
+  sola cada 150 ms.
+
+  Abierta sin POS (doble clic) corre una DEMO. Parametros de prueba:
+    ?tema=claro   ?estado=espera|venta|oferta|pago|gracias  (foto fija)
+-->
+<style>
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+body {
+  font-family: "Segoe UI", "Segoe UI Web (West European)", Tahoma, Arial, sans-serif;
+  font-size: 2.6vh;
+  cursor: none;
+  -ms-user-select: none; user-select: none;
+}
+* { box-sizing: border-box; }
+.hide { display: none !important; }
+.num { font-feature-settings: "tnum"; -ms-font-feature-settings: "tnum"; }
+
+/* ===================== estructura ===================== */
+#app { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: flex; flex-direction: column; }
+#fondo { position: absolute; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; z-index: 0; }
+.blob { position: absolute; width: 70vw; height: 70vw; border-radius: 50%; }
+#b1 { left: -20vw; top: -35vw; animation: deriva1 26s ease-in-out infinite alternate; }
+#b2 { right: -25vw; bottom: -40vw; animation: deriva2 32s ease-in-out infinite alternate; }
+@keyframes deriva1 { from { transform: translate(0, 0); } to { transform: translate(25vw, 12vw); } }
+@keyframes deriva2 { from { transform: translate(0, 0); } to { transform: translate(-22vw, -10vw); } }
+
+header, main, footer { position: relative; z-index: 1; }
+header { height: 12vh; display: flex; align-items: center; padding: 0 3vw; flex: 0 0 auto; }
+#logo { max-height: 8.5vh; max-width: 30vw; border-radius: 1vh; }
+#tienda { font-size: 4vh; font-weight: 700; letter-spacing: .05em; }
+#reloj { margin-left: auto; text-align: right; line-height: 1.1; }
+#hora { font-size: 4.6vh; font-weight: 300; }
+#fecha { font-size: 2vh; opacity: .7; }
+
+main { flex: 1 1 0%; display: flex; padding: 0 3vw 2.2vh 3vw; min-height: 0; }
+footer { height: 6.5vh; flex: 0 0 auto; overflow: hidden; display: flex; align-items: center; }
+
+/* ===================== lista ===================== */
+#colLista { flex: 1 1 0%; display: flex; flex-direction: column; min-width: 0; margin-right: 2.4vw; }
+.titulo { font-size: 2vh; font-weight: 700; letter-spacing: .25em; text-transform: uppercase; margin: 0 0 1.4vh .4vw; }
+.titulo span { opacity: .55; font-weight: 400; letter-spacing: .05em; text-transform: none; margin-left: .8vw; }
+#lista { flex: 1 1 0%; overflow: hidden; position: relative; min-height: 0; }
+#listaIn { padding-right: .2vw; }
+.it {
+  display: flex; align-items: center; min-height: 8.4vh;
+  margin-bottom: 1.1vh; padding: 1vh 1.4vw; border-radius: 1.6vh;
+  position: relative;
+}
+.it .q {
+  flex: 0 0 auto; min-width: 6.2vh; height: 5.4vh; line-height: 5.4vh; padding: 0 .9vh;
+  border-radius: 2.7vh; text-align: center; font-weight: 700; font-size: 2.5vh; margin-right: 1.4vw;
+}
+.it .d { flex: 1 1 0%; min-width: 0; }
+.it .n { font-size: 3vh; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.it .u { font-size: 1.9vh; opacity: .6; margin-top: .2vh; }
+.it .t { flex: 0 0 auto; font-size: 3.2vh; font-weight: 700; margin-left: 1.4vw; text-align: right; }
+.it .badge {
+  flex: 0 0 auto; margin-left: 1vw; padding: .5vh 1.1vh; border-radius: 1vh;
+  font-size: 1.7vh; font-weight: 800; letter-spacing: .12em; color: #1a1300;
+  background: linear-gradient(90deg, #ffaf22, #ffc65c);
+  animation: latido 1.4s ease-in-out infinite;
+}
+@keyframes latido {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 175, 34, .55); }   /* px: IE11 calcula mal vh dentro de keyframes */
+  50%      { transform: scale(1.08); box-shadow: 0 0 0 10px rgba(255, 175, 34, 0); }
+}
+.it.oferta:before {
+  content: ""; position: absolute; left: 0; top: 1.2vh; bottom: 1.2vh; width: .6vh; border-radius: .3vh;
+  background: linear-gradient(180deg, #ffaf22, #ffd27a);
+}
+.it.promo .q { font-size: 2.8vh; }
+.it.nuevo { animation: entra .55s cubic-bezier(.2, .9, .3, 1.25); }
+@keyframes entra {
+  from { opacity: 0; transform: translateX(-6vw) scale(.96); }
+  to   { opacity: 1; transform: none; }
+}
+.it.cambio .t { animation: brillo 1s ease-out; }
+@keyframes brillo { from { color: #ffaf22; transform: scale(1.15); } to { transform: none; } }
+
+/* ===================== panel derecho ===================== */
+#panel { flex: 0 0 34vw; width: 34vw; display: flex; flex-direction: column; }
+.card { border-radius: 2.4vh; padding: 2.6vh 2vw; margin-bottom: 2vh; position: relative; overflow: hidden; }
+.lbl { font-size: 1.9vh; font-weight: 700; letter-spacing: .25em; text-transform: uppercase; opacity: .75; }
+#total { font-size: 10.5vh; font-weight: 800; line-height: 1.05; margin: 1vh 0 1.6vh; white-space: nowrap; letter-spacing: -.02em; overflow: hidden; }
+#total small { font-size: 5.5vh; font-weight: 600; margin-right: .6vw; opacity: .8; }
+.chips span { display: inline-block; padding: .6vh 1.2vh; border-radius: 2vh; font-size: 2vh; font-weight: 600; margin: 0 .6vw .6vh 0; }
+#cardPago .fila { display: flex; align-items: baseline; justify-content: space-between; margin-top: .6vh; }
+#cardPago .v { font-size: 4.4vh; font-weight: 700; white-space: nowrap; overflow: hidden; max-width: 72%; text-align: right; }
+#cardPago .vuelto .v { font-size: 6.4vh; }
+
+#cardOf { flex: 1 1 0%; margin-bottom: 0; display: flex; flex-direction: column; min-height: 0; }
+#ofSlide { flex: 1 1 0%; display: flex; flex-direction: column; justify-content: center; position: relative; }
+#ofSlide .on { font-size: 4.4vh; font-weight: 800; line-height: 1.1; margin: 0 0 1.2vh; position: relative; }
+#ofSlide .ot {
+  display: inline-block; align-self: flex-start; font-size: 2.7vh; font-weight: 700; padding: .8vh 1.6vh; border-radius: 1.2vh;
+  color: #1a1300; background: linear-gradient(90deg, #ffaf22, #ffc65c); position: relative;
+}
+#ofSlide .op { font-size: 1.8vh; opacity: .5; margin-top: 2vh; position: relative; }
+#ofEstrella { position: absolute; right: -4vh; bottom: -6vh; width: 26vh; height: 26vh; opacity: .07; animation: gira 40s linear infinite; }
+.fade { animation: fadein .7s ease-out; }
+@keyframes fadein { from { opacity: 0; transform: translateY(2vh); } to { opacity: 1; transform: none; } }
+
+/* ===================== marquesina ===================== */
+#ticker { white-space: nowrap; font-size: 2.5vh; font-weight: 600; display: inline-block; padding-left: 100%; animation: marquesina 30s linear infinite; }
+#ticker b { margin: 0 2.4vw; }
+@keyframes marquesina { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+#tickerTag {
+  position: relative; z-index: 2; flex: 0 0 auto; height: 100%; padding: 0 2vw; display: flex; align-items: center;
+  font-size: 2vh; font-weight: 800; letter-spacing: .2em; color: #1a1300; background: #ffaf22;
+}
+#tickerBox { flex: 1 1 0%; overflow: hidden; height: 100%; display: flex; align-items: center; }
+
+/* ===================== pantalla de espera ===================== */
+#espera { position: absolute; left: 0; top: 12vh; right: 0; bottom: 6.5vh; z-index: 5; display: flex; align-items: center; padding: 0 5vw; }
+#espVideo { flex: 0 0 44vw; height: 62vh; margin-left: 4vw; border-radius: 3vh; overflow: hidden; background: #000; -ms-flex-order: 2; order: 2; display: flex; align-items: center; justify-content: center; }
+#espVideo video { width: 100%; height: 100%; }
+#espVideo.logoG { background: transparent; border-radius: 50%; width: 52vh; height: 52vh; flex: 0 0 52vh; margin-right: 4vw; }
+#espVideo.logoG img { max-width: 70%; max-height: 70%; border-radius: 2vh; }
+body.oscuro #espVideo.logoG { background: radial-gradient(circle, rgba(255, 175, 34, .18) 0%, rgba(255, 175, 34, 0) 70%); }
+body.claro #espVideo.logoG { background: radial-gradient(circle, rgba(255, 175, 34, .25) 0%, rgba(255, 175, 34, 0) 70%); }
+body.enEspera main { visibility: hidden; }
+#espTexto { flex: 1 1 0%; min-width: 0; }
+#espHola { font-size: 9vh; font-weight: 800; line-height: 1; letter-spacing: -.02em; }
+#espSub { font-size: 3vh; opacity: .7; margin: 1.5vh 0 5vh; }
+#espSlide { min-height: 26vh; border-radius: 3vh; padding: 4vh 3vw; position: relative; overflow: hidden; }
+#espSlide .tag { display: inline-block; padding: .6vh 1.4vh; border-radius: 1vh; font-size: 2vh; font-weight: 800; letter-spacing: .2em; color: #1a1300; background: linear-gradient(90deg, #ffaf22, #ffc65c); }
+#espSlide .s1 { font-size: 5.4vh; font-weight: 800; margin-top: 2vh; line-height: 1.1; }
+#espSlide .s2 { font-size: 3.4vh; margin-top: 1.4vh; opacity: .85; }
+#espSlide .msg { font-size: 4.6vh; font-weight: 700; line-height: 1.25; }
+#espPuntos { margin-top: 2.4vh; }
+#espPuntos i { display: inline-block; width: 1.2vh; height: 1.2vh; border-radius: .6vh; margin-right: 1vh; opacity: .3; }
+#espPuntos i.on { width: 4vh; opacity: 1; }
+
+/* ===================== cartel de oferta ===================== */
+#velo { position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 20; background: rgba(5, 6, 15, .45); animation: fadein .3s; }
+#toast {
+  position: absolute; z-index: 21; left: 50%; top: 50%; width: 62vw; margin-left: -31vw; margin-top: -24vh;
+  min-height: 48vh; border-radius: 4vh; padding: 5vh 4vw 6vh 4vw; text-align: center; color: #1a1300;
+  background: linear-gradient(135deg, #ffaf22 0%, #ffc04d 50%, #ffd88a 100%);
+  box-shadow: 0 3vh 10vh rgba(255, 175, 34, .55), 0 0 0 .6vh rgba(255, 255, 255, .25) inset;
+  overflow: hidden;
+}
+#toast.sale { animation: toastIn .7s cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes toastIn {
+  0%   { opacity: 0; transform: scale(.55) rotate(-4deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+#toast .rayos {
+  position: absolute; left: 50%; top: 50%; width: 140vh; height: 140vh; margin: -70vh 0 0 -70vh; opacity: .16;
+  animation: gira 18s linear infinite;
+}
+@keyframes gira { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+#toast .brillo {
+  position: absolute; top: 0; bottom: 0; width: 20vw; left: -30vw; transform: skewX(-20deg);
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.45), rgba(255,255,255,0));
+  animation: barre 2.6s ease-in-out .5s infinite;
+}
+@keyframes barre { from { left: -30vw; } to { left: 90vw; } }
+#toast .in { position: relative; }
+#toast .estrella { width: 11vh; height: 11vh; animation: latido 1.2s infinite; border-radius: 50%; }
+#toast .t1 { font-size: 3vh; font-weight: 800; letter-spacing: .3em; margin-top: 1vh; text-transform: uppercase; }
+#toast .t2 { font-size: 6.4vh; font-weight: 800; line-height: 1.05; margin-top: 1.8vh; text-shadow: 0 .4vh 1.4vh rgba(0,0,0,.25); }
+#toast .t3 {
+  display: inline-block; margin-top: 2.6vh; padding: 1.2vh 2.4vw; border-radius: 2vh; font-size: 4vh; font-weight: 700;
+  background: rgba(0, 0, 0, .22);
+}
+#toast .barra { position: absolute; left: 0; right: 0; bottom: 0; height: 1vh; background: rgba(0,0,0,.2); }
+#toast .barra i { display: block; height: 100%; width: 100%; background: #fff; }
+
+/* ===================== gracias ===================== */
+#gracias { position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+#gracias .g1 { font-size: 11vh; font-weight: 800; letter-spacing: -.02em; animation: toastIn .8s cubic-bezier(.2, 1.4, .4, 1); }
+#gracias .g2 { font-size: 3.6vh; opacity: .75; margin-top: 1vh; }
+#gracias .g3 { margin-top: 5vh; padding: 2.4vh 4vw; border-radius: 3vh; font-size: 3vh; }
+#gracias .g3 b { display: block; font-size: 9vh; line-height: 1.1; white-space: nowrap; overflow: hidden; max-width: 80vw; }
+.confeti { position: absolute; top: -4vh; width: 1.2vh; height: 2.4vh; border-radius: .3vh; animation: cae linear forwards; }
+@keyframes cae { to { transform: translateY(112vh) rotate(720deg); } }
+
+/* ===================== tema OSCURO ===================== */
+body.oscuro { background: #0a0c18; color: #eef0ff; }
+body.oscuro #b1 { background: radial-gradient(circle, rgba(255, 175, 34, .22) 0%, rgba(255, 175, 34, 0) 62%); }
+body.oscuro #b2 { background: radial-gradient(circle, rgba(124, 77, 255, .24) 0%, rgba(124, 77, 255, 0) 62%); }
+body.oscuro .it { background: rgba(255, 255, 255, .055); border: 1px solid rgba(255, 255, 255, .07); }
+body.oscuro .it .q { background: rgba(255, 175, 34, .14); color: #ffc65c; }
+body.oscuro .it.oferta { background: linear-gradient(90deg, rgba(255, 175, 34, .16), rgba(255, 255, 255, .05) 60%); border-color: rgba(255, 175, 34, .35); }
+body.oscuro .it.promo { background: rgba(34, 214, 140, .08); border-color: rgba(34, 214, 140, .25); }
+body.oscuro .it.promo .q, body.oscuro .it.promo .t { color: #3ff0a6; }
+body.oscuro .it.promo .q { background: rgba(34, 214, 140, .14); }
+body.oscuro .card { background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .08); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+body.oscuro #cardTotal { background: linear-gradient(145deg, rgba(255, 175, 34, .2), rgba(255, 255, 255, .04) 70%); border-color: rgba(255, 175, 34, .35); }
+body.oscuro #total { color: #fff; text-shadow: 0 0 4vh rgba(255, 175, 34, .45); }
+body.oscuro .chips span { background: rgba(255, 255, 255, .09); }
+body.oscuro .chips span.ok { background: rgba(34, 214, 140, .18); color: #3ff0a6; }
+body.oscuro #cardPago .vuelto .v { color: #3ff0a6; }
+body.oscuro footer { background: rgba(255, 255, 255, .04); border-top: 1px solid rgba(255, 255, 255, .07); }
+body.oscuro #ticker b { color: #ffaf22; }
+body.oscuro #espera { background: transparent; }
+body.oscuro #espHola { color: #fff; text-shadow: 0 0 6vh rgba(255, 175, 34, .35); }
+body.oscuro #espSlide { background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .08); }
+body.oscuro #espPuntos i { background: #ffaf22; }
+body.oscuro #ofSlide .on { color: #fff; }
+body.oscuro #gracias { background: radial-gradient(circle at 50% 40%, #1d1640 0%, #0a0c18 70%); }
+body.oscuro #gracias .g3 { background: rgba(34, 214, 140, .12); border: 1px solid rgba(34, 214, 140, .35); }
+body.oscuro #gracias .g3 b { color: #3ff0a6; }
+
+/* ===================== tema CLARO ===================== */
+body.claro { background: #eef1f7; color: #1b1f3b; }
+body.claro #b1 { background: radial-gradient(circle, rgba(255, 175, 34, .28) 0%, rgba(255, 175, 34, 0) 62%); }
+body.claro #b2 { background: radial-gradient(circle, rgba(64, 140, 255, .18) 0%, rgba(64, 140, 255, 0) 62%); }
+body.claro .it { background: #fff; box-shadow: 0 .5vh 2vh rgba(27, 31, 59, .07); }
+body.claro .it .q { background: #fff3dc; color: #c77800; }
+body.claro .it.oferta { background: linear-gradient(90deg, #fff3dc, #fff 60%); }
+body.claro .it.promo { background: #e7f9f0; }
+body.claro .it.promo .q, body.claro .it.promo .t { color: #0e9f63; }
+body.claro .it.promo .q { background: #cdf3e0; }
+body.claro .card { background: rgba(255, 255, 255, .85); box-shadow: 0 1vh 4vh rgba(27, 31, 59, .08); }
+body.claro #cardTotal { background: linear-gradient(145deg, #1b1f3b, #2d3263); color: #fff; }
+body.claro #total { color: #fff; }
+body.claro #cardTotal .chips span { background: rgba(255, 255, 255, .14); }
+body.claro #cardTotal .chips span.ok { background: rgba(63, 240, 166, .2); color: #6ff5bb; }
+body.claro #cardPago .vuelto .v { color: #0e9f63; }
+body.claro footer { background: #1b1f3b; color: #fff; }
+body.claro #ticker b { color: #ffaf22; }
+body.claro #espera { background: transparent; }
+body.claro #espSlide { background: #fff; box-shadow: 0 1vh 4vh rgba(27, 31, 59, .08); }
+body.claro #espPuntos i { background: #ff8a00; }
+body.claro #gracias { background: radial-gradient(circle at 50% 40%, #ffffff 0%, #e4e8f2 75%); }
+body.claro #velo { background: rgba(255, 255, 255, .6); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }   /* en el claro el velo oscuro quedaba gris sucio */
+body.claro #gracias .g3 { background: #e7f9f0; }
+body.claro #gracias .g3 b { color: #0e9f63; }
+
+/* foto fija para capturas (?estado=...): sin animaciones de entrada */
+body.foto .it, body.foto .fade, body.foto #toast, body.foto #gracias .g1, body.foto #velo { animation: none !important; }
+
+/* textareas por donde el POS deja los datos cuando no puede llamar funciones (IE) */
+#cfgdata, #dispdata { position: absolute; left: -9999px; top: 0; width: 10px; height: 10px; }
+</style>
+</head>
+<body class="oscuro">
+
+<div id="fondo"><div class="blob" id="b1"></div><div class="blob" id="b2"></div></div>
+
+<div id="app">
+  <header>
+    <img id="logo" alt="" class="hide">
+    <div id="tienda"></div>
+    <div id="reloj"><div id="hora" class="num">--:--</div><div id="fecha"></div></div>
+  </header>
+
+  <main>
+    <div id="colLista">
+      <div class="titulo">Su compra <span id="cntTit"></span></div>
+      <div id="lista"><div id="listaIn"></div></div>
+    </div>
+    <div id="panel">
+      <div class="card" id="cardTotal">
+        <div class="lbl">Total a pagar</div>
+        <div id="total" class="num"><small>$</small>0,00</div>
+        <div class="chips"><span id="cnt">0 art&iacute;culos</span><span id="ahorro" class="ok hide"></span></div>
+      </div>
+      <div class="card hide" id="cardPago">
+        <div class="fila"><span class="lbl">Pagado</span><span class="v num" id="pagado"></span></div>
+        <div class="fila vuelto"><span class="lbl">Su vuelto</span><span class="v num" id="vuelto"></span></div>
+      </div>
+      <div class="card" id="cardOf">
+        <div class="lbl">&#9733; Ofertas de hoy</div>
+        <svg id="ofEstrella" viewBox="0 0 100 100"><polygon fill="#ffaf22" points="50,2 62,36 98,37 69,58 80,93 50,72 20,93 31,58 2,37 38,36"/></svg>
+        <div id="ofSlide"></div>
+      </div>
+    </div>
+  </main>
+
+  <footer id="pie">
+    <div id="tickerTag">INFO</div>
+    <div id="tickerBox"><div id="ticker"></div></div>
+  </footer>
+</div>
+
+<div id="espera" class="hide">
+  <div id="espVideo" class="hide"></div>
+  <div id="espTexto">
+    <div id="espHola">&iexcl;Bienvenidos!</div>
+    <div id="espSub">Gracias por elegirnos</div>
+    <div id="espSlide"></div>
+    <div id="espPuntos"></div>
+  </div>
+</div>
+
+<div id="velo" class="hide"></div>
+<div id="toast" class="hide">
+  <svg class="rayos" viewBox="0 0 100 100" preserveAspectRatio="none"><g id="rayosG" fill="#fff"></g></svg>
+  <div class="brillo"></div>
+  <div class="in">
+    <svg class="estrella" viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" fill="#fff"/><polygon fill="#ffaf22" points="50,14 60,39 87,40 66,57 73,84 50,69 27,84 34,57 13,40 40,39"/></svg>
+    <div class="t1">&iexcl;Este producto est&aacute; en oferta!</div>
+    <div class="t2" id="toastArt"></div>
+    <div class="t3" id="toastTxt"></div>
+  </div>
+  <div class="barra"><i id="toastBar"></i></div>
+</div>
+
+<div id="gracias" class="hide">
+  <div class="g1">&iexcl;Gracias por su compra!</div>
+  <div class="g2">Lo esperamos pronto</div>
+  <div class="g3 hide" id="gVuelto">Su vuelto<b class="num" id="gVueltoN"></b></div>
+</div>
+
+<textarea id="cfgdata"></textarea>
+<textarea id="dispdata"></textarea>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+
+  var CFG = { tema: "OSCURO", segaviso: 6, espera: "S", logo: "", video: "", tienda: "", mensajes: [], ofertas: [] };
+  var est = { items: [], total: 0, pagado: 0, vuelto: 0, aviso: { id: 0 } };
+  var prevItems = [], totalMostrado = 0, ultAviso = 0, toastTimer = null, rafTotal = null;
+  var huboPago = 0, graciasTimer = null, recibido = false, sinAnim = false;
+  var ofIdx = 0, espIdx = 0;
+
+  // ---------- utilidades ----------
+  function money(n) {
+    n = Number(n) || 0;
+    var neg = n < 0, s = Math.abs(n).toFixed(2), p = s.split("."), e = p[0], r = "";
+    while (e.length > 3) { r = "." + e.substr(e.length - 3) + r; e = e.substr(0, e.length - 3); }
+    return (neg ? "- " : "") + e + r + "," + p[1];
+  }
+  function cant(n) {
+    n = Number(n) || 0;
+    if (Math.abs(n - Math.round(n)) < 0.0005) { return String(Math.round(n)); }
+    return n.toFixed(3).replace(/0+$/, "").replace(".", ",");
+  }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function show(el, si) { if (si) { el.className = el.className.replace(/\s*\bhide\b/g, ""); } else if (!/\bhide\b/.test(el.className)) { el.className += " hide"; } }
+  function parse(x) { return (typeof x === "string") ? JSON.parse(x) : x; }
+  function reanimar(el, clase) { el.className = el.className.replace(new RegExp("\\s*\\b" + clase + "\\b", "g"), ""); void el.offsetWidth; el.className += " " + clase; }
+
+  // ---------- reloj ----------
+  var DIAS = ["domingo", "lunes", "martes", "mi\u00e9rcoles", "jueves", "viernes", "s\u00e1bado"];
+  var MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  function reloj() {
+    var d = new Date(), h = d.getHours(), m = d.getMinutes();
+    $("hora").innerHTML = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+    var dia = DIAS[d.getDay()];
+    $("fecha").innerHTML = dia.charAt(0).toUpperCase() + dia.substr(1) + " " + d.getDate() + " de " + MESES[d.getMonth()];
+  }
+
+  // ---------- total animado ----------
+  // Achica la letra de un importe (en vh, de a medio) hasta que entre en su caja
+  function ajustar(el, vhBase) {
+    var vh = vhBase;
+    el.style.fontSize = vh + "vh";
+    while (vh > 2.5 && el.scrollWidth > el.clientWidth + 1) { vh -= 0.5; el.style.fontSize = vh + "vh"; }
+  }
+  function pintarTotal(v) { $("total").innerHTML = "<small>$</small>" + money(v); ajustar($("total"), 10.5); }
+  function animarTotal(desde, hasta) {
+    var t0 = null, dur = 650;
+    if (window.cancelAnimationFrame && rafTotal) { cancelAnimationFrame(rafTotal); }
+    if (sinAnim || !window.requestAnimationFrame || desde === hasta) { pintarTotal(hasta); return; }
+    function paso(ts) {
+      if (t0 === null) { t0 = ts; }
+      var k = Math.min(1, (ts - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      pintarTotal(desde + (hasta - desde) * e);
+      if (k < 1) { rafTotal = requestAnimationFrame(paso); }
+    }
+    rafTotal = requestAnimationFrame(paso);
+  }
+
+  // ---------- lista ----------
+  function renderLista() {
+    var html = "", i, it, cls, nuevo, cambio, prev, n = est.items.length, arts = 0, ahorro = 0;
+    for (i = 0; i < n; i++) {
+      it = est.items[i];
+      prev = prevItems[i];
+      nuevo = !prev || prev.d !== it.d;
+      cambio = !nuevo && (prev.c !== it.c || prev.t !== it.t);
+      cls = "it" + (it.p ? " promo" : "") + (it.o && !it.p ? " oferta" : "") + (nuevo ? " nuevo" : "") + (cambio ? " cambio" : "");
+      if (it.p) { ahorro -= Number(it.t) || 0; } else { arts += 1; }
+      html += '<div class="' + cls + '">' +
+        '<div class="q num">' + (it.p ? "%" : cant(it.c)) + '</div>' +
+        '<div class="d"><div class="n">' + esc(it.d) + '</div>' +
+        (it.p ? '<div class="u">Descuento aplicado</div>' : '<div class="u num">$ ' + money(it.pu) + ' c/u</div>') + '</div>' +
+        (it.o && !it.p ? '<span class="badge">OFERTA</span>' : '') +
+        '<div class="t num">' + (it.t < 0 ? '- $ ' + money(-it.t) : '$ ' + money(it.t)) + '</div></div>';
+    }
+    $("listaIn").innerHTML = html;
+    $("lista").scrollTop = $("lista").scrollHeight;   // siempre a la vista el ultimo cargado
+    $("cnt").innerHTML = arts + (arts === 1 ? " art&iacute;culo" : " art&iacute;culos");
+    $("cntTit").innerHTML = arts ? "(" + arts + ")" : "";
+    if (ahorro > 0.004) { $("ahorro").innerHTML = "Ahorr&aacute;s $ " + money(ahorro); show($("ahorro"), true); }
+    else { show($("ahorro"), false); }
+    prevItems = [];
+    for (i = 0; i < n; i++) { prevItems.push({ d: est.items[i].d, c: est.items[i].c, t: est.items[i].t }); }
+  }
+
+  // ---------- cartel de oferta ----------
+  function rayos() {
+    var g = "", i, a1, a2, r = 75;
+    for (i = 0; i < 24; i += 2) {
+      a1 = i * Math.PI / 12; a2 = (i + 1) * Math.PI / 12;
+      g += '<polygon points="50,50 ' + (50 + r * Math.cos(a1)).toFixed(1) + ',' + (50 + r * Math.sin(a1)).toFixed(1) + ' ' +
+           (50 + r * Math.cos(a2)).toFixed(1) + ',' + (50 + r * Math.sin(a2)).toFixed(1) + '"/>';
+    }
+    $("rayosG").innerHTML = g;   // IE11 no soporta innerHTML en SVG: queda sin rayos (sin error)
+  }
+  function mostrarToast(art, txt) {
+    var seg = Math.max(2, Number(CFG.segaviso) || 6), bar = $("toastBar"), t0 = new Date().getTime();
+    $("toastArt").innerHTML = esc(art);
+    $("toastTxt").innerHTML = esc(txt);
+    show($("toastTxt"), !!txt);
+    show($("velo"), true); show($("toast"), true);
+    reanimar($("toast"), "sale");
+    if (toastTimer) { clearInterval(toastTimer); }
+    bar.style.width = "100%";
+    toastTimer = setInterval(function () {
+      var k = (new Date().getTime() - t0) / (seg * 1000);
+      bar.style.width = Math.max(0, 100 - k * 100) + "%";
+      if (k >= 1) { ocultarToast(); }
+    }, 50);
+  }
+  function ocultarToast() {
+    if (toastTimer) { clearInterval(toastTimer); toastTimer = null; }
+    show($("toast"), false); show($("velo"), false);
+  }
+
+  // ---------- pantalla de espera / gracias ----------
+  function slidesEspera() {
+    var s = [], i;
+    for (i = 0; i < CFG.ofertas.length; i++) { s.push({ of: CFG.ofertas[i] }); }
+    for (i = 0; i < CFG.mensajes.length; i++) { s.push({ msg: CFG.mensajes[i] }); }
+    return s;
+  }
+  function rotarEspera() {
+    var s = slidesEspera(), el = $("espSlide"), dots = "", i, x;
+    if (!s.length) { show(el, false); $("espPuntos").innerHTML = ""; return; }
+    show(el, true);
+    espIdx = espIdx % s.length;
+    x = s[espIdx];
+    el.innerHTML = x.of ? '<span class="tag">&#9733; OFERTA</span><div class="s1">' + esc(x.of.n) + '</div><div class="s2">' + esc(x.of.t) + '</div>'
+                        : '<div class="msg">' + esc(x.msg) + '</div>';
+    reanimar(el, "fade");
+    for (i = 0; i < s.length && s.length > 1; i++) { dots += '<i' + (i === espIdx ? ' class="on"' : '') + '></i>'; }
+    $("espPuntos").innerHTML = dots;
+    espIdx++;
+  }
+  function rotarOfertaPanel() {
+    var of = CFG.ofertas, el = $("ofSlide");
+    if (!of.length) { show($("cardOf"), false); return; }
+    show($("cardOf"), true);
+    ofIdx = ofIdx % of.length;
+    el.innerHTML = '<div class="on">' + esc(of[ofIdx].n) + '</div><div class="ot">' + esc(of[ofIdx].t) + '</div>' +
+                   (of.length > 1 ? '<div class="op">' + (ofIdx + 1) + ' de ' + of.length + '</div>' : '');
+    reanimar(el, "fade");
+    ofIdx++;
+  }
+  function confeti() {
+    var g = $("gracias"), i, c, cols = ["#ffaf22", "#ffd27a", "#3ff0a6", "#7c4dff", "#22d3ee"];
+    for (i = 0; i < 46; i++) {
+      c = document.createElement("i");
+      c.className = "confeti";
+      c.style.left = (Math.random() * 100) + "vw";
+      c.style.background = cols[i % cols.length];
+      c.style.animationDuration = (2.2 + Math.random() * 2.2) + "s";
+      c.style.animationDelay = (Math.random() * .8) + "s";
+      g.appendChild(c);
+    }
+    setTimeout(function () { var l = g.getElementsByTagName("i"), k; for (k = l.length - 1; k >= 0; k--) { if (l[k].className === "confeti") { g.removeChild(l[k]); } } }, 5500);
+  }
+  function mostrarGracias(vuelto) {
+    $("gVueltoN").innerHTML = "$ " + money(vuelto);
+    ajustar($("gVueltoN"), 9);
+    show($("gVuelto"), vuelto > 0.004);
+    show($("gracias"), true);
+    confeti();
+    if (graciasTimer) { clearTimeout(graciasTimer); }
+    graciasTimer = setTimeout(function () { show($("gracias"), false); graciasTimer = null; aplicarEspera(); }, 6000);
+  }
+  function aplicarEspera() {
+    var vacio = est.items.length === 0, conEspera = String(CFG.espera).toUpperCase() !== "N";
+    var en = vacio && conEspera && !graciasTimer, b = document.body;
+    show($("espera"), en);
+    b.className = b.className.replace(/\s*\benEspera\b/g, "") + (en ? " enEspera" : "");
+  }
+
+  // ---------- API para el POS ----------
+  window.DISPCONFIG = function (x) {
+    var c = parse(x), k;
+    for (k in c) { if (c.hasOwnProperty(k)) { CFG[k] = c[k]; } }
+    CFG.mensajes = CFG.mensajes || []; CFG.ofertas = CFG.ofertas || [];
+    document.body.className = String(CFG.tema).toUpperCase() === "CLARO" ? "claro" : "oscuro";
+    if (CFG.logo) { $("logo").src = CFG.logo; show($("logo"), true); $("tienda").innerHTML = ""; }
+    else { show($("logo"), false); $("tienda").innerHTML = esc(CFG.tienda); }
+    // marquesina: mensajes del cliente; si no hay, las ofertas
+    var t = [], i;
+    for (i = 0; i < CFG.mensajes.length; i++) { t.push(esc(CFG.mensajes[i])); }
+    if (!t.length) { for (i = 0; i < CFG.ofertas.length; i++) { t.push(esc(CFG.ofertas[i].n + ": " + CFG.ofertas[i].t)); } }
+    show($("pie"), t.length > 0);
+    $("tickerTag").innerHTML = CFG.mensajes.length ? "INFO" : "OFERTAS";
+    $("ticker").innerHTML = t.join("<b>&#9733;</b>");
+    $("ticker").style.animationDuration = Math.max(14, $("ticker").innerHTML.length * 0.09) + "s";
+    // espera: video si hay; si no, el logo grande
+    var ev = $("espVideo");
+    if (CFG.video)     { ev.className = ""; ev.innerHTML = '<video src="' + esc(CFG.video) + '" autoplay loop muted></video>'; }
+    else if (CFG.logo) { ev.className = "logoG"; ev.innerHTML = '<img src="' + esc(CFG.logo) + '" alt="">'; }
+    else               { ev.className = "hide"; ev.innerHTML = ""; }
+    espIdx = 0; ofIdx = 0; rotarEspera(); rotarOfertaPanel();
+    aplicarEspera();
+  };
+
+  window.DISPUPDATE = function (x) {
+    var d = parse(x), antes = est.items.length;
+    recibido = true;
+    est.items = d.items || [];
+    est.pagado = Number(d.pagado) || 0;
+    est.vuelto = Number(d.vuelto) || 0;
+    renderLista();
+    if (Number(d.total) !== est.total) { animarTotal(totalMostrado, Number(d.total) || 0); totalMostrado = Number(d.total) || 0; }
+    est.total = Number(d.total) || 0;
+
+    show($("cardPago"), est.pagado > 0.004);
+    $("pagado").innerHTML = "$ " + money(est.pagado);
+    $("vuelto").innerHTML = "$ " + money(est.vuelto);
+    if (est.pagado > 0.004) { ajustar($("pagado"), 4.4); ajustar($("vuelto"), 6.4); }
+    if (est.pagado > 0.004) { huboPago = est.vuelto; }
+
+    // cartel de oferta: solo cuando cambia el id
+    if (d.aviso && d.aviso.id && d.aviso.id !== ultAviso) {
+      ultAviso = d.aviso.id;
+      mostrarToast(d.aviso.art, d.aviso.txt);
+    }
+    if (!est.items.length) { ocultarToast(); }
+
+    // termino una venta cobrada -> gracias; cancelada -> directo a la espera
+    if (antes > 0 && est.items.length === 0 && huboPago !== 0) { mostrarGracias(huboPago); }
+    if (est.items.length === 0) { huboPago = 0; }
+    if (est.items.length > 0 && graciasTimer) { clearTimeout(graciasTimer); graciasTimer = null; show($("gracias"), false); }
+    aplicarEspera();
+    // segundo ajuste de los importes cuando el navegador ya termino de armar la pagina
+    setTimeout(function () { ajustar($("total"), 10.5); if (est.pagado > 0.004) { ajustar($("pagado"), 4.4); ajustar($("vuelto"), 6.4); } }, 250);
+  };
+
+  // IE: el POS deja el JSON en los textarea y la pagina los levanta
+  var ultCfg = "", ultDat = "";
+  function sondear() {
+    var c = $("cfgdata").value, d = $("dispdata").value;
+    if (c && c !== ultCfg) { ultCfg = c; try { window.DISPCONFIG(c); } catch (e) { document.title = "ERR config: " + e.message; } }
+    if (d && d !== ultDat) { ultDat = d; try { window.DISPUPDATE(d); } catch (e) { document.title = "ERR datos: " + e.message; } }
+  }
+
+  // ---------- DEMO (abierta sin POS) ----------
+  function qs(k) { var m = new RegExp("[?&]" + k + "=([^&]*)").exec(location.search); return m ? decodeURIComponent(m[1]) : ""; }
+  var DEMO_CFG = {
+    tema: qs("tema") || "OSCURO", segaviso: 5, espera: "S", tienda: "MI ALMAC\u00c9N", logo: "../../logo_cliente.png",
+    mensajes: ["Lunes y viernes 20% de descuento con Cuenta DNI", "Env\u00edos a domicilio sin cargo en compras mayores a $ 30.000", "Seguinos en Instagram @mialmacen"],
+    ofertas: [{ n: "Gaseosa Cola 2,25 L", t: "Llevando 2, pag\u00e1s 1" }, { n: "Yerba Mate 1 kg", t: "Precio especial $ 4.990" }, { n: "Galletitas Surtidas", t: "La 3\u00ba unidad al 50%" }]
+  };
+  var DEMO_ITEMS = [
+    { c: 1, d: "GASEOSA COLA 2.25 L", pu: 3500, t: 3500, p: 0, o: 1 },
+    { c: 1, d: "PAPAS FRITAS CL\u00c1SICAS 250 G", pu: 4200, t: 4200, p: 0, o: 0 },
+    { c: 0.75, d: "QUESO CREMOSO X KG", pu: 9800, t: 7350, p: 0, o: 0 },
+    { c: 1, d: "YERBA MATE 1 KG", pu: 4990, t: 4990, p: 0, o: 1 },
+    { c: 6, d: "AGUA MINERAL 500 ML", pu: 900, t: 5400, p: 0, o: 0 }
+  ];
+  function demoDatos(n, conPromo, pagado) {
+    var it = [], i, tot = 0;
+    for (i = 0; i < n; i++) { it.push(DEMO_ITEMS[i]); }
+    if (n >= 1) { it[0] = { c: 2, d: it[0].d, pu: 3500, t: 7000, p: 0, o: 1 }; }
+    if (conPromo) { it.push({ c: 1, d: "PROMO 2X1 GASEOSA COLA", pu: -3500, t: -3500, p: 1, o: 0 }); }
+    for (i = 0; i < it.length; i++) { tot += it[i].t; }
+    return { items: it, total: tot, pagado: pagado || 0, vuelto: pagado ? pagado - tot : 0, aviso: { id: 0 } };
+  }
+  function demo() {
+    var paso = 0, pasos;
+    window.DISPCONFIG(DEMO_CFG);
+    pasos = [
+      [3500, function () { window.DISPUPDATE({ items: [DEMO_ITEMS[0]], total: 3500, aviso: { id: 1, art: "Gaseosa Cola 2,25 L", txt: "Llevando 2, pag\u00e1s 1" } }); }],
+      [6500, function () { var d = demoDatos(1); window.DISPUPDATE(d); }],
+      [2200, function () { window.DISPUPDATE(demoDatos(2)); }],
+      [2200, function () { window.DISPUPDATE(demoDatos(3)); }],
+      [2200, function () { var d = demoDatos(4); d.aviso = { id: 2, art: "Yerba Mate 1 kg", txt: "Precio especial $ 4.990" }; window.DISPUPDATE(d); }],
+      [6000, function () { window.DISPUPDATE(demoDatos(5)); }],
+      [2500, function () { window.DISPUPDATE(demoDatos(5, true)); }],
+      [3000, function () { window.DISPUPDATE(demoDatos(5, true, 30000)); }],
+      [4000, function () { window.DISPUPDATE({ items: [], total: 0, pagado: 0, vuelto: 0 }); }]
+    ];
+    function sig() {
+      var p = pasos[paso % pasos.length];
+      setTimeout(function () { p[1](); paso++; sig(); }, p[0]);
+    }
+    window.DISPUPDATE({ items: [], total: 0 });
+    sig();
+  }
+  function foto(e) {   // ?estado=... foto fija para capturas
+    sinAnim = true;
+    window.DISPCONFIG(DEMO_CFG);
+    document.body.className += " foto";
+    if (e === "espera") { window.DISPUPDATE({ items: [], total: 0 }); return; }
+    if (e === "oferta") { var d = demoDatos(4); d.aviso = { id: 9, art: "Yerba Mate 1 kg", txt: "Precio especial $ 4.990" }; window.DISPUPDATE(demoDatos(3)); window.DISPUPDATE(d); return; }
+    if (e === "grande") { window.DISPUPDATE({ items: [{ c: 1, d: "HELADERA NO FROST 400 L", pu: 1250000, t: 1250000, p: 0, o: 0 }], total: 1250000, pagado: 1300000, vuelto: 50000 }); return; }
+    if (e === "pago")   { window.DISPUPDATE(demoDatos(5, true, 30000)); return; }
+    if (e === "gracias") { window.DISPUPDATE(demoDatos(5, true, 30000)); window.DISPUPDATE({ items: [], total: 0 }); return; }
+    window.DISPUPDATE(demoDatos(5, true));
+  }
+
+  // ---------- arranque ----------
+  rayos();
+  reloj();
+  setInterval(reloj, 1000);
+  setInterval(sondear, 150);
+  setInterval(rotarEspera, 6000);
+  setInterval(rotarOfertaPanel, 5000);
+  window.DISPCONFIG({});
+  window.DISPUPDATE({ items: [], total: 0 });
+  recibido = false;
+  if (qs("estado")) { foto(qs("estado")); }
+  else if (!qs("pos")) { setTimeout(function () { if (!recibido && !$("cfgdata").value) { demo(); } }, 1500); }
+})();
+</script>
+</body>
+</html>

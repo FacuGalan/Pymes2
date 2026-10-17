@@ -10,9 +10,7 @@ static oDlg, oDlg1, nMesa := 1, oFont, oFontBot, oBrwDet, oQryDet, oQryDep, oQry
        nUltDep, nPriDep, nUltArt, nPriArt, fDepto, nCantidad, dFecha, nCliente, cCliente, nTotal, cVentana, ;
        lMaxi:=.t., nPrecio, lReemplaza, nCondicion, oQryPun, nDescuTot, nRecarTot, oQry2, oQry3, oQry5,;
        nLista, oQryPar, nLisPre, aFormaNom, aFormaInc, aFormaTip, aFormaCod, nFormaPago, oGetDep1, oGetDep2, oGetDep3 , cPermi,;
-       mvendedor, cTextoPromo, oSay,;
-       oDlgCust, oBrwCust, oSayTotalCust, oSayPagadoCust, oSayVueltoCust, oSayItemsCust,;
-       oVideoCust, oBrushBgCust
+       mvendedor, cTextoPromo, oSay, nAvisoSeq := 0, hAvisoDisp
 
 //----------------------------------------------------------------//
 
@@ -355,8 +353,8 @@ IF "A"$cPermisos .AND. "B"$cPermisos
       lRta := .t.
    ENDIF
 ENDIF
-IF lRta .and. oDlgCust <> nil
-   oDlgCust:End()
+IF lRta
+   DispCliCerrar()
 ENDIF   
 lEnProceso := .f.
 nUltima := IF(lRta, 0, Seconds())  // libera el flag y sella el tiempo por si el 2do disparo llega despues del cierre
@@ -1287,6 +1285,7 @@ oGet[02]:Refresh()
 oGet[03]:Refresh()
 nTotal := ROUND(oBrwDet:aCols[9]:nTotal,2)
 TextoPromo(oQryDet:codart)
+AvisoDisplay(oQryDet:codart, oQryDet:detart)
 ActualizarDisplayCliente()
 RETURN nil
 
@@ -2263,13 +2262,10 @@ LOCAL lRta := .t.
    ENDIF
 RETURN .t.   
 
-STATIC FUNCTION CalcularPromos()
-LOCAL cText, oQryTem, nNeto, nIva, nAux, nCurCodart, nTierPrio, nCodForma, nTot, oQryFp, oQryIva
+// Crea las columnas que agregaron las versiones nuevas de promos si la tabla
+// existe sin ellas. La usan CalcularPromos y TextoPromo (franja horaria).
+STATIC FUNCTION ChequeaColPromo()
 STATIC cPrioChk := ""
-//Borro las promos que cargue
-IF !oApp:oServer:TableExist('ge_'+oApp:cId+"promociones")
-   RETURN nil 
-ENDIF 
 //Auto-reparable: crea la columna prioridad si la tabla existe sin ella (MySQL 5.7 no tiene ADD COLUMN IF NOT EXISTS)
 IF cPrioChk != oApp:cId
    IF oApp:oServer:Query("SHOW COLUMNS FROM ge_"+oApp:cId+"promociones LIKE 'prioridad'"):nRecCount == 0
@@ -2283,6 +2279,15 @@ IF cPrioChk != oApp:cId
    ENDIF
    cPrioChk := oApp:cId
 ENDIF
+RETURN nil
+
+STATIC FUNCTION CalcularPromos()
+LOCAL cText, oQryTem, nNeto, nIva, nAux, nCurCodart, nTierPrio, nCodForma, nTot, oQryFp, oQryIva
+//Borro las promos que cargue
+IF !oApp:oServer:TableExist('ge_'+oApp:cId+"promociones")
+   RETURN nil 
+ENDIF 
+ChequeaColPromo()
 IF oApp:oServer:Query('SELECT id FROM ge_'+oApp:cId+"promociones"):nRecCount == 0
    RETURN nil 
 ENDIF   
@@ -2438,6 +2443,7 @@ LOCAL oQ, cSql , cText
 IF !oApp:oServer:TableExist('ge_'+oApp:cId+"promociones")
    RETURN nil 
 ENDIF
+ChequeaColPromo()
 cSql := "SELECT id, nompromo, "+;
     "CASE tipo  "+;
     "    WHEN 1 THEN CONCAT( "+;
@@ -2466,6 +2472,7 @@ cSql := "SELECT id, nompromo, "+;
     ""+;//"  AND tipo IN (2, 3) "+;
     "  AND (fecha_inicio IS NULL OR fecha_inicio <= CURDATE()) "+;
     "  AND (fecha_fin    IS NULL OR fecha_fin    >= CURDATE()) "+;
+    "  AND CURTIME() BETWEEN hora_inicio AND hora_fin "+;
     "ORDER BY tipo, id"
 oQ := oApp:oServer:Query(cSql)
 IF oQ:nRecCount = 0
@@ -2481,490 +2488,61 @@ ENDIF
 RETURN nil   
 
 //-----------------------------------------------------------------------------
-// Display del cliente (segundo monitor).
-//   - Sin par?etros:  muestra automáticamente en el monitor secundario.
-//                      Si no hay segundo monitor, retorna .F. silenciosamente.
-//   - lForzarPrimario: si .T., y no existe monitor secundario, lo muestra en
-//                      el monitor principal (para pruebas con F11).
-//   - Si ya est?abierto, lo cierra (toggle).
+// Display del cliente (segundo monitor): vive en DISPCLI.PRG. Desde aca solo
+// se le pasan los datos de la venta en curso.
+//   - Sin parametros: muestra en el monitor secundario (si no hay, nada).
+//   - lForzarPrimario: lo muestra en el principal si no hay 2do (Ctrl+F11).
+//   - Si ya esta abierto, lo cierra (toggle).
+//-----------------------------------------------------------------------------
 function MostrarDlgEnSegundoMonitor( lForzarPrimario )
-
-   local aMonitores
-   local aMonElegido
-   local aRect
-   local oImg
-   local nLeft, nTop, nWidth, nHeight, nMonW, nMonH
-   local nHeader, nFooter, nBrwY, nBrwH, nBrwX, nBrwW
-   local nLogoX, nLogoY, nLogoW, nLogoH
-   local nVideoX, nVideoY, nVideoW, nVideoH
-   local nW1, nW2, nW3, nW4
-   local nWCard, nXCardP, nXCardV
-   local nYCard, nYCardVal, nYTot, nYTotVal, nYVue, nYVueVal
-   local nHCard, nHCardLbl, nHCardVal, nHTotLbl, nHTotVal
-   local cLogo, cVideo
-   local nSX, nSY, nSF        // factores de escala (X, Y, fuentes)
-   local nPrevDpiCtx := nil   // contexto DPI previo del hilo (para restaurarlo)
-
-   // Colores corporativos (Siete Colinas)
-   local nClrBg     := RGB(  34,  32,  54 )   // #222036 navy de marca
-   local nClrAcc    := RGB( 255, 175,  34 )   // #ffaf22 naranja de marca
-   local nClrFila1  := RGB( 255, 255, 255 )   // pijama oscura
-   local nClrFila2  := RGB( 199, 200, 202 )   // pijama clara
-   local nClrEncab  := RGB(  70,  68, 102 )   // encabezado browse
-   local nClrCard   := RGB(  56,  54,  82 )   // fondo cards
-   local oFontBrw, oFontBrwH, oFontLbl, oFontVal, oFontTotLbl, oFontTot
-
-   default lForzarPrimario := .F.
-
-   // Toggle: si ya est?abierto lo cierro
-   if oDlgCust != nil
-      oDlgCust:End()
-      oDlgCust := nil
-      oVideoCust := nil
-      return .F.
-   endif
-
-   // ------------------------------------------------------------------
-   // PASO 1: contar monitores SIN tocar todav? el DPI. La CANTIDAD de
-   // monitores no depende del estado DPI (solo cambian los VALORES de las
-   // coordenadas, no cu?tos hay). As? si hay un solo monitor y no se fuerza
-   // el primario, salimos SIN haber alterado el DPI, dejando intacta la
-   // ventana principal del POS. Esto evita que a 125% (un solo monitor) se
-   // redimensione la pantalla y cambien fuentes/iconos al invocar el display.
-   // ------------------------------------------------------------------
-   aMonitores := ObtenerMonitores()
-
-   // Elegir monitor
-   if Len( aMonitores ) >= 2
-      aMonElegido := BuscarSecundario( aMonitores )
-   elseif Len( aMonitores ) >= 1 .and. lForzarPrimario
-      aMonElegido := aMonitores[ 1 ]
-   endif
-
-   if aMonElegido == nil
-      return .F.       // un solo monitor (caso com?): NO se toca el DPI
-   endif
-
-   // ------------------------------------------------------------------
-   // PASO 2: ya sabemos que vamos a abrir el display. Hacemos DPI-aware SOLO
-   // ESTE HILO y de forma REVERSIBLE con SetThreadDpiAwarenessContext, en vez
-   // de SetProcessDPIAware (que era PERMANENTE y afectaba a TODA la app: por
-   // eso a 125% se redimensionaba la ventana principal y cambiaban fuentes e
-   // iconos). Usamos SYSTEM_AWARE (-2) para conservar la misma sem?tica de
-   // coordenadas que ten? SetProcessDPIAware. Guardamos el contexto previo
-   // para restaurarlo al final, de modo que el di?ogo principal del POS que
-   // se crea despu? siga escalado por Windows como siempre.
-   // ------------------------------------------------------------------
-   nPrevDpiCtx := SetThreadDpiAwarenessContext( -2 )   // -2 = SYSTEM_AWARE
-
-   // Re-consultar monitores ya en modo aware: ahora aMonitorRect viene en
-   // p?eles F?ICOS reales del monitor secundario (a 125%, 150%, etc.).
-   aMonitores := ObtenerMonitores()
-   if Len( aMonitores ) >= 2
-      aMonElegido := BuscarSecundario( aMonitores )
-   else
-      aMonElegido := aMonitores[ 1 ]
-   endif
-
-   // FULLSCREEN en el monitor secundario: usa el MONITOR ENTERO (incluye barra
-   // de tareas). aMonitorRect = {left, top, bottom, right} en p?eles reales
-   // (gracias al contexto DPI-aware del hilo, reci? activado).
-   aRect   := aMonElegido[ "aMonitorRect" ]
-   nMonW   := aRect[ 4 ] - aRect[ 1 ]
-   nMonH   := aRect[ 3 ] - aRect[ 2 ]
-   nWidth  := nMonW          // 100% ancho
-   nHeight := nMonH          // 100% alto
-   nLeft   := aRect[ 1 ]     // pegado al borde izquierdo del monitor
-   nTop    := aRect[ 2 ]     // pegado al borde superior
-
-   // Factores de escala basados en una referencia de 1180x680 (donde se ve
-   // bien en la pc del usuario). Todo el layout (cards, browse, video, logo,
-   // fuentes) se reescala proporcionalmente al tama? real del di?ogo.
-   nSX := nWidth  / 1180.0
-   nSY := nHeight / 680.0
-   nSF := Min( nSX, nSY )    // factor para fuentes (la menor para que entre)
-
-   // ------------------------------------------------------------------
-   // ZONA SEGURA: 750 x 460 dentro de la ventana 1100x680. Esto previene
-   // overflow cuando FW (sin TRUEPIXEL) escala las coords @ PIXEL por el
-   // factor DPI del sistema. As?los objetos quedan SIEMPRE dentro de la
-   // ventana real, incluso a 125% o 150% DPI.
-   // ------------------------------------------------------------------
-   // Alturas base (referencia 680), escaladas con nSY
-   nHeader   := Int( 50  * nSY )
-   nBrwY     := Int( 75  * nSY )           // bajo header
-   nBrwH     := Int( 215 * nSY )           // alto del browse
-   nHCardLbl := Int( 22  * nSY )
-   nHCardVal := Int( 38  * nSY )
-   nHCard    := nHCardLbl + nHCardVal
-   nHTotLbl  := nHCardLbl
-   nHTotVal  := nHCardVal
-
-   // Logo + video (escalados con nSX/nSY desde la referencia 1180x680)
-   nLogoX  := Int(  11 * nSX )
-   nLogoY  := Int(   1 * nSY )
-   nLogoW  := Int( 270 * nSX )
-   nLogoH  := Int(  70 * nSY )
-   nVideoX := Int( 580 * nSX )
-   nVideoY := nLogoY
-   nVideoW := Int( 280 * nSX )
-   nVideoH := Int( 140 * nSY )
-
-   // Browse (escalado)
-   nBrwX := Int(  10 * nSX )
-   nBrwW := Int( 420 * nSX )
-
-   // CARDS: A LA DERECHA del browse, escalados. Stride proporcional.
-   // En la referencia (1180x680): x=445, w=200, stride 65, primero en y=10.
-   nXCardP := Int( 430 * nSX )
-   nXCardV := nXCardP
-   nWCard  := Int( 160 * nSX )
-
-   nYTot     := Int(  10 * nSY )
-   nYTotVal  := nYTot + nHTotLbl
-
-   nYCard    := Int(  75 * nSY )           // PAGADO
-   nYCardVal := nYCard + nHCardLbl
-
-   nYVue     := Int( 140 * nSY )           // VUELTO
-   nYVueVal  := nYVue + nHCardLbl
-
-   // Anchos de columna del browse (suman ~720 con margen)
-   nW1 := 65
-   nW3 := 105
-   nW4 := 115
-   nW2 := 720 - nW1 - nW3 - nW4 - 6    // detalle ocupa el resto
-
-   // Fuentes chicas para entrar c?odas
-   // Fuentes ESCALADAS con nSF para que crezcan/disminuyan con el monitor.
-   DEFINE FONT oFontBrwH   NAME "Montserrat" SIZE 0, -Int( 17 * nSF ) BOLD
-   DEFINE FONT oFontBrw    NAME "Montserrat" SIZE 0, -Int( 18 * nSF )
-   DEFINE FONT oFontLbl    NAME "Montserrat" SIZE 0, -Int( 14 * nSF ) BOLD
-   DEFINE FONT oFontVal    NAME "Montserrat" SIZE 0, -Int( 22 * nSF ) BOLD
-   DEFINE FONT oFontTotLbl NAME "Montserrat" SIZE 0, -Int( 16 * nSF ) BOLD
-   DEFINE FONT oFontTot    NAME "Montserrat" SIZE 0, -Int( 28 * nSF ) BOLD
-
-   // Brush s?ido navy para el fondo del di?ogo
-   DEFINE BRUSH oBrushBgCust COLOR nClrBg
-
-   DEFINE DIALOG oDlgCust ;
-      TITLE "Display Cliente" ;
-      SIZE nWidth, nHeight ;
-      STYLE nOr( WS_POPUP, WS_VISIBLE, WS_CLIPCHILDREN ) ;
-      GRADIENT { { 1, nClrBg, nClrBg } } ;      
-      PIXEL
-   oDlgCust:lTransparent := .f.
-   
-   // ---------- HEADER: logo (izq) + video (der) ----------
-   cLogo  := IF( File( ".\logo_cliente.png" ), ".\logo_cliente.png", "C:\fwh16\general\logo_cliente.png" )
-   cVideo := IF( File( ".\video.mp4" ), ".\video.mp4", "C:\fwh16\general\video.mp4" )
-   if file(".\logo_cliente.jpg")
-      cLogo := ".\logo_cliente.jpg"
-   endif
-
-   if File( cLogo )
-      /*@ nLogoY, nLogoX IMAGE oImg OF oDlgCust ;
-           FILE cLogo ;
-           SIZE nLogoW, nLogoH PIXEL ADJUST NOBORDER ON RIGHT CLICK Msginfo(STR(nLogoW)+" "+str(nLogoh))*/
-      @ nLogoY, nLogoX XIMAGE oImg OF oDlgCust ;
-             FILE cLogo ;
-             ;//NOBORDER ;
-             SIZE nLogoW, nLogoH 
-      oImg:lBmpTransparent := .f.
-
-   endif
-
-   // ---------- XBROWSE (dark theme, sin dividers) ----------
-   @ nBrwY, nBrwX XBROWSE oBrwCust ;
-        DATASOURCE oQryDet ;
-        COLUMNS "CANTIDAD","DETART","PUNIT","PTOTAL" ;
-        HEADERS "Cant.","Detalle","P. Unitario","Importe" ;
-        SIZES Int(100*nSX),Int(376*nSX),Int(177*nSX),Int(177*nSX);
-        OF oDlgCust ;
-        SIZE nBrwW, nBrwH PIXEL
-
-   oBrwCust:SetFont( oFontBrwH )
-   oBrwCust:oHeaderFonts := oFontBrwH
-   oBrwCust:l2007        := .F.
-   oBrwCust:lHScroll     := .F.
-   oBrwCust:lVScroll     := .F.
-   oBrwCust:lFooter      := .F.
-   oBrwCust:lRecordSelector := .F.
-   oBrwCust:nRowHeight    := Int( 38 * nSY )
-   oBrwCust:nHeaderHeight := Int( 40 * nSY )
-   oBrwCust:nDataLines    := 1
-   oBrwCust:nColDividerStyle  := 0
-   oBrwCust:nRowDividerStyle  := 0
-   oBrwCust:nHeadDividerStyle := 0
-   oBrwCust:bClrHeader := { || { nClrAcc, nClrEncab } }
-   oBrwCust:bClrStd    := { || IF( oBrwCust:KeyNo() % 2 == 0, ;
-                                   { CLR_BLACK, nClrFila2 }, ;
-                                   { CLR_BLACK, nClrFila1 } ) }
-   oBrwCust:bClrSel      := oBrwCust:bClrStd
-   oBrwCust:bClrSelFocus := oBrwCust:bClrStd
-   oBrwCust:lFullGrid       := .T.
-   oBrwCust:lFitGridHeight  := .T.
-   oBrwCust:lColDividerComplete  := .t.                    
-
-   /*oBrwCust:aCols[ 1 ]:nWidth := nW1
-   oBrwCust:aCols[ 2 ]:nWidth := nW2
-   oBrwCust:aCols[ 3 ]:nWidth := nW3
-   oBrwCust:aCols[ 4 ]:nWidth := nW4*/
-
-   oBrwCust:aCols[ 1 ]:cEditPicture := "9,999.999"
-   oBrwCust:aCols[ 3 ]:cEditPicture := "@E 999,999,999.99"
-   oBrwCust:aCols[ 4 ]:cEditPicture := "@E 999,999,999.99"
-
-   oBrwCust:aCols[ 1 ]:nDataStrAlign := AL_CENTER
-   oBrwCust:aCols[ 1 ]:nHeadStrAlign := AL_CENTER
-   oBrwCust:aCols[ 2 ]:nDataStrAlign := AL_LEFT
-   oBrwCust:aCols[ 2 ]:nHeadStrAlign := AL_LEFT
-   oBrwCust:aCols[ 3 ]:nDataStrAlign := AL_RIGHT
-   oBrwCust:aCols[ 3 ]:nHeadStrAlign := AL_RIGHT
-   oBrwCust:aCols[ 4 ]:nDataStrAlign := AL_RIGHT
-   oBrwCust:aCols[ 4 ]:nHeadStrAlign := AL_RIGHT
-
-   oBrwCust:CreateFromCode()
-   //@ 10, 420 SAY "SU COMPRA" SIZE 120,40 FONT oFontTot RIGHT PIXEL COLOR nClrBg
-   // ---------- TOTAL A PAGAR ----------
-   @ /*nYTot*/nBrwH, nXCardP SAY "TOTAL A PAGAR" OF oDlgCust ;
-        SIZE nWCard, nHTotLbl PIXEL FONT oFontTot ;
-        COLORS nClrBg,nClrAcc BORDER CENTER
-   @ /*nYTotVal*/nBrwH+nHTotLbl+20, nXCardP SAY oSayTotalCust PROMPT "$ 0,00" OF oDlgCust ;
-        SIZE nWCard -20, nHTotVal-20 PIXEL FONT oFontTot ;
-        COLORS CLR_WHITE,nClrBg RIGHT
-
-   // ---------- PAGADO ----------
-   @ nYCard-50, nXCardP SAY "PAGADO" OF oDlgCust ;
-        SIZE nWCard, nHCardLbl PIXEL FONT oFontTot ;
-        COLOR nClrBg,nClrAcc BORDER CENTER
-   @ nYCardVal-30, nXCardP SAY oSayPagadoCust PROMPT "$ 0,00" OF oDlgCust ;
-        SIZE nWCard -20, nHCardVal-20 PIXEL FONT oFontTot ;
-        COLORS CLR_WHITE,nClrBg RIGHT
-
-   // ---------- VUELTO ----------
-   @ nYVue-50, nXCardP SAY "VUELTO" OF oDlgCust ;
-        SIZE nWCard, nHCardLbl PIXEL FONT oFontTot ;
-        COLORS nClrBg,nClrAcc BORDER CENTER
-   @ nYVueVal-30, nXCardP SAY oSayVueltoCust PROMPT "$ 0,00" OF oDlgCust ;
-        SIZE nWCard -20, nHCardVal-20 PIXEL FONT oFontTot ;
-        COLORS CLR_WHITE,nClrBg RIGHT
-
-   // Cerrar con ESC (27) o F11 (122) desde el propio display.
-   oDlgCust:bKeyDown := { | nKey | IF( nKey == 27 .or. nKey == 122, ;
-                                       oDlgCust:End(), nil ) }
-
-   ACTIVATE DIALOG oDlgCust ;
-      ON INIT ( oDlgCust:Move( nTop, nLeft, nWidth, nHeight, .T. ), ;
-                CrearVideoCust( cVideo, nVideoY, nVideoX, nVideoW, nVideoH ) ) ;
-      VALID   ( oVideoCust := nil, oDlgCust := nil, .T. ) ;
-      NOWAIT
-
-   ActualizarDisplayCliente()
-
-   // Restaurar el DPI del hilo al estado original. El di?ogo del cliente ya
-   // qued?creado en modo aware (su tama? y posici? en el 2? monitor son
-   // correctos); de aqu? en adelante el hilo vuelve a NO-aware, para que la
-   // ventana principal del POS (que se crea justo despu? de esta funci?) la
-   // siga escalando Windows a 125% como siempre.
-   if nPrevDpiCtx != nil .and. nPrevDpiCtx != 0
-      SetThreadDpiAwarenessContext( nPrevDpiCtx )
-   endif
-
-   return .T.
+RETURN DispCliAbrir( lForzarPrimario, {|| DatosDisplayCliente() } )
 
 //-----------------------------------------------------------------------------
-// Crea el reproductor de video (WMPlayer.OCX) si el archivo existe.
-// Se llama desde ON INIT del di?ogo del cliente.
-//-----------------------------------------------------------------------------
-static function CrearVideoCust( cVideo, nTop, nLeft, nWidth, nHeight )
-
-   if oDlgCust == nil .or. ! File( cVideo )
-      return nil
-   endif
-
-   BEGIN SEQUENCE
-      oVideoCust := TActiveX():New( oDlgCust, "WMPlayer.OCX" )
-      oVideoCust:Move( nTop, nLeft, nWidth, nHeight, .T. )
-      oVideoCust:Settings:Volume   := 0      // mudo (es ambiente, no concurso con cajero)
-      oVideoCust:Settings:SetMode( "loop", .T. )
-      oVideoCust:uiMode := "none"
-      oVideoCust:url    := cVideo
-   RECOVER
-      oVideoCust := nil
-   END SEQUENCE
-
-   return nil
-
-//-----------------------------------------------------------------------------
-// Actualiza el display del cliente con los datos actuales (browse + totales).
-// Es seguro llamarla siempre: si el display no est?abierto, no hace nada.
+// Refresca el display del cliente. Seguro de llamar siempre.
 //-----------------------------------------------------------------------------
 function ActualizarDisplayCliente()
-
-   if oDlgCust == nil
-      return nil
-   endif
-
-   if oBrwCust != nil
-      oBrwCust:Refresh()
-   endif
-
-   if oSayTotalCust != nil
-      oSayTotalCust:SetText( "$ " + Transform( nTotal, "@E 999,999,999.99" ) )
-   endif
-   if oSayPagadoCust != nil
-      oSayPagadoCust:SetText( "$ " + Transform( nPagado, "@E 999,999,999.99" ) )
-   endif
-   if oSayVueltoCust != nil
-      oSayVueltoCust:SetText( "$ " + Transform( nVuelto, "@E 999,999,999.99" ) )
-   endif
-
-   return nil
+IF DispCliAbierto()
+   DispCliActualizar( DatosDisplayCliente() )
+ENDIF
+RETURN nil
 
 //-----------------------------------------------------------------------------
-// Devuelve un array de hashes con la informaci? de cada monitor.
+// Arma los datos para el display. Lee VENTAS_DET_H1 con una query propia para
+// no mover el puntero de oQryDet (la grilla del cajero).
 //-----------------------------------------------------------------------------
-static function ObtenerMonitores()
-
-   local aMonitores := {}
-
-   EnumDisplayMonitors( { | nMonitor, hMonitor, hdcMonitor, lPrimary, ;
-                           aMonitorRect, aMonitorRectInfo, aWorkRect | ;
-      AAdd( aMonitores, { ;
-         "nMonitor"         => nMonitor, ;
-         "hMonitor"         => hMonitor, ;
-         "lPrimary"         => lPrimary, ;
-         "aMonitorRect"     => aMonitorRect, ;
-         "aMonitorRectInfo" => aMonitorRectInfo, ;
-         "aWorkRect"        => aWorkRect } ), ;
-      .T. } )
-
-   return aMonitores
+STATIC FUNCTION DatosDisplayCliente()
+LOCAL hDat := {=>}, aItems := {}, oQ, lPromo
+oQ := oApp:oServer:Query("SELECT CODART, CANTIDAD, DETART, PUNIT, PTOTAL, ESPROMO FROM VENTAS_DET_H1 ORDER BY id")
+DO WHILE !oQ:Eof()
+   // ESPROMO es TINYINT: Dolphin lo devuelve como logico
+   lPromo := IF(ValType(oQ:espromo) == "L", oQ:espromo, oQ:espromo == 1)
+   AADD(aItems, { oQ:cantidad, ALLTRIM(oQ:detart), oQ:punit, oQ:ptotal, lPromo, ;
+                  !lPromo .and. DispCliEnOferta(oQ:codart) })
+   oQ:Skip()
+ENDDO
+IF LEN(aItems) == 0
+   hAvisoDisp := nil          // venta nueva: que no reaparezca el cartel anterior
+ENDIF
+hDat["items"]  := aItems
+hDat["total"]  := IF(nTotal  == nil, 0, nTotal)
+hDat["pagado"] := IF(nPagado == nil, 0, nPagado)
+hDat["vuelto"] := IF(nVuelto == nil, 0, nVuelto)
+hDat["aviso"]  := IF(hAvisoDisp == nil, {"id" => 0}, hAvisoDisp)
+RETURN hDat
 
 //-----------------------------------------------------------------------------
-// Busca el primer monitor que NO sea el primario.
+// Cartel de oferta del display del cliente para el articulo recien cargado:
+// promos por articulo y por grupo vigentes (fecha y franja horaria). Cada
+// aviso lleva un id nuevo; el display lo muestra solo cuando el id cambia.
 //-----------------------------------------------------------------------------
-static function BuscarSecundario( aMonitores )
-
-   local i
-
-   for i := 1 to Len( aMonitores )
-      if ! aMonitores[ i ][ "lPrimary" ]
-         return aMonitores[ i ]
-      endif
-   next
-
-return nil
-
-// Hace el proceso DPI-aware: las APIs como EnumDisplayMonitors / GetMonitorInfo
-// devuelven coords FISICAS reales en monitores con escalado >100% en vez de
-// virtualizadas/escaladas. Disponible desde Windows Vista.
-// (Ya NO se usa: era permanente y afectaba a TODA la app. Se reemplaz?por
-//  SetThreadDpiAwarenessContext, que es reversible y por hilo.)
-DLL32 FUNCTION SetProcessDPIAware() AS BOOL PASCAL LIB "user32.dll"
-
-// DPI-aware REVERSIBLE y por HILO. A diferencia de SetProcessDPIAware, solo
-// afecta a las ventanas creadas en este hilo mientras el contexto est?activo,
-// y devuelve el contexto anterior para poder restaurarlo. As?el di?ogo del 2?
-// monitor se crea aware (coords f?icas correctas) sin alterar la ventana
-// principal del POS. Par?etro/retorno = DPI_AWARENESS_CONTEXT (-2 = SYSTEM
-// AWARE). Disponible desde Windows 10 1607.
-DLL32 FUNCTION SetThreadDpiAwarenessContext( hCtx AS LONG ) AS LONG PASCAL LIB "user32.dll"
-
-#pragma BEGINDUMP
-
-#include <windows.h>
-#include <hbapi.h>
-#include <hbapiitm.h>
-
-static int iMonitorCount;
-
-static BOOL CALLBACK MonitorEnumProc( HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData )
-{
-    MONITORINFOEX mi;
-
-    if( iMonitorCount >= MAX_MONITORS ) 
-    {
-       return FALSE;  // Stop enumeration if we've reached the maximum
-    }
-
-    mi.cbSize = sizeof( MONITORINFOEX );
-    
-    if( GetMonitorInfo( hMonitor, ( LPMONITORINFO ) &mi ) )
-    {
-       PHB_ITEM pMonitorCount   = hb_itemPutNL( NULL, ++iMonitorCount );
-       PHB_ITEM pHandleMonitor  = hb_itemPutPtr( NULL, hMonitor );
-       PHB_ITEM phdcMonitor     = hb_itemPutPtr( NULL, hdcMonitor );
-       PHB_ITEM prctMonitor     = hb_itemArrayNew( 4 );
-       PHB_ITEM pIsPrimary      = hb_itemPutL( NULL, ( mi.dwFlags & MONITORINFOF_PRIMARY) != 0 );
-       PHB_ITEM prctMonitorInfo = hb_itemArrayNew( 4 );
-       PHB_ITEM prctWork        = hb_itemArrayNew( 4 );
-
-       PHB_ITEM pMonitorLeft    = hb_itemPutNL( NULL, lprcMonitor->left );
-       PHB_ITEM pMonitorTop     = hb_itemPutNL( NULL, lprcMonitor->top );
-       PHB_ITEM pMonitorBottom  = hb_itemPutNL( NULL, lprcMonitor->bottom );
-       PHB_ITEM pMonitorRight   = hb_itemPutNL( NULL, lprcMonitor->right );
-
-       PHB_ITEM pMonitorInfoLeft   = hb_itemPutNL( NULL, mi.rcMonitor.left );
-       PHB_ITEM pMonitorInfoTop    = hb_itemPutNL( NULL, mi.rcMonitor.top );
-       PHB_ITEM pMonitorInfoBottom = hb_itemPutNL( NULL, mi.rcMonitor.bottom );
-       PHB_ITEM pMonitorInfoRight  = hb_itemPutNL( NULL, mi.rcMonitor.right );
-
-       PHB_ITEM pWorkLeft   = hb_itemPutNL( NULL, mi.rcWork.left );
-       PHB_ITEM pWorkTop    = hb_itemPutNL( NULL, mi.rcWork.top );
-       PHB_ITEM pWorkBottom = hb_itemPutNL( NULL, mi.rcWork.bottom );
-       PHB_ITEM pWorkRight  = hb_itemPutNL( NULL, mi.rcWork.right );
-
-       hb_itemArrayPut( prctMonitor, 1, pMonitorLeft );
-       hb_itemArrayPut( prctMonitor, 2, pMonitorTop );
-       hb_itemArrayPut( prctMonitor, 3, pMonitorBottom );
-       hb_itemArrayPut( prctMonitor, 4, pMonitorRight );
-
-       hb_itemArrayPut( prctMonitorInfo, 1, pMonitorInfoLeft );
-       hb_itemArrayPut( prctMonitorInfo, 2, pMonitorInfoTop );
-       hb_itemArrayPut( prctMonitorInfo, 3, pMonitorInfoBottom );
-       hb_itemArrayPut( prctMonitorInfo, 4, pMonitorInfoRight );
-
-       hb_itemArrayPut( prctWork, 1, pWorkLeft );
-       hb_itemArrayPut( prctWork, 2, pWorkTop );
-       hb_itemArrayPut( prctWork, 3, pWorkBottom );
-       hb_itemArrayPut( prctWork, 4, pWorkRight );
-
-       hb_evalBlock( ( PHB_ITEM ) dwData, pMonitorCount, pHandleMonitor, phdcMonitor, pIsPrimary, prctMonitor, 
-                     prctMonitorInfo, prctWork, NULL );
-
-       hb_itemRelease( pMonitorLeft );
-       hb_itemRelease( pMonitorTop );
-       hb_itemRelease( pMonitorBottom );
-       hb_itemRelease( pMonitorRight );
-
-       hb_itemRelease( pMonitorInfoLeft );
-       hb_itemRelease( pMonitorInfoTop );
-       hb_itemRelease( pMonitorInfoBottom );
-       hb_itemRelease( pMonitorInfoRight );
-
-       hb_itemRelease( pWorkLeft );
-       hb_itemRelease( pWorkTop );
-       hb_itemRelease( pWorkBottom );
-       hb_itemRelease( pWorkRight );
-
-       hb_itemRelease( prctWork );
-       hb_itemRelease( prctMonitorInfo );
-       hb_itemRelease( prctMonitor );
-       hb_itemRelease( pIsPrimary );
-       hb_itemRelease( phdcMonitor );
-       hb_itemRelease( pHandleMonitor );
-       hb_itemRelease( pMonitorCount );
-    }
-    
-    return hb_parl( -1 );  // .T. continue enumeration
-}
-
-HB_FUNC( ENUMDISPLAYMONITORS )
-{
-   iMonitorCount = 0;
-   hb_retl( EnumDisplayMonitors( NULL, NULL, MonitorEnumProc, ( LPARAM ) hb_param( 1, HB_IT_BLOCK ) ) );    
-}
-
-#pragma ENDDUMP
+STATIC FUNCTION AvisoDisplay(nCod, cDet)
+LOCAL cTxt
+IF !DispCliAbierto() .or. VALTYPE(nCod) != "N" .or. nCod <= 0
+   RETURN nil
+ENDIF
+cTxt := DispCliTextoOferta(nCod)
+IF !EMPTY(cTxt)
+   nAvisoSeq++
+   hAvisoDisp := {"id" => nAvisoSeq, "art" => ALLTRIM(cDet), "txt" => cTxt}
+ENDIF
+RETURN nil
