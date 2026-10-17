@@ -81,10 +81,11 @@ AADD(oApp:aVentanas,cVentana)
              ID 111 OF oDlg AUTOSORT ON DBLCLICK (Formu( .f.),oBrw:Refresh())
      REDEFINE SAY oBrw:oSeek PROMPT oBrw:cSeek ID 113 OF oDlg
      oQryBrw:bOnChangePage := {|| oBrw:Refresh() }
-     oBrw:aCols[6]:nFooterType := AGGR_SUM     
-     oBrw:aCols[8]:bEditValue := {|| IF( oQryBrw:liquidado, .t., .f. )  }
-     oBrw:aCols[8]:SetCheck(,.t.) 
+     oBrw:oCol(6):nFooterType := AGGR_SUM     
+     oBrw:oCol(8):bEditValue := {|| IF( oQryBrw:liquidado, .t., .f. )  }
+     oBrw:oCol(8):SetCheck(,.t.) 
      PintaBrw(oBrw,8)
+     oBrw:lAllowColSwapping := .F.
      oBrw:Maketotals()
      oBrw:bKeyDown := {|nKey,nFlags| Acelerador2(nKey,oBar, oBrw,cPermisos,6)}
      // Activo el dialogo y al iniciar muevo a 0,0
@@ -302,7 +303,7 @@ DEFINE DIALOG oDlg1 RESOURCE "POS" OF oWnd1 TITLE "CONSUMO INTERNO"
    REDEFINE BTNBMP oBot[39] ID 310 OF oDlg1 2007 CENTER; //GRABA
                    PROMPT "&Grabar [F12]";
                    ACTION(lRta := .t.,oDlg1:End());
-                   WHEN(oBrwDet:aCols[5]:nTotal > 0)
+                   WHEN(oBrwDet:oCol(5):nTotal > 0)
    REDEFINE BTNBMP oBot[19] ID 4004 OF oDlg1 2007 CENTER; //GRABA
                    PROMPT "&Vales" WHEN(.f.)
   
@@ -347,14 +348,15 @@ DEFINE DIALOG oDlg1 RESOURCE "POS" OF oWnd1 TITLE "CONSUMO INTERNO"
             FOOTERS ;
             SIZES 100,243,65,64,64 ID 1000 OF oDlg1 WHEN(oQryDet:RecCount()>0)
    PintaBrw(oBrwDet,0)
-   oBrwDet:aCols[3]:nFooterTypE := AGGR_SUM
-   oBrwDet:aCols[5]:nFooterTypE := AGGR_SUM   
-   oBrwDet:aCols[1]:Hide()
+   oBrwDet:lAllowColSwapping := .F.
+   oBrwDet:oCol(3):nFooterTypE := AGGR_SUM
+   oBrwDet:oCol(5):nFooterTypE := AGGR_SUM   
+   oBrwDet:oCol(1):Hide()
    oBrwDet:MakeTotals()  
     IF "M"$cPermisos
-      oBrwDet:aCols[3]:nEditType := EDIT_GET
+      oBrwDet:oCol(3):nEditType := EDIT_GET
    ENDIF
-   oBrwDet:aCols[3]:bOnPostEdit := { |oCol,xval,nkey| CambiaCant(xval,1)}  
+   oBrwDet:oCol(3):bOnPostEdit := { |oCol,xval,nkey| IF(nkey <> VK_ESCAPE, CambiaCant(xval,1), nil) }  
    
    REDEFINE GET oGet[02] VAR nCodArt   ID 10 OF oDlg1 PICTURE "99999999999999" FONT oFont2;
                 ACTION (oGet[02]:cText:= 0, BuscarArt(oQryArt,oDlg1,oGet[2],oGet[7],'0','nosale'),;
@@ -372,7 +374,7 @@ DEFINE DIALOG oDlg1 RESOURCE "POS" OF oWnd1 TITLE "CONSUMO INTERNO"
    REDEFINE GET oGet[04] VAR nPagado   ID 13 OF oDlg1 PICTURE "999999999.99" FONT oFont3 WHEN(.F.)
    REDEFINE GET oGet[05] VAR nVuelto   ID 14 OF oDlg1 PICTURE "999999999.99" FONT oFont3 WHEN(.F.)
    REDEFINE GET oGet[06] VAR nTotal    ID 15 OF oDlg1 PICTURE "999999999.99" FONT oFont2 ;
-       WHEN((oGet[06]:cText := oBrwDet:aCols[5]:nTotal) = 'xxx') UPDATE
+       WHEN((oGet[06]:cText := oBrwDet:oCol(5):nTotal) = 'xxx') UPDATE
 
    oGet[01]:bGotFocus := {|| oDlg1:cargo := oGet[1],nPicture:=2,lReemplaza:=.t.}
    oGet[02]:bGotFocus := {|| oDlg1:cargo := oGet[2],nPicture:=13,lReemplaza:=.t.}
@@ -532,7 +534,7 @@ IF n = 1
    oQryDet:Refresh()
    oBrwDet:Refresh()
    oBrwDet:MakeTotals()
-   nTotal := oBrwDet:aCols[5]:nTotal
+   nTotal := oBrwDet:oCol(5):nTotal
    oGet[06]:Refresh()
    ELSE 
    IF n = 2
@@ -542,7 +544,7 @@ IF n = 1
       oQryDet:Refresh()
       oBrwDet:Refresh()
       oBrwDet:MakeTotals()
-      nTotal := oBrwDet:aCols[5]:nTotal
+      nTotal := oBrwDet:oCol(5):nTotal
       oGet[06]:Refresh()
    ENDIF
 ENDIF
@@ -609,8 +611,8 @@ nCantidad:=1
 oGet[02]:cText := 0
 oGet[02]:Refresh()
 oBrwDet:GoBottom()
-//oGet[06]:cText := oBrwDet:aCols[5]:nTotal
-nTotal := ROUND(oBrwDet:aCols[5]:nTotal,2)
+//oGet[06]:cText := oBrwDet:oCol(5):nTotal
+nTotal := ROUND(oBrwDet:oCol(5):nTotal,2)
 oGet[02]:SetFocus()
 RETURN nil
 
@@ -820,17 +822,18 @@ DEFINE DIALOG oDlg1 TITLE "Marcar consumos como liquidados" FROM 03,15 TO 32,100
       FOOTERS;
       CELL LINES NOBORDER UPDATE
    WITH OBJECT oBrwLiq 
-      :aCols[1]:cFooter := "Total Selección"
-      :aCols[4]:nFooterType := AGGR_SUM            
-      :aCols[5]:nEditType := EDIT_GET  
-      :aCols[5]:bEditValue := {|| IF( oQryE:liquidado == .T., .t., .f. )  }    
-      :aCols[5]:SetCheck(,.f.)
-      :aCols[5]:bLDClickData := {|| CambiaChek(oBrwLiq,oQryE)}
-      :aCols[4]:bSumCondition := { || oQryE:liquidado }
+      :oCol(1):cFooter := "Total Selección"
+      :oCol(4):nFooterType := AGGR_SUM            
+      :oCol(5):nEditType := EDIT_GET  
+      :oCol(5):bEditValue := {|| IF( oQryE:liquidado == .T., .t., .f. )  }    
+      :oCol(5):SetCheck(,.f.)
+      :oCol(5):bLDClickData := {|| CambiaChek(oBrwLiq,oQryE)}
+      :oCol(4):bSumCondition := { || oQryE:liquidado }
       :MakeTotals()
       :CreateFromCode()      
    END  
    PintaBrw(oBrwLiq,0)
+   oBrwLiq:lAllowColSwapping := .F.
    @ acor[1]-22,05  CHECKBOX oGet[1] VAR lAplicar PROMPT "Aplicar Pago a Liquidacion" SIZE 100,12 OF oDlg1 PIXEL 
    @ acor[1]-20,112  SAY "Mes:" OF oDlg1 PIXEL RIGHT SIZE 20,10
    @ acor[1]-20,153  SAY "Año:" OF oDlg1 PIXEL RIGHT SIZE 20,10

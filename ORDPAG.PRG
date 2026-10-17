@@ -133,17 +133,18 @@ DO WHILE .T.
               COLUMNS "ticomp","letra","numcomp","fecha","saldo","pagado","saldonue","Importe","aplicado";
               HEADERS "Tipo","L","Nro. Compr.","Fecha","Saldo","Pagado","Nuevo Saldo","Importe","Aplicado" FOOTERS;
               SIZES 30,20,95,75,70,70,70,70,70  ID 20 OF oDlg       
-    oBrw:aCols[5]:nFooterType := AGGR_SUM
-    oBrw:aCols[6]:nFooterType := AGGR_SUM
-    oBrw:aCols[7]:nFooterType := AGGR_SUM
-    oBrw:aCols[8]:nFooterType := AGGR_SUM
-    oBrw:aCols[9]:nFooterType := AGGR_SUM
-    oBrw:aCols[6]:lAutoSave := .t.
-    oBrw:aCols[6]:nEditType := EDIT_GET  
-    //oBrw:aCols[6]:bEditValid  := {|oGet, oCol| ControlSaldo(oGet:value,EVAL(oBrw:aCols[5]:bEditValue))} 
-    oBrw:aCols[6]:bOnPostEdit := {|oCol, xVal, nKey | CambiaSaldo(xval)}  
-    oBrw:aCols[6]:bOnChange := {|| oBot[3]:SetFocus(),oBrw:SetFocus(),mentrega:=oApp:oServer:Query("SELECT SUM(pagado) AS suma FROM transi_ordpag"):suma-nAnticipo,oGet[4]:Refresh()}
+    oBrw:oCol(5):nFooterType := AGGR_SUM
+    oBrw:oCol(6):nFooterType := AGGR_SUM
+    oBrw:oCol(7):nFooterType := AGGR_SUM
+    oBrw:oCol(8):nFooterType := AGGR_SUM
+    oBrw:oCol(9):nFooterType := AGGR_SUM
+    oBrw:oCol(6):lAutoSave := .t.
+    oBrw:oCol(6):nEditType := EDIT_GET  
+    //oBrw:oCol(6):bEditValid  := {|oGet, oCol| ControlSaldo(oGet:value,EVAL(oBrw:oCol(5):bEditValue))} 
+    oBrw:oCol(6):bOnPostEdit := {|oCol, xVal, nKey | IF(nKey <> VK_ESCAPE, CambiaSaldo(xval), nil) }  
+    oBrw:oCol(6):bOnChange := {|| oBot[3]:SetFocus(),oBrw:SetFocus(),mentrega:=oApp:oServer:Query("SELECT SUM(pagado) AS suma FROM transi_ordpag"):suma-nAnticipo,oGet[4]:Refresh()}
     PintaBrw(oBrw,0)    
+    oBrw:lAllowColSwapping := .F.
 
 
     REDEFINE XBROWSE oBrwCheT DATASOURCE oQryCheT;
@@ -151,10 +152,11 @@ DO WHILE .T.
               HEADERS "","Banco","Numero","Vto.","Importe" FOOTERS;
               SIZES 30,180,50,70,65,70 ID 10 OF oDlg AUTOSORT
     PintaBrw(oBrwCheT,0)
-    oBrwCheT:aCols[1]:SetCheck(nil,.f.)   
-    oBrwCheT:aCols[1]:bLDClickData := {|| (CambiaChek(oQryCheT,oBrwCheT),oBot[3]:SetFocus(),oBrwCheT:SetFocus()) }
-    oBrwCheT:aCols[1]:nEditType := 1
-    oBrwCheT:aCols[1]:bEditValue := { || IF(oQryCheT:tilde,.t.,.f.)}
+    oBrwCheT:lAllowColSwapping := .F.
+    oBrwCheT:oCol(1):SetCheck(nil,.f.)   
+    oBrwCheT:oCol(1):bLDClickData := {|| (CambiaChek(oQryCheT,oBrwCheT),oBot[3]:SetFocus(),oBrwCheT:SetFocus()) }
+    oBrwCheT:oCol(1):nEditType := 1
+    oBrwCheT:oCol(1):bEditValue := { || IF(oQryCheT:tilde,.t.,.f.)}
 
     REDEFINE XBROWSE oBrwCheP DATASOURCE oQryCheP;
               COLUMNS "nomban","numche","fecvto","importe";
@@ -162,6 +164,7 @@ DO WHILE .T.
               SIZES 200,60,70,65,70 ID 30 OF oDlg AUTOSORT
     oBrwCheP:bKeyDown := { |nKey| IF (nKey == VK_DELETE,(DelCheqP(),oBrwCheP:Refresh(),CalcTot()),)}
     PintaBrw(oBrwCheP,0)
+    oBrwCheP:lAllowColSwapping := .F.
 
     REDEFINE GET oGet[06] VAR nEfectivo      ID 200 OF oDlg PICTURE "999999999.99"
     REDEFINE GET oGet[07] VAR nTransferencia ID 201 OF oDlg PICTURE "999999999.99"
@@ -296,7 +299,7 @@ STATIC FUNCTION CalcTot()
 oGet[08]:cText:= oApp:oServer:Query("SELECT SUM(importe) AS suma FROM transi_chequeT WHERE tilde = 1"):suma
 oGet[09]:cText:= oApp:oServer:Query("SELECT SUM(importe) AS suma FROM transi_chequeP "):suma
 oGet[15]:cText:= oGet[6]:value + oGet[7]:value + oGet[8]:value + oGet[9]:value + oGet[10]:value + oGet[11]:Value + oGet[12]:Value + oGet[20]:Value + oGet[23]:Value
-oGet[17]:cText:= oBrw:aCols[6]:nTotal 
+oGet[17]:cText:= oBrw:oCol(6):nTotal 
 oGet[14]:cText:= oGet[17]:value - oGet[15]:value 
 
 RETURN .f.
@@ -307,8 +310,8 @@ RETURN .f.
 STATIC FUNCTION Grabar()
 LOCAL nOrden:=0,oError,mRta:=.f.,nCodCue:=0,nNumOpe:=0,cObserva:=SPACE(255),;
       nNumDep,lCuenta:=.f., nNumRet := 0, nNumRet1 := 0, nNumRet2 := 0,nMaximo, nNuevoSaldo := 0
-IF oBrw:aCols[6]:nTotal <= 0 .AND. oApp:oServer:Query("SELECT ticomp FROM transi_ordpag WHERE pagado <> 0"):RecCount()=0 ;
-    .AND. oBrw:aCols[5]:nTotal <> 0
+IF oBrw:oCol(6):nTotal <= 0 .AND. oApp:oServer:Query("SELECT ticomp FROM transi_ordpag WHERE pagado <> 0"):RecCount()=0 ;
+    .AND. oBrw:oCol(5):nTotal <> 0
    MsgStop("No marco ninguna factura para pagar","Atencion")   
    RETURN .f.
 ENDIF
@@ -336,13 +339,13 @@ ENDIF
 IF ROUND(oApp:oServer:Query("SELECT SUM(c.saldo*IF(c.tipocomp='NC',-1,1)) AS saldo FROM transi_ordpag t "+;
                       " LEFT JOIN ge_"+oApp:cId+"compras c "+;
                       " ON CONCAT(c.tipocomp,c.letra,c.numfac) = CONCAT(t.ticomp,t.letra,t.numcomp) "+;
-                      " AND c.codpro =  "+ClipValue2Sql(mcodpro)):saldo,2) <> ROUND(oBrw:aCols[5]:nTotal,2)
+                      " AND c.codpro =  "+ClipValue2Sql(mcodpro)):saldo,2) <> ROUND(oBrw:oCol(5):nTotal,2)
    MsgStop("Los saldos de las facturas han cambiado."+CHR(10)+;
            "Verifique si otro puesto de trabajo ha aplicado pagos!" ,"ERROR")
    RETURN .f.
 ENDIF
 TRY 
-   nNuevoSaldo := oBrw:aCols[5]:nTotal -;
+   nNuevoSaldo := oBrw:oCol(5):nTotal -;
                   (nEfectivo+nTransferencia+nCheqP+nCheqT+nReten1+nReten2+nReten3+nMPago) - nAnticipo
    mobserva := ALLTRIM(mobserva) + IF(nNuevoSaldo <> 0 ," - (Saldo de su cuenta: $ "+STR(nNuevoSaldo,15,2)+")","")
    oApp:oServer:BeginTransaction()
@@ -353,7 +356,7 @@ TRY
                          " ("+;
                              ClipValue2Sql(mcodpro)+","+;
                              ClipValue2Sql(nEfectivo+nTransferencia+nCheqP+nCheqT+nReten1+nReten2+nReten3+nMPago)+","+;
-                             ClipValue2Sql(oBrw:aCols[6]:nTotal)+","+;
+                             ClipValue2Sql(oBrw:oCol(6):nTotal)+","+;
                              ClipValue2Sql(mobserva)+","+;
                              ClipValue2Sql(mfecha)+","+;
                              ClipValue2Sql(oApp:prefijo)+","+;

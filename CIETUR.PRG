@@ -134,10 +134,10 @@ DEFINE DIALOG oForm TITLE "Cierre de turno de caja " + STR(nCaja,2);
       SIZES IF('A'$cPermisos,200,1000),90,90,90;
       CELL LINES NOBORDER FOOTERS
    WITH OBJECT oBrw
-      :aCols[1]:cFooter := "Totales - ->"
-      :aCols[2]:nFooterTypE := AGGR_SUM
-      :aCols[3]:nFooterTypE := AGGR_SUM
-      :aCols[4]:nFooterTypE := AGGR_SUM
+      :oCol(1):cFooter := "Totales - ->"
+      :oCol(2):nFooterTypE := AGGR_SUM
+      :oCol(3):nFooterTypE := AGGR_SUM
+      :oCol(4):nFooterTypE := AGGR_SUM
       WITH OBJECT :Ingreso
          :nFooterType   := AGGR_SUM
          :bSumCondition := { || LEFT(oQry:concepto,1) <> '*' }
@@ -145,21 +145,22 @@ DEFINE DIALOG oForm TITLE "Cierre de turno de caja " + STR(nCaja,2);
       IF('A'$cPermisos)
         :lFooter := .t.
         ELSE 
-        :aCols[2]:Hide()
-        :aCols[3]:Hide()
-        :aCols[4]:Hide()
+        :oCol(2):Hide()
+        :oCol(3):Hide()
+        :oCol(4):Hide()
       ENDIF
       :MakeTotals()   
       :CreateFromCode()
    END        
    PintaBrw(oBrw,0)
+   oBrw:lAllowColSwapping := .F.
    IF oQryP:transfiereefec 
-      nTransfiereefec := oBrw:aCols[4]:nTotal - 1
+      nTransfiereefec := oBrw:oCol(4):nTotal - 1
       @ 140,80 SAY oGet[5] PROMPT "Transferencia automatica a caja "+STR(oQryP:transfierecaja,4) +;
                " $" + STR(nTransfiereefec,13,2) OF oForm PIXEL
    ENDIF 
    @125, 80 GET oGet[3] VAR mresul PICTURE "9999999999.99"    OF oForm PIXEL RIGHT;
-                WHEN((oGet[3]:cText := oBrw:aCols[4]:nTotal -nTransfiereefec - oGet[2]:value) = "xxxx" )
+                WHEN((oGet[3]:cText := oBrw:oCol(4):nTotal -nTransfiereefec - oGet[2]:value) = "xxxx" )
    @125,140 GET oGet[4] VAR cTexto OF oForm PIXEL ;
                 WHEN((oGet[4]:cText := IF(oGet[3]:value>0,"Faltante","Sobrante")) = "xxxx" )  
    @140, 80 GET oGet[6] VAR cObserva OF oForm PIXEL PICTURE "@S40"

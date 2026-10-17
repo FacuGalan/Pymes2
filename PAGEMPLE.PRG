@@ -70,10 +70,11 @@ DO WHILE .T.
               COLUMNS "ano","mes","numero","fecha","observa","importe","usuario","tipo";
               HEADERS "Año","Mes","Recibo","Fecha","Concepto","Pago","Usuario","F.Pago" FOOTERS;
               SIZES 40,70,90,80,160,90,80,80 ID 120 OF oDlg       
-    oBrw:aCols[6]:nFooterType := AGGR_SUM
-    oBrw:aCols[2]:bStrData := {|| IF(oQry:mes=0,"",aMeses[oQry:mes])}
-    oBrw:aCols[8]:bStrData := {|| aFormas[oQry:tipo+1]}
+    oBrw:oCol(6):nFooterType := AGGR_SUM
+    oBrw:oCol(2):bStrData := {|| IF(oQry:mes=0,"",aMeses[oQry:mes])}
+    oBrw:oCol(8):bStrData := {|| aFormas[oQry:tipo+1]}
     PintaBrw(oBrw,0)                   
+    oBrw:lAllowColSwapping := .F.
     REDEFINE GET oGet[10] VAR mtotal  ID 121 OF oDlg COLOR CLR_RED , CLR_YELLOW FONT oFont PICTURE "99999999.99" WHEN(.F.)
     REDEFINE BUTTON oBot[2] ID 102 OF oDlg ACTION graba(oDlg) WHEN(!lEdita) PROMPT "Pagar"
     REDEFINE BUTTON oBot[3] ID 103 OF oDlg ACTION Cancela()
@@ -139,7 +140,7 @@ RETURN .t.
 ** Grabar
 STATIC FUNCTION Graba(oWnd1)
 LOCAL oGet := ARRAY(12), oBot := ARRAY(2), oForm, lRta := .f., aCor, oError, oQryCue, mresto1, mresto2 := 0, oQr,;
-      mresto := -oBrw:aCols[6]:nTotal, mpago :=  - oBrw:aCols[6]:nTotal, mcuenta := 0, mcuennom := SPACE(30), mobserva := SPACE(30),;
+      mresto := -oBrw:oCol(6):nTotal, mpago :=  - oBrw:oCol(6):nTotal, mcuenta := 0, mcuennom := SPACE(30), mobserva := SPACE(30),;
       mmes := MONTH(DATE()), mano := YEAR(DATE()), nForma := 1, aFormas := {"Efectivo","Transferencia Bancaria"}, nId
 mresto1 := mpago
 mpago := IF(mpago<0,0,mpago)
@@ -267,7 +268,7 @@ oQry:Refresh()
 oQry:GoTop()
 oBrw:Refresh()
 oBrw:MakeTotals()
-mtotal := -ROUND(oBrw:aCols[6]:nTotal,2)
+mtotal := -ROUND(oBrw:oCol(6):nTotal,2)
 oGet[10]:Refresh()   
 oBrw:SetFocus()
 lEdita := .f.

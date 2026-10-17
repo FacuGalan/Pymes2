@@ -85,9 +85,9 @@ oQryBrw    := oApp:oServer:Query( "SELECT c.tipocomp,c.letra,c.numfac,c.fecfac,c
               ID 111 OF oDlg AUTOSORT ON DBLCLICK IF("M"$cPermisos,(Formu( .f.),oBrw:Refresh()),nil)
      REDEFINE SAY oBrw:oSeek PROMPT "" ID 113 OF oDlg
      oQryBrw:bOnChangePage := {|| oBrw:Refresh() }
-     oBrw:aCols[8]:bStrData := {|| IF(oQryBrw:RecCount()> 0 .and. abs(oQryBrw:saldo)=0,"PAGA","IMPAGA")}
-     oBrw:aCols[6]:nFooterTypE := AGGR_SUM
-     oBrw:aCols[7]:nFooterTypE := AGGR_SUM
+     oBrw:oCol(8):bStrData := {|| IF(oQryBrw:RecCount()> 0 .and. abs(oQryBrw:saldo)=0,"PAGA","IMPAGA")}
+     oBrw:oCol(6):nFooterTypE := AGGR_SUM
+     oBrw:oCol(7):nFooterTypE := AGGR_SUM
      //oBrw:SetDolphin(oQry,.f.,.t.)
      oBrw:MakeTotals()
      PintaBrw(oBrw,10) // CAMBIAR DEPENDIENDO DE CUANTAS COLUMNAS TENGA EL BROWSE
@@ -329,43 +329,43 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
        ID 132 OF oDlg1 WHEN(oQryComprasDet:nRecCount > 0)
     PintaBrw(oBrwDet,0)
 
-    oBrwDet:aCols[3]:lAutoSave := .t.
-    oBrwDet:aCols[3]:nEditType := EDIT_GET 
-    oBrwDet:aCols[3]:bOnPostEdit := {|oCol, xVal, nKey | CambiaCant(xval,,oGet)}
-    oBrwDet:aCols[4]:lAutoSave := .t.
-    oBrwDet:aCols[4]:nEditType := EDIT_GET 
-    oBrwDet:aCols[4]:bOnPostEdit := {|oCol, xVal, nKey | CambiaCant(,xval,oGet)}
-    oBrwDet:aCols[5]:lAutoSave := .t.
-    oBrwDet:aCols[5]:nEditType := EDIT_GET 
-    oBrwDet:aCols[5]:bOnPostEdit := {|oCol, xVal, nKey | CambiaCant(,,oGet,xval)}
-    oBrwDet:aCols[6]:lAutoSave := .t.
-    oBrwDet:aCols[6]:nEditType := EDIT_GET 
-    oBrwDet:aCols[6]:bOnPostEdit := {|oCol, xVal, nKey | CambiaCant(,,oGet,,xval)}
-    oBrwDet:aCols[7]:lAutoSave := .t.
-    oBrwDet:aCols[7]:nEditType := EDIT_GET 
-    oBrwDet:aCols[7]:bOnPostEdit := {|oCol, xVal, nKey | CambiaCant(,,oGet,,,xval)}
-    oBrwDet:aCols[8]:lAutoSave := .t.
-    oBrwDet:aCols[8]:nEditType := EDIT_GET 
-    oBrwDet:aCols[8]:bOnPostEdit := {|oCol, xVal, nKey | CambiaCant(,,oGet,,,,xval)}
-    oBrwDet:aCols[9]:lAutoSave := .t.
-    oBrwDet:aCols[9]:nEditType := EDIT_GET 
-    oBrwDet:aCols[9]:bOnPostEdit := {|oCol, xVal, nKey | CambiaCant(,,oGet,,,,,xval)}
+    oBrwDet:oCol(3):lAutoSave := .t.
+    oBrwDet:oCol(3):nEditType := EDIT_GET 
+    oBrwDet:oCol(3):bOnPostEdit := {|oCol, xVal, nKey | IF(nKey <> VK_ESCAPE, CambiaCant(xval,,oGet), nil) }
+    oBrwDet:oCol(4):lAutoSave := .t.
+    oBrwDet:oCol(4):nEditType := EDIT_GET 
+    oBrwDet:oCol(4):bOnPostEdit := {|oCol, xVal, nKey | IF(nKey <> VK_ESCAPE, CambiaCant(,xval,oGet), nil) }
+    oBrwDet:oCol(5):lAutoSave := .t.
+    oBrwDet:oCol(5):nEditType := EDIT_GET 
+    oBrwDet:oCol(5):bOnPostEdit := {|oCol, xVal, nKey | IF(nKey <> VK_ESCAPE, CambiaCant(,,oGet,xval), nil) }
+    oBrwDet:oCol(6):lAutoSave := .t.
+    oBrwDet:oCol(6):nEditType := EDIT_GET 
+    oBrwDet:oCol(6):bOnPostEdit := {|oCol, xVal, nKey | IF(nKey <> VK_ESCAPE, CambiaCant(,,oGet,,xval), nil) }
+    oBrwDet:oCol(7):lAutoSave := .t.
+    oBrwDet:oCol(7):nEditType := EDIT_GET 
+    oBrwDet:oCol(7):bOnPostEdit := {|oCol, xVal, nKey | IF(nKey <> VK_ESCAPE, CambiaCant(,,oGet,,,xval), nil) }
+    oBrwDet:oCol(8):lAutoSave := .t.
+    oBrwDet:oCol(8):nEditType := EDIT_GET 
+    oBrwDet:oCol(8):bOnPostEdit := {|oCol, xVal, nKey | IF(nKey <> VK_ESCAPE, CambiaCant(,,oGet,,,,xval), nil) }
+    oBrwDet:oCol(9):lAutoSave := .t.
+    oBrwDet:oCol(9):nEditType := EDIT_GET 
+    oBrwDet:oCol(9):bOnPostEdit := {|oCol, xVal, nKey | IF(nKey <> VK_ESCAPE, CambiaCant(,,oGet,,,,,xval), nil) }
     IF !lVtoStock .OR. !lAlta
-       oBrwDet:aCols[14]:Hide()
+       oBrwDet:oCol(14):Hide()
        ELSE       
-       oBrwDet:aCols[14]:nEditType := EDIT_GET 
-       oBrwDet:aCols[14]:lAutoSave := .T.
-       oBrwDet:aCols[14]:bOnPostEdit := {|oCol, xVal, nKey | CambiaFec(xval)}
+       oBrwDet:oCol(14):nEditType := EDIT_GET 
+       oBrwDet:oCol(14):lAutoSave := .T.
+       oBrwDet:oCol(14):bOnPostEdit := {|oCol, xVal, nKey | IF(nKey <> VK_ESCAPE, CambiaFec(xval), nil) }
     ENDIF  
 
 
     oDlg1:bKeyDown = { | nKey, nFlags | IF(nKey==120,(oGet[17]:nLastkey:=11,oBot[3]:Click),.t.) }
     oBrwDet:bKeyDown := { |nKey| IF (nKey == VK_DELETE,(oQryComprasDet:lAppend := .f., oQryComprasDet:Delete(),;
                                                      oBrwDet:MakeTotals(),CalcTot(oGet,.T.),oBrwDet:Refresh(),oGet[17]:SetFocus()),.t.) }
-    oBrwDet:aCols[3]:nFooterTypE := AGGR_SUM
-    oBrwDet:aCols[11]:nFooterTypE := AGGR_SUM
-    oBrwDet:aCols[12]:nFooterTypE := AGGR_SUM
-    oBrwDet:aCols[13]:nFooterTypE := AGGR_SUM
+    oBrwDet:oCol(3):nFooterTypE := AGGR_SUM
+    oBrwDet:oCol(11):nFooterTypE := AGGR_SUM
+    oBrwDet:oCol(12):nFooterTypE := AGGR_SUM
+    oBrwDet:oCol(13):nFooterTypE := AGGR_SUM
     oBrwDet:MakeTotals()
 
     //DETALLE DE IVAS --------------------------------------------------------
@@ -375,17 +375,17 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
       FOOTERS;
       SIZES 40,87,80,80 ID 400 OF oDlg1 ON CHANGE (CalcTot(oGet,.F.),oBrwRet:SetFocus(),oBrwIvas:SetFocus())
     PintaBrw(oBrwIvas,0)
-    oBrwIvas:aCols[3]:nFooterTypE := AGGR_SUM
-    oBrwIvas:aCols[4]:nFooterTypE := AGGR_SUM
-    oBrwIvas:aCols[3]:lAutoSave := .t.
+    oBrwIvas:oCol(3):nFooterTypE := AGGR_SUM
+    oBrwIvas:oCol(4):nFooterTypE := AGGR_SUM
+    oBrwIvas:oCol(3):lAutoSave := .t.
     oBrwIvas:nMoveType := 4
-    oBrwIvas:aCols[3]:nEditType := EDIT_GET
-    *oBrwIvas:aCols[3]:bOnChange := {|| CalcTot(oGet,.F.)}
-    oBrwIvas:aCols[4]:lAutoSave := .t.
-    oBrwIvas:aCols[4]:nEditType := EDIT_GET
-    *oBrwIvas:aCols[4]:bOnChange := {|| CalcTot(oGet,.F.)}
-    oBrwIvas:aCols[3]:bOnPostEdit := {|oCol, xVal, nKey | (oQryIvaDet:neto:= xVal,oQryIvaDet:iva := xVal * oQryIvaDet:tasa/100,oQryIvaDet:Save()) }
-    oBrwIvas:aCols[4]:bOnPostEdit := {|oCol, xVal, nKey | (oQryIvaDet:iva := xVal,oQryIvaDet:neto:= IF(oQryIvaDet:neto=0,xVal / (oQryIvaDet:tasa/100),oQryIvaDet:neto),oQryIvaDet:Save()) }  
+    oBrwIvas:oCol(3):nEditType := EDIT_GET
+    *oBrwIvas:oCol(3):bOnChange := {|| CalcTot(oGet,.F.)}
+    oBrwIvas:oCol(4):lAutoSave := .t.
+    oBrwIvas:oCol(4):nEditType := EDIT_GET
+    *oBrwIvas:oCol(4):bOnChange := {|| CalcTot(oGet,.F.)}
+    oBrwIvas:oCol(3):bOnPostEdit := {|oCol, xVal, nKey | IF(nKey <> VK_ESCAPE, (oQryIvaDet:neto:= xVal,oQryIvaDet:iva := xVal * oQryIvaDet:tasa/100,oQryIvaDet:Save()), nil) }
+    oBrwIvas:oCol(4):bOnPostEdit := {|oCol, xVal, nKey | IF(nKey <> VK_ESCAPE, (oQryIvaDet:iva := xVal,oQryIvaDet:neto:= IF(oQryIvaDet:neto=0,xVal / (oQryIvaDet:tasa/100),oQryIvaDet:neto),oQryIvaDet:Save()), nil) }  
     oBrwIvas:MakeTotals()
 
     //DETALLE DE RETENCIONES --------------------------------------------------------
@@ -395,11 +395,11 @@ lPuedeCobrar := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHE
       FOOTERS;
       SIZES 40,113,90 ID 401 OF oDlg1  ON CHANGE (CalcTot(oGet,.F.),oBrwIvas:SetFocus(),oBrwRet:SetFocus()) 
     PintaBrw(oBrwRet,0)
-    oBrwRet:aCols[3]:nFooterTypE := AGGR_SUM
-    oBrwRet:aCols[3]:lAutoSave := .t.
+    oBrwRet:oCol(3):nFooterTypE := AGGR_SUM
+    oBrwRet:oCol(3):lAutoSave := .t.
     oBrwRet:nMoveType := 4
-    oBrwRet:aCols[3]:nEditType := EDIT_GET
-    *oBrwRet:aCols[3]:bOnChange := {|| CalcTot(oGet,.F.)}
+    oBrwRet:oCol(3):nEditType := EDIT_GET
+    *oBrwRet:oCol(3):bOnChange := {|| CalcTot(oGet,.F.)}
     oBrwRet:MakeTotals()
    
    
@@ -483,8 +483,8 @@ base:usuario:= oApp:usuario
 base:ip     := oApp:cIp
 base:fecmod := DATE()
 
-base:neto := oBrwIvas:aCols[3]:nTotal 
-base:iva  := oBrwIvas:aCols[4]:nTotal
+base:neto := oBrwIvas:oCol(3):nTotal 
+base:iva  := oBrwIvas:oCol(4):nTotal
 IF nTipoComp = 5
    base:importe := 0
    base:saldo := 0
@@ -901,7 +901,7 @@ oQryComprasDet:Save()
 //oBrwDet:Refresh()
 //oBrwDet:Maketotals()
 
-CalcTot(oGet,.T.,IF(lCant==nil,nil,{oBrwDet:aCols[11],oBrwDet:aCols[12],oBrwDet:aCols[13]}))
+CalcTot(oGet,.T.,IF(lCant==nil,nil,{oBrwDet:oCol(11),oBrwDet:oCol(12),oBrwDet:oCol(13)}))
 
 RETURN nil
 
@@ -1012,10 +1012,10 @@ IF lCalcular
 ENDIF
 oBrwRet:MakeTotals()
 oBrwIvas:MakeTotals()
-oGet[42]:cText:= (oBrwIvas:aCols[3]:nTotal + oBrwIvas:aCols[4]:nTotal +  oBrwRet:aCols[3]:nTotal + base:nograbado) *;
+oGet[42]:cText:= (oBrwIvas:oCol(3):nTotal + oBrwIvas:oCol(4):nTotal +  oBrwRet:oCol(3):nTotal + base:nograbado) *;
                  IF( oGet[1]:nAt = 5,0,1) 
 IF lNoComputarIVA .and. oGet[1]:nAt <> 5
-   oGet[42]:cText := oBrwRet:aCols[3]:nTotal + base:nograbado + oBrwDet:aCols[13]:nTotal 
+   oGet[42]:cText := oBrwRet:oCol(3):nTotal + base:nograbado + oBrwDet:oCol(13):nTotal 
 ENDIF
 oGet[42]:Refresh()
 RETURN .t.
@@ -1632,11 +1632,11 @@ DEFINE DIALOG oDlg1 TITLE "Pedidos a facturar" OF oWnd1 FROM 05,15 TO 21,65
                  SIZES 40,120,70;
          OF oDlg1 SIZE 190,97 PIXEL 
 oQryRem:bOnChangePage := {|| oBrwRem:Refresh() }
-oBrwRem:aCols[1]:SetCheck(nil,.f.)   
-oBrwRem:aCols[1]:bLDClickData := {|| CambiaChek(oQryRem,oBrwRem)}
-oBrwRem:aCols[1]:bKeyDown := {|nKey, nFlags| IF(nKey==13,nil,CambiaChek(oQryRem,oBrwRem))}
-oBrwRem:aCols[1]:nEditType := 1
-oBrwRem:aCols[1]:bEditValue:= {|| IF(oQryRem:tilde,.t.,.f.) }
+oBrwRem:oCol(1):SetCheck(nil,.f.)   
+oBrwRem:oCol(1):bLDClickData := {|| CambiaChek(oQryRem,oBrwRem)}
+oBrwRem:oCol(1):bKeyDown := {|nKey, nFlags| IF(nKey==13,nil,CambiaChek(oQryRem,oBrwRem))}
+oBrwRem:oCol(1):nEditType := 1
+oBrwRem:oCol(1):bEditValue:= {|| IF(oQryRem:tilde,.t.,.f.) }
 oBrwRem:CreateFromcode()
 PintaBrw(oBrwRem,0)
 
@@ -1764,11 +1764,11 @@ DEFINE DIALOG oDlg1 TITLE "Agendar vencimiento" FROM 03,15 TO 29,70 OF oApp:oWnd
       COLUMNS 1, 2 ;
       CELL LINES NOBORDER
    WITH OBJECT oBrwU
-      :aCols[2]:nEditType := EDIT_GET
+      :oCol(2):nEditType := EDIT_GET
       :lRecordSelector := .f.
-      :aCols[2]:SetCheck()
-      :aCols[2]:nWidth := 70
-      :aCols[2]:nHeadStrAlign := AL_CENTER
+      :oCol(2):SetCheck()
+      :oCol(2):nWidth := 70
+      :oCol(2):nHeadStrAlign := AL_CENTER
       :nStretchCol := 1
       :nFreeze := 2
       :lHScroll := .f.

@@ -233,34 +233,34 @@ ENDIF
             SIZES 40,340,105,105,55,55,55,55,105,55,55 ID 1000 OF oDlg1 WHEN(oQryDet:RecCount()>0)
    ENDIF   
    PintaBrw(oBrwDet,0)
-   oBrwDet:aCols[2]:nFooterTypE := AGGR_COUNT
-   oBrwDet:aCols[3]:nFooterTypE := AGGR_SUM
-   oBrwDet:aCols[5]:nFooterTypE := AGGR_SUM
-   oBrwDet:aCols[6]:nFooterTypE := AGGR_SUM
-   oBrwDet:aCols[7]:nFooterTypE := AGGR_SUM
-   oBrwDet:aCols[8]:nFooterTypE := AGGR_SUM
-   oBrwDet:aCols[9]:nFooterTypE := AGGR_SUM
-   oBrwDet:aCols[11]:nFooterTypE := AGGR_SUM
-   oBrwDet:aCols[2]:bEditWhen := {| |SiEsDepto(oQryDet)}
-   oBrwDet:aCols[2]:nEditType := EDIT_GET
+   oBrwDet:oCol(2):nFooterTypE := AGGR_COUNT
+   oBrwDet:oCol(3):nFooterTypE := AGGR_SUM
+   oBrwDet:oCol(5):nFooterTypE := AGGR_SUM
+   oBrwDet:oCol(6):nFooterTypE := AGGR_SUM
+   oBrwDet:oCol(7):nFooterTypE := AGGR_SUM
+   oBrwDet:oCol(8):nFooterTypE := AGGR_SUM
+   oBrwDet:oCol(9):nFooterTypE := AGGR_SUM
+   oBrwDet:oCol(11):nFooterTypE := AGGR_SUM
+   oBrwDet:oCol(2):bEditWhen := {| |SiEsDepto(oQryDet)}
+   oBrwDet:oCol(2):nEditType := EDIT_GET
    IF (oApp:modifica_precios .or. lAdmin) .AND. "M"$cPermisos
-      oBrwDet:aCols[4]:nEditType := EDIT_GET
+      oBrwDet:oCol(4):nEditType := EDIT_GET
    ENDIF
    IF "M"$cPermisos
-      oBrwDet:aCols[3]:nEditType := EDIT_GET
+      oBrwDet:oCol(3):nEditType := EDIT_GET
    ENDIF
-   oBrwDet:aCols[4]:bEditValid := ;
+   oBrwDet:oCol(4):bEditValid := ;
        {|oGet| IF(oGet:Value <= 0,MsgStop("Ponga un importe valido","Error")<>nil,.t.)}   
-   oBrwDet:aCols[3]:bOnPostEdit := { |oCol,xval,nkey| CambiaCant(xval,1)} 
-   oBrwDet:aCols[4]:bOnPostEdit := { |oCol,xval,nkey| CambiaCant(xval,2)} 
+   oBrwDet:oCol(3):bOnPostEdit := { |oCol,xval,nkey| IF(nkey <> VK_ESCAPE, CambiaCant(xval,1), nil) } 
+   oBrwDet:oCol(4):bOnPostEdit := { |oCol,xval,nkey| IF(nkey <> VK_ESCAPE, CambiaCant(xval,2), nil) } 
 
    oBrwDet:MakeTotals()
-   oBrwDet:aCols[1]:Hide()
+   oBrwDet:oCol(1):Hide()
    FOR i:= 5 TO 8 
-       oBrwDet:aCols[i]:Hide() 
+       oBrwDet:oCol(i):Hide() 
    NEXT i  
-   oBrwDet:aCols[10]:Hide()
-   oBrwDet:aCols[11]:Hide()
+   oBrwDet:oCol(10):Hide()
+   oBrwDet:oCol(11):Hide()
    
    REDEFINE GET oGet[02] VAR nCodArt   ID 10 OF oDlg1 PICTURE "99999999999999" FONT oFont2;
                 ACTION (oGet[02]:cText:= 0, BuscarArt(oQryArt,oDlg1,oGet[2],oGet[7],'0','nosale'),;
@@ -428,7 +428,7 @@ IF n = 1
    oQryDet:Refresh()
    oBrwDet:Refresh()
    oBrwDet:MakeTotals()
-   nTotal := ROUND(oBrwDet:aCols[9]:nTotal,2)
+   nTotal := ROUND(oBrwDet:oCol(9):nTotal,2)
    oGet[06]:Refresh()
    ActualizarDisplayCliente()
    ELSE 
@@ -449,7 +449,7 @@ IF n = 1
       oQryDet:Refresh()
       oBrwDet:Refresh()
       oBrwDet:MakeTotals()
-      nTotal := ROUND(oBrwDet:aCols[9]:nTotal,2)
+      nTotal := ROUND(oBrwDet:oCol(9):nTotal,2)
       oGet[06]:Refresh()
       ActualizarDisplayCliente()
    ENDIF
@@ -726,7 +726,7 @@ IF lFisc
          RETURN nil 
       ENDIF           
       FacturaElec1( nPuntoVta, 1, cLetra, aTablaIva, @nNumero, @cCae, @dFecVtoC,@nTipFor,;
-                   dFecha,oQryCliAux:cuit,oQryCliAux:dni,oBrwDet:aCols[7]:nTotal,oBrwDet:aCols[8]:nTotal,oBrwDet:aCols[9]:nTotal,oBrwDet:aCols[11]:nTotal,oQryCliAux:coniva)
+                   dFecha,oQryCliAux:cuit,oQryCliAux:dni,oBrwDet:oCol(7):nTotal,oBrwDet:oCol(8):nTotal,oBrwDet:oCol(9):nTotal,oBrwDet:oCol(11):nTotal,oQryCliAux:coniva)
       ELSE 
       nNumero := FacturaFiscal(oQryDet,oGet[08]:Value)
       nPuntoVta:=  oApp:oServer:Query("SELECT caja FROM ge_"+oApp:cId+"punto WHERE ip = "+ ClipValue2Sql(oApp:cip)):caja
@@ -880,14 +880,14 @@ cNumComp := STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNumero,8)," ","0")
       oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ventas_encab (ticomp,letra,numcomp,codcli,fecha,neto,iva,importe,tipopag,observa,"+;
                                                       "nombre,cuit,dni,direccion,localidad,usuario,fecmod,ip,coniva,condven,formapag,cae,fecvto,tipfor,sobretasa,hora,puntos,puntosacu,vendedor) VALUES "+;
                            "('FC',"+ClipValue2Sql(cLetra)+","+ClipValue2Sql(cNumComp)+","+ClipValue2Sql(nCliente)+","+;
-                            ClipValue2Sql(DATE())+","+ClipValue2Sql(oBrwDet:aCols[7]:nTotal)+","+ClipValue2Sql(oBrwDet:aCols[8]:nTotal)+","+;
+                            ClipValue2Sql(DATE())+","+ClipValue2Sql(oBrwDet:oCol(7):nTotal)+","+ClipValue2Sql(oBrwDet:oCol(8):nTotal)+","+;
                             ClipValue2Sql(nTotal)+",1,'PUNTO DE VENTA "+IF(nDescu>0," Dto: %"+ALLTRIM(STR(nDescu,6,2)),"")+"',"+;
                             ClipValue2Sql(oQryCliAux:nombre)+","+ClipValue2Sql(oQryCliAux:cuit)+","+;
                             ClipValue2Sql(oQryCliAux:dni)+","+ClipValue2Sql(oQryCliAux:direccion)+","+ClipValue2Sql(oQryCliAux:localidad)+","+;
                             ClipValue2Sql(oApp:usuario)+","+ClipValue2SQL(DATE())+","+ClipValue2SQL(oApp:cIp)+","+ClipValue2SQL(nCondicion)+;
                             ",1,"+ClipValue2Sql(nForma)+","+;
                             ClipValue2Sql(cCae)+","+ClipValue2Sql(dFecVtoC)+","+ClipValue2Sql(STRTRAN(STR(nTipFor,2)," ","0"))+;
-                            ","+ClipValue2Sql(oBrwDet:aCols[11]:nTotal)+;
+                            ","+ClipValue2Sql(oBrwDet:oCol(11):nTotal)+;
                             ",CURTIME(),"+Clipvalue2sql(nPuntos)+","+ClipValue2Sql(nPuntosAcu)+;
                             ","+ClipValue2Sql(ALLTRIM(mvendedor)) +")")          
 
@@ -988,7 +988,7 @@ oQryAux1:= oApp:oServer:Query("SELECT SUM(IF(descuento > 0,descuento,0)) AS desc
                               "FROM VENTAS_DET_H1")
 oGet[08]:cText:= oQryAux1:descu 
 oGet[09]:cText:= ABS(oQryAux1:recar)
-oGet[06]:cText:= ROUND(oBrwDet:aCols[9]:nTotal,2)
+oGet[06]:cText:= ROUND(oBrwDet:oCol(9):nTotal,2)
 oGet[06]:Refresh()
 oGet[08]:Refresh()
 ActualizarDisplayCliente()
@@ -1283,7 +1283,7 @@ oGet[07]:cText:=SPACE(30)
 oGet[01]:Refresh()
 oGet[02]:Refresh()
 oGet[03]:Refresh()
-nTotal := ROUND(oBrwDet:aCols[9]:nTotal,2)
+nTotal := ROUND(oBrwDet:oCol(9):nTotal,2)
 TextoPromo(oQryDet:codart)
 AvisoDisplay(oQryDet:codart, oQryDet:detart)
 ActualizarDisplayCliente()
@@ -1713,7 +1713,7 @@ DEFINE DIALOG oDlgC RESOURCE "FORMAPAGT" OF oDlg1
             FOOTERS ;
             SIZES 150,89 ID 500 OF oDlgC
    PintaBrw(oBrwPag,0)
-   oBrwPag:aCols[2]:nFooterTypE := AGGR_SUM
+   oBrwPag:oCol(2):nFooterTypE := AGGR_SUM
    oBrwPag:MakeTotals()
 
    REDEFINE BTNBMP oBot1[01] OF oDlgC ID 201 2007 CENTER WHEN(nMonto > 0) FONT oFontBot;
@@ -1766,14 +1766,14 @@ DEFINE DIALOG oDlgC RESOURCE "FORMAPAGT" OF oDlg1
 
    REDEFINE GET oGet1[1] VAR nMonto ID 101 OF oDlgC PICTURE "99999999.99" FONT oFontF
    REDEFINE GET oGet1[2] VAR nVueltoT ID 102 OF oDlgC PICTURE "99999999.99" FONT oFontF;
-                WHEN((oGet1[2]:cText:= IF(oBrwPag:aCols[2]:nTotal>nTotal,oBrwPag:aCols[2]:nTotal-nTotal,0)) = "xxx")
+                WHEN((oGet1[2]:cText:= IF(oBrwPag:oCol(2):nTotal>nTotal,oBrwPag:oCol(2):nTotal-nTotal,0)) = "xxx")
    REDEFINE GET oGet1[3] VAR nTotal ID 103 OF oDlgC PICTURE "99999999.99" WHEN(.F.) FONT oFontF
    
    REDEFINE BTNBMP oBot[26] ID 401 OF oDlgC PROMPT "Aceptar [F12]" 2007 CENTER ACTION(lRta:=.t.,oDlgC:End())
    *REDEFINE BTNBMP oBot[26] ID 402 OF oDlgC 2007 CENTER ACTION(lRta:=.f.,oDlgC:End()) 
    REDEFINE BTNBMP oBot[27] ID 403 OF oDlgC 2007 CENTER ;
                    ACTION(oQryPag:Delete(),oBrwPag:Refresh(),oBrwPag:MakeTotals(),;
-                          oGet1[1]:cText:= IF((nTotal-oBrwPag:aCols[2]:nTotal) > 0,nTotal-oBrwPag:aCols[2]:nTotal,0),oGet1[1]:SetFocus()) WHEN(oQryPag:RecCount() > 0)
+                          oGet1[1]:cText:= IF((nTotal-oBrwPag:oCol(2):nTotal) > 0,nTotal-oBrwPag:oCol(2):nTotal,0),oGet1[1]:SetFocus()) WHEN(oQryPag:RecCount() > 0)
    oDlgC:bKeyDown = { | nKey, nFlags | (oGet1[1]:assign(),IF(nKey==113,oBot1[01]:Click,;
                                        IF(nKey==114,oBot1[02]:Click,;
                                        IF(nKey==115,oBot1[03]:Click,;
@@ -1781,7 +1781,7 @@ DEFINE DIALOG oDlgC RESOURCE "FORMAPAGT" OF oDlg1
                                        IF(nKey==117,oBot1[05]:Click,;
                                        IF(nKey==118,oBot1[06]:Click,;
                                        IF(nKey==123,oBot[26]:Click,.F.))))))))}
-ACTIVATE DIALOG oDlgC CENTER ON INIT (PoneFormas(oBot1)) VALID ((nPagadoT:=oBrwPag:aCols[2]:nTotal) >=0)
+ACTIVATE DIALOG oDlgC CENTER ON INIT (PoneFormas(oBot1)) VALID ((nPagadoT:=oBrwPag:oCol(2):nTotal) >=0)
 IF !lRta
     nVuelto:= 0
     nPagado:= 0
@@ -1821,7 +1821,7 @@ IF oBoton:cargo > 0
     oQryPag:Refresh()
     oBrwPag:Refresh()
     oBrwPag:MakeTotals()
-    oGet1:cText:= IF((nTotal-oBrwPag:aCols[2]:nTotal) > 0,nTotal-oBrwPag:aCols[2]:nTotal,0)
+    oGet1:cText:= IF((nTotal-oBrwPag:oCol(2):nTotal) > 0,nTotal-oBrwPag:oCol(2):nTotal,0)
     ELSE 
     n := Val(oGet1:cText)
     oGet1:cText := 0
@@ -1835,7 +1835,7 @@ IF oBoton:cargo > 0
     oQryPag:Refresh()
     oBrwPag:Refresh()
     oBrwPag:MakeTotals()
-    oGet1:cText:= IF((nTotal-oBrwPag:aCols[2]:nTotal) > 0,nTotal-oBrwPag:aCols[2]:nTotal,0)
+    oGet1:cText:= IF((nTotal-oBrwPag:oCol(2):nTotal) > 0,nTotal-oBrwPag:oCol(2):nTotal,0)
 ENDIF
 RETURN nil
 
@@ -2431,7 +2431,7 @@ oGet[07]:cText:=SPACE(30)
 oGet[01]:Refresh()
 oGet[02]:Refresh()
 oGet[03]:Refresh()
-nTotal := ROUND(oBrwDet:aCols[9]:nTotal,2)
+nTotal := ROUND(oBrwDet:oCol(9):nTotal,2)
 ActualizarDisplayCliente()
 RETURN nil
 

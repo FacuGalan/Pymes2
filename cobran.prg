@@ -138,53 +138,57 @@ DO WHILE .T.
                   HEADERS "Tipo","L","Numero","Fecha","Importe" FOOTERS;
                   SIZES 30,20,95,70,100 ID 4003 OF oDlg ON CHANGE  Mostrar1(oQryDeu:ticomp,oQryDeu:letra,oQryDeu:numcomp)
         PintaBrw(oBrwD,0)
+        oBrwD:lAllowColSwapping := .F.
 
         REDEFINE XBROWSE oBrw DATASOURCE oQry;
                   COLUMNS "cuota","cantcuo","cuota","fecha","saldo","pagado","saldonue","Importe","aplicado","interes","saldodolar";
                   HEADERS "Cuota","De"," ","Fecha","Saldo","Pagado","Nuevo Saldo","Origen","Aplicado","Interes","Saldo u$s" FOOTERS;
                   SIZES 35,30,95,75,75,75,75,75,75,75,75 ID 20 OF oDlg 
-        oBrw:aCols[3]:Hide()
-        oBrw:aCols[10]:Hide()
-        oBrw:aCols[5]:nFooterType := AGGR_SUM
-        oBrw:aCols[6]:nFooterType := AGGR_SUM
-        oBrw:aCols[7]:nFooterType := AGGR_SUM
-        oBrw:aCols[8]:nFooterType := AGGR_SUM
-        oBrw:aCols[9]:nFooterType := AGGR_SUM
-        oBrw:aCols[6]:lAutoSave := .t.
-        oBrw:aCols[6]:nEditType := EDIT_GET  
-        //oBrw:aCols[6]:bEditValid  := {|oGet, oCol| ControlSaldo(oGet:value,EVAL(oBrw:aCols[5]:bEditValue))} 
-        oBrw:aCols[6]:bOnPostEdit := {|oCol, xVal, nKey | CambiaSaldo(xval)}  
-        oBrw:aCols[6]:bOnChange := {|| oBot[3]:SetFocus(),oBrw:SetFocus(),mentrega:=oApp:oServer:Query("SELECT SUM(pagado) AS suma FROM tranci_pagos"):suma-nAnticipo,oGet[4]:Refresh()}
+        oBrw:oCol(3):Hide()
+        oBrw:oCol(10):Hide()
+        oBrw:oCol(5):nFooterType := AGGR_SUM
+        oBrw:oCol(6):nFooterType := AGGR_SUM
+        oBrw:oCol(7):nFooterType := AGGR_SUM
+        oBrw:oCol(8):nFooterType := AGGR_SUM
+        oBrw:oCol(9):nFooterType := AGGR_SUM
+        oBrw:oCol(6):lAutoSave := .t.
+        oBrw:oCol(6):nEditType := EDIT_GET  
+        //oBrw:oCol(6):bEditValid  := {|oGet, oCol| ControlSaldo(oGet:value,EVAL(oBrw:oCol(5):bEditValue))} 
+        oBrw:oCol(6):bOnPostEdit := {|oCol, xVal, nKey | IF(nKey <> VK_ESCAPE, CambiaSaldo(xval), nil) }  
+        oBrw:oCol(6):bOnChange := {|| oBot[3]:SetFocus(),oBrw:SetFocus(),mentrega:=oApp:oServer:Query("SELECT SUM(pagado) AS suma FROM tranci_pagos"):suma-nAnticipo,oGet[4]:Refresh()}
         PintaBrw(oBrw,0)    
+        oBrw:lAllowColSwapping := .F.
         ELSE 
         REDEFINE XBROWSE oBrw DATASOURCE oQry;
                   COLUMNS "tipo","numcomp","cuota","fecha","saldo","pagado","saldonue","Importe","aplicado","interes","saldodolar";
                   HEADERS "Tip","Nro comprobante"," ","Fecha","Saldo","Pagado","Nuevo Saldo","Origen","Aplicado","Interes","Saldo u$s" FOOTERS;
                   SIZES 90,250,40,90,90,90,90,90,90,90 ID 20 OF oDlg ON DBLCLICK VerFactura(oQry)
-        oBrw:aCols[3]:Hide()
-        oBrw:aCols[10]:Hide()
-        oBrw:aCols[11]:Hide()
-        oBrw:aCols[5]:nFooterType := AGGR_SUM
-        oBrw:aCols[6]:nFooterType := AGGR_SUM
-        oBrw:aCols[7]:nFooterType := AGGR_SUM
-        oBrw:aCols[8]:nFooterType := AGGR_SUM
-        oBrw:aCols[9]:nFooterType := AGGR_SUM
-        oBrw:aCols[6]:lAutoSave := .t.
-        oBrw:aCols[6]:nEditType := EDIT_GET  
-        //oBrw:aCols[6]:bEditValid  := {|oGet, oCol| ControlSaldo(oGet:value,EVAL(oBrw:aCols[5]:bEditValue))} 
-        oBrw:aCols[6]:bOnPostEdit := {|oCol, xVal, nKey | CambiaSaldo(xval)}  
-        oBrw:aCols[6]:bOnChange := {|| oBot[3]:SetFocus(),oBrw:SetFocus(),mentrega:=oApp:oServer:Query("SELECT SUM(pagado) AS suma FROM tranci_pagos"):suma-nAnticipo,oGet[4]:Refresh()}
+        oBrw:oCol(3):Hide()
+        oBrw:oCol(10):Hide()
+        oBrw:oCol(11):Hide()
+        oBrw:oCol(5):nFooterType := AGGR_SUM
+        oBrw:oCol(6):nFooterType := AGGR_SUM
+        oBrw:oCol(7):nFooterType := AGGR_SUM
+        oBrw:oCol(8):nFooterType := AGGR_SUM
+        oBrw:oCol(9):nFooterType := AGGR_SUM
+        oBrw:oCol(6):lAutoSave := .t.
+        oBrw:oCol(6):nEditType := EDIT_GET  
+        //oBrw:oCol(6):bEditValid  := {|oGet, oCol| ControlSaldo(oGet:value,EVAL(oBrw:oCol(5):bEditValue))} 
+        oBrw:oCol(6):bOnPostEdit := {|oCol, xVal, nKey | IF(nKey <> VK_ESCAPE, CambiaSaldo(xval), nil) }  
+        oBrw:oCol(6):bOnChange := {|| oBot[3]:SetFocus(),oBrw:SetFocus(),mentrega:=oApp:oServer:Query("SELECT SUM(pagado) AS suma FROM tranci_pagos"):suma-nAnticipo,oGet[4]:Refresh()}
         PintaBrw(oBrw,0)     
+        oBrw:lAllowColSwapping := .F.
     ENDIF
     REDEFINE XBROWSE oBrwCheT DATASOURCE oQryCheT;
               COLUMNS "tilde","nomban","numche","fecvto","importe";
               HEADERS "","Banco","Numero","Vto.","Importe" FOOTERS;
               SIZES 30,150,50,70,65,70 ID 30 OF oDlg AUTOSORT
     PintaBrw(oBrwCheT,0)
-    oBrwCheT:aCols[1]:SetCheck(nil,.f.)   
-    *oBrwCheT:aCols[1]:bLDClickData := {|| CambiaChek(oQryCheT,oBrwCheT)}
-    *oBrwCheT:aCols[1]:nEditType := 1
-    oBrwCheT:aCols[1]:bEditValue := { || IF(oQryCheT:tilde,.t.,.f.) }
+    oBrwCheT:lAllowColSwapping := .F.
+    oBrwCheT:oCol(1):SetCheck(nil,.f.)   
+    *oBrwCheT:oCol(1):bLDClickData := {|| CambiaChek(oQryCheT,oBrwCheT)}
+    *oBrwCheT:oCol(1):nEditType := 1
+    oBrwCheT:oCol(1):bEditValue := { || IF(oQryCheT:tilde,.t.,.f.) }
     oBrwCheT:bKeyDown := { |nKey| IF (nKey == VK_DELETE,(DelCheqT(),oBrwCheT:Refresh(),CalcTot()),)}
 
     REDEFINE GET oGet[06] VAR nEfectivo      ID 200  OF oDlg PICTURE "999999999.99"
@@ -201,8 +205,9 @@ DO WHILE .T.
               HEADERS "Retencion","Importe" FOOTERS;
               SIZES 120,80 ID 31 OF oDlg WHEN(!lEdita)
     PintaBrw(oBrwRet,0)        
-    oBrwRet:aCols[2]:nEditType := 1
-    oBrwRet:aCols[2]:nFooterType := AGGR_SUM
+    oBrwRet:lAllowColSwapping := .F.
+    oBrwRet:oCol(2):nEditType := 1
+    oBrwRet:oCol(2):nFooterType := AGGR_SUM
     oBrwRet:lRecordSelector := .f.
 
     REDEFINE GET oGet[13] VAR mobserva ID 4002 OF oDlg PICTURE "@!"              
@@ -267,8 +272,8 @@ RETURN .t.
 STATIC FUNCTION CalcTot()
 oGet[08]:cText:= oApp:oServer:Query("SELECT SUM(importe) AS suma FROM transi_chequeT1 WHERE tilde = 1"):suma
 *oGet[09]:cText:= oApp:oServer:Query("SELECT SUM(importe) AS suma FROM transi_chequeP "):suma
-oGet[15]:cText:= oGet[6]:value + oGet[7]:value + oGet[8]:value + oGet[9]:value + oGet[12]:Value + oGet[20]:Value + oBrwRet:aCols[2]:nTotal
-oGet[17]:cText:= oBrw:aCols[6]:nTotal 
+oGet[15]:cText:= oGet[6]:value + oGet[7]:value + oGet[8]:value + oGet[9]:value + oGet[12]:Value + oGet[20]:Value + oBrwRet:oCol(2):nTotal
+oGet[17]:cText:= oBrw:oCol(6):nTotal 
 oGet[14]:cText:= oGet[17]:value - oGet[15]:value 
 
 RETURN .f.
@@ -279,8 +284,8 @@ RETURN .f.
 STATIC FUNCTION Grabar()
 LOCAL nPago:=0,oError,mRta:=.f.,nCodCue:=0,nNumOpe:=0,cObserva:=SPACE(255),nNumDep,;
       lCuenta:=.f., nInteres := 0, nNuevoSaldo := 0
-IF oBrw:aCols[6]:nTotal <= 0 .AND. oApp:oServer:Query("SELECT * FROM tranci_pagos WHERE pagado <> 0"):RecCount()=0 ;
-    .AND. oBrw:aCols[5]:nTotal <> 0
+IF oBrw:oCol(6):nTotal <= 0 .AND. oApp:oServer:Query("SELECT * FROM tranci_pagos WHERE pagado <> 0"):RecCount()=0 ;
+    .AND. oBrw:oCol(5):nTotal <> 0
    MsgStop("No marco ninguna factura para pagar","Atencion")   
    RETURN .f.
 ENDIF
@@ -303,7 +308,7 @@ nTotRet:= oApp:oServer:Query("SELECT SUM(importe) AS total FROM transi_ret"):tot
 //Validar que los valores de la deuda esten iguales
 IF ROUND(oApp:oServer:Query("SELECT SUM(v.saldo*IF(v.tipo='NC',-1,1)) AS saldo FROM tranci_pagos t "+;
                       " LEFT JOIN ge_"+oApp:cId+"ventas_cuota v "+;
-                      " ON CONCAT(v.tipo,v.letra,v.numero) = CONCAT(t.tipo,t.numcomp) "):saldo,2) <> ROUND(oBrw:aCols[5]:nTotal,2)
+                      " ON CONCAT(v.tipo,v.letra,v.numero) = CONCAT(t.tipo,t.numcomp) "):saldo,2) <> ROUND(oBrw:oCol(5):nTotal,2)
    MsgStop("Los saldos de las facturas han cambiado."+CHR(10)+;
            "Verifique si otro puesto de trabajo ha aplicado pagos!" ,"ERROR")
    RETURN .f.
@@ -322,7 +327,7 @@ TRY
             oQry:Skip()
          ENDDO
      ENDIF
-     nNuevoSaldo := oBrw:aCols[5]:nTotal -;
+     nNuevoSaldo := oBrw:oCol(5):nTotal -;
                   (nEfectivo+nTransferencia+nTarjeta+nCheqT+nTotRet+nMPago) - nAnticipo
      mobserva := ALLTRIM(mobserva) + IF(nNuevoSaldo <> 0 ," - (Saldo de su cuenta: $ "+STR(nNuevoSaldo,15,2)+")","")
      ** Agrego pago 
@@ -331,7 +336,7 @@ TRY
                          " ("+;
                              ClipValue2Sql(mcodcli)+","+;
                              ClipValue2Sql(nEfectivo+nTransferencia+nTarjeta+nCheqT+nTotRet+nMPago)+","+;
-                             ClipValue2Sql(oBrw:aCols[6]:nTotal)+","+;
+                             ClipValue2Sql(oBrw:oCol(6):nTotal)+","+;
                              ClipValue2Sql(mobserva)+","+;
                              ClipValue2Sql(mfecha)+","+;
                              ClipValue2Sql(oApp:prefijo)+","+;

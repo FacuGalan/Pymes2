@@ -235,24 +235,24 @@ nFormaPago:=1
     ID 197 OF oDlg AUTOSORT
     PintaBrw(oBrw,0)
     
-    oBrw:aCols[8]:nFooterTypE := AGGR_SUM
-    oBrw:aCols[4]:nFooterTypE := AGGR_SUM
-    oBrw:aCols[5]:nFooterTypE := AGGR_SUM
-    oBrw:aCols[6]:nFooterTypE := AGGR_SUM
-    oBrw:aCols[7]:nFooterTypE := AGGR_SUM
-    oBrw:aCols[11]:nFooterTypE := AGGR_SUM
-    oBrw:aCols[13]:nFooterTypE := AGGR_SUM
-    oBrw:aCols[9]:Hide()
-    oBrw:aCols[3]:lAutoSave := .t.
-    oBrw:aCols[3]:nEditType := EDIT_GET 
-    oBrw:aCols[13]:lAutoSave := .t.
-    oBrw:aCols[13]:nEditType := EDIT_GET 
-    oBrw:aCols[3]:bOnPostEdit := {|oCol, xVal, nKey | IF(oQryDet:DEREMITO,MsgStop("No se puede modificar los valores del remito","Atencion!"),CambiaCant(xval,,))} 
+    oBrw:oCol(8):nFooterTypE := AGGR_SUM
+    oBrw:oCol(4):nFooterTypE := AGGR_SUM
+    oBrw:oCol(5):nFooterTypE := AGGR_SUM
+    oBrw:oCol(6):nFooterTypE := AGGR_SUM
+    oBrw:oCol(7):nFooterTypE := AGGR_SUM
+    oBrw:oCol(11):nFooterTypE := AGGR_SUM
+    oBrw:oCol(13):nFooterTypE := AGGR_SUM
+    oBrw:oCol(9):Hide()
+    oBrw:oCol(3):lAutoSave := .t.
+    oBrw:oCol(3):nEditType := EDIT_GET 
+    oBrw:oCol(13):lAutoSave := .t.
+    oBrw:oCol(13):nEditType := EDIT_GET 
+    oBrw:oCol(3):bOnPostEdit := {|oCol, xVal, nKey | IF(nKey <> VK_ESCAPE, IF(oQryDet:DEREMITO,MsgStop("No se puede modificar los valores del remito","Atencion!"),CambiaCant(xval,,)), nil) } 
     
     IF oApp:modifica_precios
-       oBrw:aCols[4]:lAutoSave := .t.
-       oBrw:aCols[4]:nEditType := EDIT_GET 
-       oBrw:aCols[4]:bOnPostEdit := {|oCol, xVal, nKey | CambiaCant(,,xval)} 
+       oBrw:oCol(4):lAutoSave := .t.
+       oBrw:oCol(4):nEditType := EDIT_GET 
+       oBrw:oCol(4):bOnPostEdit := {|oCol, xVal, nKey | IF(nKey <> VK_ESCAPE, CambiaCant(,,xval), nil) } 
     ENDIF   
     
     //BOTONES ---------------------------------------------------------------
@@ -261,7 +261,7 @@ nFormaPago:=1
     //cancelar
     REDEFINE BUTTON oBot[2] ID 102 ACTION (LimpiarForm()) 
     //grabar
-    REDEFINE BUTTON oBot[3] ID 103 ACTION Validaciones() WHEN(oBrw:aCols[8]:nTotal > 0)
+    REDEFINE BUTTON oBot[3] ID 103 ACTION Validaciones() WHEN(oBrw:oCol(8):nTotal > 0)
     //salir
     REDEFINE BUTTON oBot[4] ID 104 ACTION (oDlg:End()) CANCEL 
     //+
@@ -276,7 +276,7 @@ nFormaPago:=1
     //ACTiVACION   ---------------------------------------------------------------
     ACTIVATE DIALOG oDlg CENTER NOWAIT ON INIT ;
     IF(!oApp:usabultosventa,;
-        (oBrw:aCols[12]:Hide(),oDlg:Move(0,0)),;
+        (oBrw:oCol(12):Hide(),oDlg:Move(0,0)),;
         oDlg:Move(0,0)) ;
      VALID(oWnd1:End())
     ACTIVATE WINDOW oWnd1 ON INIT Incrusta( oWnd1, oDlg, .T.) VALID(cerrar())
@@ -436,8 +436,8 @@ oQryDet:Refresh()
 oBrw:Refresh()
 oBrw:MakeTotals()
 cLetra := IF(oApp:tipo_iva<>6,IF(oGet[13]:nAt = 1 .or. oGet[13]:nAt = 2 .or. oGet[13]:nAt = 6 ,"A","B"),"C")
-oGet[19]:cText := oBrw:aCols[7]:nTotal 
-oGet[20]:cText := oBrw:aCols[8]:nTotal  
+oGet[19]:cText := oBrw:oCol(7):nTotal 
+oGet[20]:cText := oBrw:oCol(8):nTotal  
 oGet[14]:cText:=1
 oGet[14]:Refresh()
 oGet[15]:cText:=SPACE(70)
@@ -450,10 +450,10 @@ FOR i:= 16 TO 18
    oGet[i]:Refresh()
    oGet[i+10]:Refresh()
 NEXT i
-oGet[19]:cText := oBrw:aCols[6]:nTotal 
-oGet[20]:cText := oBrw:aCols[7]:nTotal     
-oGet[38]:cText := oBrw:aCols[6]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
-oGet[21]:cText := oBrw:aCols[8]:nTotal + oGet[38]:value
+oGet[19]:cText := oBrw:oCol(6):nTotal 
+oGet[20]:cText := oBrw:oCol(7):nTotal     
+oGet[38]:cText := oBrw:oCol(6):nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
+oGet[21]:cText := oBrw:oCol(8):nTotal + oGet[38]:value
 oGet[19]:Refresh()
 oGet[20]:Refresh()
 oGet[21]:Refresh()
@@ -628,10 +628,10 @@ oQryDet:Save()
 oQryDet:Refresh()
 oBrw:Refresh()
 oBrw:Maketotals()
-oGet[19]:cText := oBrw:aCols[6]:nTotal 
-oGet[20]:cText := oBrw:aCols[7]:nTotal     
-oGet[38]:cText := oBrw:aCols[7]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
-oGet[21]:cText := oBrw:aCols[8]:nTotal + oGet[38]:value
+oGet[19]:cText := oBrw:oCol(6):nTotal 
+oGet[20]:cText := oBrw:oCol(7):nTotal     
+oGet[38]:cText := oBrw:oCol(7):nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
+oGet[21]:cText := oBrw:oCol(8):nTotal + oGet[38]:value
 oGet[19]:Refresh()
 oGet[20]:Refresh()
 oGet[21]:Refresh()
@@ -682,10 +682,10 @@ oQryDet:Save()
 oQryDet:Refresh()
 oBrw:Refresh()
 oBrw:Maketotals()
-oGet[19]:cText := oBrw:aCols[6]:nTotal 
-oGet[20]:cText := oBrw:aCols[7]:nTotal     
-oGet[38]:cText := oBrw:aCols[6]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
-oGet[21]:cText := oBrw:aCols[8]:nTotal + oGet[38]:value
+oGet[19]:cText := oBrw:oCol(6):nTotal 
+oGet[20]:cText := oBrw:oCol(7):nTotal     
+oGet[38]:cText := oBrw:oCol(6):nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
+oGet[21]:cText := oBrw:oCol(8):nTotal + oGet[38]:value
 oGet[19]:Refresh()
 oGet[20]:Refresh()
 oGet[21]:Refresh()
@@ -721,11 +721,11 @@ DEFINE DIALOG oDlg1 TITLE "Remitos a facturar" OF oWnd1 FROM 05,15 TO 23,65
                  SIZES 40,120,70;
          OF oDlg1 SIZE 190,97 PIXEL 
 oQryRem:bOnChangePage := {|| oBrwRem:Refresh() }
-oBrwRem:aCols[1]:SetCheck(nil,.f.)   
-oBrwRem:aCols[1]:bLDClickData := {|| CambiaChek(oQryRem,oBrwRem)}
-oBrwRem:aCols[1]:bKeyDown := {|nKey, nFlags| IF(nKey==13,nil,CambiaChek(oQryRem,oBrwRem))}
-oBrwRem:aCols[1]:nEditType := 1
-oBrwRem:aCols[1]:bEditValue:= {|| IF(oQryRem:tilde,.t.,.f.) }
+oBrwRem:oCol(1):SetCheck(nil,.f.)   
+oBrwRem:oCol(1):bLDClickData := {|| CambiaChek(oQryRem,oBrwRem)}
+oBrwRem:oCol(1):bKeyDown := {|nKey, nFlags| IF(nKey==13,nil,CambiaChek(oQryRem,oBrwRem))}
+oBrwRem:oCol(1):nEditType := 1
+oBrwRem:oCol(1):bEditValue:= {|| IF(oQryRem:tilde,.t.,.f.) }
 oBrwRem:CreateFromcode()
 PintaBrw(oBrwRem,0)
 
@@ -831,14 +831,14 @@ ActualizarDet(lRespetaPrecios)
 oBrw:Refresh()
 oBrw:Maketotals()
 IF cLetra = "A"
-   oGet[19]:cText := oBrw:aCols[6]:nTotal 
-   oGet[20]:cText := oBrw:aCols[7]:nTotal 
+   oGet[19]:cText := oBrw:oCol(6):nTotal 
+   oGet[20]:cText := oBrw:oCol(7):nTotal 
    ELSE
    oGet[19]:cText := 0
    oGet[20]:cText := 0
 ENDIF     
-oGet[38]:cText := oBrw:aCols[6]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
-oGet[21]:cText := oBrw:aCols[8]:nTotal + oGet[38]:value
+oGet[38]:cText := oBrw:oCol(6):nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
+oGet[21]:cText := oBrw:oCol(8):nTotal + oGet[38]:value
 oGet[19]:Refresh()
 oGet[20]:Refresh()
 oGet[21]:Refresh()
@@ -880,9 +880,9 @@ oBrw:Maketotals()
 oGet[37]:cText:=0
 oGet[23]:cText:=SPACE(255)
 oGet[38]:cText:=0
-oGet[19]:cText := oBrw:aCols[6]:nTotal 
-oGet[20]:cText := oBrw:aCols[7]:nTotal      
-oGet[21]:cText := oBrw:aCols[8]:nTotal
+oGet[19]:cText := oBrw:oCol(6):nTotal 
+oGet[20]:cText := oBrw:oCol(7):nTotal      
+oGet[21]:cText := oBrw:oCol(8):nTotal
 oGet[19]:Refresh()
 oGet[20]:Refresh()
 oGet[21]:Refresh()
@@ -944,8 +944,8 @@ cLetra := IF(oApp:tipo_iva<>6,IF(oGet[13]:nAt = 1 .or. oGet[13]:nAt = 2  .or. oG
 nNro:= oApp:oServer:Query("SELECT "+IF(cLetra="A","facturaa","facturab")+"+1 AS num FROM ge_"+oApp:cId+"punto WHERE ip = "+ClipValue2Sql(oApp:cip)):num
 cNumComp := cLetra+STRTRAN(STR(nPuntoVta,4)+"-"+STR(nNro,8)," ","0")
 oGet[06]:Refresh()
-oGet[19]:cText := oBrw:aCols[6]:nTotal 
-oGet[20]:cText := oBrw:aCols[7]:nTotal    
+oGet[19]:cText := oBrw:oCol(6):nTotal 
+oGet[20]:cText := oBrw:oCol(7):nTotal    
 oSay1:SetText(cLetra) 
 oGet[19]:Refresh()
 oGet[20]:Refresh()
@@ -1090,12 +1090,12 @@ DEFINE DIALOG oDlg2 RESOURCE "FORMAPAGV" OF oDlg
     ID 4003 OF oDlg2 
     PintaBrw(oBrw2,0)
     oBrw2:nMarqueeStyle := 6
-    oBrw2:aCols[3]:nFooterTypE := AGGR_SUM
+    oBrw2:oCol(3):nFooterTypE := AGGR_SUM
     oBrw2:MakeTotals()
 
     REDEFINE BUTTON oBot[1] ID 116 OF oDlg2 ACTION ;
                (AddCheqT(oBot[1]),oBrw1:Refresh(),oBrw1:MakeTotals(),;
-                                oGet1[7]:cText := oBrw1:aCols[6]:nTotal,oGet1[7]:Refresh())
+                                oGet1[7]:cText := oBrw1:oCol(6):nTotal,oGet1[7]:Refresh())
     REDEFINE XBROWSE oBrw1  ID 120  OF oDlg2 DATASOURCE oQryChe ;
               COLUMNS "tipo","numban","numche","fecemi","fecvto","importe";
               HEADERS "Tipo","Banco","Numero","Emision","Vto.","Importe" FOOTERS;
@@ -1103,9 +1103,9 @@ DEFINE DIALOG oDlg2 RESOURCE "FORMAPAGV" OF oDlg
     oBrw1:bKeyDown := { | nKey, nFlags |;
        IF(nKey==46,IF(MsgNoYes("Borra el cheque?"),;
                      (oQryChe:Delete(),oBrw1:Refresh(),oBrw1:MakeTotals(),;
-                      oGet1[7]:cText := oBrw1:aCols[6]:nTotal, oGet1[7]:Refresh(), oGet1[3]:SetFocus()),;
+                      oGet1[7]:cText := oBrw1:oCol(6):nTotal, oGet1[7]:Refresh(), oGet1[3]:SetFocus()),;
                      .f.),.f.)}      
-    oBrw1:aCols[6]:nFooterType := AGGR_SUM
+    oBrw1:oCol(6):nFooterType := AGGR_SUM
     PintaBrw(oBrw1,0)     
 
     REDEFINE COMBOBOX oComb[1] VAR nCondVen  ITEMS aNomCondVen  ID 4004 OF oDlg2
@@ -1370,7 +1370,7 @@ cTipoDoc := IF(nTipoDoc=1,"FR",IF(nTipoDoc=2,"ND","NC"))
                                         "'ANTICIPO',"+ClipValue2Sql(DATE())+","+ClipValue2Sql(oApp:prefijo)+")")
           ENDIF           
       ENDIF  
-      nNetoPar:= IF(nCtaCte<oBrw:aCols[6]:nTotal,nCtaCte,oBrw:aCols[6]:nTotal)
+      nNetoPar:= IF(nCtaCte<oBrw:oCol(6):nTotal,nCtaCte,oBrw:oCol(6):nTotal)
       //2 - CUOTAS DE PAGO EN CTA CTE ------------------------------------------------------  
       IF oApp:usar_cuotas    
          oApp:oServer:Execute("INSERT INTO ge_"+oApp:cId+"ventas_cuota (tipo,letra,numero,cuota,cantcuo,fecha,cliente,neto,importe,saldo,estado,fecvto,"+;
@@ -1484,7 +1484,7 @@ cTipoDoc := IF(nTipoDoc=1,"FR",IF(nTipoDoc=2,"ND","NC"))
                                                      "nombre,cuit,dni,direccion,localidad,percep,cae,fecvto,tipfor,usuario,fecmod,ip,vendedor,condven,formapag,hora,puntos,puntosacu) VALUES "+;
                            "("+ClipValue2Sql(cTipoDoc)+","+ClipValue2Sql(LEFT(cNumComp,1))+","+ClipValue2Sql(RIGHT(cNumComp,13))+","+;
                             ClipValue2Sql(nCliente)+","+ClipValue2Sql(nConIva)+","+;
-                            ClipValue2Sql(dFecha)+","+ClipValue2Sql(oBrw:aCols[6]:nTotal)+","+ClipValue2Sql(oBrw:aCols[7]:nTotal)+","+;
+                            ClipValue2Sql(dFecha)+","+ClipValue2Sql(oBrw:oCol(6):nTotal)+","+ClipValue2Sql(oBrw:oCol(7):nTotal)+","+;
                             ClipValue2SQL(oGet[38]:cText)+","+ClipValue2Sql(nTotal)+","+IF(nCtaCte>0,"2","1")+","+;
                             ClipValue2Sql(oGet[23]:cText)+","+;
                             ClipValue2Sql(oGet[9]:cText)+","+ClipValue2Sql(oGet[12]:cText)+","+ClipValue2Sql(oGet[22]:cText)+","+;
@@ -1874,8 +1874,8 @@ oQryDet:Refresh()
 oBrw:Refresh()
 oBrw:MakeTotals()
 oBrw:GoBottom()
-oGet[19]:cText := oBrw:aCols[6]:nTotal 
-oGet[20]:cText := oBrw:aCols[7]:nTotal  
+oGet[19]:cText := oBrw:oCol(6):nTotal 
+oGet[20]:cText := oBrw:oCol(7):nTotal  
 oGet[14]:cText:= 1
 oGet[14]:Refresh()
 oGet[15]:cText:=SPACE(70)
@@ -1889,9 +1889,9 @@ FOR i:= 16 TO 18
    oGet[i]:Refresh()
    oGet[i+10]:Refresh()
 NEXT i
-oGet[38]:cText := oBrw:aCols[6]:nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
-oGet[21]:cText := oBrw:aCols[8]:nTotal + oGet[38]:value  
-//oGet[42]:cText := oBrw:aCols[11]:nTotal
+oGet[38]:cText := oBrw:oCol(6):nTotal * (oGet[37]:value/100) * IF(nTipoDoc=3,-1,1)
+oGet[21]:cText := oBrw:oCol(8):nTotal + oGet[38]:value  
+//oGet[42]:cText := oBrw:oCol(11):nTotal
 oGet[19]:Refresh()
 oGet[20]:Refresh()
 oGet[21]:Refresh()
