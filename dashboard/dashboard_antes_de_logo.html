@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta charset="utf-8">
+<title>Tablero</title>
+<!-- dashweb-version: 2026101507 -->
+<!-- Este archivo lo escribe BCN.exe (DASHWEB.PRG) y lo reemplaza cuando cambia la version.
+     Fuente: FUENTES2\dashboard\dashboard.html (ASCII puro: acentos como &aacute; o \u00e1).
+     Se embebe en DASHWEB.PRG con dashboard\embeber.ps1. -->
+<script>
+  window.onerror = function (m, u, l) { document.title = "ERR " + l + ": " + m; };
+</script>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; font-size: 13px; -ms-user-select: none; }
+#req, #resp { position: absolute; left: -9999px; top: 0; width: 10px; height: 10px; }
+.num { font-feature-settings: "tnum" 1; }
+
+/* ---------- temas (IE11 no tiene variables CSS: reglas por tema) ---------- */
+.t-oscuro { background: #0b0f1f; color: #e7eaf6; }
+.t-claro  { background: #eef1f7; color: #1a2040; }
+.t-oscuro #cont { scrollbar-face-color: #232b4d; scrollbar-track-color: #0b0f1f; scrollbar-arrow-color: #5f6893;
+                  scrollbar-shadow-color: #232b4d; scrollbar-highlight-color: #232b4d; scrollbar-3dlight-color: #0b0f1f; scrollbar-darkshadow-color: #0b0f1f; }
+.t-claro  #cont { scrollbar-face-color: #cfd5e3; scrollbar-track-color: #eef1f7; scrollbar-arrow-color: #8a92b4;
+                  scrollbar-shadow-color: #cfd5e3; scrollbar-highlight-color: #cfd5e3; scrollbar-3dlight-color: #eef1f7; scrollbar-darkshadow-color: #eef1f7; }
+.t-oscuro .card { background: #141a30; border: 1px solid #222a48; }
+.t-claro  .card { background: #ffffff; border: 1px solid #e1e5ef; box-shadow: 0 1px 2px rgba(20,30,70,.04), 0 10px 28px rgba(20,30,70,.06); }
+.t-oscuro .mut { color: #8a92b4; }
+.t-claro  .mut { color: #687090; }
+.t-oscuro #top { background: #0b0f1f; border-bottom: 1px solid #1b2240; }
+.t-claro  #top { background: #eef1f7; border-bottom: 1px solid #dfe3ee; }
+.t-oscuro .chip { background: #151b33; border: 1px solid #262e50; color: #c5cbe6; }
+.t-claro  .chip { background: #ffffff; border: 1px solid #dde2ee; color: #3a4266; }
+.t-oscuro .chip:hover { border-color: #3a4475; }
+.t-claro  .chip:hover { border-color: #b9c1d8; }
+.t-oscuro .tabla th { color: #8a92b4; border-bottom: 1px solid #252d4d; }
+.t-claro  .tabla th { color: #687090; border-bottom: 1px solid #e3e7f0; }
+.t-oscuro .tabla td { border-bottom: 1px solid #1c2340; }
+.t-claro  .tabla td { border-bottom: 1px solid #eef0f6; }
+.t-oscuro .tabla tr:hover td { background: #192040; }
+.t-claro  .tabla tr:hover td { background: #f6f8fc; }
+.t-oscuro .track { background: #1d2443; }
+.t-claro  .track { background: #eef1f7; }
+.t-oscuro .esq { background: #1a2140; }
+.t-claro  .esq { background: #e9edf5; }
+.t-oscuro .inp { background: #10152a; border: 1px solid #283058; color: #e7eaf6; }
+.t-claro  .inp { background: #ffffff; border: 1px solid #d6dbe8; color: #1a2040; }
+.t-oscuro .tabs span { color: #8a92b4; }
+.t-claro  .tabs span { color: #687090; }
+.t-oscuro .tabs span.on { background: #222a4a; color: #fff; }
+.t-claro  .tabs span.on { background: #1a2040; color: #fff; }
+.t-oscuro .burbuja-ia { background: #141a30; border: 1px solid #222a48; }
+.t-claro  .burbuja-ia { background: #ffffff; border: 1px solid #e1e5ef; }
+.t-oscuro .alerta { background: #171d36; }
+.t-claro  .alerta { background: #f7f8fc; }
+.t-oscuro .sep { border-top: 1px solid #1f2745; }
+.t-claro  .sep { border-top: 1px solid #edf0f6; }
+
+/* ---------- estructura ---------- */
+#app { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+#side { position: absolute; left: 0; top: 0; bottom: 0; width: 214px; background: #111632; color: #c9cfe8;
+        overflow-y: auto; overflow-x: hidden;
+        scrollbar-face-color: #232b4d; scrollbar-track-color: #111632; scrollbar-arrow-color: #5f6893;
+        scrollbar-shadow-color: #232b4d; scrollbar-highlight-color: #232b4d; scrollbar-3dlight-color: #111632; scrollbar-darkshadow-color: #111632; }
+/* El pie (usuario y tema) queda abajo si sobra lugar; si no entra todo, el menu se desplaza */
+#sideIn { position: relative; min-height: 100%; padding-bottom: 118px; }
+@media (max-height: 640px) {
+  .logo { height: 56px; padding-top: 12px; }
+  .nav { padding-top: 2px; }
+  .nav a { padding-top: 7px; padding-bottom: 7px; margin-bottom: 1px; }
+  .nav a svg { top: 6px; }
+  .nav .grupo { padding-top: 10px; }
+}
+#main { position: absolute; left: 214px; top: 0; right: 0; bottom: 0; }
+#top { position: absolute; left: 0; right: 0; top: 0; height: 70px; padding: 14px 26px 0 26px; }
+#cont { position: absolute; left: 0; right: 0; top: 70px; bottom: 0; overflow-y: auto; overflow-x: hidden; padding: 20px 26px 30px 26px; }
+
+.logo { height: 70px; padding: 18px 20px 0 20px; }
+.logo b { display: inline-block; background: #FFAF22; color: #141833; font-weight: 800; font-size: 15px; letter-spacing: 1px;
+          padding: 5px 9px; border-radius: 8px; vertical-align: middle; }
+.logo span { font-size: 15px; font-weight: 600; color: #fff; margin-left: 9px; vertical-align: middle; }
+.nav { padding: 10px 10px; }
+.nav a { display: block; position: relative; padding: 10px 12px 10px 42px; margin-bottom: 3px; border-radius: 10px; color: #aab1d2;
+         text-decoration: none; cursor: pointer; font-size: 13.5px; transition: background .15s, color .15s; }
+.nav a svg { position: absolute; left: 13px; top: 9px; }
+.nav a:hover { background: #1a2046; color: #fff; }
+.nav a.on { background: #FFAF22; color: #141833; font-weight: 600; }
+.nav .grupo { font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase; color: #5f6893; padding: 16px 12px 6px 12px; }
+.pie { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 18px; border-top: 1px solid #1e2550; }
+.pie .usu { font-size: 12px; color: #8a92b4; }
+.pie .usu b { color: #e7eaf6; font-weight: 600; display: block; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tema { margin-top: 12px; background: #0c1028; border-radius: 10px; padding: 3px; height: 34px; position: relative; cursor: pointer; }
+.tema div { position: absolute; top: 3px; width: 50%; height: 28px; text-align: center; line-height: 28px; font-size: 12px; color: #8a92b4; z-index: 2; }
+.tema .izq { left: 0; } .tema .der { right: 0; }
+.tema .sel { position: absolute; top: 3px; left: 3px; width: 50%; height: 28px; background: #232a52; border-radius: 8px; z-index: 1; transition: left .25s ease; }
+.tema.claro .sel { left: 50%; margin-left: -3px; background: #FFAF22; }
+.tema.claro .der { color: #141833; font-weight: 600; }
+.tema.oscuro .izq { color: #fff; font-weight: 600; }
+.tema svg { vertical-align: middle; margin-right: 5px; margin-top: -2px; }
+
+.tit { float: left; }
+.tit h1 { margin: 0; font-size: 21px; font-weight: 600; letter-spacing: -.3px; }
+.tit div { font-size: 12.5px; margin-top: 3px; }
+.periodo { float: right; margin-top: 4px; }
+.cerrar { float: right; margin: 4px 0 0 12px; padding: 7px 14px 7px 11px; border-radius: 20px; cursor: pointer; font-size: 12.5px; font-weight: 600;
+          background: rgba(255,107,107,.14); color: #ff6b6b; transition: background .15s, color .15s; }
+.cerrar:hover { background: #ff6b6b; color: #fff; }
+.cerrar svg { vertical-align: middle; margin: -2px 5px 0 0; }
+.chip { display: inline-block; padding: 7px 12px; border-radius: 20px; font-size: 12.5px; cursor: pointer; margin-left: 5px; transition: border-color .15s; }
+.chip.on { background: #FFAF22 !important; border-color: #FFAF22 !important; color: #141833 !important; font-weight: 600; }
+.chip.ico { padding: 7px 9px 6px 9px; }
+.chip.ico svg { vertical-align: middle; }
+.otro { display: none; margin-left: 6px; }
+.otro.on { display: inline-block; }
+.inp { border-radius: 8px; padding: 6px 9px; font-family: inherit; font-size: 12.5px; outline: none; width: 96px; }
+.inp:focus { border-color: #FFAF22 !important; }
+
+/* ---------- grilla ---------- */
+.fila { margin: 0 -8px; overflow: hidden; }
+.fila:after { content: ""; display: table; clear: both; }
+.col { float: left; padding: 0 8px; margin-bottom: 16px; }
+.c3 { width: 25%; } .c4 { width: 33.333%; } .c5 { width: 41.666%; } .c6 { width: 50%; } .c7 { width: 58.333%; } .c8 { width: 66.666%; } .c12 { width: 100%; }
+.card { border-radius: 16px; padding: 18px 20px; position: relative; overflow: hidden; }
+.card h3 { margin: 0 0 2px 0; font-size: 14.5px; font-weight: 600; }
+.card .sub { font-size: 12px; margin-bottom: 14px; }
+.card .acc { position: absolute; right: 18px; top: 16px; }
+
+/* ---------- KPIs ---------- */
+.kpi { width: 16.666%; }
+@media (max-width: 1500px) { .kpi { width: 33.333%; } }
+.kpi .card { padding: 16px 18px 12px 18px; height: 132px; }
+.kpi .lab { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; font-weight: 600; }
+.kpi .val { font-size: 25px; font-weight: 700; letter-spacing: -.6px; margin-top: 7px; white-space: nowrap; }
+.kpi .pie2 { margin-top: 6px; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi .spark { position: absolute; right: 0; bottom: 0; left: 0; height: 40px; opacity: .9; }
+.delta { display: inline-block; font-weight: 600; font-size: 11.5px; padding: 2px 7px; border-radius: 10px; margin-right: 6px; }
+.d-up { background: rgba(52,211,153,.15); color: #19b382; }
+.d-dn { background: rgba(248,113,113,.16); color: #ef5b5b; }
+.d-ne { background: rgba(138,146,180,.16); color: #7f88ad; }
+
+/* ---------- graficos ---------- */
+.graf { position: relative; }
+.graf svg text { font-family: "Segoe UI", Tahoma, Arial, sans-serif; }
+#tip { position: absolute; display: none; z-index: 50; pointer-events: none; background: #0a0d1c; color: #fff; border-radius: 10px;
+       padding: 9px 12px; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.35); white-space: nowrap; }
+#tip .t1 { font-weight: 600; margin-bottom: 4px; color: #FFAF22; }
+#tip i { display: inline-block; width: 8px; height: 8px; border-radius: 4px; margin-right: 6px; }
+.leyenda { font-size: 12px; margin-top: 4px; }
+.leyenda span { display: inline-block; margin-right: 16px; }
+.leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.leyenda i.lin { height: 3px; border-radius: 2px; vertical-align: 3px; width: 14px; }
+
+.hb { margin-bottom: 11px; }
+.hb .r1 { overflow: hidden; font-size: 12.5px; margin-bottom: 5px; }
+.hb .r1 .n { float: left; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hb .r1 .v { float: right; font-weight: 600; }
+.hb .r1 .x { float: right; margin-right: 10px; font-size: 11.5px; }
+.track { height: 9px; border-radius: 6px; overflow: hidden; }
+.fill { height: 9px; border-radius: 6px; width: 0; transition: width .9s cubic-bezier(.2,.8,.2,1); }
+
+.dona { overflow: hidden; }
+.dona .g { float: left; }
+.dona .ley { margin-left: 194px; padding-top: 4px; }
+.dona.angosta .g { float: none; text-align: center; }
+.dona.angosta .ley { margin-left: 0; padding-top: 10px; }
+.dona table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12.5px; }
+.dona td { padding: 6px 6px; cursor: default; transition: background .15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dona td.c1 { width: 22px; padding-right: 0; }
+.dona td.c3 { width: 74px; text-align: right; }
+.dona td.c4 { width: 44px; text-align: right; font-weight: 600; }
+.dona td i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.t-oscuro .dona tr.hl td { background: #1b2244; }
+.t-claro  .dona tr.hl td { background: #f1f3f9; }
+
+.calor { width: 100%; border-collapse: separate; border-spacing: 3px; }
+.calor td { height: 26px; border-radius: 5px; text-align: center; font-size: 10.5px; padding: 0; opacity: 0; transition: opacity .6s ease; }
+.calor td.ver { opacity: 1; }
+.calor td.dia { text-align: right; padding-right: 6px; width: 34px; font-size: 11.5px; opacity: 1; }
+.calor th { font-weight: 400; font-size: 10.5px; padding-bottom: 2px; }
+
+.apil { height: 16px; border-radius: 8px; overflow: hidden; white-space: nowrap; font-size: 0; }
+.apil div { display: inline-block; height: 16px; width: 0; transition: width .9s cubic-bezier(.2,.8,.2,1); }
+
+/* ---------- tablas ---------- */
+.tabla { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.tabla th { text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; padding: 0 8px 8px 8px; }
+.tabla td { padding: 8px 8px; }
+.tabla .der { text-align: right; }
+.tabla .ell { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.p-rojo { background: rgba(248,113,113,.16); color: #ef5b5b; }
+.p-amar { background: rgba(255,175,34,.18); color: #d98d00; }
+.p-verd { background: rgba(52,211,153,.15); color: #19b382; }
+
+/* ---------- varios ---------- */
+.tabs { display: inline-block; }
+.tabs span { display: inline-block; padding: 5px 11px; border-radius: 8px; font-size: 12px; cursor: pointer; margin-left: 2px; }
+.alerta { border-radius: 12px; padding: 12px 14px 12px 50px; margin-bottom: 10px; position: relative; min-height: 46px; }
+.alerta .ic { position: absolute; left: 12px; top: 11px; width: 28px; height: 28px; border-radius: 9px; text-align: center; padding-top: 5px; }
+.alerta b { display: block; font-size: 13px; }
+.alerta span { font-size: 12px; }
+.big { font-size: 30px; font-weight: 700; letter-spacing: -.8px; }
+.esq { border-radius: 8px; height: 14px; margin-bottom: 10px;
+       background-image: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.08) 50%, rgba(255,255,255,0) 100%);
+       background-size: 400px 100%; background-repeat: no-repeat; animation: brillo 1.2s infinite linear; }
+@keyframes brillo { 0% { background-position: -400px 0; } 100% { background-position: 900px 0; } }
+.vacio { text-align: center; padding: 30px 10px; font-size: 12.5px; }
+.entra { animation: entra .45s ease both; }
+@keyframes entra { 0% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: translateY(0); } }
+.pos { overflow: hidden; margin-bottom: 14px; }
+.pos .n { float: left; font-size: 12.5px; }
+.pos .v { float: right; font-weight: 700; font-size: 15px; }
+
+/* ---------- cartel de carga ---------- */
+#carga { position: absolute; left: 0; right: 0; top: 70px; bottom: 0; z-index: 20; display: none; }
+#carga.on { display: block; }
+.t-oscuro #carga { background: rgba(11,15,31,.80); }
+.t-claro  #carga { background: rgba(238,241,247,.82); }
+#carga .caja { width: 380px; margin: 90px auto 0 auto; text-align: center; padding: 26px 28px 22px 28px; }
+#carga h3 { font-size: 16px; margin: 14px 0 6px 0; }
+#carga #progTxt { font-size: 12.5px; min-height: 17px; }
+#carga #progBar { background: #FFAF22; }
+#carga .nota { font-size: 11px; margin-top: 12px; }
+.giro { width: 34px; height: 34px; margin: 0 auto; border-radius: 50%; border: 3px solid rgba(255,175,34,.25); border-top-color: #FFAF22;
+        animation: girar .8s linear infinite; }
+@keyframes girar { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* ---------- asistente ---------- */
+#ia { max-width: 980px; margin: 0 auto; }
+.sug { display: inline-block; margin: 0 6px 8px 0; cursor: pointer; }
+.msg-u { text-align: right; margin: 18px 0 10px 0; }
+.msg-u span { display: inline-block; background: #FFAF22; color: #141833; padding: 10px 15px; border-radius: 16px 16px 4px 16px;
+              max-width: 70%; text-align: left; font-size: 13.5px; }
+.burbuja-ia { border-radius: 4px 16px 16px 16px; padding: 16px 18px; margin-bottom: 10px; }
+.burbuja-ia .tt { font-weight: 600; font-size: 14.5px; margin-bottom: 6px; }
+.burbuja-ia .tx { font-size: 13.5px; line-height: 1.55; }
+.burbuja-ia .err { color: #ef5b5b; }
+.califica { margin-top: 12px; font-size: 12px; }
+.califica a { cursor: pointer; margin-left: 8px; padding: 3px 9px; border-radius: 8px; text-decoration: none; }
+.t-oscuro .califica a { background: #1b2244; color: #c5cbe6; }
+.t-claro  .califica a { background: #f0f2f8; color: #3a4266; }
+.califica a.ok { background: #FFAF22 !important; color: #141833 !important; }
+.ver-datos { cursor: pointer; font-size: 12px; margin-top: 12px; display: inline-block; }
+.puntos span { display: inline-block; width: 7px; height: 7px; border-radius: 4px; background: #FFAF22; margin-right: 4px; animation: salto 1s infinite ease-in-out; }
+.puntos span.b { animation-delay: .15s; } .puntos span.c { animation-delay: .3s; }
+@keyframes salto { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+#iaBarra { margin-top: 14px; }
+#iaTxt { width: 100%; height: 46px; resize: none; overflow: hidden; border-radius: 14px; padding: 12px 120px 12px 16px; font-size: 13.5px; font-family: inherit; }
+#iaEnviar { position: absolute; right: 7px; top: 7px; background: #FFAF22; color: #141833; font-weight: 600; border-radius: 10px;
+            padding: 8px 16px; cursor: pointer; font-size: 13px; }
+</style>
+</head>
+<body class="t-oscuro">
+<textarea id="req"></textarea>
+<textarea id="resp"></textarea>
+<div id="app">
+  <div id="side"><div id="sideIn">
+    <div class="logo"><b>BCN</b><span>Tablero</span></div>
+    <div class="nav" id="nav"></div>
+    <div class="pie">
+      <div class="usu" id="usu"></div>
+      <div class="tema oscuro" id="tema">
+        <div class="sel"></div>
+        <div class="izq" id="tOsc"></div>
+        <div class="der" id="tCla"></div>
+      </div>
+    </div>
+  </div></div>
+  <div id="main">
+    <div id="top">
+      <div class="tit"><h1 id="secTit">Tablero</h1><div class="mut" id="secSub"></div></div>
+      <div class="cerrar" id="btnCerrar" title="Cerrar el tablero" onclick="pedir('cerrar', {})"></div>
+      <div class="periodo" id="periodo"></div>
+    </div>
+    <div id="cont"></div>
+    <div id="carga"><div class="card caja">
+      <div class="giro"></div>
+      <h3>Armando el tablero</h3>
+      <div class="mut" id="progTxt">Preparando las consultas</div>
+      <div class="track" id="progTrack" style="margin-top:14px"><div class="fill" id="progBar"></div></div>
+      <div class="mut nota">Con mucho movimiento puede tardar unos segundos.</div>
+    </div></div>
+  </div>
+</div>
+<div id="tip"></div>
+
+<script>
+// =====================================================================
+// Utilidades
+// =====================================================================
+var NS = "http://www.w3.org/2000/svg";
+var PAL = ["#FFAF22", "#4F8CFF", "#22C3A6", "#9B7BFF", "#FF6B6B", "#38BDF8", "#A3E635", "#F472B6", "#F59E0B", "#64748B"];
+var TEMAS = {
+  oscuro: { grid: "#1f2745", eje: "#7f88ad", txt: "#e7eaf6", card: "#141a30", ant: "#58618a", track: "#1d2443" },
+  claro:  { grid: "#e8ebf3", eje: "#7a819c", txt: "#1a2040", card: "#ffffff", ant: "#b6bccf", track: "#eef1f7" }
+};
+var MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+var MESES_L = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+var DIAS = ["Dom", "Lun", "Mar", "Mi\u00e9", "Jue", "Vie", "S\u00e1b"];
+var raf = window.requestAnimationFrame || function (f) { return setTimeout(f, 16); };
+var uid = 0;
+
+function $(id) { return document.getElementById(id); }
+function ahora() { return (window.performance && performance.now) ? performance.now() : new Date().getTime(); }
+function ease(t) { return 1 - Math.pow(1 - t, 3); }
+function anima(ms, paso, fin) {
+  var t0 = ahora();
+  function f() { var t = Math.min(1, (ahora() - t0) / ms); paso(ease(t)); if (t < 1) { raf(f); } else if (fin) { fin(); } }
+  raf(f);
+}
+function S(tag, at, padre) {
+  var e = document.createElementNS(NS, tag), k;
+  for (k in at) { if (at.hasOwnProperty(k)) { e.setAttribute(k, at[k]); } }
+  if (padre) { padre.appendChild(e); }
+  return e;
+}
+function esc(s) {
+  return String(s === null || s === undefined ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function num(v) { v = parseFloat(v); return isNaN(v) ? 0 : v; }
+function fmtN(n, dec) {
+  n = num(n); dec = dec || 0;
+  var neg = n < 0, s = Math.abs(n).toFixed(dec), p = s.split(".");
+  var e = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return (neg ? "-" : "") + e + (p.length > 1 ? "," + p[1] : "");
+}
+function fmtM(n) { n = num(n); return "$\u00a0" + fmtN(n, (Math.abs(n) < 100 && n % 1 !== 0) ? 2 : 0); }
+function fmtC(n) {   // corto para ejes: 1,2 M / 350 k
+  n = num(n); var a = Math.abs(n);
+  if (a >= 1e9) { return fmtN(n / 1e9, 1) + " mil M"; }
+  if (a >= 1e6) { return fmtN(n / 1e6, a >= 1e7 ? 0 : 1) + " M"; }
+  if (a >= 1e3) { return fmtN(n / 1e3, 0) + " k"; }
+  return fmtN(n, 0);
+}
+function fmtMC(n) { return "$\u00a0" + fmtC(n); }
+// "MERCADO PAGO" -> "Mercado Pago" (los maestros suelen estar en mayusculas)
+function capital(s) {
+  s = String(s || "");
+  if (s !== s.toUpperCase()) { return s; }
+  return s.toLowerCase().replace(/(^|[\s\.\-\/(])([a-z\u00e0-\u00fe])/g, function (m, a, b) { return a + b.toUpperCase(); });
+}
+function fmtP(n, dec) { return fmtN(n, dec === undefined ? 1 : dec) + "\u00a0%"; }
+function fmtCant(n) { n = num(n); return fmtN(n, n % 1 === 0 ? 0 : (Math.round(n * 100) % 100 === 0 ? 1 : 2)); }
+function fecTxt(s) { if (!s || s.length < 10) { return s || ""; } return s.substr(8, 2) + "/" + s.substr(5, 2) + "/" + s.substr(0, 4); }
+function iso(d) { function z(n) { return (n < 10 ? "0" : "") + n; } return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate()); }
+function deIso(s) { return new Date(parseInt(s.substr(0, 4), 10), parseInt(s.substr(5, 2), 10) - 1, parseInt(s.substr(8, 2), 10)); }
+function sumaDias(d, n) { var r = new Date(d.getTime()); r.setDate(r.getDate() + n); return r; }
+function finMes(a, m) { return new Date(a, m + 1, 0).getDate(); }
+function maxDe(a, f) { var m = 0, i; for (i = 0; i < a.length; i++) { m = Math.max(m, f ? f(a[i]) : a[i]); } return m; }
+function niceMax(v) {
+  if (v <= 0) { return 1; }
+  var e = Math.pow(10, Math.floor(Math.log(v) / Math.LN10)), f = v / e;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * e;
+}
+// Maximo del eje con 4 escalones redondos (0, 1, 2, 3, 4 M en vez de 0, 1,3, 2,5...)
+function ejeMax(v) { return niceMax(Math.max(v, 1) / 4) * 4; }
+function th() { return TEMAS[estado.tema]; }
+function contador(el, valor, fmt) {
+  var v = num(valor);
+  anima(900, function (t) { el.innerHTML = fmt(v * t); });
+}
+
+// ---------- tooltip ----------
+function tip(html, x, y) {
+  var t = $("tip");
+  t.innerHTML = html; t.style.display = "block";
+  var w = t.offsetWidth, h = t.offsetHeight, W = document.documentElement.clientWidth;
+  var l = x + 16; if (l + w > W - 8) { l = x - w - 16; }
+  t.style.left = l + "px"; t.style.top = Math.max(6, y - h - 10) + "px";
+}
+function sinTip() { $("tip").style.display = "none"; }
+
+// =====================================================================
+// Iconos (SVG inline)
+// =====================================================================
+var ICON = {
+  resumen: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
+  ventas: "M3 17l6-6 4 4 8-8M15 7h6v6",
+  clientes: "M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4zM8 11a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm8 2c-2.7 0-8 1.3-8 4v3h16v-3c0-2.7-5.3-4-8-4zM8 13c-.3 0-.7 0-1.1.1C4.4 13.5 0 14.6 0 17v3h6v-3c0-1.5.8-2.8 2-3.9z",
+  compras: "M3 3h2l2.4 12.2a2 2 0 0 0 2 1.6h8.7a2 2 0 0 0 2-1.5L22 7H6M9 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2z",
+  stock: "M21 8l-9-5-9 5v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8",
+  caja: "M3 7h18v12H3zM3 11h18M7 15h3",
+  ia: "M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z",
+  sol: "M12 7a5 5 0 1 0 5 5 5 5 0 0 0-5-5zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4",
+  luna: "M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z",
+  refrescar: "M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6",
+  cerrar: "M18 6L6 18M6 6l12 12",
+  alerta: "M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z",
+  reloj: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2",
+  caja2: "M20 7l-8-4-8 4v10l8 4 8-4V7z",
+  usuario: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"
+};
+function icono(n, tam, color, rell) {
+  return '<svg width="' + (tam || 18) + '" height="' + (tam || 18) + '" viewBox="0 0 24 24"><path d="' + ICON[n] + '" fill="' + (rell ? (color || "currentColor") : "none") +
+    '" stroke="' + (rell ? "none" : (color || "currentColor")) + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+
+// =====================================================================
+// Puente con el sistema: #req (pagina -> sistema), #resp (sistema -> pagina)
+// =====================================================================
+var puente = { seq: 0, cola: [], cb: {}, vivo: false };
+function pedir(accion, params, cb) {
+  var p = params || {}, id = ++puente.seq;
+  p.id = id; p.accion = accion;
+  puente.cola.push(p); puente.cb[id] = cb;
+  enviar();
+  return id;
+}
+function enviar() {
+  var r = $("req");
+  if (puente.cola.length && r.value === "") { r.value = JSON.stringify(puente.cola); puente.cola = []; }
+}
+function sondear() {
+  enviar();
+  var s = $("resp"), v = s.value, arr, i, f;
+  if (!v) { return; }
+  s.value = "";
+  puente.vivo = true;
+  try { arr = JSON.parse(v); } catch (e) { return; }
+  for (i = 0; i < arr.length; i++) {
+    f = puente.cb[arr[i].id];
+    delete puente.cb[arr[i].id];
+    if (f) { try { f(arr[i].datos, arr[i].error); } catch (e2) { document.title = "ERR cb: " + e2.message; } }
+  }
+}
+setInterval(sondear, 60);
+
+// =====================================================================
+// Estado, periodo y navegacion
+// =====================================================================
+var estado = { tema: "oscuro", sec: "resumen", per: "mes", hoy: new Date(), desde: null, hasta: null, pdesde: null, phasta: null,
+               txtAnt: "", ia: false, cache: {}, ultimo: null, agrupar: "rubro" };
+var SECC = [
+  { id: "resumen", t: "Resumen", sub: "La foto del negocio", grupo: "Tablero" },
+  { id: "ventas", t: "Ventas", sub: "Qu\u00e9, cu\u00e1ndo y cu\u00e1nto se vende" },
+  { id: "clientes", t: "Clientes y cobranzas", sub: "Deuda, antig\u00fcedad y cobros" },
+  { id: "compras", t: "Compras y proveedores", sub: "Gastos, deuda y vencimientos" },
+  { id: "stock", t: "Stock", sub: "Mercader\u00eda, faltantes y capital inmovilizado", sinPer: true },
+  { id: "caja", t: "Caja", sub: "Entradas, salidas y cierres" },
+  { id: "ia", t: "Asistente", sub: "Preguntale a tus datos en lenguaje natural", sinPer: true, grupo: "Inteligencia" }
+];
+var PER = [
+  { id: "hoy", t: "Hoy" }, { id: "7d", t: "7 d\u00edas" }, { id: "mes", t: "Este mes" }, { id: "mant", t: "Mes anterior" },
+  { id: "anio", t: "Este a\u00f1o" }, { id: "12m", t: "12 meses" }, { id: "otro", t: "Otro" }
+];
+
+function calcPeriodo() {
+  var h = estado.hoy, d, a, pd, ph, y = h.getFullYear(), m = h.getMonth(), largo, txt;
+  switch (estado.per) {
+    case "hoy": d = h; a = h; pd = sumaDias(h, -1); ph = pd; txt = "vs. ayer"; break;
+    case "7d": d = sumaDias(h, -6); a = h; pd = sumaDias(h, -13); ph = sumaDias(h, -7); txt = "vs. 7 d\u00edas anteriores"; break;
+    case "mant":
+      d = new Date(y, m - 1, 1); a = new Date(y, m, 0);
+      pd = new Date(y, m - 2, 1); ph = new Date(y, m - 1, 0); txt = "vs. el mes anterior"; break;
+    case "anio":
+      d = new Date(y, 0, 1); a = h; pd = new Date(y - 1, 0, 1);
+      ph = new Date(y - 1, m, Math.min(h.getDate(), finMes(y - 1, m))); txt = "vs. mismo per\u00edodo del a\u00f1o pasado"; break;
+    case "12m":
+      d = new Date(y - 1, m + 1, 1); a = h; pd = new Date(y - 2, m + 1, 1); ph = new Date(y - 1, m, finMes(y - 1, m)); txt = "vs. 12 meses anteriores"; break;
+    case "otro":
+      d = estado.desde || h; a = estado.hasta || h;
+      largo = Math.round((a - d) / 86400000);
+      ph = sumaDias(d, -1); pd = sumaDias(ph, -largo); txt = "vs. per\u00edodo anterior de igual largo"; break;
+    default:   // este mes: contra los mismos dias del mes anterior
+      d = new Date(y, m, 1); a = h; pd = new Date(y, m - 1, 1);
+      ph = new Date(y, m - 1, Math.min(h.getDate(), finMes(y, m - 1))); txt = "vs. mismos d\u00edas del mes anterior";
+  }
+  estado.desde = d; estado.hasta = a; estado.pdesde = pd; estado.phasta = ph; estado.txtAnt = txt;
+}
+function paramsPer(extra) {
+  var p = { desde: iso(estado.desde), hasta: iso(estado.hasta), pdesde: iso(estado.pdesde), phasta: iso(estado.phasta) }, k;
+  if (extra) { for (k in extra) { if (extra.hasOwnProperty(k)) { p[k] = extra[k]; } } }
+  return p;
+}
+function textoPer() {
+  var d = estado.desde, a = estado.hasta;
+  if (iso(d) === iso(a)) { return DIAS[d.getDay()] + " " + d.getDate() + " de " + MESES_L[d.getMonth()] + " de " + d.getFullYear(); }
+  if (d.getDate() === 1 && a.getDate() === finMes(a.getFullYear(), a.getMonth()) && d.getMonth() === a.getMonth() && d.getFullYear() === a.getFullYear()) {
+    return MESES_L[d.getMonth()].charAt(0).toUpperCase() + MESES_L[d.getMonth()].substr(1) + " " + d.getFullYear();
+  }
+  return "Del " + fecTxt(iso(d)) + " al " + fecTxt(iso(a));
+}
+
+function armarNav() {
+  var h = "", i, s;
+  for (i = 0; i < SECC.length; i++) {
+    s = SECC[i];
+    if (s.grupo) { h += '<div class="grupo">' + s.grupo + "</div>"; }
+    h += '<a id="nav-' + s.id + '" onclick="ir(\'' + s.id + '\')">' + icono(s.id, 18) + s.t + "</a>";
+  }
+  $("nav").innerHTML = h;
+}
+function armarPeriodo() {
+  var sec = secc(estado.sec), h = "", i;
+  if (sec.sinPer) {
+    h = sec.id === "ia" ? '<span class="chip" onclick="iaNueva()">Nueva conversaci\u00f3n</span>' : "";
+    $("periodo").innerHTML = h; return;
+  }
+  for (i = 0; i < PER.length; i++) {
+    h += '<span class="chip' + (estado.per === PER[i].id ? " on" : "") + '" onclick="cambiarPer(\'' + PER[i].id + '\')">' + PER[i].t + "</span>";
+  }
+  h += '<span class="otro' + (estado.per === "otro" ? " on" : "") + '" id="otro">' +
+       '<input class="inp" id="fDesde" placeholder="dd/mm/aaaa" value="' + fecTxt(iso(estado.desde)) + '"> ' +
+       '<input class="inp" id="fHasta" placeholder="dd/mm/aaaa" value="' + fecTxt(iso(estado.hasta)) + '"> ' +
+       '<span class="chip" onclick="aplicarOtro()">Aplicar</span></span>';
+  h += '<span class="chip ico" title="Actualizar" onclick="refrescar()">' + icono("refrescar", 16) + "</span>";
+  $("periodo").innerHTML = h;
+}
+function secc(id) { var i; for (i = 0; i < SECC.length; i++) { if (SECC[i].id === id) { return SECC[i]; } } return SECC[0]; }
+function cambiarPer(p) {
+  estado.per = p;
+  if (p === "otro") { armarPeriodo(); $("otro").className = "otro on"; return; }
+  calcPeriodo(); armarPeriodo(); mostrar();
+}
+function leerFecha(s) {
+  var m = /^\s*(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*$/.exec(s || ""), y;
+  if (!m) { return null; }
+  y = parseInt(m[3], 10); if (y < 100) { y += 2000; }
+  return new Date(y, parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+}
+function aplicarOtro() {
+  var d = leerFecha($("fDesde").value), a = leerFecha($("fHasta").value);
+  if (!d || !a || d > a) { $("fDesde").style.borderColor = "#ef5b5b"; $("fHasta").style.borderColor = "#ef5b5b"; return; }
+  estado.desde = d; estado.hasta = a; calcPeriodo(); armarPeriodo(); mostrar();
+}
+function refrescar() { estado.cache = {}; mostrar(); }
+function ir(id) {
+  estado.sec = id;
+  var i;
+  for (i = 0; i < SECC.length; i++) { $("nav-" + SECC[i].id).className = SECC[i].id === id ? "on" : ""; }
+  armarPeriodo(); mostrar();
+}
+function mostrar() {
+  var s = secc(estado.sec);
+  sinTip();
+  $("secTit").innerHTML = s.t;
+  $("secSub").innerHTML = s.sinPer ? s.sub : (textoPer() + " &middot; " + estado.txtAnt);
+  $("cont").scrollTop = 0;
+  cartelCarga(false);   // las secciones que piden datos lo vuelven a mostrar
+  RENDER[s.id]();
+}
+
+// ---------- tema ----------
+function aplicarTema(t, guardar) {
+  estado.tema = t === "claro" ? "claro" : "oscuro";
+  document.body.className = "t-" + estado.tema;
+  $("tema").className = "tema " + estado.tema;
+  if (guardar) { pedir("tema", { tema: estado.tema }); redibujar(); }
+}
+function redibujar() { if (estado.ultimo) { estado.ultimo(true); } }
+
+// Pide datos con cache; mientras tanto, esqueletos
+function cargar(accion, extra, pintar) {
+  var p = paramsPer(extra), k = accion + "|" + JSON.stringify(p), sec = estado.sec;
+  estado.ultimo = function (sinAnim) { if (estado.cache[k]) { pintar(estado.cache[k], sinAnim); } };
+  if (estado.cache[k]) { cartelCarga(false); pintar(estado.cache[k]); return; }
+  cartelCarga(true, "Preparando las consultas", 2);
+  // El pedido sale despues de que se dibuje el cartel: mientras el sistema
+  // consulta, el navegador solo se redibuja cuando el sistema le da paso
+  setTimeout(function () {
+    pedir(accion, p, function (d, err) {
+      if (estado.sec !== sec) { return; }
+      cartelCarga(false);
+      if (err || !d) { $("cont").innerHTML = '<div class="card vacio mut">' + esc(err || "No se pudieron leer los datos.") + "</div>"; return; }
+      estado.cache[k] = d; pintar(d);
+    });
+  }, 120);
+}
+// Cartel "Armando el tablero" (el sistema le actualiza #progTxt y #progBar)
+function cartelCarga(on, txt, pct) {
+  $("carga").className = on ? "on" : "";
+  if (on) { $("progTxt").innerHTML = txt || ""; $("progTrack").innerHTML = '<div class="fill" id="progBar" style="width:' + (pct || 0) + '%"></div>'; }
+}
+
+// =====================================================================
+// Componentes
+// =====================================================================
+function card(id, titulo, sub, extraCls, acc) {
+  return '<div class="card entra ' + (extraCls || "") + '">' + (acc ? '<div class="acc">' + acc + "</div>" : "") +
+         "<h3>" + titulo + "</h3>" + (sub ? '<div class="sub mut">' + sub + "</div>" : '<div class="sub"></div>') +
+         '<div id="' + id + '"><div class="esq" style="width:70%"></div><div class="esq" style="width:90%"></div><div class="esq" style="width:55%"></div></div></div>';
+}
+function vacio(el, txt) { el.innerHTML = '<div class="vacio mut">' + (txt || "Sin datos en este per\u00edodo") + "</div>"; }
+
+// Variacion contra el periodo anterior. bueno: 1 si subir es bueno, -1 si es malo, 0 neutro
+function delta(act, ant, bueno) {
+  act = num(act); ant = num(ant);
+  if (!ant) { return act ? '<span class="delta d-ne">sin datos previos</span>' : ""; }
+  var v = (act - ant) / Math.abs(ant) * 100, cls = "d-ne";
+  if (Math.abs(v) >= 0.5 && bueno) { cls = ((v > 0) === (bueno > 0)) ? "d-up" : "d-dn"; }
+  return '<span class="delta ' + cls + '">' + (v >= 0 ? "\u25b2 " : "\u25bc ") + fmtN(Math.abs(v), Math.abs(v) < 10 ? 1 : 0) + "\u00a0%</span>";
+}
+function kpiHtml(id, lab, color) {
+  return '<div class="col kpi"><div class="card entra"><div class="lab mut">' + lab + '</div><div class="val num" id="' + id + '-v">&nbsp;</div>' +
+         '<div class="pie2 mut" id="' + id + '-p">&nbsp;</div><div class="spark" id="' + id + '-s"></div></div></div>';
+}
+function kpiPintar(id, valor, fmt, ant, bueno, txtAnt, serie, color, sinAnim) {
+  var el = $(id + "-v");
+  if (!el) { return; }
+  if (sinAnim) { el.innerHTML = fmt(valor); } else { contador(el, valor, fmt); }
+  $(id + "-p").innerHTML = (ant === null ? "" : delta(valor, ant, bueno)) + (txtAnt || "");
+  if (serie && serie.length > 1) { sparkline($(id + "-s"), serie, color, sinAnim); }
+}
+
+// ---------- minigrafico ----------
+function sparkline(box, data, color, sinAnim) {
+  box.innerHTML = "";
+  var W = box.clientWidth || 200, H = box.clientHeight || 40, mx = maxDe(data), mn = Math.min.apply(null, data), i, d = "", x, y, n = data.length;
+  if (mx === mn) { mx = mn + 1; }
+  var svg = S("svg", { width: W, height: H }, box), id = "sp" + (++uid);
+  var defs = S("defs", {}, svg), lg = S("linearGradient", { id: id + "g", x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  S("stop", { offset: "0%", "stop-color": color, "stop-opacity": 0.35 }, lg);
+  S("stop", { offset: "100%", "stop-color": color, "stop-opacity": 0 }, lg);
+  var cp = S("clipPath", { id: id + "c" }, defs), r = S("rect", { x: 0, y: 0, width: sinAnim ? W : 0, height: H }, cp);
+  for (i = 0; i < n; i++) {
+    x = (i / (n - 1)) * W; y = 6 + (1 - (data[i] - mn) / (mx - mn)) * (H - 10);
+    d += (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
+  }
+  var g = S("g", { "clip-path": "url(#" + id + "c)" }, svg);
+  S("path", { d: d + "L" + W + " " + H + "L0 " + H + "Z", fill: "url(#" + id + "g)" }, g);
+  S("path", { d: d, fill: "none", stroke: color, "stroke-width": 2, "stroke-linejoin": "round" }, g);
+  if (!sinAnim) { anima(1100, function (t) { r.setAttribute("width", W * t); }); }
+}
+
+// ---------- lineas / areas (con periodo anterior punteado) ----------
+function lineas(box, o, sinAnim) {
+  box.innerHTML = "";
+  var W = box.clientWidth || 600, H = o.alto || 270, pl = 62, pr = 16, pt = 14, pb = 30, w = W - pl - pr, h = H - pt - pb;
+  var n = o.etiquetas.length, mx = 0, i, j, s, x, y, d, svg, defs, cp, r, g, step, id = "ln" + (++uid);
+  if (!n) { vacio(box); return; }
+  for (j = 0; j < o.series.length; j++) { mx = Math.max(mx, maxDe(o.series[j].datos)); }
+  mx = ejeMax(mx * 1.05);
+  svg = S("svg", { width: W, height: H }, box);
+  defs = S("defs", {}, svg);
+  for (i = 0; i <= 4; i++) {
+    y = pt + h - (i / 4) * h;
+    S("line", { x1: pl, x2: W - pr, y1: y, y2: y, stroke: th().grid, "stroke-width": 1 }, svg);
+    S("text", { x: pl - 10, y: y + 4, "text-anchor": "end", fill: th().eje, "font-size": 11 }, svg).appendChild(document.createTextNode((o.fmtEje || fmtMC)(mx * i / 4)));
+  }
+  step = Math.max(1, Math.ceil(n / Math.max(2, Math.floor(w / 70))));
+  function px(k) { return pl + (n === 1 ? w / 2 : (k / (n - 1)) * w); }
+  for (i = 0; i < n; i += step) {
+    S("text", { x: px(i), y: H - 8, "text-anchor": "middle", fill: th().eje, "font-size": 11 }, svg).appendChild(document.createTextNode(o.etiquetas[i]));
+  }
+  cp = S("clipPath", { id: id }, defs); r = S("rect", { x: 0, y: 0, width: sinAnim ? W : 0, height: H }, cp);
+  g = S("g", { "clip-path": "url(#" + id + ")" }, svg);
+  for (j = o.series.length - 1; j >= 0; j--) {
+    s = o.series[j]; d = "";
+    var nUlt = n - 1;
+    while (nUlt > 0 && (s.datos[nUlt] === null || s.datos[nUlt] === undefined)) { nUlt--; }
+    for (i = 0; i <= nUlt; i++) { x = px(i); y = pt + h - (num(s.datos[i]) / mx) * h; d += (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1); }
+    if (s.area) {
+      var lg = S("linearGradient", { id: id + "g" + j, x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+      S("stop", { offset: "0%", "stop-color": s.color, "stop-opacity": 0.28 }, lg);
+      S("stop", { offset: "100%", "stop-color": s.color, "stop-opacity": 0 }, lg);
+      S("path", { d: d + "L" + px(nUlt) + " " + (pt + h) + "L" + px(0) + " " + (pt + h) + "Z", fill: "url(#" + id + "g" + j + ")" }, g);
+    }
+    S("path", { d: d, fill: "none", stroke: s.color, "stroke-width": s.ancho || 2.4, "stroke-dasharray": s.punteado ? "5 5" : "none", "stroke-linejoin": "round", "stroke-linecap": "round" }, g);
+  }
+  if (!sinAnim) { anima(1300, function (t) { r.setAttribute("width", W * t); }); }
+  // interaccion
+  var guia = S("line", { x1: 0, x2: 0, y1: pt, y2: pt + h, stroke: th().eje, "stroke-width": 1, "stroke-dasharray": "3 3", opacity: 0 }, svg);
+  var puntos = [];
+  for (j = 0; j < o.series.length; j++) { puntos.push(S("circle", { r: 4.5, fill: o.series[j].color, stroke: th().card, "stroke-width": 2, opacity: 0 }, svg)); }
+  var capa = S("rect", { x: pl, y: pt, width: w, height: h, fill: "transparent" }, svg);
+  capa.addEventListener("mousemove", function (e) {
+    var b = svg.getBoundingClientRect(), k = Math.round(((e.clientX - b.left - pl) / w) * (n - 1)), html, q, v;
+    k = Math.max(0, Math.min(n - 1, k));
+    guia.setAttribute("x1", px(k)); guia.setAttribute("x2", px(k)); guia.setAttribute("opacity", 1);
+    html = '<div class="t1">' + esc(o.titulos ? o.titulos[k] : o.etiquetas[k]) + "</div>";
+    for (q = 0; q < o.series.length; q++) {
+      v = o.series[q].datos[k];
+      puntos[q].setAttribute("cx", px(k)); puntos[q].setAttribute("cy", pt + h - (num(v) / mx) * h); puntos[q].setAttribute("opacity", v === null ? 0 : 1);
+      if (v !== null && v !== undefined) {
+        html += '<div><i style="background:' + o.series[q].color + '"></i>' + esc(o.series[q].nombre) + ": <b>" + (o.fmt || fmtM)(v) +
+                "</b>" + (o.series[q].titulos ? ' <span style="opacity:.6">(' + esc(o.series[q].titulos[k]) + ")</span>" : "") + "</div>";
+      }
+    }
+    tip(html, e.clientX + document.documentElement.scrollLeft, e.clientY);
+  });
+  capa.addEventListener("mouseleave", function () { guia.setAttribute("opacity", 0); var q; for (q = 0; q < puntos.length; q++) { puntos[q].setAttribute("opacity", 0); } sinTip(); });
+}
+
+// ---------- columnas ----------
+function columnas(box, o, sinAnim) {
+  box.innerHTML = "";
+  var W = box.clientWidth || 500, H = o.alto || 240, pl = 58, pr = 10, pt = 16, pb = 30, w = W - pl - pr, h = H - pt - pb;
+  var n = o.datos.length, mx = ejeMax(maxDe(o.datos) * 1.08), i, bw, gap, svg, x, y, rects = [], v;
+  if (!n) { vacio(box); return; }
+  svg = S("svg", { width: W, height: H }, box);
+  for (i = 0; i <= 4; i++) {
+    y = pt + h - (i / 4) * h;
+    S("line", { x1: pl, x2: W - pr, y1: y, y2: y, stroke: th().grid }, svg);
+    S("text", { x: pl - 10, y: y + 4, "text-anchor": "end", fill: th().eje, "font-size": 11 }, svg).appendChild(document.createTextNode((o.fmtEje || fmtMC)(mx * i / 4)));
+  }
+  gap = Math.max(3, Math.min(14, (w / n) * 0.3)); bw = Math.max(3, (w - gap * (n + 1)) / n);
+  var step = Math.max(1, Math.ceil(n / Math.max(2, Math.floor(w / 62))));
+  for (i = 0; i < n; i++) {
+    v = num(o.datos[i]); x = pl + gap + i * (bw + gap);
+    var col = o.colores ? o.colores[i] : (o.color || PAL[0]);
+    var rc = S("rect", { x: x, y: pt + h, width: bw, height: 0, rx: Math.min(5, bw / 2), fill: col }, svg);
+    rc.setAttribute("data-i", i);
+    rects.push({ el: rc, h: Math.max(0, v / mx * h) });
+    if (i % step === 0) {
+      S("text", { x: x + bw / 2, y: H - 9, "text-anchor": "middle", fill: th().eje, "font-size": 11 }, svg).appendChild(document.createTextNode(o.etiquetas[i]));
+    }
+    (function (k, el) {
+      el.addEventListener("mousemove", function (e) {
+        el.setAttribute("opacity", 0.8);
+        tip('<div class="t1">' + esc(o.titulos ? o.titulos[k] : o.etiquetas[k]) + "</div><b>" + (o.fmt || fmtM)(o.datos[k]) + "</b>" + (o.extra ? "<div>" + o.extra(k) + "</div>" : ""), e.clientX, e.clientY);
+      });
+      el.addEventListener("mouseleave", function () { el.setAttribute("opacity", 1); sinTip(); });
+    })(i, rc);
+  }
+  function pinta(t) {
+    var k, hh, tt;
+    for (k = 0; k < rects.length; k++) {
+      tt = Math.max(0, Math.min(1, (t * 1.6) - (k / rects.length) * 0.6));
+      hh = rects[k].h * ease(tt);
+      rects[k].el.setAttribute("y", pt + h - hh); rects[k].el.setAttribute("height", hh);
+    }
+  }
+  if (sinAnim) { pinta(1); } else { anima(1100, function (t) { pinta(t); }); }
+}
+
+// ---------- barras horizontales (rankings) ----------
+function barrasH(box, filas, o, sinAnim) {
+  o = o || {};
+  if (!filas || !filas.length) { vacio(box); return; }
+  var mx = maxDe(filas, function (f) { return num(f.v); }) || 1, h = "", i, f, col;
+  for (i = 0; i < filas.length; i++) {
+    f = filas[i]; col = o.color ? o.color(f, i) : PAL[o.unColor ? 0 : i % PAL.length];
+    h += '<div class="hb"><div class="r1"><span class="n" title="' + esc(f.n) + '">' + (o.rank ? '<span class="mut">' + (i + 1) + ".&nbsp;</span>" : "") + esc(capital(f.n)) + "</span>" +
+         '<span class="v num">' + (o.fmt || fmtM)(f.v) + "</span>" + (o.extra ? '<span class="x mut num">' + o.extra(f) + "</span>" : "") +
+         '</div><div class="track"><div class="fill" style="background:' + col + ";transition-delay:" + (sinAnim ? 0 : i * 45) + 'ms" data-w="' +
+         Math.max(1.5, num(f.v) / mx * 100).toFixed(1) + '"></div></div></div>';
+  }
+  box.innerHTML = h;
+  var fs = box.getElementsByTagName("div");
+  setTimeout(function () { for (var k = 0; k < fs.length; k++) { if (fs[k].className === "fill") { fs[k].style.width = fs[k].getAttribute("data-w") + "%"; } } }, sinAnim ? 0 : 40);
+}
+
+// ---------- dona ----------
+function dona(box, filas, o, sinAnim) {
+  o = o || {};
+  if (!filas || !filas.length) { vacio(box); return; }
+  var tot = 0, i, max = o.max || 7, fs = [], resto = 0;
+  for (i = 0; i < filas.length; i++) { if (i < max) { fs.push({ n: filas[i].n, v: num(filas[i].v) }); } else { resto += num(filas[i].v); } }
+  if (resto > 0) { fs.push({ n: "Otros", v: resto }); }
+  for (i = 0; i < fs.length; i++) { tot += fs[i].v; }
+  if (tot <= 0) { vacio(box); return; }
+  var R = 74, grosor = 22, C = 86, angosta = (box.clientWidth || 400) < 470;
+  box.innerHTML = '<div class="dona' + (angosta ? " angosta" : "") + '"><div class="g"></div><div class="ley"></div></div>';
+  var g = box.firstChild.firstChild, ley = box.firstChild.lastChild, svg = S("svg", { width: C * 2, height: C * 2 }, g), arcs = [], hl = "<table>";
+  S("circle", { cx: C, cy: C, r: R, fill: "none", stroke: th().track, "stroke-width": grosor }, svg);
+  for (i = 0; i < fs.length; i++) {
+    arcs.push(S("path", { fill: "none", stroke: PAL[i % PAL.length], "stroke-width": grosor, "stroke-linecap": "butt" }, svg));
+    hl += '<tr><td class="c1"><i style="background:' + PAL[i % PAL.length] + '"></i></td><td title="' + esc(fs[i].n) + '">' + esc(capital(fs[i].n)) +
+          '</td><td class="c3 mut num">' + (o.fmtLey || fmtMC)(fs[i].v) + '</td><td class="c4 num">' + fmtN(fs[i].v / tot * 100, 0) + "%</td></tr>";
+  }
+  hl += "</table>";
+  var t1 = S("text", { x: C, y: C - 2, "text-anchor": "middle", fill: th().txt, "font-size": 17, "font-weight": 700 }, svg);
+  t1.appendChild(document.createTextNode((o.fmtCentro || fmtMC)(tot)));
+  var t2 = S("text", { x: C, y: C + 17, "text-anchor": "middle", fill: th().eje, "font-size": 11 }, svg);
+  t2.appendChild(document.createTextNode(o.centro || "total"));
+  ley.innerHTML = hl;
+  function arco(a0, a1) {
+    if (a1 - a0 >= Math.PI * 2 - 0.0001) { a1 = a0 + Math.PI * 2 - 0.0001; }
+    var x0 = C + R * Math.sin(a0), y0 = C - R * Math.cos(a0), x1 = C + R * Math.sin(a1), y1 = C - R * Math.cos(a1);
+    return "M" + x0.toFixed(2) + " " + y0.toFixed(2) + "A" + R + " " + R + " 0 " + (a1 - a0 > Math.PI ? 1 : 0) + " 1 " + x1.toFixed(2) + " " + y1.toFixed(2);
+  }
+  function pinta(t) {
+    var a = 0, k, s, lim = Math.PI * 2 * t;
+    for (k = 0; k < fs.length; k++) {
+      s = fs[k].v / tot * Math.PI * 2;
+      if (a >= lim) { arcs[k].setAttribute("d", ""); } else { arcs[k].setAttribute("d", arco(a, Math.min(a + s, lim) - (fs.length > 1 ? 0.012 : 0))); }
+      a += s;
+    }
+  }
+  if (sinAnim) { pinta(1); } else { anima(1200, pinta); }
+  function resalta(k, on) {
+    var q; for (q = 0; q < arcs.length; q++) { arcs[q].setAttribute("stroke-width", on && q === k ? grosor + 7 : grosor); arcs[q].setAttribute("opacity", on && q !== k ? 0.45 : 1); }
+    var its = ley.getElementsByTagName("tr"); for (q = 0; q < its.length; q++) { its[q].className = on && q === k ? "hl" : ""; }
+  }
+  var trs = ley.getElementsByTagName("tr");
+  for (i = 0; i < fs.length; i++) {
+    (function (k) {
+      arcs[k].addEventListener("mousemove", function (e) { resalta(k, true); tip('<div class="t1">' + esc(fs[k].n) + "</div><b>" + (o.fmt || fmtM)(fs[k].v) + "</b> &middot; " + fmtP(fs[k].v / tot * 100), e.clientX, e.clientY); });
+      arcs[k].addEventListener("mouseleave", function () { resalta(k, false); sinTip(); });
+      trs[k].onmouseenter = function () { resalta(k, true); };
+      trs[k].onmouseleave = function () { resalta(k, false); };
+    })(i);
+  }
+}
+
+// ---------- barra apilada (antiguedad) ----------
+function apilada(box, partes, sinAnim) {
+  var tot = 0, i, h = '<div class="apil">', ley = '<div class="leyenda" style="margin-top:12px">';
+  for (i = 0; i < partes.length; i++) { tot += Math.max(0, num(partes[i].v)); }
+  if (tot <= 0) { vacio(box, "No hay saldos pendientes"); return; }
+  for (i = 0; i < partes.length; i++) {
+    h += '<div style="background:' + partes[i].c + '" data-w="' + (Math.max(0, num(partes[i].v)) / tot * 100).toFixed(2) + '" title="' + esc(partes[i].n) + '"></div>';
+    ley += '<span><i style="background:' + partes[i].c + '"></i>' + partes[i].n + ' <b class="num">' + fmtMC(partes[i].v) + '</b> <span class="mut">' + fmtN(num(partes[i].v) / tot * 100, 0) + "%</span></span>";
+  }
+  box.innerHTML = h + "</div>" + ley + "</div>";
+  var ds = box.firstChild.childNodes;
+  setTimeout(function () { for (var k = 0; k < ds.length; k++) { ds[k].style.width = ds[k].getAttribute("data-w") + "%"; } }, sinAnim ? 0 : 40);
+}
+
+// ---------- mapa de calor dia x hora ----------
+function calor(box, filas, sinAnim) {
+  if (!filas || !filas.length) { vacio(box, "No hay ventas con hora registrada en este per\u00edodo"); return; }
+  var m = {}, hMin = 23, hMax = 0, mx = 0, i, f, k, d, hr, orden = [2, 3, 4, 5, 6, 7, 1], h, c, a, tot = {};
+  for (i = 0; i < filas.length; i++) {
+    f = filas[i]; hr = num(f.h); if (hr < 0 || hr > 23) { continue; }
+    m[f.d + "-" + hr] = f; hMin = Math.min(hMin, hr); hMax = Math.max(hMax, hr); mx = Math.max(mx, num(f.v));
+  }
+  h = '<table class="calor"><tr><th></th>';
+  for (k = hMin; k <= hMax; k++) { h += '<th class="mut">' + k + "</th>"; }
+  h += "</tr>";
+  for (i = 0; i < 7; i++) {
+    d = orden[i]; h += '<tr><td class="dia mut">' + DIAS[d - 1] + "</td>";
+    for (k = hMin; k <= hMax; k++) {
+      f = m[d + "-" + k]; a = f ? Math.max(0.08, num(f.v) / mx) : 0;
+      c = f ? "rgba(255,175,34," + a.toFixed(3) + ")" : (estado.tema === "oscuro" ? "#141a30" : "#f4f6fa");
+      h += '<td style="background:' + c + ";transition-delay:" + (sinAnim ? 0 : (k - hMin) * 25 + i * 12) + 'ms" data-k="' + d + "-" + k + '"></td>';
+    }
+    h += "</tr>";
+  }
+  box.innerHTML = h + "</table>";
+  var tds = box.getElementsByTagName("td");
+  setTimeout(function () { for (var q = 0; q < tds.length; q++) { if (tds[q].className !== "dia mut") { tds[q].className = "ver"; } } }, sinAnim ? 0 : 30);
+  box.onmousemove = function (e) {
+    var t = e.target || e.srcElement, key = t.getAttribute ? t.getAttribute("data-k") : null, ff, p;
+    if (!key) { sinTip(); return; }
+    ff = m[key]; p = key.split("-");
+    tip('<div class="t1">' + DIAS[parseInt(p[0], 10) - 1] + " de " + p[1] + " a " + (parseInt(p[1], 10) + 1) + " h</div>" +
+        (ff ? "<b>" + fmtM(ff.v) + "</b> &middot; " + fmtN(ff.c) + " ventas" : "Sin ventas"), e.clientX, e.clientY);
+  };
+  box.onmouseleave = sinTip;
+}
+
+// ---------- tabla ----------
+function tabla(box, cols, filas, vacioTxt) {
+  if (!filas || !filas.length) { vacio(box, vacioTxt); return; }
+  var h = '<table class="tabla"><tr>', i, j, c;
+  for (j = 0; j < cols.length; j++) { h += "<th" + (cols[j].der ? ' class="der"' : "") + ">" + cols[j].t + "</th>"; }
+  h += "</tr>";
+  for (i = 0; i < filas.length; i++) {
+    h += "<tr>";
+    for (j = 0; j < cols.length; j++) {
+      c = cols[j]; h += '<td class="' + (c.der ? "der num" : "") + (c.ell ? " ell" : "") + '"' + (c.ell ? ' title="' + esc(filas[i][c.k]) + '"' : "") + ">" +
+           (c.f ? c.f(filas[i][c.k], filas[i]) : esc(c.ell ? capital(filas[i][c.k]) : filas[i][c.k])) + "</td>";
+    }
+    h += "</tr>";
+  }
+  box.innerHTML = h + "</table>";
+}
+
+// Arma etiquetas y datos alineados (dia a dia o mes a mes) del periodo
+function serieAlineada(filas, desde, hasta, agrupa) {
+  var m = {}, i, et = [], tit = [], dat = [], cant = [], d, k, dd;
+  for (i = 0; i < (filas || []).length; i++) { m[filas[i].f.substr(0, agrupa === "mes" ? 7 : 10)] = filas[i]; }
+  if (agrupa === "mes") {
+    d = new Date(desde.getFullYear(), desde.getMonth(), 1);
+    while (d <= hasta) {
+      k = iso(d).substr(0, 7); et.push(MESES[d.getMonth()] + (d.getMonth() === 0 || !et.length ? " " + String(d.getFullYear()).substr(2) : ""));
+      tit.push(MESES_L[d.getMonth()] + " " + d.getFullYear());
+      dat.push(m[k] ? num(m[k].v) : 0); cant.push(m[k] ? num(m[k].c) : 0);
+      d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    }
+  } else {
+    d = new Date(desde.getTime());
+    while (d <= hasta) {
+      k = iso(d); dd = d.getDate();
+      et.push(dd + "/" + (d.getMonth() + 1)); tit.push(DIAS[d.getDay()] + " " + fecTxt(k));
+      dat.push(m[k] ? num(m[k].v) : 0); cant.push(m[k] ? num(m[k].c) : 0);
+      d = sumaDias(d, 1);
+    }
+  }
+  return { et: et, tit: tit, dat: dat, cant: cant };
+}
+function valores(filas) { var a = [], i; for (i = 0; i < (filas || []).length; i++) { a.push(num(filas[i].v)); } return a; }
+
+// =====================================================================
+// Secciones
+// =====================================================================
+var RENDER = {};
+
+// ---------------------------- RESUMEN ----------------------------
+RENDER.resumen = function () {
+  $("cont").innerHTML =
+    '<div class="fila">' + kpiHtml("kVen", "Ventas netas") + kpiHtml("kMar", "Margen bruto") + kpiHtml("kTic", "Ticket promedio") +
+    kpiHtml("kCob", "Cobranzas") + kpiHtml("kCom", "Compras") + kpiHtml("kPag", "Pagos a proveedores") + "</div>" +
+    '<div class="fila"><div class="col c8">' + card("gVen", "Evoluci\u00f3n de las ventas", '<span id="gVenLey"></span>') + "</div>" +
+    '<div class="col c4">' + card("gFor", "C\u00f3mo te pagan", "Ventas por forma de pago") + "</div></div>" +
+    '<div class="fila"><div class="col c4">' + card("gTop", "Lo que m\u00e1s se vende", "Productos por facturaci\u00f3n") + "</div>" +
+    '<div class="col c4">' + card("gPos", "Posici\u00f3n financiera", "Hoy, sin importar el per\u00edodo") + "</div>" +
+    '<div class="col c4">' + card("gAle", "Para prestar atenci\u00f3n", "Avisos de hoy") + "</div></div>";
+  cargar("resumen", {}, pintarResumen);
+};
+function pintarKpis(d, sinAnim) {
+  var k = d.kpi || {}, a = d.kpiAnt || {}, sp = d.spark || {}, s = serieAlineada(d.serie, estado.desde, estado.hasta, d.agrupa), txt = "";
+  var mar = num(k.mbase) ? num(k.margen) / num(k.mbase) * 100 : 0, marA = num(a.mbase) ? num(a.margen) / num(a.mbase) * 100 : 0;
+  var tic = num(k.comprobantes) ? num(k.ventas) / num(k.comprobantes) : 0, ticA = num(a.comprobantes) ? num(a.ventas) / num(a.comprobantes) : 0;
+  var ticS = [], i;
+  for (i = 0; i < s.dat.length; i++) { ticS.push(s.cant[i] ? s.dat[i] / s.cant[i] : 0); }
+  kpiPintar("kVen", k.ventas, fmtM, a.ventas, 1, "", s.dat, PAL[0], sinAnim);
+  kpiPintar("kMar", mar, function (v) { return fmtP(v); }, null, 0,
+            '<span class="mut">' + fmtMC(k.margen) + (num(k.mtotal) && num(k.mbase) / num(k.mtotal) < 0.95 ? " &middot; " + fmtN(num(k.mbase) / num(k.mtotal) * 100, 0) + "% con costo" : "") + "</span>",
+            serieAlineada(sp.margen, estado.desde, estado.hasta, d.agrupa).dat, PAL[2], sinAnim);
+  if (marA) { $("kMar-p").innerHTML = '<span class="delta ' + (mar >= marA ? "d-up" : "d-dn") + '">' + (mar >= marA ? "\u25b2 " : "\u25bc ") + fmtN(Math.abs(mar - marA), 1) + " pts</span>" + $("kMar-p").innerHTML; }
+  kpiPintar("kTic", tic, fmtM, ticA, 1, '<span class="mut">' + fmtN(k.comprobantes) + " ventas</span>", ticS, PAL[3], sinAnim);
+  kpiPintar("kCob", k.cobranzas, fmtM, a.cobranzas, 1, "", serieAlineada(sp.cobranzas, estado.desde, estado.hasta, d.agrupa).dat, PAL[1], sinAnim);
+  kpiPintar("kCom", k.compras, fmtM, a.compras, 0, "", serieAlineada(sp.compras, estado.desde, estado.hasta, d.agrupa).dat, PAL[5], sinAnim);
+  kpiPintar("kPag", k.pagos, fmtM, a.pagos, 0, "", serieAlineada(sp.pagos, estado.desde, estado.hasta, d.agrupa).dat, PAL[4], sinAnim);
+}
+function graficoVentas(boxId, leyId, d, sinAnim) {
+  var s = serieAlineada(d.serie, estado.desde, estado.hasta, d.agrupa), sa = serieAlineada(d.serieAnt, estado.pdesde, estado.phasta, d.agrupa), datA = [], titA = [], i;
+  for (i = 0; i < s.dat.length; i++) { datA.push(i < sa.dat.length ? sa.dat[i] : null); titA.push(i < sa.tit.length ? sa.tit[i] : ""); }
+  $(leyId).innerHTML = '<span class="leyenda"><span><i class="lin" style="background:' + PAL[0] + '"></i>Per\u00edodo actual</span>' +
+                       '<span><i class="lin" style="background:' + th().ant + '"></i>Per\u00edodo anterior</span></span>';
+  lineas($(boxId), { etiquetas: s.et, titulos: s.tit, series: [
+    { nombre: "Actual", datos: s.dat, color: PAL[0], area: true, ancho: 2.6 },
+    { nombre: "Anterior", datos: datA, color: th().ant, punteado: true, ancho: 1.8, titulos: titA }] }, sinAnim);
+}
+function pintarResumen(d, sinAnim) {
+  pintarKpis(d, sinAnim);
+  graficoVentas("gVen", "gVenLey", d, sinAnim);
+  dona($("gFor"), d.formas, { centro: "vendido" }, sinAnim);
+  barrasH($("gTop"), d.top, { rank: true, unColor: true, extra: function (f) { return fmtCant(f.c) + " u."; } }, sinAnim);
+  var p = d.posicion || {}, mx = Math.max(num(p.cobrar), num(p.pagar), 1), h = "";
+  h += '<div class="pos"><span class="n mut">Te deben tus clientes</span><span class="v num" style="color:#22C3A6">' + fmtM(p.cobrar) + "</span></div>" +
+       '<div class="track" style="height:12px"><div class="fill" style="height:12px;background:#22C3A6" data-w="' + (num(p.cobrar) / mx * 100).toFixed(1) + '"></div></div>' +
+       '<div class="mut" style="font-size:11.5px;margin:6px 0 18px 0">Vencido: <b class="num">' + fmtM(p.cobrarvenc) + "</b></div>" +
+       '<div class="pos"><span class="n mut">Le deb\u00e9s a proveedores</span><span class="v num" style="color:#FF6B6B">' + fmtM(p.pagar) + "</span></div>" +
+       '<div class="track" style="height:12px"><div class="fill" style="height:12px;background:#FF6B6B" data-w="' + (num(p.pagar) / mx * 100).toFixed(1) + '"></div></div>' +
+       '<div class="mut" style="font-size:11.5px;margin:6px 0 16px 0">Vencido: <b class="num">' + fmtM(p.pagarvenc) + "</b></div>" +
+       '<div class="sep" style="padding-top:12px"><span class="mut">Balance</span><span class="big num" style="float:right;font-size:20px;color:' +
+       (num(p.cobrar) - num(p.pagar) >= 0 ? "#22C3A6" : "#FF6B6B") + '">' + fmtM(num(p.cobrar) - num(p.pagar)) + "</span></div>";
+  $("gPos").innerHTML = h;
+  var fills = $("gPos").getElementsByTagName("div");
+  setTimeout(function () { for (var q = 0; q < fills.length; q++) { if (fills[q].className === "fill") { fills[q].style.width = fills[q].getAttribute("data-w") + "%"; } } }, sinAnim ? 0 : 40);
+  var a = d.alertas || {}, al = "";
+  if (num(a.vtosn)) { al += alerta("reloj", "#FFAF22", fmtN(a.vtosn) + (num(a.vtosn) === 1 ? " factura de compra vence" : " facturas de compra vencen") + " esta semana", "Total a pagar: " + fmtM(a.vtosv)); }
+  if (num(a.morosos)) { al += alerta("usuario", "#FF6B6B", fmtN(a.morosos) + (num(a.morosos) === 1 ? " cliente" : " clientes") + " con deuda de m\u00e1s de 60 d\u00edas", "Revis\u00e1 Clientes y cobranzas"); }
+  if (num(a.bajomin)) { al += alerta("caja2", "#4F8CFF", fmtN(a.bajomin) + (num(a.bajomin) === 1 ? " art\u00edculo" : " art\u00edculos") + " por debajo del stock m\u00ednimo", "Mir\u00e1 el detalle en Stock"); }
+  if (!al) { al = alerta("ia", "#22C3A6", "Todo en orden", "No hay vencimientos ni alertas para hoy"); }
+  $("gAle").innerHTML = al;
+}
+function alerta(ic, color, t1, t2) {
+  return '<div class="alerta"><div class="ic" style="background:' + color + '22;color:' + color + '">' + icono(ic, 17, color) + "</div><b>" + t1 + '</b><span class="mut">' + t2 + "</span></div>";
+}
+
+// ---------------------------- VENTAS ----------------------------
+RENDER.ventas = function () {
+  var tabs = '<span class="tabs" id="tabsRank">' + tabsHtml() + "</span>";
+  $("cont").innerHTML =
+    '<div class="fila">' + kpiHtml("vVen", "Ventas netas") + kpiHtml("vCan", "Cantidad de ventas") + kpiHtml("vTic", "Ticket promedio") +
+    kpiHtml("vUni", "Unidades vendidas") + kpiHtml("vMar", "Margen bruto") + kpiHtml("vDev", "Devoluciones (NC)") + "</div>" +
+    '<div class="fila"><div class="col c12">' + card("gEvo", "Ventas en el tiempo", '<span id="gEvoLey"></span>') + "</div></div>" +
+    '<div class="fila"><div class="col c7">' + card("gCal", "\u00bfCu\u00e1ndo vend\u00e9s m\u00e1s?", "Importe vendido por d\u00eda de la semana y hora") + "</div>" +
+    '<div class="col c5">' + card("gRank", "Ventas por categor\u00eda", "Con margen bruto estimado", "", tabs) + "</div></div>" +
+    '<div class="fila"><div class="col c7">' + card("gProd", "Productos m\u00e1s vendidos", "Por facturaci\u00f3n, con unidades y margen") + "</div>" +
+    '<div class="col c5">' + card("gVend", "Ventas por vendedor", "Importe neto y cantidad de ventas") + "</div></div>";
+  cargar("ventas", { agrupar: estado.agrupar }, pintarVentas);
+};
+function tabsHtml() {
+  var t = [["rubro", "Rubro"], ["marca", "Marca"], ["depto", "Depto."], ["proveedor", "Proveedor"]], h = "", i;
+  for (i = 0; i < t.length; i++) { h += '<span class="' + (estado.agrupar === t[i][0] ? "on" : "") + '" onclick="cambiarRank(\'' + t[i][0] + '\')">' + t[i][1] + "</span>"; }
+  return h;
+}
+function cambiarRank(a) {
+  estado.agrupar = a; $("tabsRank").innerHTML = tabsHtml();
+  $("gRank").innerHTML = '<div class="esq" style="width:80%"></div><div class="esq" style="width:60%"></div>';
+  pedir("ranking", paramsPer({ agrupar: a }), function (d, err) { if (estado.sec === "ventas" && !err) { pintarRanking(d); } });
+}
+function pintarRanking(filas, sinAnim) {
+  barrasH($("gRank"), filas, { rank: true, extra: function (f) { return f.m === null || f.m === undefined ? "" : fmtP(f.m) + " margen"; } }, sinAnim);
+}
+function pintarVentas(d, sinAnim) {
+  var k = d.kpi || {}, a = d.kpiAnt || {}, x = d.extra || {}, s = serieAlineada(d.serie, estado.desde, estado.hasta, d.agrupa), ticS = [], i;
+  var mar = num(k.mbase) ? num(k.margen) / num(k.mbase) * 100 : 0;
+  for (i = 0; i < s.dat.length; i++) { ticS.push(s.cant[i] ? s.dat[i] / s.cant[i] : 0); }
+  kpiPintar("vVen", k.ventas, fmtM, a.ventas, 1, "", s.dat, PAL[0], sinAnim);
+  kpiPintar("vCan", k.comprobantes, function (v) { return fmtN(v); }, a.comprobantes, 1, "", s.cant, PAL[1], sinAnim);
+  kpiPintar("vTic", num(k.comprobantes) ? num(k.ventas) / num(k.comprobantes) : 0, fmtM,
+            num(a.comprobantes) ? num(a.ventas) / num(a.comprobantes) : 0, 1, "", ticS, PAL[3], sinAnim);
+  kpiPintar("vUni", x.unidades, function (v) { return fmtN(v); }, null, 0, '<span class="mut">art\u00edculos en el per\u00edodo</span>', null, null, sinAnim);
+  kpiPintar("vMar", mar, function (v) { return fmtP(v); }, null, 0, '<span class="mut">' + fmtMC(k.margen) + " de ganancia bruta</span>", null, null, sinAnim);
+  kpiPintar("vDev", x.devol, fmtM, null, 0, '<span class="mut">' + (num(k.ventas) ? fmtP(num(x.devol) / (num(k.ventas) + num(x.devol)) * 100) + " de lo facturado" : "") + "</span>", null, null, sinAnim);
+  graficoVentas("gEvo", "gEvoLey", d, sinAnim);
+  calor($("gCal"), d.calor, sinAnim);
+  pintarRanking(d.ranking, sinAnim);
+  tabla($("gProd"), [
+    { t: "Producto", k: "n", ell: true },
+    { t: "Unidades", k: "c", der: true, f: function (v) { return fmtCant(v); } },
+    { t: "Vendido", k: "v", der: true, f: function (v) { return fmtM(v); } },
+    { t: "Margen", k: "m", der: true, f: function (v) { return v === null || v === undefined ? '<span class="mut">-</span>' : '<span class="pill ' + (v < 10 ? "p-rojo" : v < 25 ? "p-amar" : "p-verd") + '">' + fmtP(v) + "</span>"; } }
+  ], d.productos);
+  barrasH($("gVend"), d.vendedores, { rank: true, unColor: true, color: function () { return PAL[1]; }, extra: function (f) { return fmtN(f.c) + " ventas"; } }, sinAnim);
+}
+
+// ---------------------------- CLIENTES ----------------------------
+RENDER.clientes = function () {
+  $("cont").innerHTML =
+    '<div class="fila">' + kpiHtml("cCob", "Cobrado en el per\u00edodo") + kpiHtml("cRec", "Recibos") + kpiHtml("cDeu", "Te deben") +
+    kpiHtml("cVen", "Deuda vencida") + kpiHtml("cCli", "Clientes con deuda") + kpiHtml("cPro", "Deuda promedio") + "</div>" +
+    '<div class="fila"><div class="col c7">' + card("gAge", "Antig\u00fcedad de la deuda", "Saldos seg\u00fan d\u00edas desde el vencimiento") + "</div>" +
+    '<div class="col c5">' + card("gCfp", "C\u00f3mo te pagan las cuentas", "Cobranzas por forma de pago") + "</div></div>" +
+    '<div class="fila"><div class="col c12">' + card("gCob", "Cobranzas en el tiempo", "") + "</div></div>" +
+    '<div class="fila"><div class="col c6">' + card("gDeu", "Los que m\u00e1s te deben", "Saldo y d\u00edas de la deuda m\u00e1s vieja") + "</div>" +
+    '<div class="col c6">' + card("gMej", "Tus mejores clientes", "Por compras en el per\u00edodo") + "</div></div>";
+  cargar("clientes", {}, pintarClientes);
+};
+function pintarClientes(d, sinAnim) {
+  var k = d.kpi || {}, g = d.aging || {}, s = serieAlineada(d.cobros, estado.desde, estado.hasta, "dia");
+  kpiPintar("cCob", k.cobrado, fmtM, null, 0, "", s.dat, PAL[1], sinAnim);
+  kpiPintar("cRec", k.recibos, function (v) { return fmtN(v); }, null, 0, '<span class="mut">recibos emitidos</span>', null, null, sinAnim);
+  kpiPintar("cDeu", k.deuda, fmtM, null, 0, '<span class="mut">saldo total a cobrar</span>', null, null, sinAnim);
+  kpiPintar("cVen", k.vencida, fmtM, null, 0, '<span class="mut">' + (num(k.deuda) ? fmtP(num(k.vencida) / num(k.deuda) * 100) + " del total" : "") + "</span>", null, null, sinAnim);
+  kpiPintar("cCli", k.deudores, function (v) { return fmtN(v); }, null, 0, '<span class="mut">con saldo pendiente</span>', null, null, sinAnim);
+  kpiPintar("cPro", num(k.deudores) ? num(k.deuda) / num(k.deudores) : 0, fmtM, null, 0, '<span class="mut">por cliente</span>', null, null, sinAnim);
+  apilada($("gAge"), [
+    { n: "Al d\u00eda", v: g.a0, c: "#22C3A6" }, { n: "1-30 d\u00edas", v: g.a30, c: "#A3E635" }, { n: "31-60", v: g.a60, c: "#FFAF22" },
+    { n: "61-90", v: g.a90, c: "#FB923C" }, { n: "M\u00e1s de 90", v: g.a91, c: "#FF6B6B" }], sinAnim);
+  // Lectura rapida: que parte de la deuda es dificil de cobrar
+  var tot = num(g.a0) + num(g.a30) + num(g.a60) + num(g.a90) + num(g.a91), p90 = tot ? (num(g.a90) + num(g.a91)) / tot * 100 : 0;
+  if (tot > 0) {
+    $("gAge").insertAdjacentHTML("beforeend", '<div class="sep" style="margin-top:16px;padding-top:14px;line-height:1.55">' +
+      (p90 >= 50 ? '<span class="pill p-rojo">Atenci\u00f3n</span> ' : p90 >= 20 ? '<span class="pill p-amar">Ojo</span> ' : '<span class="pill p-verd">Bien</span> ') +
+      "El <b>" + fmtP(p90, 0) + "</b> de lo que te deben tiene m\u00e1s de 60 d\u00edas de atraso (" + fmtM(num(g.a90) + num(g.a91)) + "). " +
+      '<span class="mut">Las facturas sin vencimiento cargado se consideran vencidas a los 30 d\u00edas.</span></div>');
+  }
+  dona($("gCfp"), d.formas, { centro: "cobrado" }, sinAnim);
+  lineas($("gCob"), { etiquetas: s.et, titulos: s.tit, alto: 220, series: [{ nombre: "Cobrado", datos: s.dat, color: PAL[1], area: true }] }, sinAnim);
+  tabla($("gDeu"), [
+    { t: "Cliente", k: "n", ell: true },
+    { t: "D\u00edas", k: "d", der: true, f: function (v) { v = num(v); return '<span class="pill ' + (v > 90 ? "p-rojo" : v > 30 ? "p-amar" : "p-verd") + '">' + (v > 0 ? fmtN(v) : "al d\u00eda") + "</span>"; } },
+    { t: "Saldo", k: "v", der: true, f: function (v) { return "<b>" + fmtM(v) + "</b>"; } }
+  ], d.deudores, "Ning\u00fan cliente te debe");
+  barrasH($("gMej"), d.mejores, { rank: true, unColor: true, color: function () { return PAL[2]; }, extra: function (f) { return fmtN(f.c) + " compras"; } }, sinAnim);
+}
+
+// ---------------------------- COMPRAS ----------------------------
+RENDER.compras = function () {
+  $("cont").innerHTML =
+    '<div class="fila">' + kpiHtml("pCom", "Compras del per\u00edodo") + kpiHtml("pPag", "Pagado a proveedores") + kpiHtml("pDeu", "Le deb\u00e9s") +
+    kpiHtml("pVen", "Ya vencido") + kpiHtml("pSem", "Vence esta semana") + kpiHtml("pAnt", "Anticipos a favor") + "</div>" +
+    '<div class="fila"><div class="col c7">' + card("gVto", "Calendario de pagos", "Saldos de facturas de compra seg\u00fan su vencimiento") + "</div>" +
+    '<div class="col c5">' + card("gCta", "En qu\u00e9 se gasta", "Compras por cuenta") + "</div></div>" +
+    '<div class="fila"><div class="col c6">' + card("gPrv", "A qui\u00e9n le compr\u00e1s m\u00e1s", "Compras del per\u00edodo por proveedor") + "</div>" +
+    '<div class="col c6">' + card("gDpr", "A qui\u00e9n le deb\u00e9s", "Saldo y vencimiento m\u00e1s pr\u00f3ximo") + "</div></div>";
+  cargar("compras", {}, pintarCompras);
+};
+function pintarCompras(d, sinAnim) {
+  var k = d.kpi || {}, v = d.vtos || {};
+  kpiPintar("pCom", k.compras, fmtM, null, 0, '<span class="mut">sin remitos</span>', null, null, sinAnim);
+  kpiPintar("pPag", k.pagado, fmtM, null, 0, '<span class="mut">\u00f3rdenes de pago</span>', null, null, sinAnim);
+  kpiPintar("pDeu", k.deuda, fmtM, null, 0, '<span class="mut">saldo total</span>', null, null, sinAnim);
+  kpiPintar("pVen", k.vencida, fmtM, null, 0, '<span class="mut">' + (num(k.deuda) ? fmtP(num(k.vencida) / num(k.deuda) * 100) + " de la deuda" : "") + "</span>", null, null, sinAnim);
+  kpiPintar("pSem", k.semana, fmtM, null, 0, '<span class="mut">pr\u00f3ximos 7 d\u00edas</span>', null, null, sinAnim);
+  kpiPintar("pAnt", k.anticipos, fmtM, null, 0, '<span class="mut">pagos a cuenta</span>', null, null, sinAnim);
+  columnas($("gVto"), { etiquetas: ["Vencido", "Esta semana", "En 2 semanas", "En 3 semanas", "En 4 semanas", "M\u00e1s adelante"],
+    datos: [num(v.s0), num(v.s1), num(v.s2), num(v.s3), num(v.s4), num(v.s5)], colores: ["#FF6B6B", "#FFAF22", "#4F8CFF", "#4F8CFF", "#4F8CFF", "#64748B"], alto: 250 }, sinAnim);
+  dona($("gCta"), d.cuentas, { centro: "comprado" }, sinAnim);
+  barrasH($("gPrv"), d.proveedores, { rank: true, unColor: true, color: function () { return PAL[5]; }, extra: function (f) { return fmtN(f.c) + " comp."; } }, sinAnim);
+  tabla($("gDpr"), [
+    { t: "Proveedor", k: "n", ell: true },
+    { t: "Vence", k: "f", der: true, f: function (x) { var dd = x ? Math.round((deIso(x) - estado.hoy) / 86400000) : 0; return '<span class="pill ' + (dd < 0 ? "p-rojo" : dd <= 7 ? "p-amar" : "p-verd") + '">' + fecTxt(x) + "</span>"; } },
+    { t: "Saldo", k: "v", der: true, f: function (x) { return "<b>" + fmtM(x) + "</b>"; } }
+  ], d.deuda, "No le deb\u00e9s a ning\u00fan proveedor");
+}
+
+// ---------------------------- STOCK ----------------------------
+RENDER.stock = function () {
+  $("cont").innerHTML =
+    '<div class="fila">' + kpiHtml("sCos", "Stock a costo") + kpiHtml("sVen", "Stock a precio de venta") + kpiHtml("sArt", "Art\u00edculos con stock") +
+    kpiHtml("sBaj", "Bajo el m\u00ednimo") + kpiHtml("sFal", "Sin stock que se venden") + kpiHtml("sQui", "Capital inmovilizado") + "</div>" +
+    '<div class="fila"><div class="col c5">' + card("gRub", "D\u00f3nde est\u00e1 la plata", "Stock valorizado a costo por rubro") + "</div>" +
+    '<div class="col c7">' + card("gBaj", "Para reponer", "Art\u00edculos por debajo del stock m\u00ednimo") + "</div></div>" +
+    '<div class="fila"><div class="col c12">' + card("gQui", "Mercader\u00eda sin movimiento", "Con stock y sin ventas en los \u00faltimos 90 d\u00edas, ordenada por valor") + "</div></div>";
+  cargar("stock", {}, pintarStock);
+};
+function pintarStock(d, sinAnim) {
+  var k = d.kpi || {}, q = d.quietosTot || {}, f = d.faltantes || {};
+  kpiPintar("sCos", k.costo, fmtM, null, 0, '<span class="mut">valor de reposici\u00f3n</span>', null, null, sinAnim);
+  kpiPintar("sVen", k.venta, fmtM, null, 0, '<span class="mut">' + (num(k.costo) ? "+" + fmtP((num(k.venta) / num(k.costo) - 1) * 100, 0) + " sobre costo" : "") + "</span>", null, null, sinAnim);
+  kpiPintar("sArt", k.con_stock, function (v) { return fmtN(v); }, null, 0, '<span class="mut">art\u00edculos distintos</span>', null, null, sinAnim);
+  kpiPintar("sBaj", k.bajo_min, function (v) { return fmtN(v); }, null, 0, '<span class="mut">para reponer</span>', null, null, sinAnim);
+  kpiPintar("sFal", f.n, function (v) { return fmtN(v); }, null, 0, '<span class="mut">vendidos en 30 d\u00edas, hoy sin stock</span>', null, null, sinAnim);
+  kpiPintar("sQui", q.v, fmtM, null, 0, '<span class="mut">' + fmtN(q.n) + " art\u00edculos sin venta en 90 d\u00edas</span>", null, null, sinAnim);
+  dona($("gRub"), d.rubros, { centro: "a costo" }, sinAnim);
+  tabla($("gBaj"), [
+    { t: "Art\u00edculo", k: "n", ell: true },
+    { t: "Stock", k: "s", der: true, f: function (v) { return '<span class="pill ' + (num(v) <= 0 ? "p-rojo" : "p-amar") + '">' + fmtCant(v) + "</span>"; } },
+    { t: "M\u00ednimo", k: "m", der: true, f: function (v) { return fmtCant(v); } },
+    { t: "Faltan", k: "f", der: true, f: function (v) { return "<b>" + fmtCant(v) + "</b>"; } }
+  ], d.bajo, "Ning\u00fan art\u00edculo est\u00e1 por debajo del m\u00ednimo");
+  tabla($("gQui"), [
+    { t: "Art\u00edculo", k: "n", ell: true },
+    { t: "\u00daltima compra", k: "f", der: true, f: function (v) { return v ? fecTxt(v) : '<span class="mut">-</span>'; } },
+    { t: "Stock", k: "s", der: true, f: function (v) { return fmtCant(v); } },
+    { t: "Valor a costo", k: "v", der: true, f: function (v) { return "<b>" + fmtM(v) + "</b>"; } }
+  ], d.quietos, "Todo lo que ten\u00e9s en stock se vendi\u00f3 en los \u00faltimos 90 d\u00edas");
+}
+
+// ---------------------------- CAJA ----------------------------
+RENDER.caja = function () {
+  $("cont").innerHTML =
+    '<div class="fila"><div class="col c5">' + card("gRes", "Resultado del per\u00edodo", "Lo que entr\u00f3 y lo que sali\u00f3") + "</div>" +
+    '<div class="col c7">' + card("gCev", "Movimiento de caja por d\u00eda", '<span class="leyenda"><span><i style="background:#22C3A6"></i>Ingresos</span><span><i style="background:#FF6B6B"></i>Egresos</span></span>') + "</div></div>" +
+    '<div class="fila"><div class="col c12">' + card("gCie", "Cierres de caja", "\u00daltimos cierres del per\u00edodo") + "</div></div>";
+  cargar("caja", {}, pintarCaja);
+};
+function pintarCaja(d, sinAnim) {
+  var r = d.resultado || {}, filas = [
+    { n: "Ventas", v: num(r.ventas), c: "#22C3A6" }, { n: "Cobranzas", v: num(r.cobranzas), c: "#4F8CFF" },
+    { n: "Compras", v: num(r.compras), c: "#FF6B6B" }, { n: "Pagos a proveedores", v: num(r.pagos), c: "#FB923C" }];
+  barrasH($("gRes"), filas, { color: function (f) { return f.c; } }, sinAnim);
+  // Dos lecturas que no se mezclan (las ventas en cuenta corriente vuelven como cobranzas)
+  var bal1 = num(r.ventas) - num(r.compras), bal2 = num(r.cobranzas) - num(r.pagos);
+  function linea(t, v, grande) {
+    return '<div style="margin-top:10px;overflow:hidden"><span class="mut">' + t + '</span><span class="num' + (grande ? " big" : "") +
+           '" style="float:right;font-weight:700;' + (grande ? "font-size:19px;" : "") + "color:" + (v >= 0 ? "#22C3A6" : "#FF6B6B") + '">' + fmtM(v) + "</span></div>";
+  }
+  $("gRes").insertAdjacentHTML("beforeend", '<div class="sep" style="padding-top:4px;margin-top:6px">' +
+    linea("Ventas menos compras", bal1, true) + linea("Cobranzas menos pagos a proveedores", bal2, false) +
+    '<div style="margin-top:10px;overflow:hidden"><span class="mut">Diferencias en los cierres de caja</span><b class="num" style="float:right">' + fmtM(r.diferencias) + "</b></div></div>");
+  var ev = d.evolucion || [], et = [], ing = [], egr = [], i, tit = [];
+  for (i = 0; i < ev.length; i++) { et.push(fecTxt(ev[i].f).substr(0, 5)); tit.push(fecTxt(ev[i].f)); ing.push(num(ev[i].i)); egr.push(num(ev[i].e)); }
+  if (!ev.length) { vacio($("gCev"), "No hay cierres de caja en este per\u00edodo"); }
+  else { lineas($("gCev"), { etiquetas: et, titulos: tit, alto: 230, series: [
+    { nombre: "Ingresos", datos: ing, color: "#22C3A6", area: true }, { nombre: "Egresos", datos: egr, color: "#FF6B6B", area: true }] }, sinAnim); }
+  tabla($("gCie"), [
+    { t: "Fecha", k: "f", f: function (v) { return fecTxt(v); } },
+    { t: "Caja", k: "c", der: true },
+    { t: "Hora", k: "h", der: true, f: function (v) { return esc(String(v || "").substr(0, 5)); } },
+    { t: "Ingresos", k: "i", der: true, f: function (v) { return fmtM(v); } },
+    { t: "Egresos", k: "e", der: true, f: function (v) { return fmtM(v); } },
+    { t: "Efectivo", k: "x", der: true, f: function (v) { return fmtM(v); } },
+    { t: "Diferencia", k: "d", der: true, f: function (v) { v = num(v); return Math.abs(v) < 1 ? '<span class="pill p-verd">sin diferencia</span>' : '<span class="pill ' + (v < 0 ? "p-rojo" : "p-amar") + '">' + fmtM(v) + "</span>"; } }
+  ], d.cierres, "No hay cierres de caja en este per\u00edodo");
+}
+
+// ---------------------------- ASISTENTE ----------------------------
+var SUGERENCIAS = [
+  "\u00bfCu\u00e1nto vend\u00ed este mes comparado con el mes pasado?",
+  "\u00bfCu\u00e1les son los 10 productos que m\u00e1s vend\u00ed esta semana?",
+  "\u00bfQu\u00e9 rubro me deja m\u00e1s margen este a\u00f1o?",
+  "\u00bfQu\u00e9 clientes me deben hace m\u00e1s de 60 d\u00edas?",
+  "\u00bfQu\u00e9 facturas de proveedores vencen esta semana?",
+  "\u00bfEn qu\u00e9 d\u00eda y horario vendo m\u00e1s?",
+  "\u00bfQu\u00e9 art\u00edculos con stock no se vendieron en 3 meses?",
+  "\u00bfC\u00f3mo vienen las ventas de los \u00faltimos 12 meses?"
+];
+var iaHist = "", iaOcupado = false, iaN = 0;
+RENDER.ia = function () {
+  estado.ultimo = null;
+  if (!estado.ia) {
+    $("cont").innerHTML = '<div id="ia"><div class="card entra"><h3>El asistente no est\u00e1 configurado</h3><div class="sub mut" style="margin-top:8px;line-height:1.6">' +
+      "Para usarlo hace falta cargar la clave del servicio de inteligencia artificial en la configuraci\u00f3n central del sistema. " +
+      "Consult\u00e1 con soporte de BCN.</div></div></div>";
+    return;
+  }
+  var sug = "", i;
+  for (i = 0; i < SUGERENCIAS.length; i++) { sug += '<span class="chip sug" onclick="iaPreguntar(this.innerText)">' + SUGERENCIAS[i] + "</span>"; }
+  $("cont").innerHTML = '<div id="ia">' +
+    (iaHist ? "" : '<div class="card entra" id="iaBienv"><div style="overflow:hidden"><div style="float:left;width:46px;height:46px;border-radius:14px;background:#FFAF22;text-align:center;padding-top:11px">' +
+      icono("ia", 24, "#141833") + '</div><div style="margin-left:62px"><h3 style="font-size:17px">Hola, \u00bfqu\u00e9 quer\u00e9s saber de tu negocio?</h3>' +
+      '<div class="mut" style="margin-top:4px">Pregunt\u00e1 como le preguntar\u00edas a tu contador: ventas, m\u00e1rgenes, clientes, proveedores, stock o caja. ' +
+      "Respondo con los datos de esta empresa.</div></div></div>" + '<div style="margin-top:16px">' + sug + "</div></div>") +
+    '<div id="iaMsgs">' + iaHist + "</div>" +
+    '<div id="iaBarra" style="position:relative"><textarea id="iaTxt" class="inp" placeholder="Escrib\u00ed tu pregunta y apret\u00e1 Enter..."></textarea>' +
+    '<span id="iaEnviar" onclick="iaPreguntar()">Preguntar</span></div>' +
+    '<div class="mut" style="font-size:11px;margin-top:8px;text-align:center">Las respuestas se generan con inteligencia artificial a partir de tus datos. Verific\u00e1 los n\u00fameros importantes.</div></div>';
+  $("iaTxt").onkeydown = function (e) { e = e || window.event; if (e.keyCode === 13 && !e.shiftKey) { if (e.preventDefault) { e.preventDefault(); } iaPreguntar(); return false; } };
+  setTimeout(function () { try { $("iaTxt").focus(); } catch (e) {} }, 50);
+  iaBajar();
+};
+function iaBajar() { var c = $("cont"); c.scrollTop = c.scrollHeight; }
+function iaNueva() { iaHist = ""; pedir("ia_nueva", {}); if (estado.sec === "ia") { RENDER.ia(); } }
+function iaPreguntar(txt) {
+  var t = (txt || ($("iaTxt") ? $("iaTxt").value : "") || "").replace(/^\s+|\s+$/g, "");
+  if (!t || iaOcupado) { return; }
+  if ($("iaTxt")) { $("iaTxt").value = ""; }
+  if ($("iaBienv")) { $("iaBienv").parentNode.removeChild($("iaBienv")); }
+  iaOcupado = true;
+  var n = ++iaN;
+  $("iaMsgs").insertAdjacentHTML("beforeend", '<div class="msg-u entra"><span>' + esc(t) + "</span></div>" +
+    '<div class="burbuja-ia entra" id="iaR' + n + '"><span class="puntos"><span></span><span class="b"></span><span class="c"></span></span> <span class="mut">Analizando tus datos...</span></div>');
+  iaBajar();
+  pedir("ia", { pregunta: encodeURIComponent(t) }, function (d, err) {
+    iaOcupado = false;
+    var box = $("iaR" + n);
+    if (!box) { return; }
+    iaPintar(box, d || {}, err, n);
+    iaHist = $("iaMsgs").innerHTML;
+    // Que se lea desde el principio de la respuesta (con la pregunta arriba)
+    var c = $("cont"), r = $("iaR" + n), y = 0, e = r;
+    while (e && e !== c) { y += e.offsetTop; e = e.offsetParent; }
+    c.scrollTop = Math.max(0, y - 70);
+  });
+}
+function iaFmt(v, f) {
+  if (v === null || v === undefined || v === "") { return ""; }
+  switch (f) {
+    case "moneda": return fmtM(v);
+    case "porcentaje": return fmtP(v);
+    case "cantidad": return fmtCant(v);
+    case "numero": return fmtN(v, num(v) % 1 === 0 ? 0 : 2);
+    case "fecha": return /^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? fecTxt(String(v)) : esc(v);
+    case "texto": return esc(String(v));   // codigos: sin separador de miles
+  }
+  return typeof v === "number" ? fmtN(v, v % 1 === 0 ? 0 : 2) : esc(v);
+}
+// Columna de valor para el grafico: primero importes, despues cantidades o
+// numeros; nunca un codigo (columna de texto o con "codigo" en el nombre)
+function iaColValor(cols, fila) {
+  var pref = ["moneda", "cantidad", "numero", "porcentaje"], p, j, nom;
+  for (p = 0; p < pref.length; p++) {
+    for (j = 0; j < cols.length; j++) {
+      nom = String(cols[j].n || "").toLowerCase();
+      if (cols[j].f === pref[p] && typeof fila[j] === "number" && nom.indexOf("c\u00f3digo") < 0 && nom.indexOf("codigo") < 0) { return j; }
+    }
+  }
+  for (j = 0; j < cols.length; j++) {
+    nom = String(cols[j].n || "").toLowerCase();
+    if (typeof fila[j] === "number" && !cols[j].f && nom.indexOf("codigo") < 0 && nom.indexOf("c\u00f3digo") < 0) { return j; }
+  }
+  return -1;
+}
+function iaPintar(box, d, err, n) {
+  var h = "", cols = d.cols || [], filas = d.filas || [], i, j, iLab = -1, iVal = -1, g = d.grafico;
+  if (err || d.error) { box.innerHTML = '<div class="tx err">' + esc(err || d.error) + "</div>"; return; }
+  if (d.titulo) { h += '<div class="tt">' + esc(d.titulo) + "</div>"; }
+  if (d.texto) { h += '<div class="tx">' + esc(d.texto) + "</div>"; }
+  for (j = 0; j < cols.length; j++) {
+    if (iLab < 0 && filas.length && typeof filas[0][j] === "string" && cols[j].f !== "fecha" &&
+        String(cols[j].n || "").toLowerCase().indexOf("digo") < 0) { iLab = j; }
+  }
+  if (filas.length) { iVal = iaColValor(cols, filas[0]); }
+  if (cols.length === 1 && filas.length === 1) {
+    h += '<div class="big num" style="margin-top:12px;color:#FFAF22">' + iaFmt(filas[0][0], cols[0].f) + "</div>";
+  } else if (filas.length > 1 && iVal >= 0 && g && g !== "ninguno") {
+    h += '<div class="graf" id="iaG' + n + '" style="margin-top:16px"></div>';
+  }
+  if (filas.length && !(cols.length === 1 && filas.length === 1)) {
+    h += '<div class="ver-datos mut" onclick="var t=document.getElementById(\'iaT' + n + '\');t.style.display=t.style.display===\'none\'?\'block\':\'none\'">' +
+         "Ver datos (" + filas.length + (filas.length === 1 ? " fila" : " filas") + ")</div>" +
+         '<div id="iaT' + n + '" style="display:' + (filas.length <= 8 && (!g || g === "ninguno") ? "block" : "none") + ';margin-top:10px;max-height:340px;overflow:auto"></div>';
+  }
+  if (d.log) {
+    h += '<div class="califica mut">\u00bfTe sirvi\u00f3?<a id="iaB' + n + '" onclick="iaCalif(' + n + "," + d.log + ',\'B\')">S\u00ed</a><a id="iaM' + n + '" onclick="iaCalif(' + n + "," + d.log + ',\'M\')">No</a></div>';
+  }
+  box.innerHTML = h;
+  if ($("iaT" + n)) {
+    var tc = [];
+    for (j = 0; j < cols.length; j++) {
+      (function (jj) {
+        var der = filas.length && typeof filas[0][jj] === "number";
+        tc.push({ t: esc(cols[jj].n), k: jj, der: der, ell: !der, f: function (v) { return iaFmt(v, cols[jj].f); } });
+      })(j);
+    }
+    tabla($("iaT" + n), tc, filas);
+  }
+  if ($("iaG" + n)) {
+    var datos = [];
+    for (i = 0; i < filas.length; i++) { datos.push({ n: iLab >= 0 ? String(filas[i][iLab]) : String(i + 1), v: num(filas[i][iVal]) }); }
+    var fmtV = function (v) { return iaFmt(v, cols[iVal].f || "numero"); };
+    if (g === "torta" && datos.length <= 10) { dona($("iaG" + n), datos, { fmt: fmtV, fmtCentro: function (v) { return cols[iVal].f === "moneda" ? fmtMC(v) : fmtC(v); }, centro: "total" }); }
+    else if (g === "lineas") {
+      var et = [], dv = [];
+      for (i = 0; i < datos.length; i++) { et.push(String(datos[i].n).length > 10 ? String(datos[i].n).substr(0, 10) : datos[i].n); dv.push(datos[i].v); }
+      lineas($("iaG" + n), { etiquetas: et, alto: 230, fmt: fmtV, fmtEje: cols[iVal].f === "moneda" ? fmtMC : fmtC, series: [{ nombre: cols[iVal].n, datos: dv, color: PAL[0], area: true }] });
+    } else { barrasH($("iaG" + n), datos.slice(0, 15), { rank: true, unColor: true, fmt: fmtV }); }
+  }
+}
+function iaCalif(n, log, c) {
+  pedir("ia_calif", { log: log, calif: c });
+  var b = $("iaB" + n), m = $("iaM" + n);
+  if (b) { b.className = c === "B" ? "ok" : ""; }
+  if (m) { m.className = c === "M" ? "ok" : ""; }
+  iaHist = $("iaMsgs").innerHTML;
+}
+
+// =====================================================================
+// Arranque
+// =====================================================================
+function iniciar() {
+  armarNav();
+  $("btnCerrar").innerHTML = icono("cerrar", 15) + "Cerrar";
+  $("tOsc").innerHTML = icono("luna", 14) + "Oscuro";
+  $("tCla").innerHTML = icono("sol", 14) + "Claro";
+  $("tema").onclick = function () { aplicarTema(estado.tema === "oscuro" ? "claro" : "oscuro", true); };
+  $("cont").innerHTML = "";
+  cartelCarga(true, "Abriendo el tablero", 1);
+  pedir("init", {}, function (d) {
+    d = d || {};
+    if (d.hoy) { estado.hoy = deIso(d.hoy); }
+    estado.ia = !!d.ia;
+    // ?tema=claro&sec=ventas: para abrir directo en una seccion (pruebas)
+    var q = location.search, mt = /[?&]tema=(\w+)/.exec(q), ms = /[?&]sec=(\w+)/.exec(q);
+    aplicarTema(mt ? mt[1] : (d.tema || "oscuro"), false);
+    $("usu").innerHTML = "<b>" + esc(d.empresa || "") + '</b><span>Usuario: ' + esc(d.usuario || "") + "</span>";
+    var mpe = /[?&]per=(\w+)/.exec(q);
+    if (mpe) { estado.per = mpe[1]; }
+    calcPeriodo();
+    ir(ms && $("nav-" + ms[1]) ? ms[1] : "resumen");
+    var mp = /[?&]preguntar=([^&]+)/.exec(q);
+    if (mp && estado.sec === "ia") { setTimeout(function () { iaPreguntar(decodeURIComponent(mp[1].replace(/\+/g, " "))); }, 600); }
+    var mb = /[?&]bajar=(\d+)/.exec(q);
+    if (mb) { setTimeout(function () { $("cont").scrollTop = parseInt(mb[1], 10); }, 2500); }
+  });
+  setTimeout(function () {
+    if (!puente.vivo) { $("cont").innerHTML = '<div class="card vacio mut">Esta p\u00e1gina se usa desde el sistema BCN (Tablero de control).</div>'; }
+  }, 10000);
+  var tRes = null;
+  window.onresize = function () { clearTimeout(tRes); tRes = setTimeout(function () { if (estado.sec !== "ia") { redibujar(); } }, 250); };
+}
+iniciar();
+</script>
+</body>
+</html>

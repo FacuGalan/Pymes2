@@ -452,7 +452,7 @@ oGr  := ARRAY(oQry:nRecCount+1)
 aTab := ARRAY(oQry:nRecCount+1)
 AFILL(aTab,.f.)
 aTab[1] := .t.
-ADD GROUP oGr[1] RIBBON oBar TO OPTION 1 PROMPT "Inicio" width 540 
+ADD GROUP oGr[1] RIBBON oBar TO OPTION 1 PROMPT "Inicio" width 630 
 oQry:GoTop()
 DO WHILE !oQry:Eof()
    oBar:AddTab( ALLTRIM(oQry:etiqueta) )    
@@ -472,13 +472,15 @@ ENDDO
     ROUND SIZE 80,85  TOOLTIP "Agenda personalizada por usuario" ACTION Agenda()  
 @ 2,455 ADD BUTTON oBot PROMPT "Certificados"  GROUP oGr[1]  BITMAP "CERTIFI" ;   
     ROUND SIZE 80,85  TOOLTIP "Generacion de certificados digitales" ACTION GeneraCert()  
-@ 2,545 ADD BUTTON oBot PROMPT "Novedades"  GROUP oGr[1]  BITMAP "DEL_NOTIFICA" ;   
-    ROUND SIZE 80,85  TOOLTIP "Nuevas funciones" ACTION MostrarNovedades()
+/*@ 2,545 ADD BUTTON oBot PROMPT "Novedades"  GROUP oGr[1]  BITMAP "DEL_NOTIFICA" ;   
+    ROUND SIZE 80,85  TOOLTIP "Nuevas funciones" ACTION MostrarNovedades()*/
+@ 2,545 ADD BUTTON oBot PROMPT "Tablero"  GROUP oGr[1]  BITMAP "DEL_NOTIFICA" ;   
+    ROUND SIZE 80,85  TOOLTIP "Tablero de control" ACTION DashboardWeb()
 IF lProcesos  .and. oApp:usua_es_supervisor 
    oGr[1]:setSize(730)
    @ 2,635 ADD BUTTON oBot PROMPT "Procesos"  GROUP oGr[1]  BITMAP "CONF" ;   
     ROUND SIZE 80,85  TOOLTIP "Procesos Personalizados" ACTION ProcesosPer()  
-ENDIF    
+ENDIF   
 oQry := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"menu_nuevo WHERE (usuario="+;
         ClipValue2SQL(oApp:usuario)+ ") AND codigo <> padre AND modulo NOT IN "+cExcluidos+" ORDER BY codigo")
 i := 1
