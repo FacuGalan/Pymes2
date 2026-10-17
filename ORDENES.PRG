@@ -308,8 +308,9 @@ RETURN nil
 ** solo un ADMIN puede seguir). Devuelve .t. si se puede anular.
 STATIC FUNCTION AvisosOP(oQry)
 LOCAL cP := "ge_"+oApp:cId, cNum := ClipValue2Sql(oQry:numero), cTxt := "", cCaja := "", cTit, oQ, nRet
-// Caja: CIETUR marca checkeado/id_cierre en las OPs del turno que cierra
-IF oApp:oServer:Query("SELECT COUNT(*) AS n FROM "+cP+"ordpag WHERE numero = "+cNum+;
+// Caja: CIETUR marca checkeado/id_cierre en las OPs del turno que cierra.
+// La OP de ajuste de anticipo (ABMPRO) nace checkeada y no es de caja.
+IF !CtaProvEsAjusteAnt(oQry:observa) .AND. oApp:oServer:Query("SELECT COUNT(*) AS n FROM "+cP+"ordpag WHERE numero = "+cNum+;
                       " AND (IFNULL(id_cierre,0) > 0 OR IFNULL(checkeado,0) <> 0)"):n > 0
    cCaja := "- Ya esta incluida en un cierre de caja: al reimprimir ese turno se avisa que "+;
             "la orden se anulo despues del cierre."+CHR(10)+CHR(10)

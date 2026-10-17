@@ -1218,21 +1218,35 @@ RETURN .t.
 ***********************************
 ** Baja de registro
 STATIC FUNCTION Baja (  )
-LOCAL mrta := .f., oError
+LOCAL mrta := .f., oError, lConc := CtaProvConciliado(), aPag := {}, nPag := 0, aRes
 
-IF oQryBrw:saldo < oQryBrw:importe 
+// Con la cta cte conciliada se puede eliminar aunque tenga pagos: lo pagado
+// pasa a ser anticipo del proveedor (CTAPROV.PRG). Sin conciliar, no.
+IF lConc
+   aPag := CtaProvPagosComp(oQryBrw:codpro, oQryBrw:tipocomp, oQryBrw:letra, oQryBrw:numfac)
+   AEVAL(aPag, {|a| nPag += a[3] })
+ENDIF
+IF !lConc .AND. oQryBrw:saldo < oQryBrw:importe
   MsgStop("No se puede eliminar el comprobante porque ya tiene un pago imputado","Atencion!")
   RETURN nil
 ENDIF
 
-mrta := MsgNoYes("Seguro de eliminar"+CHR(10)+;
-                 "el documento Numero "+oQryBrw:letra+" "+oQryBrw:numfac,"Atencion")
+IF LEN(aPag) > 0
+   mrta := AvisoBajaPaga(aPag, nPag)
+ELSE
+   mrta := MsgNoYes("Seguro de eliminar"+CHR(10)+;
+                    "el documento Numero "+oQryBrw:letra+" "+oQryBrw:numfac,"Atencion")
+ENDIF
 IF !mrta
    RETURN nil
 ENDIF
+IF LEN(aPag) > 0
+   CtaProvCrearAnul()   // DDL: fuera de la transaccion
+ENDIF
 TRY
   oApp:oServer:BeginTransaction()
-  Auditar(1," "+oQryBrw:tipocomp+oQryBrw:letra+" "+oQryBrw:numfac+ " $"+STR(oQryBrw:importe,12,2)+" "+oQryBrw:nompro)
+  Auditar(1," "+oQryBrw:tipocomp+oQryBrw:letra+" "+oQryBrw:numfac+ " $"+STR(oQryBrw:importe,12,2)+" "+oQryBrw:nompro+;
+          IF(LEN(aPag) > 0, " CON PAGOS $"+ALLTRIM(STR(nPag,14,2)), ""))
   oApp:oServer:Execute("UPDATE ge_"+oApp:cId+"compradet c LEFT JOIN ge_"+oApp:cId+"articu a ON c.codart = a.codigo "+;
                        "SET a.stockact = a.stockact - IF(c.tipocomp='NC',c.cantidad*(-1),c.cantidad) " +;
                        "WHERE c.tipocomp = " + ClipValue2Sql(oQryBrw:tipocomp)+" "+;
@@ -1255,16 +1269,82 @@ TRY
                        "AND letra = " + ClipValue2Sql(oQryBrw:letra)+" "+;
                        "AND codpro = " + ClipValue2Sql(oQryBrw:codpro)+" "+;
                        "AND numfac = " + ClipValue2Sql(oQryBrw:numfac))
-  IF CtaProvConciliado()
+  IF LEN(aPag) > 0
+     // Registra el borrado, saca las imputaciones y recalcula
+     aRes := CtaProvBorrarComp(oQryBrw:codpro, oQryBrw:tipocomp, oQryBrw:letra, oQryBrw:numfac, ;
+                               oQryBrw:importe, oQryBrw:fecfac)
+  ELSEIF lConc
      RecalcCtaProv(oQryBrw:codpro)
   ENDIF
   oApp:oServer:CommitTransaction()
   oQryBrw:Refresh(.f.)
+  IF aRes <> nil .AND. ROUND(aRes[2] - aRes[1],2) <> 0
+     MsgInfo("Comprobante eliminado."+CHR(10)+CHR(10)+;
+             "Anticipo del proveedor:"+CHR(10)+;
+             "antes $ "+ALLTRIM(TRANSFORM(aRes[1],"999,999,999.99"))+CHR(10)+;
+             "ahora $ "+ALLTRIM(TRANSFORM(aRes[2],"999,999,999.99")),"Atencion")
+  ENDIF
 CATCH oError
   MsgStop("Error al borrar"+CHR(10)+oError:description,"Error")
   oApp:oServer:RollBack()
 END TRY
-RETURN nil 
+RETURN nil
+
+*************************************
+** Aviso antes de eliminar un comprobante con pagos (cliente conciliado).
+** Un comprobante de un mes anterior solo lo puede eliminar un ADMIN (el
+** libro de IVA de ese mes ya puede estar presentado).
+** Devuelve .t. si se confirma.
+STATIC FUNCTION AvisoBajaPaga(aPag, nPag)
+LOCAL cTxt, i, aSim, nTot := 0, lMesAnt
+lMesAnt := VALTYPE(oQryBrw:fecfac) = "D" .AND. oQryBrw:fecfac < DATE() - DAY(DATE()) + 1
+IF lMesAnt .AND. !CtaProvEsAdmin()
+   MsgStop("El comprobante "+oQryBrw:tipocomp+" "+oQryBrw:letra+" "+oQryBrw:numfac+" tiene pagos imputados y es "+;
+           "de un mes anterior."+CHR(10)+CHR(10)+"Solo un usuario ADMIN puede eliminarlo.","Atencion")
+   RETURN .f.
+ENDIF
+// Cuanto cambia el anticipo (y si una NC aplicada reabre facturas)
+aSim := CtaProvSimularBorrarComp(oQryBrw:codpro, oQryBrw:tipocomp, oQryBrw:letra, oQryBrw:numfac)
+cTxt := "El comprobante "+oQryBrw:tipocomp+" "+oQryBrw:letra+" "+oQryBrw:numfac+" de "+ALLTRIM(oQryBrw:nompro)+;
+        " tiene pagos imputados:"+CHR(10)+CHR(10)
+FOR i := 1 TO LEN(aPag)
+    IF i <= 10
+       cTxt += "   OP "+ALLTRIM(STR(aPag[i,1]))+" del "+IF(VALTYPE(aPag[i,2])="D",DTOC(aPag[i,2]),"")+;
+               "   $ "+ALLTRIM(TRANSFORM(aPag[i,3],"999,999,999.99"))+CHR(10)
+    ENDIF
+NEXT i
+IF LEN(aPag) > 10
+   cTxt += "   ... y "+ALLTRIM(STR(LEN(aPag)-10))+" mas"+CHR(10)
+ENDIF
+cTxt += CHR(10)
+IF oQryBrw:tipocomp = "NC"
+   cTxt += "Al eliminar la nota de credito, lo que se habia descontado con ella vuelve a deberse."+CHR(10)
+ELSE
+   cTxt += "Al eliminarlo, lo pagado ($ "+ALLTRIM(TRANSFORM(nPag,"999,999,999.99"))+") pasa a ser ANTICIPO del proveedor."+CHR(10)
+ENDIF
+cTxt += "Anticipo del proveedor: $ "+ALLTRIM(TRANSFORM(aSim[1],"999,999,999.99"))+;
+        " -> $ "+ALLTRIM(TRANSFORM(aSim[2],"999,999,999.99"))+CHR(10)
+IF LEN(aSim[3]) > 0
+   cTxt += CHR(10)+"No alcanza el anticipo: estas facturas dejan de estar pagadas y vuelven a tener saldo:"+CHR(10)
+   FOR i := 1 TO LEN(aSim[3])
+       IF i <= 8
+          cTxt += "   OP "+ALLTRIM(STR(aSim[3,i,1]))+": "+ALLTRIM(aSim[3,i,3])+" "+ALLTRIM(aSim[3,i,4])+" "+;
+                  ALLTRIM(aSim[3,i,5])+"   $ "+ALLTRIM(TRANSFORM(aSim[3,i,6],"999,999,999.99"))+CHR(10)
+       ENDIF
+       nTot += aSim[3,i,6]
+   NEXT i
+   IF LEN(aSim[3]) > 8
+      cTxt += "   ... y "+ALLTRIM(STR(LEN(aSim[3])-8))+" mas"+CHR(10)
+   ENDIF
+   cTxt += "   Total que vuelve a deberse: $ "+ALLTRIM(TRANSFORM(nTot,"999,999,999.99"))+CHR(10)
+ENDIF
+cTxt += CHR(10)+"Los pagos NO se anulan. Si el pago tambien estaba mal, anule la orden de pago en "+;
+        "Cancelacion de ordenes de pago."+CHR(10)
+IF lMesAnt
+   cTxt += CHR(10)+"Es de un mes anterior: el libro de IVA compras de ese mes cambia."+CHR(10)
+ENDIF
+cTxt += CHR(10)+"Elimina el comprobante igual?"
+RETURN MsgNoYes(cTxt,"Atencion")
 
 
 

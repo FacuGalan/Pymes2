@@ -7,7 +7,7 @@
 ** ABM DE PROVEEDORES
 *************************************************
 MEMVAR oApp
-STATIC oQryBrw,oWnd1, oBrw, oDlg, cVentana
+STATIC oQryBrw,oWnd1, oBrw, oDlg, cVentana, lAdmin
 PROCEDURE PROVEE(cPermisos)
 LOCAL oBar, hHand, oGetSeek, cSeek := SPACE(50),;
       aTipoIva :=  {"RESPONSABLE INSCRIPTO","RESPONSABLE NO INSCRIPTO", "NO RESPONSABLE",;
@@ -20,6 +20,7 @@ IF ASCAN(oApp:aVentanas,cVentana) > 0
    RETURN
 ENDIF
 AADD(oApp:aVentanas,cVentana)
+lAdmin := CtaProvEsAdmin()
 
 oQryBrw:= oApp:oServer:Query("SELECT Codigo,nombre,alias,localidad,telefono,cuit,coniva FROM ge_"+oApp:cId+"provee ORDER BY nombre")
                          
@@ -58,6 +59,11 @@ oQryBrw:= oApp:oServer:Query("SELECT Codigo,nombre,alias,localidad,telefono,cuit
             TOOLTIP "Códigos de artículos del proveedor"  ;
             ACTION (CodigosProv(), oBrw:Refresh());
             PROMPT "Art. Prov." TOP WHEN("A"$cPermisos)
+         // Ajuste de anticipo: solo ADMIN (CTAPROV.PRG)
+         DEFINE BUTTON RESOURCE "PAGO" OF oBar ;
+            TOOLTIP "Ajustar anticipo del proveedor"  ;
+            ACTION (AjusteAnticipo(), oBrw:Refresh());
+            PROMPT "Anticipo" TOP WHEN(lAdmin .AND. oQryBrw:RecCount()>0)
          // Este boton cierra la aplicacion
          DEFINE BUTTON RESOURCE "SALE" OF oBar;
             TOOLTIP "Cerrar Ventana" ;
@@ -298,6 +304,98 @@ RETURN nil
 
 
 ******************************************
+
+*************************************
+** Ajuste de anticipo (solo ADMIN): da de baja un anticipo que no es real
+** (ej: una OP que marco efectivo que nunca se pago) con una OP de ajuste
+** de total negativo y fecha de hoy (CTAPROV.PRG CtaProvAjustarAnticipo).
+** Sube la deuda en la cta cte; no toca la caja. Se deshace anulando esa
+** orden en Cancelacion de ordenes de pago.
+STATIC FUNCTION AjusteAnticipo()
+LOCAL oForm, oBrwA, aRow := {}, aNue, acor, oGet := ARRAY(3), oBot := ARRAY(2), lRta := .f., i,;
+      nCod := oQryBrw:codigo, cNom := ALLTRIM(oQryBrw:nombre), nAnt, nImp, cMot := SPACE(150), nOp, oError
+IF !CtaProvConciliado()
+   MsgStop("La cuenta corriente de proveedores de esta empresa no esta conciliada.","Atencion")
+   RETURN nil
+ENDIF
+nAnt := oApp:oServer:Query("SELECT IFNULL(saldo,0) AS saldo FROM ge_"+oApp:cId+"provee WHERE codigo = "+ClipValue2Sql(nCod)):saldo
+IF nAnt <= 0
+   MsgInfo("El proveedor no tiene anticipo.","Atencion")
+   RETURN nil
+ENDIF
+nImp := nAnt
+// Composicion del anticipo, para ver de donde sale antes de ajustarlo
+aNue := CtaProvComposicion(nCod)
+FOR i := 1 TO LEN(aNue)
+    aNue[i,1] := IF(EMPTY(aNue[i,1]), "", DTOC(aNue[i,1]))
+    AADD(aRow, aNue[i])
+NEXT i
+DEFINE DIALOG oForm TITLE "Ajustar anticipo - "+cNom FROM 03,10 TO 36,145 OF oWnd1 FONT oApp:oFont
+   acor := AcepCanc(oForm)
+   oForm:lHelpIcon := .f.
+   @ 05, 05 XBROWSE oBrwA SIZE 520,110 PIXEL OF oForm ARRAY aRow ;
+      HEADERS "Fecha","Detalle","OP","Pagado","Aplicado","Anticipo","Acumulado" ;
+      COLUMNS 1,2,3,4,5,6,7 ;
+      SIZES 70,490,50,90,90,90,90 ;
+      CELL LINES NOBORDER
+   WITH OBJECT oBrwA
+      :lHScroll := .f.
+      :aCols[1]:nDataStrAlign := AL_CENTER
+      :aCols[3]:cEditPicture := "@Z 99999999"
+      FOR i := 4 TO 7
+          :aCols[i]:cEditPicture := "@Z 999,999,999.99"
+      NEXT i
+      :CreateFromCode()
+   END
+   PintaBrw(oBrwA,0)
+   @122, 05 SAY "Anticipo actual:"  OF oForm PIXEL SIZE 60,10 TRANSPARENT RIGHT
+   @137, 05 SAY "Importe a anular:" OF oForm PIXEL SIZE 60,10 TRANSPARENT RIGHT
+   @152, 05 SAY "Motivo:"           OF oForm PIXEL SIZE 60,10 TRANSPARENT RIGHT
+   @120, 70 GET oGet[1] VAR nAnt OF oForm PIXEL PICTURE "999,999,999.99" SIZE 60,12 RIGHT WHEN(.F.)
+   @135, 70 GET oGet[2] VAR nImp OF oForm PIXEL PICTURE "999,999,999.99" SIZE 60,12 RIGHT
+   @150, 70 GET oGet[3] VAR cMot OF oForm PIXEL PICTURE "@!" SIZE 450,12
+   @167, 05 SAY "Se genera una orden de pago de ajuste con fecha de hoy que sube la deuda de la cuenta "+;
+                "corriente del proveedor. No modifica la caja. Si el error es reciente y la caja esta "+;
+                "abierta, conviene anular la orden de pago original. El ajuste se deshace anulando su orden." ;
+                OF oForm PIXEL SIZE 515,20 TRANSPARENT
+   @ acor[1],acor[2] BUTTON oBot[1] PROMPT "&Grabar" OF oForm SIZE 30,10 ;
+           ACTION IF(ValidaAjuste(nImp, nAnt, cMot, oGet), (lRta := .t., oForm:End()), nil) PIXEL
+   @ acor[3],acor[4] BUTTON oBot[2] PROMPT "&Cancelar" OF oForm SIZE 30,10 ;
+           ACTION ((lRta := .f.), oForm:End() ) PIXEL CANCEL
+ACTIVATE DIALOG oForm CENTER ON INIT oGet[2]:SetFocus()
+IF !lRta
+   RETURN nil
+ENDIF
+IF !MsgNoYes("Se anulan $ "+ALLTRIM(TRANSFORM(nImp,"999,999,999.99"))+" del anticipo de "+cNom+"."+CHR(10)+;
+             "La deuda en la cuenta corriente sube en ese importe."+CHR(10)+CHR(10)+"Confirma?","Atencion")
+   RETURN nil
+ENDIF
+TRY
+   oApp:oServer:BeginTransaction()
+   nOp := CtaProvAjustarAnticipo(nCod, nImp, cMot)
+   Auditar(2," AJUSTE ANTICIPO (orden "+ALLTRIM(STR(nOp))+") $"+ALLTRIM(STR(nImp,14,2))+" "+cNom+" "+ALLTRIM(cMot))
+   oApp:oServer:CommitTransaction()
+   MsgInfo("Ajuste grabado en la orden de pago "+ALLTRIM(STR(nOp))+"."+CHR(10)+;
+           "Anticipo actual: $ "+ALLTRIM(TRANSFORM(oApp:oServer:Query("SELECT IFNULL(saldo,0) AS saldo FROM ge_"+;
+           oApp:cId+"provee WHERE codigo = "+ClipValue2Sql(nCod)):saldo,"999,999,999.99")),"Atencion")
+CATCH oError
+   oApp:oServer:RollBack()
+   ValidaError(oError)
+END TRY
+RETURN nil
+
+STATIC FUNCTION ValidaAjuste(nImp, nAnt, cMot, oGet)
+IF nImp <= 0 .OR. ROUND(nImp,2) > ROUND(nAnt,2)
+   MsgStop("El importe tiene que ser mayor a cero y como maximo el anticipo actual.","Atencion")
+   oGet[2]:SetFocus()
+   RETURN .f.
+ENDIF
+IF EMPTY(cMot)
+   MsgStop("Ingrese el motivo del ajuste.","Atencion")
+   oGet[3]:SetFocus()
+   RETURN .f.
+ENDIF
+RETURN .t.
 
 STATIC FUNCTION FILT( )
 

@@ -215,7 +215,7 @@ oQry  := oApp:oServer:Query( "SELECT RES.* FROM (("+;
   "WHERE fecha BETWEEN " + ClipValue2Sql(mdesde) + " AND " + ClipValue2Sql(mhasta) +") "+;
   "UNION ALL ("+;
   "SELECT 'Pagos periodo' as concepto, 0 as debe, SUM(total) as haber FROM  ge_"+oApp:cId+"ordpag "+;
-  "WHERE fecha BETWEEN " + ClipValue2Sql(mdesde) + " AND " + ClipValue2Sql(mhasta) +") "+;
+  "WHERE fecha BETWEEN " + ClipValue2Sql(mdesde) + " AND " + ClipValue2Sql(mhasta)+" AND "+CtaProvSqlSinAjuste()+") "+;
   "UNION ALL ("+;
   "SELECT 'Faltantes / Sobrantes de caja' as concepto, 0 as debe, SUM(saldo) as haber FROM  ge_"+oApp:cId+"cajadiaria "+;
   "WHERE fecha BETWEEN " + ClipValue2Sql(mdesde) + " AND " + ClipValue2Sql(mhasta) +")) RES "  )

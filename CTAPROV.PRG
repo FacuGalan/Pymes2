@@ -28,6 +28,8 @@ MEMVAR oApp
 #define CP_OBS_AJUSTE   "AJUSTE CONCILIACION CTA CTE"
 #define CP_FECHA_AJUSTE "2000-01-01"
 #define CP_USU_AJUSTE   "CONCILIACION"
+// OP de ajuste de anticipo (ABMPRO, solo ADMIN): observa = prefijo + motivo
+#define CP_OBS_AJANT    "AJUSTE ANTICIPO"
 
 *************************************************
 ** Recalcula saldos de facturas y anticipo de un proveedor.
@@ -806,11 +808,35 @@ DO WHILE !oQ:Eof()
    ELSEIF nX <> 0
       AADD(aRow, { oQ:fecha, ;
                    IF(ALLTRIM(oQ:observa) == CP_OBS_AJUSTE, "Ajuste conciliacion cta cte", ;
-                      IF(nX > 0, "Pago de mas: genera anticipo", "Usa anticipo")), ;
+                   IF(CtaProvEsAjusteAnt(oQ:observa), "Ajuste de anticipo"+SUBSTR(ALLTRIM(oQ:observa),LEN(CP_OBS_AJANT)+1), ;
+                      IF(nX > 0, "Pago de mas: genera anticipo", "Usa anticipo"))), ;
                    oQ:numero, oQ:total, oQ:apl, nX, 0 })
    ENDIF
    oQ:Skip()
 ENDDO
+
+// OP anterior a la conciliacion que pagaba un comprobante eliminado despues
+// (COMPRAS): lo que le pagaba paso a anticipo DESPUES de conciliar, asi que
+// no va en el resumen inicial sino en una linea propia
+// Lo mismo con el arrastre del borrado (X): la OP dejo de pagar una factura.
+IF nCorte > 0 .AND. oSrv:Query("SHOW TABLES LIKE '"+cP+"ordpag_anul'"):RecCount() > 0
+   oQ := oSrv:Query("SELECT p.tipo, DATE(p.fecanul) AS fecanul, p.numero, p.importe, "+;
+                    " CONCAT(p.tipocomp,' ',p.letra,' ',p.numfac) AS comp, "+;
+                    " CONCAT(b.tipocomp,' ',b.letra,' ',b.numfac) AS borrado "+;
+                    "FROM "+cP+"ordpag_anul p JOIN "+cP+"ordpag_anul b ON b.id = p.grupo AND b.tipo = 'B' "+;
+                    "WHERE p.tipo IN ('P','X') AND p.proveedor = "+cCod+" AND p.numero <= "+ClipValue2Sql(nCorte)+;
+                    " AND EXISTS (SELECT 1 FROM "+cP+"ordpag o WHERE o.numero = p.numero) ORDER BY p.id")
+   oQ:GoTop()
+   DO WHILE !oQ:Eof()
+      nIni := ROUND(nIni - oQ:importe,2)
+      AADD(aRow, { oQ:fecanul, ;
+                   IF(oQ:tipo = "X", "Por el borrado de "+oQ:borrado+" la OP dejo de pagar "+oQ:comp, ;
+                   IF(oQ:importe < 0, "Eliminada "+oQ:comp+": lo que descontaba en la OP vuelve a deberse", ;
+                                      "Eliminado "+oQ:comp+": lo que le pagaba la OP pasa a anticipo")), ;
+                   oQ:numero, 0, 0, oQ:importe, 0 })
+      oQ:Skip()
+   ENDDO
+ENDIF
 
 // Aplicado de mas a una factura, o a un comprobante que ya no existe:
 // no descuenta del anticipo. Va al resumen inicial si la ultima OP que la
@@ -861,25 +887,37 @@ nGuard := oSrv:Query("SELECT IFNULL(saldo,0) AS saldo FROM "+cP+"provee WHERE co
 AADD(aRow, { dVacia, "ANTICIPO ACTUAL DEL PROVEEDOR"+;
              IF(ABS(nGuard - nAcu) > 0.004, " (NO COINCIDE CON EL DETALLE)", ""), 0, 0, 0, nGuard, nAcu })
 
-// Anulaciones que afectaron al proveedor
+// Anulaciones de OPs y comprobantes eliminados que afectaron al proveedor
 IF oSrv:Query("SHOW TABLES LIKE '"+cP+"ordpag_anul'"):RecCount() > 0
    oQ := oSrv:Query("SELECT tipo, DATE(fecanul) AS fecanul, usuario, anulada, numero, fecha, total, facturas, "+;
                     " anticipo_ant, anticipo_nue, CONCAT(tipocomp,' ',letra,' ',numfac) AS comp, importe, observa "+;
-                    "FROM "+cP+"ordpag_anul WHERE proveedor = "+cCod+" AND tipo IN ('O','X') "+;
-                    "ORDER BY grupo, IF(tipo='O',0,1), id")
+                    "FROM "+cP+"ordpag_anul WHERE proveedor = "+cCod+" AND tipo IN ('O','B','P','X') "+;
+                    "ORDER BY grupo, IF(tipo IN ('O','B'),0,1), id")
    IF oQ:RecCount() > 0
-      AADD(aRow, { dVacia, "--- OPS ANULADAS ---", 0, 0, 0, 0, 0 })
+      AADD(aRow, { dVacia, "--- OPS ANULADAS Y COMPROBANTES ELIMINADOS ---", 0, 0, 0, 0, 0 })
    ENDIF
    oQ:GoTop()
    DO WHILE !oQ:Eof()
-      IF oQ:tipo = "O"
+      IF oQ:tipo = "B"
+         lPre := .t.   // grupo de un comprobante eliminado (para el texto de las X)
+         AADD(aRow, { oQ:fecanul, "Eliminado "+oQ:comp+" del "+IF(VALTYPE(oQ:fecha)="D",DTOC(oQ:fecha),"")+;
+                      " ("+ALLTRIM(oQ:usuario)+"), tenia pagado $ "+ALLTRIM(TRANSFORM(oQ:facturas,"999,999,999.99"))+;
+                      IF(ROUND(oQ:anticipo_nue - oQ:anticipo_ant,2) <> 0, ;
+                         ": anticipo "+ALLTRIM(TRANSFORM(oQ:anticipo_ant,"999,999,999.99"))+" -> "+;
+                         ALLTRIM(TRANSFORM(oQ:anticipo_nue,"999,999,999.99")), ""), ;
+                      0, oQ:importe, oQ:facturas, 0, 0 })
+      ELSEIF oQ:tipo = "P"
+         AADD(aRow, { oQ:fecanul, "   lo pagaba la OP "+ALLTRIM(STR(oQ:numero))+" del "+;
+                      IF(VALTYPE(oQ:fecha)="D",DTOC(oQ:fecha),""), oQ:numero, 0, oQ:importe, 0, 0 })
+      ELSEIF oQ:tipo = "O"
+         lPre := .f.
          AADD(aRow, { oQ:fecanul, "Anulada OP "+ALLTRIM(STR(oQ:anulada))+" del "+IF(VALTYPE(oQ:fecha)="D",DTOC(oQ:fecha),"")+" ("+ALLTRIM(oQ:usuario)+")"+;
                       IF(ROUND(oQ:anticipo_nue - oQ:anticipo_ant,2) <> 0, ;
                          ": anticipo "+ALLTRIM(TRANSFORM(oQ:anticipo_ant,"999,999,999.99"))+" -> "+;
                          ALLTRIM(TRANSFORM(oQ:anticipo_nue,"999,999,999.99")), ""), ;
                       oQ:anulada, oQ:total, oQ:facturas, 0, 0 })
       ELSE
-         AADD(aRow, { oQ:fecanul, "   por la anulacion: la OP "+ALLTRIM(STR(oQ:numero))+;
+         AADD(aRow, { oQ:fecanul, IF(lPre == .t., "   por el borrado", "   por la anulacion")+": la OP "+ALLTRIM(STR(oQ:numero))+;
                       " dejo de pagar "+oQ:comp+" (vuelve a tener saldo)"+;
                       IF(EMPTY(oQ:observa), "", " - la OP quedo vacia y se elimino"), ;
                       oQ:numero, 0, -oQ:importe, 0, 0 })
@@ -888,3 +926,164 @@ IF oSrv:Query("SHOW TABLES LIKE '"+cP+"ordpag_anul'"):RecCount() > 0
    ENDDO
 ENDIF
 RETURN aRow
+
+*************************************************
+** BORRADO DE UN COMPROBANTE DE COMPRA CON PAGOS (cliente conciliado)
+** Lo que las OPs le habian aplicado deja de estar aplicado. La plata de
+** esas OPs no se toca, asi que pasa a ser anticipo del proveedor (borrar
+** una NC aplicada hace lo contrario: baja el anticipo y, si no alcanza,
+** facturas vuelven a tener saldo). Los pagos NO se anulan: si tambien
+** estaban mal, se anula la OP en ORDENES.
+** Se borran las imputaciones (ordfac) para que no se "peguen" solas a un
+** comprobante que se cargue despues con el mismo numero.
+
+*************************************************
+** Pagos imputados a un comprobante: { { numero_op, fecha_op, importe } }
+FUNCTION CtaProvPagosComp(nCodPro, cTipo, cLetra, cNumFac, oSrv, cId)
+LOCAL cP, oQ, aPag := {}
+DEFAULT oSrv := oApp:oServer, cId := oApp:cId
+cP := "ge_"+cId
+oQ := oSrv:Query("SELECT f.numero, o.fecha, SUM(f.importe) AS importe "+;
+                 "FROM "+cP+"ordfac f JOIN "+cP+"ordpag o ON o.numero = f.numero "+;
+                 "WHERE "+CtaProvWhereComp(nCodPro, cTipo, cLetra, cNumFac)+;
+                 " GROUP BY f.numero, o.fecha ORDER BY f.numero")
+oQ:GoTop()
+DO WHILE !oQ:Eof()
+   AADD(aPag, { oQ:numero, oQ:fecha, oQ:importe })
+   oQ:Skip()
+ENDDO
+RETURN aPag
+
+// Condicion de las imputaciones de un comprobante (alias f = ordfac, o = ordpag)
+STATIC FUNCTION CtaProvWhereComp(nCodPro, cTipo, cLetra, cNumFac)
+RETURN "o.proveedor = "+ClipValue2Sql(nCodPro)+" AND f.tipocomp = "+ClipValue2Sql(cTipo)+;
+       " AND f.letra = "+ClipValue2Sql(cLetra)+" AND f.numfac = "+ClipValue2Sql(cNumFac)
+
+*************************************************
+** Simula el borrado para avisar ANTES de confirmar: borra el comprobante y
+** recalcula dentro de una transaccion que siempre se deshace.
+** Devuelve { anticipo_antes, anticipo_despues, aArr } (aArr = facturas que
+** vuelven a tener saldo, ver RecalcCtaProv). NO llamar dentro de otra
+** transaccion.
+FUNCTION CtaProvSimularBorrarComp(nCodPro, cTipo, cLetra, cNumFac, oSrv, cId)
+LOCAL aArr := {}, cP, nAnt, nNue, oError
+DEFAULT oSrv := oApp:oServer, cId := oApp:cId
+cP   := "ge_"+cId
+nAnt := oSrv:Query("SELECT IFNULL(saldo,0) AS saldo FROM "+cP+"provee WHERE codigo = "+ClipValue2Sql(nCodPro)):saldo
+nNue := nAnt
+TRY
+   oSrv:BeginTransaction()
+   oSrv:Execute("DELETE FROM "+cP+"compras WHERE codpro = "+ClipValue2Sql(nCodPro)+;
+                " AND tipocomp = "+ClipValue2Sql(cTipo)+" AND letra = "+ClipValue2Sql(cLetra)+;
+                " AND numfac = "+ClipValue2Sql(cNumFac))
+   nNue := RecalcCtaProv(nCodPro, oSrv, cId, aArr)
+CATCH oError
+   aArr := {}
+   nNue := nAnt
+END TRY
+oSrv:RollBack()
+RETURN { nAnt, nNue, aArr }
+
+*************************************************
+** Se llama DENTRO de la transaccion de la baja, DESPUES de borrar el
+** comprobante y su detalle, con ordpag_anul ya creada (CtaProvCrearAnul).
+** Deja en ordpag_anul un grupo: B = el comprobante (facturas = lo que tenia
+** pagado), P = cada OP que lo pagaba, X = arrastre. Borra las imputaciones,
+** baja ordpag.facturas de esas OPs y recalcula.
+** Devuelve { anticipo_antes, anticipo_despues }.
+FUNCTION CtaProvBorrarComp(nCodPro, cTipo, cLetra, cNumFac, nImporte, dFecFac, oSrv, cId, cUsuario, cIp)
+LOCAL cP, cCod, cUsu, aPag, nApl := 0, nAntAnt, nAntNue, nGrp, aArr := {}, i
+DEFAULT oSrv := oApp:oServer, cId := oApp:cId, cUsuario := oApp:usuario, cIp := oApp:cIp
+cIp  := IF(VALTYPE(cIp) = "C", cIp, "")
+cP   := "ge_"+cId
+cCod := ClipValue2Sql(nCodPro)
+cUsu := ClipValue2Sql(LEFT(cUsuario,15))
+aPag := CtaProvPagosComp(nCodPro, cTipo, cLetra, cNumFac, oSrv, cId)
+AEVAL(aPag, {|a| nApl += a[3] })
+nAntAnt := oSrv:Query("SELECT IFNULL(saldo,0) AS saldo FROM "+cP+"provee WHERE codigo = "+cCod):saldo
+
+oSrv:Execute("INSERT INTO "+cP+"ordpag_anul "+;
+             "(tipo,fecanul,usuario,ip,proveedor,fecha,tipocomp,letra,numfac,importe,facturas,anticipo_ant,observa) VALUES ("+;
+             "'B',NOW(),"+cUsu+","+ClipValue2Sql(cIp)+","+cCod+","+ClipValue2Sql(dFecFac)+","+;
+             ClipValue2Sql(cTipo)+","+ClipValue2Sql(cLetra)+","+ClipValue2Sql(cNumFac)+","+;
+             ClipValue2Sql(nImporte)+","+ClipValue2Sql(ROUND(nApl,2))+","+ClipValue2Sql(nAntAnt)+",'COMPROBANTE ELIMINADO')")
+nGrp := oSrv:LastInsertID()
+oSrv:Execute("UPDATE "+cP+"ordpag_anul SET grupo = id WHERE id = "+ClipValue2Sql(nGrp))
+
+FOR i := 1 TO LEN(aPag)
+    oSrv:Execute("INSERT INTO "+cP+"ordpag_anul "+;
+                 "(grupo,tipo,fecanul,usuario,ip,proveedor,numero,fecha,tipocomp,letra,numfac,importe) VALUES ("+;
+                 ClipValue2Sql(nGrp)+",'P',NOW(),"+cUsu+","+ClipValue2Sql(cIp)+","+cCod+","+;
+                 ClipValue2Sql(aPag[i,1])+","+ClipValue2Sql(aPag[i,2])+","+ClipValue2Sql(cTipo)+","+;
+                 ClipValue2Sql(cLetra)+","+ClipValue2Sql(cNumFac)+","+ClipValue2Sql(aPag[i,3])+")")
+    // En las NC la imputacion va en negativo: facturas sube
+    oSrv:Execute("UPDATE "+cP+"ordpag SET facturas = GREATEST(0, IFNULL(facturas,0) - "+ClipValue2Sql(aPag[i,3])+") "+;
+                 "WHERE numero = "+ClipValue2Sql(aPag[i,1]))
+NEXT i
+oSrv:Execute("DELETE f FROM "+cP+"ordfac f JOIN "+cP+"ordpag o ON o.numero = f.numero "+;
+             "WHERE "+CtaProvWhereComp(nCodPro, cTipo, cLetra, cNumFac))
+
+RecalcCtaProv(nCodPro, oSrv, cId, aArr)
+FOR i := 1 TO LEN(aArr)
+    oSrv:Execute("INSERT INTO "+cP+"ordpag_anul "+;
+                 "(grupo,tipo,fecanul,usuario,ip,proveedor,numero,fecha,tipocomp,letra,numfac,importe,observa) VALUES ("+;
+                 ClipValue2Sql(nGrp)+",'X',NOW(),"+cUsu+","+ClipValue2Sql(cIp)+","+cCod+","+;
+                 ClipValue2Sql(aArr[i,1])+","+ClipValue2Sql(aArr[i,2])+","+ClipValue2Sql(aArr[i,3])+","+;
+                 ClipValue2Sql(aArr[i,4])+","+ClipValue2Sql(aArr[i,5])+","+ClipValue2Sql(aArr[i,6])+","+;
+                 IF(aArr[i,7], "'OP ELIMINADA: QUEDO SIN FACTURAS NI PAGOS'", "''")+")")
+NEXT i
+nAntNue := oSrv:Query("SELECT IFNULL(saldo,0) AS saldo FROM "+cP+"provee WHERE codigo = "+cCod):saldo
+oSrv:Execute("UPDATE "+cP+"ordpag_anul SET anticipo_nue = "+ClipValue2Sql(nAntNue)+" WHERE id = "+ClipValue2Sql(nGrp))
+RETURN { nAntAnt, nAntNue }
+
+*************************************************
+** AJUSTE DE ANTICIPO (solo ADMIN, desde ABMPRO): da de baja un anticipo
+** que no es real (ej: una OP que marco efectivo que nunca se pago).
+** Genera una OP de total NEGATIVO con fecha de hoy, sin facturas, concepto
+** 6 (AJUSTE: no lo suma ningun cierre ni listado de caja), checkeado (queda
+** fuera de los cierres) y caja 0. En la cta cte es un movimiento que sube
+** la deuda. No corrige la caja del dia de la OP original (a proposito).
+** Se deshace anulando esa OP en ORDENES.
+** Se llama DENTRO de una transaccion. Devuelve el numero de la OP.
+FUNCTION CtaProvAjustarAnticipo(nCodPro, nImporte, cMotivo, oSrv, cId, cUsuario, cIp)
+LOCAL cP, nOp
+DEFAULT oSrv := oApp:oServer, cId := oApp:cId, cUsuario := oApp:usuario, cIp := oApp:cIp
+cIp := IF(VALTYPE(cIp) = "C", cIp, "")
+cP  := "ge_"+cId
+oSrv:Execute("INSERT INTO "+cP+"ordpag "+;
+             "(proveedor,total,facturas,observa,fecha,caja,usuario,fecmod,ip,demo,numeroop,checkeado) VALUES ("+;
+             ClipValue2Sql(nCodPro)+","+ClipValue2Sql(-ROUND(nImporte,2))+",0,"+;
+             ClipValue2Sql(LEFT(CP_OBS_AJANT+": "+ALLTRIM(cMotivo),255))+",CURDATE(),0,"+;
+             ClipValue2Sql(LEFT(cUsuario,15))+",CURDATE(),"+ClipValue2Sql(cIp)+",0,0,1)")
+nOp := oSrv:LastInsertID()
+oSrv:Execute("INSERT INTO "+cP+"ordcon (numero,codcon,importe,observa) VALUES ("+;
+             ClipValue2Sql(nOp)+",6,"+ClipValue2Sql(-ROUND(nImporte,2))+",'AJUSTE ANTICIPO')")
+RecalcCtaProv(nCodPro, oSrv, cId)
+RETURN nOp
+
+*************************************************
+** .t. si la observacion es la de una OP de ajuste de anticipo
+FUNCTION CtaProvEsAjusteAnt(cObs)
+RETURN VALTYPE(cObs) = "C" .AND. LEFT(ALLTRIM(cObs), LEN(CP_OBS_AJANT)) == CP_OBS_AJANT
+
+*************************************************
+** .t. si el usuario actual es ADMIN
+FUNCTION CtaProvEsAdmin(oSrv, cId)
+LOCAL oQ, u
+DEFAULT oSrv := oApp:oServer, cId := oApp:cId
+oQ := oSrv:Query("SELECT IF(tipo='ADMIN',1,0) AS admin FROM ge_"+cId+"usuarios WHERE usuario = "+ClipValue2Sql(oApp:usuario))
+IF oQ:RecCount() = 0
+   RETURN .f.
+ENDIF
+u := oQ:admin
+RETURN IF(VALTYPE(u) = "L", u, u = 1)
+
+*************************************************
+** Condicion SQL que deja afuera las OPs de ajuste (conciliacion y ajuste
+** de anticipo): no son pagos, para los listados que suman ordpag.total.
+** cA = alias de ordpag ("" sin alias).
+FUNCTION CtaProvSqlSinAjuste(cA)
+LOCAL cCol
+DEFAULT cA := ""
+cCol := "IFNULL("+IF(EMPTY(cA), "", cA+".")+"observa,'')"
+RETURN "("+cCol+" <> '"+CP_OBS_AJUSTE+"' AND "+cCol+" NOT LIKE '"+CP_OBS_AJANT+"%')"
