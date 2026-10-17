@@ -327,8 +327,8 @@ RETURN nil
 ** Validacion de Usuarios
 STATIC FUNCTION ingreso()
 LOCAL retorno := .f., aVar := ARRAY(2), oDlg, oBot := ARRAY(2),oGet := ARRAY(2),;
-      oQry, oBit
-IF FILE("BCN_administra.DLL") .and. nCliente > 0   
+      oQry, oBit, oTimer
+IF FILE("BCN_administra.DLL") .and. nCliente > 0
 
    ELSE
    ValidarVersion()   
@@ -351,8 +351,11 @@ DEFINE DIALOG oDlg RESOURCE "ACCESO" TITLE "Acceso al Sistema" FONT oApp:oFont
    oGet[2]:lPassword := .t.
    REDEFINE BUTTON oBot[1] ID 102 ACTION (retorno := .t.,oDlg:end())
    REDEFINE BUTTON oBot[2] ID 103 ACTION (retorno := .f.,oDlg:end())
-ACTIVATE DIALOG oDlg CENTER
-IF !retorno   
+   // Ping mientras el login queda abierto, para que no se caiga la conexion
+   DEFINE TIMER oTimer INTERVAL 60000 ACTION PingLogin() OF oDlg
+ACTIVATE DIALOG oDlg CENTER ON INIT oTimer:Activate()
+oTimer:End()
+IF !retorno
    RETURN retorno
 ENDIF
 oQry := oApp:oServer:Query( "SELECT * FROM ge_"+oApp:cId+"usuarios WHERE usuario = " +;
@@ -372,6 +375,16 @@ EXIT
 ENDDO
 RETURN retorno
 
+
+// Ping del login: no usa Pinguear() porque todavia no existe oApp:oWnd
+STATIC FUNCTION PingLogin()
+LOCAL oError
+TRY
+   oApp:oServer:Query("SELECT 1")
+CATCH oError
+   oApp:oServer:Ping()
+END TRY
+RETURN nil
 
 //** Actualizar la version
 STATIC FUNCTION ValidarVersion()
